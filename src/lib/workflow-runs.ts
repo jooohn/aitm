@@ -44,14 +44,16 @@ export interface ListWorkflowRunsFilter {
   status?: WorkflowRunStatus;
 }
 
+type PreviousExecutionHandoff = {
+  state: string;
+  handoff_summary: string;
+  log_file_path: string;
+};
+
 function buildStatePrompt(
   goal: string,
   transitions: Array<{ state?: string; terminal?: string; when: string }>,
-  previousExecution?: {
-    state: string;
-    handoff_summary: string;
-    log_file_path: string;
-  },
+  previousExecutions: PreviousExecutionHandoff[],
 ): string {
   const transitionList = transitions
     .map((t) => {
@@ -75,15 +77,17 @@ function buildStatePrompt(
     "</transitions>",
   ];
 
-  if (previousExecution) {
-    parts.push(
-      "",
-      "<handoff>",
-      `Previous state: ${previousExecution.state}`,
-      `Summary: ${previousExecution.handoff_summary}`,
-      `Full log: ${previousExecution.log_file_path}`,
-      "</handoff>",
-    );
+  if (previousExecutions.length > 0) {
+    parts.push("", "<handoff>", "Previous states (oldest first):", "");
+    for (const prev of previousExecutions) {
+      parts.push(
+        `State: ${prev.state}`,
+        `Summary: ${prev.handoff_summary}`,
+        `Log: ${prev.log_file_path}`,
+        "",
+      );
+    }
+    parts.push("</handoff>");
   }
 
   return parts.join("\n");
@@ -95,11 +99,7 @@ function startStateExecution(
   repositoryPath: string,
   worktreeBranch: string,
   workflowName: string,
-  previousExecution?: {
-    state: string;
-    handoff_summary: string;
-    log_file_path: string;
-  },
+  previousExecutions: PreviousExecutionHandoff[],
 ): StateExecution {
   const workflows = getConfigWorkflows();
   const workflow = workflows[workflowName];
@@ -115,7 +115,7 @@ function startStateExecution(
       terminal?: string;
       when: string;
     }>,
-    previousExecution,
+    previousExecutions,
   );
 
   const session = insertSession({
@@ -180,6 +180,7 @@ export function createWorkflowRun(input: CreateWorkflowRunInput): WorkflowRun {
     input.repository_path,
     input.worktree_branch,
     input.workflow_name,
+    [],
   );
 
   return db
@@ -219,7 +220,7 @@ export function completeStateExecution(
     return;
   }
 
-  const { transition, handoff_summary } = decision;
+  const { transition } = decision;
 
   if (transition === "success" || transition === "failure") {
     terminateRun(run.id, transition, now);
@@ -239,10 +240,22 @@ export function completeStateExecution(
     "UPDATE workflow_runs SET current_state = ?, updated_at = ? WHERE id = ?",
   ).run(transition, now, run.id);
 
-  // Get previous session info for handoff.
-  const previousSession = db
-    .prepare("SELECT * FROM sessions WHERE id = ?")
-    .get(execution.session_id) as { log_file_path: string } | undefined;
+  // Collect all completed executions (including the current one, now committed) for handoff.
+  const previousExecutions = (
+    db
+      .prepare(
+        `SELECT se.state, se.handoff_summary, s.log_file_path
+         FROM state_executions se
+         JOIN sessions s ON se.session_id = s.id
+         WHERE se.workflow_run_id = ? AND se.completed_at IS NOT NULL
+         ORDER BY se.created_at ASC`,
+      )
+      .all(run.id) as Array<{
+      state: string;
+      handoff_summary: string | null;
+      log_file_path: string;
+    }>
+  ).filter((e): e is PreviousExecutionHandoff => e.handoff_summary !== null);
 
   startStateExecution(
     run.id,
@@ -250,13 +263,7 @@ export function completeStateExecution(
     run.repository_path,
     run.worktree_branch,
     run.workflow_name,
-    previousSession
-      ? {
-          state: execution.state,
-          handoff_summary,
-          log_file_path: previousSession.log_file_path,
-        }
-      : undefined,
+    previousExecutions,
   );
 }
 

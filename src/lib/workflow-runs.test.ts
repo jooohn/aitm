@@ -251,7 +251,7 @@ describe("completeStateExecution", () => {
     expect(updatedRun?.current_state).toBeNull();
   });
 
-  it("passes handoff context to the new session goal", () => {
+  it("passes all previous executions as handoff context to the new session goal", () => {
     const { run, execution } = setupRunAtPlan();
 
     completeStateExecution(execution.id, {
@@ -264,14 +264,38 @@ describe("completeStateExecution", () => {
       .prepare(
         "SELECT * FROM state_executions WHERE workflow_run_id = ? AND state = 'implement'",
       )
-      .get(run.id) as { session_id: string };
+      .get(run.id) as { session_id: string; id: string };
 
-    const session = db
+    const implementSession = db
       .prepare("SELECT * FROM sessions WHERE id = ?")
       .get(implementExec.session_id) as { goal: string };
 
-    expect(session.goal).toContain("Created PLAN.md with approach");
-    expect(session.goal).toContain("plan");
+    // implement session should contain the plan handoff
+    expect(implementSession.goal).toContain("Created PLAN.md with approach");
+    expect(implementSession.goal).toContain("plan");
+
+    // Now complete implement and check the next session sees BOTH prior executions
+    completeStateExecution(implementExec.id, {
+      transition: "implement",
+      reason: "Still working",
+      handoff_summary: "Wrote src/index.ts",
+    });
+
+    const implement2Exec = db
+      .prepare(
+        `SELECT * FROM state_executions
+         WHERE workflow_run_id = ? AND state = 'implement'
+         ORDER BY created_at DESC LIMIT 1`,
+      )
+      .get(run.id) as { session_id: string };
+
+    const implement2Session = db
+      .prepare("SELECT * FROM sessions WHERE id = ?")
+      .get(implement2Exec.session_id) as { goal: string };
+
+    // Second implement session should contain BOTH prior handoffs
+    expect(implement2Session.goal).toContain("Created PLAN.md with approach");
+    expect(implement2Session.goal).toContain("Wrote src/index.ts");
   });
 });
 
