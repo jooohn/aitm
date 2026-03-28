@@ -1,0 +1,37 @@
+@reference "tailwindcss";
+
+.page {
+  @apply max-w-2xl mx-auto px-6 py-12 flex flex-col gap-8;
+}
+
+.breadcrumb {
+  @apply flex items-center gap-2 text-sm text-zinc-500;
+}
+
+.breadcrumbLink {
+  @apply hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors;
+}
+
+.breadcrumbSep {
+  @apply select-none;
+}
+
+.heading {
+  @apply text-2xl font-semibold text-zinc-900 dark:text-zinc-50;
+}
+
+.details {
+  @apply flex flex-col divide-y divide-zinc-200 dark:divide-zinc-700;
+}
+
+.row {
+  @apply py-4 flex flex-col gap-1 sm:flex-row sm:gap-8;
+}
+
+.label {
+  @apply text-sm font-medium text-zinc-500 sm:w-32 shrink-0;
+}
+
+.value {
+  @apply text-sm font-mono text-zinc-800 dark:text-zinc-200;
+}

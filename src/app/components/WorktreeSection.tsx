@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
   createWorktree,
@@ -87,7 +88,12 @@ export default function WorktreeSection({ organization, name }: Props) {
           {worktrees.map((w) => (
             <li key={w.branch || w.path} className={styles.item}>
               <div className={styles.info}>
-                <span className={styles.branch}>{w.branch || "(bare)"}</span>
+                <Link
+                  href={`/repositories/${organization}/${name}/worktrees/${w.branch}`}
+                  className={styles.branch}
+                >
+                  {w.branch || "(bare)"}
+                </Link>
                 <span className={styles.path}>{w.path}</span>
                 <span className={styles.head}>{w.head}</span>
               </div>

@@ -29,7 +29,7 @@
 }
 
 .branch {
-  @apply text-sm font-medium text-zinc-900 dark:text-zinc-100 truncate;
+  @apply text-sm font-medium text-zinc-900 dark:text-zinc-100 truncate hover:underline;
 }
 
 .path {
