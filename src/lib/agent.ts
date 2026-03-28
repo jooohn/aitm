@@ -232,3 +232,105 @@ export function cancelAgent(sessionId: string): void {
     controller.abort();
   }
 }
+
+export interface TransitionDecision {
+  transition: string;
+  reason: string;
+  handoff_summary: string;
+}
+
+const TRANSITION_OUTPUT_FORMAT = {
+  type: "json_schema" as const,
+  schema: {
+    type: "object",
+    properties: {
+      transition: { type: "string" },
+      reason: { type: "string" },
+      handoff_summary: { type: "string" },
+    },
+    required: ["transition", "reason", "handoff_summary"],
+    additionalProperties: false,
+  },
+};
+
+/**
+ * Start a Claude Code agent for a workflow state execution. Fire-and-forget.
+ * Uses outputFormat to constrain Claude's final output to a transition decision.
+ * Calls onComplete when done (with structured decision or null on failure).
+ */
+export async function startWorkflowStateAgent(
+  sessionId: string,
+  repoPath: string,
+  worktreeBranch: string,
+  prompt: string,
+  logFilePath: string,
+  onComplete: (decision: TransitionDecision | null) => void,
+): Promise<void> {
+  await Promise.resolve();
+
+  writeFileSync(logFilePath, "", "utf8");
+
+  let worktreePath: string;
+  try {
+    const worktrees = listWorktrees(repoPath);
+    const worktree = worktrees.find((w) => w.branch === worktreeBranch);
+    if (!worktree) throw new Error(`Worktree not found: ${worktreeBranch}`);
+    worktreePath = worktree.path;
+  } catch (err) {
+    appendToLog(logFilePath, {
+      type: "error",
+      message: err instanceof Error ? err.message : String(err),
+    });
+    setStatus(sessionId, "FAILED");
+    onComplete(null);
+    return;
+  }
+
+  const abortController = new AbortController();
+  activeAbortControllers.set(sessionId, abortController);
+
+  const canUseTool = createToolPermissionHandler(sessionId, logFilePath);
+
+  let decision: TransitionDecision | null = null;
+  try {
+    for await (const message of query({
+      prompt,
+      options: {
+        cwd: worktreePath,
+        permissionMode: "acceptEdits",
+        abortController,
+        canUseTool,
+        outputFormat: TRANSITION_OUTPUT_FORMAT,
+      },
+    })) {
+      appendToLog(logFilePath, message);
+
+      if (message.type === "system" && message.subtype === "init") {
+        setClaudeSession(sessionId, message.session_id);
+      }
+
+      if (message.type === "result") {
+        if (message.subtype === "success" && message.structured_output) {
+          decision = message.structured_output as TransitionDecision;
+        }
+        setStatus(
+          sessionId,
+          message.subtype === "success" ? "SUCCEEDED" : "FAILED",
+        );
+      }
+    }
+  } catch (err) {
+    if (!(err instanceof AbortError)) {
+      appendToLog(logFilePath, {
+        type: "error",
+        message: err instanceof Error ? err.message : String(err),
+      });
+      setStatus(sessionId, "FAILED");
+    }
+  } finally {
+    activeAbortControllers.delete(sessionId);
+    pendingInputs.delete(sessionId);
+  }
+
+  onComplete(decision);
+}

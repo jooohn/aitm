@@ -143,3 +143,78 @@ export async function sendMessage(
     body: JSON.stringify({ content }),
   });
 }
+
+export type WorkflowRunStatus = "running" | "success" | "failure";
+
+export interface WorkflowTransition {
+  state?: string;
+  terminal?: "success" | "failure";
+  when: string;
+}
+
+export interface WorkflowState {
+  goal: string;
+  transitions: WorkflowTransition[];
+}
+
+export interface WorkflowDefinition {
+  initial_state: string;
+  states: Record<string, WorkflowState>;
+}
+
+export interface WorkflowRun {
+  id: string;
+  repository_path: string;
+  worktree_branch: string;
+  workflow_name: string;
+  current_state: string | null;
+  status: WorkflowRunStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StateExecution {
+  id: string;
+  workflow_run_id: string;
+  state: string;
+  session_id: string;
+  transition_decision: string | null;
+  handoff_summary: string | null;
+  created_at: string;
+  completed_at: string | null;
+}
+
+export interface WorkflowRunDetail extends WorkflowRun {
+  state_executions: StateExecution[];
+}
+
+export function fetchWorkflows(): Promise<Record<string, WorkflowDefinition>> {
+  return apiFetch("/api/workflows");
+}
+
+export function fetchWorkflowRuns(
+  repositoryPath: string,
+  worktreeBranch: string,
+): Promise<WorkflowRun[]> {
+  const params = new URLSearchParams({
+    repository_path: repositoryPath,
+    worktree_branch: worktreeBranch,
+  });
+  return apiFetch(`/api/workflow-runs?${params}`);
+}
+
+export function createWorkflowRun(input: {
+  repository_path: string;
+  worktree_branch: string;
+  workflow_name: string;
+}): Promise<WorkflowRun> {
+  return apiFetch("/api/workflow-runs", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+}
+
+export function fetchWorkflowRun(id: string): Promise<WorkflowRunDetail> {
+  return apiFetch(`/api/workflow-runs/${id}`);
+}

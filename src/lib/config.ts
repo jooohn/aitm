@@ -13,8 +13,23 @@ export interface ConfigRepository {
   path: string;
 }
 
+export type WorkflowTransition =
+  | { state: string; when: string }
+  | { terminal: "success" | "failure"; when: string };
+
+export interface WorkflowState {
+  goal: string;
+  transitions: WorkflowTransition[];
+}
+
+export interface WorkflowDefinition {
+  initial_state: string;
+  states: Record<string, WorkflowState>;
+}
+
 interface Config {
   repositories?: ConfigRepository[];
+  workflows?: Record<string, WorkflowDefinition>;
 }
 
 function readConfig(): Config {
@@ -27,4 +42,8 @@ function readConfig(): Config {
 
 export function getConfigRepositories(): ConfigRepository[] {
   return readConfig().repositories ?? [];
+}
+
+export function getConfigWorkflows(): Record<string, WorkflowDefinition> {
+  return readConfig().workflows ?? {};
 }

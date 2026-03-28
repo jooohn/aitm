@@ -50,4 +50,26 @@ db.exec(`
     content    TEXT    NOT NULL,
     created_at TEXT    NOT NULL
   );
+
+  CREATE TABLE IF NOT EXISTS workflow_runs (
+    id               TEXT    PRIMARY KEY,
+    repository_path  TEXT    NOT NULL,
+    worktree_branch  TEXT    NOT NULL,
+    workflow_name    TEXT    NOT NULL,
+    current_state    TEXT,
+    status           TEXT    NOT NULL DEFAULT 'running',
+    created_at       TEXT    NOT NULL,
+    updated_at       TEXT    NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS state_executions (
+    id                  TEXT    PRIMARY KEY,
+    workflow_run_id     TEXT    NOT NULL REFERENCES workflow_runs(id),
+    state               TEXT    NOT NULL,
+    session_id          TEXT    NOT NULL REFERENCES sessions(id),
+    transition_decision TEXT,
+    handoff_summary     TEXT,
+    created_at          TEXT    NOT NULL,
+    completed_at        TEXT
+  );
 `);

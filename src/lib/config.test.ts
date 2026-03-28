@@ -2,7 +2,7 @@ import { mkdirSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { getConfigRepositories } from "./config";
+import { getConfigRepositories, getConfigWorkflows } from "./config";
 
 let configFile: string;
 
@@ -44,5 +44,95 @@ repositories:
       { path: "/projects/org/repo1" },
       { path: "/projects/org/repo2" },
     ]);
+  });
+});
+
+describe("getConfigWorkflows", () => {
+  it("returns empty object when config file does not exist", () => {
+    expect(getConfigWorkflows()).toEqual({});
+  });
+
+  it("returns empty object when workflows key is absent", () => {
+    writeFileSync(configFile, "repositories: []\n");
+    expect(getConfigWorkflows()).toEqual({});
+  });
+
+  it("parses a workflow with states and next-state transitions", () => {
+    writeFileSync(
+      configFile,
+      `
+workflows:
+  my-flow:
+    initial_state: plan
+    states:
+      plan:
+        goal: "Write a plan"
+        transitions:
+          - state: implement
+            when: "plan is ready"
+          - terminal: failure
+            when: "cannot proceed"
+      implement:
+        goal: "Write the code"
+        transitions:
+          - terminal: success
+            when: "code is done"
+`,
+    );
+
+    const workflows = getConfigWorkflows();
+
+    expect(workflows).toHaveProperty("my-flow");
+    const flow = workflows["my-flow"];
+    expect(flow.initial_state).toBe("plan");
+    expect(flow.states).toHaveProperty("plan");
+    expect(flow.states).toHaveProperty("implement");
+
+    const planState = flow.states.plan;
+    expect(planState.goal).toBe("Write a plan");
+    expect(planState.transitions).toHaveLength(2);
+    expect(planState.transitions[0]).toEqual({
+      state: "implement",
+      when: "plan is ready",
+    });
+    expect(planState.transitions[1]).toEqual({
+      terminal: "failure",
+      when: "cannot proceed",
+    });
+
+    const implementState = flow.states.implement;
+    expect(implementState.transitions[0]).toEqual({
+      terminal: "success",
+      when: "code is done",
+    });
+  });
+
+  it("parses multiple workflows", () => {
+    writeFileSync(
+      configFile,
+      `
+workflows:
+  flow-a:
+    initial_state: step1
+    states:
+      step1:
+        goal: "Do step 1"
+        transitions:
+          - terminal: success
+            when: "done"
+  flow-b:
+    initial_state: start
+    states:
+      start:
+        goal: "Do start"
+        transitions:
+          - terminal: success
+            when: "done"
+`,
+    );
+
+    const workflows = getConfigWorkflows();
+    expect(Object.keys(workflows)).toContain("flow-a");
+    expect(Object.keys(workflows)).toContain("flow-b");
   });
 });

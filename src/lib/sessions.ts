@@ -44,7 +44,11 @@ function sessionsLogDir(): string {
   return dir;
 }
 
-export function createSession(input: CreateSessionInput): Session {
+/**
+ * Insert a session record without starting an agent.
+ * Used by workflow state executions that start their own agent variant.
+ */
+export function insertSession(input: CreateSessionInput): Session {
   const id = randomUUID();
   const now = new Date().toISOString();
   const log_file_path = join(sessionsLogDir(), `${id}.log`);
@@ -66,17 +70,23 @@ export function createSession(input: CreateSessionInput): Session {
     now,
   );
 
+  return getSession(id) as Session;
+}
+
+export function createSession(input: CreateSessionInput): Session {
+  const session = insertSession(input);
+
   // Start the agent asynchronously — errors are handled inside startAgent.
   startAgent(
-    id,
+    session.id,
     input.repository_path,
     input.worktree_branch,
     input.goal,
     input.completion_condition,
-    log_file_path,
+    session.log_file_path,
   ).catch(console.error);
 
-  return getSession(id) as Session;
+  return session;
 }
 
 export function listSessions(filter: ListSessionsFilter = {}): Session[] {
