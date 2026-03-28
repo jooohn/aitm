@@ -1,0 +1,57 @@
+import { mkdirSync } from "fs";
+import { NextRequest } from "next/server";
+import { tmpdir } from "os";
+import { join } from "path";
+import { beforeEach, describe, expect, it } from "vitest";
+import { db } from "@/lib/db";
+import { registerRepository } from "@/lib/repositories";
+import { createSession } from "@/lib/sessions";
+import { GET } from "./route";
+
+function makeFakeGitRepo(): string {
+  const dir = join(
+    tmpdir(),
+    `aitm-test-${Math.random().toString(36).slice(2)}`,
+  );
+  mkdirSync(join(dir, ".git"), { recursive: true });
+  return dir;
+}
+
+function makeParams(id: string): { params: Promise<{ id: string }> } {
+  return { params: Promise.resolve({ id }) };
+}
+
+beforeEach(() => {
+  db.prepare("DELETE FROM session_messages").run();
+  db.prepare("DELETE FROM sessions").run();
+  db.prepare("DELETE FROM repositories").run();
+});
+
+describe("GET /api/sessions/:id", () => {
+  it("returns 200 with the session", async () => {
+    const repo = registerRepository({ path: makeFakeGitRepo() });
+    const session = createSession({
+      repository_id: repo.id,
+      worktree_branch: "feat/test",
+      goal: "Do something",
+      completion_condition: "Done",
+    });
+
+    const res = await GET(
+      new NextRequest(`http://localhost/api/sessions/${session.id}`),
+      makeParams(session.id),
+    );
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.id).toBe(session.id);
+    expect(body.goal).toBe("Do something");
+  });
+
+  it("returns 404 for unknown id", async () => {
+    const res = await GET(
+      new NextRequest("http://localhost/api/sessions/nonexistent"),
+      makeParams("nonexistent"),
+    );
+    expect(res.status).toBe(404);
+  });
+});

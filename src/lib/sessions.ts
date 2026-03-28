@@ -135,6 +135,22 @@ export function failSession(id: string): Session {
   return getSession(id) as Session;
 }
 
+export interface SessionMessage {
+  id: string;
+  session_id: string;
+  role: "user" | "agent";
+  content: string;
+  created_at: string;
+}
+
+export function listMessages(sessionId: string): SessionMessage[] {
+  return db
+    .prepare(
+      "SELECT * FROM session_messages WHERE session_id = ? ORDER BY created_at ASC",
+    )
+    .all(sessionId) as SessionMessage[];
+}
+
 export function saveMessage(
   sessionId: string,
   role: "user" | "agent",

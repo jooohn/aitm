@@ -112,6 +112,22 @@ export interface Session {
   updated_at: string;
 }
 
+export interface SessionMessage {
+  id: string;
+  session_id: string;
+  role: "user" | "agent";
+  content: string;
+  created_at: string;
+}
+
+export function fetchSession(id: string): Promise<Session> {
+  return apiFetch(`/api/sessions/${id}`);
+}
+
+export function fetchSessionMessages(id: string): Promise<SessionMessage[]> {
+  return apiFetch(`/api/sessions/${id}/messages`);
+}
+
 export function fetchSessions(
   repositoryId: number,
   worktreeBranch: string,

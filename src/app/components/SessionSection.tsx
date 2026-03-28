@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
   failSession,
@@ -138,7 +139,9 @@ export default function SessionSection({
           {sessions.map((session) => (
             <li key={session.id} className={styles.item}>
               <div className={styles.info}>
-                <div className={styles.goal}>{session.goal}</div>
+                <Link href={`/sessions/${session.id}`} className={styles.goal}>
+                  {session.goal}
+                </Link>
                 <div className={styles.meta}>
                   <span
                     className={`${styles.badge} ${styles[`badge-${session.status}`]}`}

@@ -1,0 +1,124 @@
+@reference "tailwindcss";
+
+.container {
+  @apply flex flex-col gap-6;
+}
+
+/* Header */
+.header {
+  @apply flex items-start justify-between gap-4;
+}
+
+.headerLeft {
+  @apply flex flex-col gap-2;
+}
+
+.badge {
+  @apply self-start inline-block text-xs font-medium px-1.5 py-0.5 rounded;
+}
+
+.badge-RUNNING {
+  @apply bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300;
+}
+
+.badge-WAITING_FOR_INPUT {
+  @apply bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300;
+}
+
+.badge-SUCCEEDED {
+  @apply bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300;
+}
+
+.badge-FAILED {
+  @apply bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-400;
+}
+
+.goal {
+  @apply text-2xl font-semibold text-zinc-900 dark:text-zinc-50;
+}
+
+.failButton {
+  @apply shrink-0 text-sm px-3 py-1.5 rounded border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors;
+}
+
+/* Details */
+.details {
+  @apply flex flex-col divide-y divide-zinc-200 dark:divide-zinc-700;
+}
+
+.detailRow {
+  @apply py-3 flex flex-col gap-1 sm:flex-row sm:gap-8;
+}
+
+.detailLabel {
+  @apply text-sm font-medium text-zinc-500 sm:w-44 shrink-0;
+}
+
+.detailValue {
+  @apply text-sm text-zinc-800 dark:text-zinc-200;
+}
+
+.attachCommand {
+  @apply text-xs font-mono bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 px-2 py-1 rounded break-all;
+}
+
+/* Section headings */
+.sectionHeading {
+  @apply text-sm font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-2;
+}
+
+/* Output pane */
+.output {
+  @apply h-72 overflow-y-auto rounded-lg bg-zinc-900 dark:bg-zinc-950 p-4 font-mono text-xs text-zinc-200 leading-relaxed;
+}
+
+.outputEmpty {
+  @apply text-zinc-500;
+}
+
+.outputLine {
+  @apply whitespace-pre-wrap break-words;
+}
+
+/* Message thread */
+.messages {
+  @apply flex flex-col gap-2;
+}
+
+.message {
+  @apply flex flex-col gap-0.5 rounded-lg px-3 py-2 text-sm;
+}
+
+.message-agent {
+  @apply bg-zinc-100 dark:bg-zinc-800 self-start max-w-[85%];
+}
+
+.message-user {
+  @apply bg-blue-50 dark:bg-blue-950 self-end max-w-[85%];
+}
+
+.messageRole {
+  @apply text-xs font-medium text-zinc-500 dark:text-zinc-400;
+}
+
+.messageContent {
+  @apply text-zinc-900 dark:text-zinc-100 whitespace-pre-wrap;
+}
+
+/* Input form */
+.inputForm {
+  @apply flex gap-2;
+}
+
+.input {
+  @apply flex-1 text-sm px-3 py-1.5 rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-500;
+}
+
+.sendButton {
+  @apply shrink-0 text-sm px-3 py-1.5 rounded bg-zinc-900 dark:bg-zinc-100 text-zinc-50 dark:text-zinc-900 hover:bg-zinc-700 dark:hover:bg-zinc-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors;
+}
+
+/* Error */
+.error {
+  @apply text-sm text-red-600 dark:text-red-400;
+}

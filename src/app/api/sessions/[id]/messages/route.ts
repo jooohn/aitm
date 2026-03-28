@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { sendUserMessage } from "@/lib/sessions";
+import { getSession, listMessages, sendUserMessage } from "@/lib/sessions";
 
 type Params = Promise<{ id: string }>;
 
@@ -10,6 +10,22 @@ function errorResponse(err: unknown): NextResponse {
   if (message.includes("not waiting for input"))
     return NextResponse.json({ error: message }, { status: 422 });
   return NextResponse.json({ error: message }, { status: 500 });
+}
+
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: Params },
+): Promise<NextResponse> {
+  try {
+    const { id } = await params;
+    const session = getSession(id);
+    if (!session) {
+      return NextResponse.json({ error: "Session not found" }, { status: 404 });
+    }
+    return NextResponse.json(listMessages(id));
+  } catch (err) {
+    return errorResponse(err);
+  }
 }
 
 export async function POST(
