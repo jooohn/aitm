@@ -8,6 +8,10 @@
   @apply flex flex-col gap-1 min-w-0;
 }
 
+.alias {
+  @apply text-sm font-semibold text-zinc-800 dark:text-zinc-100 truncate;
+}
+
 .path {
   @apply text-xs text-zinc-500 font-mono truncate;
 }

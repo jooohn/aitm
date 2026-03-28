@@ -51,6 +51,7 @@ export default function RepositoryRow({ repo, onRemove }: Props) {
   return (
     <li className={styles.item}>
       <div className={styles.info}>
+        <span className={styles.alias}>{repo.alias}</span>
         <span className={styles.path}>{repo.path}</span>
         {removeError && <p className={styles.removeError}>{removeError}</p>}
       </div>

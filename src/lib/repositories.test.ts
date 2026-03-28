@@ -4,6 +4,7 @@ import { join } from "path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { db } from "./db";
 import {
+  inferAlias,
   listRepositories,
   registerRepository,
   removeRepository,
@@ -33,6 +34,20 @@ afterEach(() => {
   // nothing — in-memory DB is cleared in beforeEach
 });
 
+describe("inferAlias", () => {
+  it("returns last two path segments joined with /", () => {
+    expect(inferAlias("/some/path/jooohn/aitm")).toBe("jooohn/aitm");
+  });
+
+  it("handles paths without trailing slash", () => {
+    expect(inferAlias("/home/user/github.com/org/repo")).toBe("org/repo");
+  });
+
+  it("returns single segment when path has only one component", () => {
+    expect(inferAlias("/repo")).toBe("repo");
+  });
+});
+
 describe("registerRepository", () => {
   it("registers a valid git repo and returns the record", () => {
     const repoPath = makeFakeGitRepo();
@@ -41,6 +56,16 @@ describe("registerRepository", () => {
     expect(repo.id).toBeTypeOf("number");
     expect(repo.path).toBe(repoPath);
     expect(repo.created_at).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+  });
+
+  it("includes alias inferred from the last two path segments", () => {
+    const repoPath = makeFakeGitRepo();
+    // repoPath is like /tmp/aitm-test-xxxx/org/repo structure won't apply here,
+    // but we can check alias equals the last two segments of repoPath
+    const repo = registerRepository({ path: repoPath });
+    const parts = repoPath.split("/").filter(Boolean);
+    const expectedAlias = parts.slice(-2).join("/");
+    expect(repo.alias).toBe(expectedAlias);
   });
 
   it("rejects a path that does not exist", () => {
@@ -79,6 +104,16 @@ describe("listRepositories", () => {
 
     const list = listRepositories();
     expect(list.map((r) => r.path).sort()).toEqual([a, b].sort());
+  });
+
+  it("includes alias on each listed repo", () => {
+    const repoPath = makeFakeGitRepo();
+    registerRepository({ path: repoPath });
+
+    const [repo] = listRepositories();
+    const parts = repoPath.split("/").filter(Boolean);
+    const expectedAlias = parts.slice(-2).join("/");
+    expect(repo.alias).toBe(expectedAlias);
   });
 });
 
