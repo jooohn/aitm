@@ -1,33 +1,41 @@
 {
-  "name": "aitm-scaffold",
-  "version": "0.1.0",
-  "private": true,
-  "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "biome check",
-    "lint:fix": "biome check --write",
-    "format": "biome format --write",
-    "test": "vitest run",
-    "test:watch": "vitest"
-  },
-  "dependencies": {
-    "better-sqlite3": "^12.8.0",
-    "next": "16.2.1",
-    "react": "19.2.4",
-    "react-dom": "19.2.4"
-  },
-  "devDependencies": {
-    "@biomejs/biome": "^2.4.9",
-    "@tailwindcss/postcss": "^4",
-    "@types/better-sqlite3": "^7.6.13",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "tailwindcss": "^4",
-    "typescript": "^5",
-    "vite-tsconfig-paths": "^6.1.1",
-    "vitest": "^3.2.4"
-  }
+	"name": "aitm-scaffold",
+	"version": "0.1.0",
+	"private": true,
+	"scripts": {
+		"dev": "next dev",
+		"build": "next build",
+		"start": "next start",
+		"lint": "biome check",
+		"lint:fix": "biome check --write",
+		"format": "biome format --write",
+		"test": "vitest run",
+		"test:watch": "vitest",
+		"prepare": "husky"
+	},
+	"dependencies": {
+		"better-sqlite3": "^12.8.0",
+		"next": "16.2.1",
+		"react": "19.2.4",
+		"react-dom": "19.2.4"
+	},
+	"lint-staged": {
+		"**/*.{ts,tsx,js,jsx,json}": [
+			"biome check --write"
+		]
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^2.4.9",
+		"@tailwindcss/postcss": "^4",
+		"@types/better-sqlite3": "^7.6.13",
+		"@types/node": "^20",
+		"@types/react": "^19",
+		"@types/react-dom": "^19",
+		"husky": "^9.1.7",
+		"lint-staged": "^16.4.0",
+		"tailwindcss": "^4",
+		"typescript": "^5",
+		"vite-tsconfig-paths": "^6.1.1",
+		"vitest": "^3.2.4"
+	}
 }
