@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import SessionSection from "@/app/components/SessionSection";
 import { getRepositoryByAlias } from "@/lib/repositories";
 import { listWorktrees } from "@/lib/worktrees";
 import styles from "./page.module.css";
@@ -67,6 +68,12 @@ export default async function WorktreePage({ params }: Props) {
           <dd className={styles.value}>{worktree.is_bare ? "Yes" : "No"}</dd>
         </div>
       </dl>
+      <SessionSection
+        repositoryId={repo.id}
+        organization={organization}
+        name={name}
+        branch={branch}
+      />
     </main>
   );
 }

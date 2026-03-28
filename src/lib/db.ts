@@ -18,5 +18,26 @@ db.exec(`
     name        TEXT    NOT NULL,
     main_branch TEXT    NOT NULL,
     created_at  TEXT    NOT NULL
-  )
+  );
+
+  CREATE TABLE IF NOT EXISTS sessions (
+    id                   TEXT    PRIMARY KEY,
+    repository_id        INTEGER NOT NULL REFERENCES repositories(id),
+    worktree_branch      TEXT    NOT NULL,
+    goal                 TEXT    NOT NULL,
+    completion_condition TEXT    NOT NULL,
+    status               TEXT    NOT NULL DEFAULT 'RUNNING',
+    terminal_attach_command TEXT,
+    log_file_path        TEXT    NOT NULL,
+    created_at           TEXT    NOT NULL,
+    updated_at           TEXT    NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS session_messages (
+    id         TEXT    PRIMARY KEY,
+    session_id TEXT    NOT NULL REFERENCES sessions(id),
+    role       TEXT    NOT NULL,
+    content    TEXT    NOT NULL,
+    created_at TEXT    NOT NULL
+  );
 `);

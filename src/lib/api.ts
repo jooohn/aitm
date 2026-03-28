@@ -91,3 +91,51 @@ export async function removeWorktree(
     { method: "DELETE" },
   );
 }
+
+export type SessionStatus =
+  | "RUNNING"
+  | "WAITING_FOR_INPUT"
+  | "SUCCEEDED"
+  | "FAILED";
+
+export interface Session {
+  id: string;
+  repository_id: number;
+  worktree_branch: string;
+  goal: string;
+  completion_condition: string;
+  status: SessionStatus;
+  terminal_attach_command: string | null;
+  log_file_path: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export function fetchSessions(
+  repositoryId: number,
+  worktreeBranch: string,
+): Promise<Session[]> {
+  const params = new URLSearchParams({
+    repository_id: String(repositoryId),
+    worktree_branch: worktreeBranch,
+  });
+  return apiFetch(`/api/sessions?${params}`);
+}
+
+export function startSession(input: {
+  organization: string;
+  name: string;
+  worktree_branch: string;
+  goal: string;
+  completion_condition: string;
+}): Promise<Session> {
+  return apiFetch("/api/sessions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+}
+
+export async function failSession(id: string): Promise<Session> {
+  return apiFetch(`/api/sessions/${id}/fail`, { method: "POST" });
+}
