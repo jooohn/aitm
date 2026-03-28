@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import {
   type Repository,
@@ -51,7 +52,9 @@ export default function RepositoryRow({ repo, onRemove }: Props) {
   return (
     <li className={styles.item}>
       <div className={styles.info}>
-        <span className={styles.alias}>{repo.alias}</span>
+        <Link href={`/repositories/${repo.alias}`} className={styles.alias}>
+          {repo.alias}
+        </Link>
         <span className={styles.path}>{repo.path}</span>
         {removeError && <p className={styles.removeError}>{removeError}</p>}
       </div>

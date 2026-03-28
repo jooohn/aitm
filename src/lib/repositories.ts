@@ -74,6 +74,10 @@ export function listRepositories(): Repository[] {
   ).map(withAlias);
 }
 
+export function getRepositoryByAlias(alias: string): Repository | undefined {
+  return listRepositories().find((r) => r.alias === alias);
+}
+
 export function removeRepository(id: number): void {
   const existing = db
     .prepare("SELECT id FROM repositories WHERE id = ?")
