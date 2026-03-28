@@ -21,16 +21,17 @@ db.exec(`
   );
 
   CREATE TABLE IF NOT EXISTS sessions (
-    id                   TEXT    PRIMARY KEY,
-    repository_id        INTEGER NOT NULL REFERENCES repositories(id),
-    worktree_branch      TEXT    NOT NULL,
-    goal                 TEXT    NOT NULL,
-    completion_condition TEXT    NOT NULL,
-    status               TEXT    NOT NULL DEFAULT 'RUNNING',
+    id                      TEXT    PRIMARY KEY,
+    repository_id           INTEGER NOT NULL REFERENCES repositories(id),
+    worktree_branch         TEXT    NOT NULL,
+    goal                    TEXT    NOT NULL,
+    completion_condition    TEXT    NOT NULL,
+    status                  TEXT    NOT NULL DEFAULT 'RUNNING',
     terminal_attach_command TEXT,
-    log_file_path        TEXT    NOT NULL,
-    created_at           TEXT    NOT NULL,
-    updated_at           TEXT    NOT NULL
+    log_file_path           TEXT    NOT NULL,
+    claude_session_id       TEXT,
+    created_at              TEXT    NOT NULL,
+    updated_at              TEXT    NOT NULL
   );
 
   CREATE TABLE IF NOT EXISTS session_messages (
@@ -41,3 +42,12 @@ db.exec(`
     created_at TEXT    NOT NULL
   );
 `);
+
+// Migration: add claude_session_id to existing sessions tables that lack it.
+// CREATE TABLE IF NOT EXISTS won't recreate an existing table, so ALTER TABLE
+// is needed for databases created before this column was added.
+try {
+  db.exec("ALTER TABLE sessions ADD COLUMN claude_session_id TEXT");
+} catch {
+  // Column already exists — safe to ignore.
+}

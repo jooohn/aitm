@@ -1,0 +1,33 @@
+import { NextRequest, NextResponse } from "next/server";
+import { sendUserMessage } from "@/lib/sessions";
+
+type Params = Promise<{ id: string }>;
+
+function errorResponse(err: unknown): NextResponse {
+  const message = err instanceof Error ? err.message : "Internal server error";
+  if (message.includes("not found"))
+    return NextResponse.json({ error: message }, { status: 404 });
+  if (message.includes("not waiting for input"))
+    return NextResponse.json({ error: message }, { status: 422 });
+  return NextResponse.json({ error: message }, { status: 500 });
+}
+
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Params },
+): Promise<NextResponse> {
+  try {
+    const { id } = await params;
+    const body = await request.json();
+    if (!body.content?.trim()) {
+      return NextResponse.json(
+        { error: "content is required" },
+        { status: 422 },
+      );
+    }
+    sendUserMessage(id, body.content);
+    return new NextResponse(null, { status: 204 });
+  } catch (err) {
+    return errorResponse(err);
+  }
+}

@@ -107,6 +107,7 @@ export interface Session {
   status: SessionStatus;
   terminal_attach_command: string | null;
   log_file_path: string;
+  claude_session_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -138,4 +139,15 @@ export function startSession(input: {
 
 export async function failSession(id: string): Promise<Session> {
   return apiFetch(`/api/sessions/${id}/fail`, { method: "POST" });
+}
+
+export async function sendMessage(
+  sessionId: string,
+  content: string,
+): Promise<void> {
+  await apiFetch(`/api/sessions/${sessionId}/messages`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ content }),
+  });
 }

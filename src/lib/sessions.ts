@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import { mkdirSync } from "fs";
 import { homedir } from "os";
 import { join } from "path";
+import { cancelAgent, sendMessageToAgent, startAgent } from "./agent";
 import { db } from "./db";
 
 export type SessionStatus =
@@ -19,6 +20,7 @@ export interface Session {
   status: SessionStatus;
   terminal_attach_command: string | null;
   log_file_path: string;
+  claude_session_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -36,11 +38,6 @@ export interface ListSessionsFilter {
   status?: SessionStatus;
 }
 
-// In-memory map of session IDs to PIDs for the current server process lifetime.
-// On server restart this map is empty, and recoverCrashedSessions() marks any
-// leftover RUNNING/WAITING_FOR_INPUT sessions as FAILED.
-const runningProcesses = new Map<string, number>();
-
 function sessionsLogDir(): string {
   const dir = join(homedir(), ".aitm", "sessions");
   mkdirSync(dir, { recursive: true });
@@ -52,11 +49,17 @@ export function createSession(input: CreateSessionInput): Session {
   const now = new Date().toISOString();
   const log_file_path = join(sessionsLogDir(), `${id}.log`);
 
+  const repo = db
+    .prepare("SELECT path FROM repositories WHERE id = ?")
+    .get(input.repository_id) as { path: string } | undefined;
+  if (!repo) throw new Error(`Repository not found: ${input.repository_id}`);
+
   db.prepare(
     `INSERT INTO sessions
        (id, repository_id, worktree_branch, goal, completion_condition,
-        status, terminal_attach_command, log_file_path, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, 'RUNNING', NULL, ?, ?, ?)`,
+        status, terminal_attach_command, log_file_path, claude_session_id,
+        created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, 'RUNNING', NULL, ?, NULL, ?, ?)`,
   ).run(
     id,
     input.repository_id,
@@ -68,7 +71,15 @@ export function createSession(input: CreateSessionInput): Session {
     now,
   );
 
-  // TODO: start Claude Code SDK agent in worktree directory
+  // Start the agent asynchronously — errors are handled inside startAgent.
+  startAgent(
+    id,
+    repo.path,
+    input.worktree_branch,
+    input.goal,
+    input.completion_condition,
+    log_file_path,
+  ).catch(console.error);
 
   return getSession(id) as Session;
 }
@@ -114,15 +125,7 @@ export function failSession(id: string): Session {
     );
   }
 
-  const pid = runningProcesses.get(id);
-  if (pid) {
-    try {
-      process.kill(pid, "SIGTERM");
-    } catch {
-      // Process may have already exited
-    }
-    runningProcesses.delete(id);
-  }
+  cancelAgent(id);
 
   const now = new Date().toISOString();
   db.prepare(
@@ -130,6 +133,31 @@ export function failSession(id: string): Session {
   ).run(now, id);
 
   return getSession(id) as Session;
+}
+
+export function saveMessage(
+  sessionId: string,
+  role: "user" | "agent",
+  content: string,
+): void {
+  const now = new Date().toISOString();
+  db.prepare(
+    `INSERT INTO session_messages (id, session_id, role, content, created_at)
+     VALUES (?, ?, ?, ?, ?)`,
+  ).run(randomUUID(), sessionId, role, content, now);
+}
+
+export function sendUserMessage(sessionId: string, content: string): void {
+  const session = getSession(sessionId);
+  if (!session) throw new Error(`Session not found: ${sessionId}`);
+  if (session.status !== "WAITING_FOR_INPUT") {
+    throw new Error(
+      `Session is not waiting for input (status: ${session.status})`,
+    );
+  }
+
+  saveMessage(sessionId, "user", content);
+  sendMessageToAgent(sessionId, content);
 }
 
 // Mark any sessions left in a non-terminal state as FAILED.

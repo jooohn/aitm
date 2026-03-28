@@ -56,6 +56,18 @@
   @apply bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300;
 }
 
+.attachCommand {
+  @apply mt-1 text-xs font-mono bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 px-2 py-0.5 rounded break-all;
+}
+
+.replyForm {
+  @apply mt-2 flex gap-2;
+}
+
+.replyButton {
+  @apply shrink-0 text-sm px-3 py-1 rounded bg-zinc-900 dark:bg-zinc-100 text-zinc-50 dark:text-zinc-900 hover:bg-zinc-700 dark:hover:bg-zinc-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors;
+}
+
 .failButton {
   @apply shrink-0 text-sm px-3 py-1 rounded border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors;
 }

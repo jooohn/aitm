@@ -6,6 +6,7 @@ import {
   fetchSessions,
   type Session,
   type SessionStatus,
+  sendMessage,
   startSession,
 } from "@/lib/api";
 import styles from "./SessionSection.module.css";
@@ -41,6 +42,9 @@ export default function SessionSection({
   const [startError, setStartError] = useState<string | null>(null);
   const [failingId, setFailingId] = useState<string | null>(null);
   const [failError, setFailError] = useState<string | null>(null);
+  const [replyContent, setReplyContent] = useState<Record<string, string>>({});
+  const [sendingReplyId, setSendingReplyId] = useState<string | null>(null);
+  const [replyError, setReplyError] = useState<string | null>(null);
 
   async function load() {
     setLoading(true);
@@ -100,6 +104,25 @@ export default function SessionSection({
     }
   }
 
+  async function handleReply(e: React.FormEvent, session: Session) {
+    e.preventDefault();
+    const content = replyContent[session.id]?.trim();
+    if (!content) return;
+    setSendingReplyId(session.id);
+    setReplyError(null);
+    try {
+      await sendMessage(session.id, content);
+      setReplyContent((prev) => ({ ...prev, [session.id]: "" }));
+      await load();
+    } catch (err) {
+      setReplyError(
+        err instanceof Error ? err.message : "Failed to send message",
+      );
+    } finally {
+      setSendingReplyId(null);
+    }
+  }
+
   return (
     <section className={styles.section}>
       <h2 className={styles.heading}>Sessions</h2>
@@ -127,6 +150,41 @@ export default function SessionSection({
                     · {new Date(session.created_at).toLocaleString()}
                   </span>
                 </div>
+                {session.terminal_attach_command && (
+                  <code className={styles.attachCommand}>
+                    {session.terminal_attach_command}
+                  </code>
+                )}
+                {session.status === "WAITING_FOR_INPUT" && (
+                  <form
+                    onSubmit={(e) => handleReply(e, session)}
+                    className={styles.replyForm}
+                  >
+                    <input
+                      type="text"
+                      className={styles.input}
+                      placeholder="Your reply…"
+                      value={replyContent[session.id] ?? ""}
+                      onChange={(e) =>
+                        setReplyContent((prev) => ({
+                          ...prev,
+                          [session.id]: e.target.value,
+                        }))
+                      }
+                      disabled={sendingReplyId === session.id}
+                    />
+                    <button
+                      type="submit"
+                      className={styles.replyButton}
+                      disabled={
+                        sendingReplyId === session.id ||
+                        !replyContent[session.id]?.trim()
+                      }
+                    >
+                      {sendingReplyId === session.id ? "Sending…" : "Send"}
+                    </button>
+                  </form>
+                )}
               </div>
               {!TERMINAL_STATUSES.includes(session.status) && (
                 <button
@@ -144,6 +202,7 @@ export default function SessionSection({
       )}
 
       {failError && <p className={styles.error}>{failError}</p>}
+      {replyError && <p className={styles.error}>{replyError}</p>}
 
       <form onSubmit={handleStart} className={styles.form}>
         <div className={styles.formRow}>
