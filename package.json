@@ -14,6 +14,8 @@
     "prepare": "husky"
   },
   "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.2.86",
+    "@anthropic-ai/claude-code": "^2.1.86",
     "better-sqlite3": "^12.8.0",
     "next": "16.2.1",
     "react": "19.2.4",
