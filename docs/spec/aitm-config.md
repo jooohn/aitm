@@ -14,6 +14,20 @@ A global YAML configuration file at `~/.aitm/config.yaml` that defines named wor
 - Path: `~/.aitm/config.yaml`
 - Global — shared across all repositories and worktrees
 
+### Repository list
+
+Repositories are declared under a top-level `repositories` key:
+
+```yaml
+repositories:
+  - path: /Users/alice/projects/myapp
+    main_branch: main
+  - path: /Users/alice/projects/another-app
+    main_branch: develop
+```
+
+See spec: repository-management.md for the full field reference.
+
 ### Workflow definition
 
 A workflow is a named directed graph with exactly one `initial_state` and at least one terminal transition.

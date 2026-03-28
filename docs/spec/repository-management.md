@@ -1,77 +1,66 @@
 # Spec: Repository Management
 
-**Status:** implemented
-**Last updated:** 2026-03-28
+**Status:** draft
+**Last updated:** 2026-03-29
 
 ## Summary
 
-Allow users to register local git repositories with aitm so they can be used as targets for agent-driven tasks. Registrations are persisted in a local SQLite database. Each registered repository tracks the path on disk.
+Repositories are defined in `~/.aitm/config.yaml` under a top-level `repositories` key. aitm reads them from the config file at runtime — no database storage. This keeps repository registration as plain-text config alongside workflow definitions, and removes the need for register/remove API endpoints.
 
 ## Requirements
 
-### Data model
+### Config shape
 
-A `repositories` table in SQLite:
+```yaml
+repositories:
+  - path: /Users/alice/projects/myapp
+    main_branch: main
+  - path: /Users/alice/projects/another-app
+    main_branch: develop
+```
 
-| Column | Type | Constraints | Description |
+| Field | Required | Default | Description |
 |---|---|---|---|
-| `id` | INTEGER | PRIMARY KEY AUTOINCREMENT | Internal ID |
-| `path` | TEXT | NOT NULL, UNIQUE | Absolute path to the repository root |
-| `created_at` | TEXT | NOT NULL | ISO 8601 timestamp |
+| `path` | yes | — | Absolute path to the repository root on disk |
+| `main_branch` | no | `main` | Branch name used as the base for new worktrees |
+
+`path` must be unique across all entries. The repository name displayed in the UI is derived from the last path component (e.g. `myapp`). The alias used in API routes is derived from the last two path components (e.g. `alice/myapp`) and must be unique across all configured repositories.
 
 ### Operations
 
-#### Register (add)
-
-- Accept an absolute path to a local directory.
-- Validate that the path exists and is a git repository (contains `.git`).
-- Reject duplicate paths (return a clear error, not a silent upsert).
-- Return the created repository record.
-
 #### List
 
-- Return all registered repositories ordered by `path` ascending.
-- Each record includes all columns.
-- No filtering or pagination required initially.
-
-#### Remove
-
-- Accept an `id`.
-- Delete the repository record.
-- Do not touch the filesystem — only remove the registration.
-- Return an error if the ID does not exist.
+- Read all entries from `repositories` in `~/.aitm/config.yaml`.
+- Return them ordered by `path` ascending.
+- If the config file does not exist or has no `repositories` key, return an empty list.
 
 #### Validate
 
-- Accept an `id` or a path.
-- Check that the registered path still exists on disk and is a git repository.
-- Return a validation result: `{ valid: boolean, reason?: string }`.
-- Reasons for invalid: path does not exist, path is not a git repository.
+- Accept an alias or path.
+- Check that the configured path still exists on disk and is a git repository (contains `.git`).
+- Return `{ valid: boolean, reason?: string }`.
 - Does not modify any data — read-only check.
 
-### Database location
+### Relationship to sessions
 
-SQLite file stored at `~/.aitm/aitm.db`. The directory is created on first use if it does not exist.
+Sessions reference the repository by `path` (TEXT), not an integer ID. This replaces the `repository_id` INTEGER FK in the `sessions` table with a `repository_path` TEXT column. The path is the stable identity of a repository across config changes.
 
-### API surface (backend-first)
-
-The backend exposes these operations as plain functions/classes first. REST or RPC endpoints follow the same shape — one endpoint per operation:
+### API surface
 
 | Method | Path | Operation |
 |---|---|---|
-| `POST` | `/api/repositories` | Register |
 | `GET` | `/api/repositories` | List |
-| `DELETE` | `/api/repositories/:id` | Remove |
-| `GET` | `/api/repositories/:id/validate` | Validate |
+| `GET` | `/api/repositories/:alias/validate` | Validate |
+
+Register and remove are no longer API operations — users edit `~/.aitm/config.yaml` directly.
 
 ## Out of scope
 
-- Remote repositories (SSH, HTTPS URLs).
-- Editing a registration after creation — remove and re-add instead.
-- Scanning the filesystem to auto-discover repositories.
-- Authentication or multi-user support.
+- Remote repositories (SSH, HTTPS URLs)
+- Scanning the filesystem to auto-discover repositories
+- Authentication or multi-user support
 
-## Open questions
+## Decisions
 
-- Should `validate` be called automatically on list, or only on demand?
-- Should removing a repository also clean up associated tasks/worktrees, or just the registration?
+- Repository identity is `path` (not an integer ID). Sessions reference it by path.
+- No UI or API for adding/removing repositories — config file is the source of truth.
