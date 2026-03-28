@@ -38,10 +38,56 @@ export function addRepository(input: {
   });
 }
 
-export async function removeRepository(id: number): Promise<void> {
-  await apiFetch(`/api/repositories/${id}`, { method: "DELETE" });
+export async function removeRepository(
+  organization: string,
+  name: string,
+): Promise<void> {
+  await apiFetch(`/api/repositories/${organization}/${name}`, {
+    method: "DELETE",
+  });
 }
 
-export function validateRepository(id: number): Promise<ValidationResult> {
-  return apiFetch(`/api/repositories/${id}/validate`);
+export function validateRepository(
+  organization: string,
+  name: string,
+): Promise<ValidationResult> {
+  return apiFetch(`/api/repositories/${organization}/${name}/validate`);
+}
+
+export interface Worktree {
+  branch: string;
+  path: string;
+  is_main: boolean;
+  is_bare: boolean;
+  head: string;
+}
+
+export function fetchWorktrees(
+  organization: string,
+  name: string,
+): Promise<Worktree[]> {
+  return apiFetch(`/api/repositories/${organization}/${name}/worktrees`);
+}
+
+export function createWorktree(
+  organization: string,
+  name: string,
+  input: { branch: string; no_fetch?: boolean },
+): Promise<Worktree> {
+  return apiFetch(`/api/repositories/${organization}/${name}/worktrees`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+}
+
+export async function removeWorktree(
+  organization: string,
+  name: string,
+  branch: string,
+): Promise<void> {
+  await apiFetch(
+    `/api/repositories/${organization}/${name}/worktrees/${branch}`,
+    { method: "DELETE" },
+  );
 }

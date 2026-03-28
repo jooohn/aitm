@@ -27,8 +27,9 @@ export default function RepositoryRow({ repo, onRemove }: Props) {
 
   async function handleValidate() {
     setValidationStatus("loading");
+    const [organization, name] = repo.alias.split("/");
     try {
-      const result = await validateRepository(repo.id);
+      const result = await validateRepository(organization, name);
       setValidationStatus(result.valid ? "valid" : "invalid");
       setValidationReason(result.reason);
     } catch {
@@ -40,8 +41,9 @@ export default function RepositoryRow({ repo, onRemove }: Props) {
     if (!window.confirm(`Remove "${repo.path}" from aitm?`)) return;
     setRemoving(true);
     setRemoveError(null);
+    const [organization, name] = repo.alias.split("/");
     try {
-      await removeRepository(repo.id);
+      await removeRepository(organization, name);
       onRemove(repo.id);
     } catch (err) {
       setRemoveError(err instanceof Error ? err.message : "Unknown error");
