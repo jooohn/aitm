@@ -11,18 +11,27 @@ if (dbPath !== ":memory:") {
 
 export const db = new Database(dbPath);
 
-db.exec(`
-  CREATE TABLE IF NOT EXISTS repositories (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    path        TEXT    NOT NULL UNIQUE,
-    name        TEXT    NOT NULL,
-    main_branch TEXT    NOT NULL,
-    created_at  TEXT    NOT NULL
-  );
+// Migration: if sessions still uses the old repository_id FK (pre-config era),
+// drop and recreate sessions and session_messages. Data loss is accepted —
+// sessions from the old schema cannot be migrated without the repositories table.
+const sessionCols = db.prepare("PRAGMA table_info(sessions)").all() as {
+  name: string;
+}[];
+if (
+  sessionCols.length > 0 &&
+  sessionCols.some((c) => c.name === "repository_id")
+) {
+  db.exec("DROP TABLE IF EXISTS session_messages");
+  db.exec("DROP TABLE IF EXISTS sessions");
+}
 
+// Remove legacy repositories table if present.
+db.exec("DROP TABLE IF EXISTS repositories");
+
+db.exec(`
   CREATE TABLE IF NOT EXISTS sessions (
     id                      TEXT    PRIMARY KEY,
-    repository_id           INTEGER NOT NULL REFERENCES repositories(id),
+    repository_path         TEXT    NOT NULL,
     worktree_branch         TEXT    NOT NULL,
     goal                    TEXT    NOT NULL,
     completion_condition    TEXT    NOT NULL,
@@ -42,12 +51,3 @@ db.exec(`
     created_at TEXT    NOT NULL
   );
 `);
-
-// Migration: add claude_session_id to existing sessions tables that lack it.
-// CREATE TABLE IF NOT EXISTS won't recreate an existing table, so ALTER TABLE
-// is needed for databases created before this column was added.
-try {
-  db.exec("ALTER TABLE sessions ADD COLUMN claude_session_id TEXT");
-} catch {
-  // Column already exists — safe to ignore.
-}

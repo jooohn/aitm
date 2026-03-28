@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { listRepositories } from "@/lib/repositories";
+import { inferAlias } from "@/lib/repositories";
 import { getSession, listMessages } from "@/lib/sessions";
 import styles from "./page.module.css";
 import SessionDetail from "./SessionDetail";
@@ -14,8 +14,7 @@ export default async function SessionPage({ params }: Props) {
   const session = getSession(id);
   if (!session) notFound();
 
-  const repo = listRepositories().find((r) => r.id === session.repository_id);
-  const repoAlias = repo?.alias ?? String(session.repository_id);
+  const repoAlias = inferAlias(session.repository_path);
   const [organization, repoName] = repoAlias.split("/");
   const branch = session.worktree_branch;
   const initialMessages = listMessages(id);

@@ -2,28 +2,21 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import {
-  type Repository,
-  removeRepository,
-  validateRepository,
-} from "@/lib/api";
+import { type Repository, validateRepository } from "@/lib/api";
 import styles from "./RepositoryRow.module.css";
 
 interface Props {
   repo: Repository;
-  onRemove: (id: number) => void;
 }
 
 type ValidationStatus = "idle" | "loading" | "valid" | "invalid";
 
-export default function RepositoryRow({ repo, onRemove }: Props) {
+export default function RepositoryRow({ repo }: Props) {
   const [validationStatus, setValidationStatus] =
     useState<ValidationStatus>("idle");
   const [validationReason, setValidationReason] = useState<string | undefined>(
     undefined,
   );
-  const [removing, setRemoving] = useState(false);
-  const [removeError, setRemoveError] = useState<string | null>(null);
 
   async function handleValidate() {
     setValidationStatus("loading");
@@ -37,20 +30,6 @@ export default function RepositoryRow({ repo, onRemove }: Props) {
     }
   }
 
-  async function handleRemove() {
-    if (!window.confirm(`Remove "${repo.path}" from aitm?`)) return;
-    setRemoving(true);
-    setRemoveError(null);
-    const [organization, name] = repo.alias.split("/");
-    try {
-      await removeRepository(organization, name);
-      onRemove(repo.id);
-    } catch (err) {
-      setRemoveError(err instanceof Error ? err.message : "Unknown error");
-      setRemoving(false);
-    }
-  }
-
   return (
     <li className={styles.item}>
       <div className={styles.info}>
@@ -58,7 +37,6 @@ export default function RepositoryRow({ repo, onRemove }: Props) {
           {repo.alias}
         </Link>
         <span className={styles.path}>{repo.path}</span>
-        {removeError && <p className={styles.removeError}>{removeError}</p>}
       </div>
       <div className={styles.actions}>
         {validationStatus === "valid" && (
@@ -72,18 +50,10 @@ export default function RepositoryRow({ repo, onRemove }: Props) {
         <button
           type="button"
           onClick={handleValidate}
-          disabled={validationStatus === "loading" || removing}
+          disabled={validationStatus === "loading"}
           className={styles.validateButton}
         >
           {validationStatus === "loading" ? "Checking…" : "Validate"}
-        </button>
-        <button
-          type="button"
-          onClick={handleRemove}
-          disabled={removing}
-          className={styles.removeButton}
-        >
-          {removing ? "Removing…" : "Remove"}
         </button>
       </div>
     </li>

@@ -1,15 +1,15 @@
-import { mkdirSync, rmSync } from "fs";
+import { mkdirSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { db } from "./db";
 import {
+  getRepositoryByAlias,
   inferAlias,
   listRepositories,
-  registerRepository,
-  removeRepository,
   validateRepository,
 } from "./repositories";
+
+let configFile: string;
 
 function makeTempDir(): string {
   const dir = join(
@@ -27,12 +27,20 @@ function makeFakeGitRepo(): string {
 }
 
 beforeEach(() => {
-  db.prepare("DELETE FROM repositories").run();
+  const dir = makeTempDir();
+  configFile = join(dir, "config.yaml");
+  process.env.AITM_CONFIG_PATH = configFile;
 });
 
 afterEach(() => {
-  // nothing — in-memory DB is cleared in beforeEach
+  delete process.env.AITM_CONFIG_PATH;
 });
+
+function writeConfig(paths: string[]) {
+  const lines = ["repositories:"];
+  for (const p of paths) lines.push(`  - path: ${p}`);
+  writeFileSync(configFile, lines.join("\n"));
+}
 
 describe("inferAlias", () => {
   it("returns last two path segments joined with /", () => {
@@ -48,118 +56,71 @@ describe("inferAlias", () => {
   });
 });
 
-describe("registerRepository", () => {
-  it("registers a valid git repo and returns the record", () => {
-    const repoPath = makeFakeGitRepo();
-    const repo = registerRepository({ path: repoPath });
-
-    expect(repo.id).toBeTypeOf("number");
-    expect(repo.path).toBe(repoPath);
-    expect(repo.created_at).toMatch(/^\d{4}-\d{2}-\d{2}T/);
-  });
-
-  it("includes alias inferred from the last two path segments", () => {
-    const repoPath = makeFakeGitRepo();
-    // repoPath is like /tmp/aitm-test-xxxx/org/repo structure won't apply here,
-    // but we can check alias equals the last two segments of repoPath
-    const repo = registerRepository({ path: repoPath });
-    const parts = repoPath.split("/").filter(Boolean);
-    const expectedAlias = parts.slice(-2).join("/");
-    expect(repo.alias).toBe(expectedAlias);
-  });
-
-  it("rejects a path that does not exist", () => {
-    expect(() =>
-      registerRepository({ path: "/nonexistent/path/that/does/not/exist" }),
-    ).toThrow("does not exist");
-  });
-
-  it("rejects a path that is not a git repository", () => {
-    const dir = makeTempDir();
-    expect(() => registerRepository({ path: dir })).toThrow(
-      "not a git repository",
-    );
-    rmSync(dir, { recursive: true });
-  });
-
-  it("rejects a duplicate path", () => {
-    const repoPath = makeFakeGitRepo();
-    registerRepository({ path: repoPath });
-    expect(() => registerRepository({ path: repoPath })).toThrow(
-      "already registered",
-    );
-  });
-});
-
 describe("listRepositories", () => {
-  it("returns an empty array when nothing is registered", () => {
+  it("returns empty array when config has no repositories", () => {
     expect(listRepositories()).toEqual([]);
   });
 
-  it("returns all registered repos", () => {
-    const a = makeFakeGitRepo();
-    const b = makeFakeGitRepo();
-    registerRepository({ path: a });
-    registerRepository({ path: b });
+  it("returns repos defined in config", () => {
+    const repoPath = makeFakeGitRepo();
+    writeConfig([repoPath]);
 
     const list = listRepositories();
-    expect(list.map((r) => r.path).sort()).toEqual([a, b].sort());
+    expect(list).toHaveLength(1);
+    expect(list[0].path).toBe(repoPath);
   });
 
-  it("includes alias on each listed repo", () => {
+  it("includes alias, name, and main_branch on each repo", () => {
     const repoPath = makeFakeGitRepo();
-    registerRepository({ path: repoPath });
+    writeConfig([repoPath]);
 
     const [repo] = listRepositories();
     const parts = repoPath.split("/").filter(Boolean);
-    const expectedAlias = parts.slice(-2).join("/");
-    expect(repo.alias).toBe(expectedAlias);
+    expect(repo.alias).toBe(parts.slice(-2).join("/"));
+    expect(repo.name).toBe(parts.at(-1));
+    expect(repo.main_branch).toBe("main");
+  });
+
+  it("returns repos sorted by path ascending", () => {
+    const a = "/tmp/aaa/repo";
+    const b = "/tmp/bbb/repo";
+    writeConfig([b, a]);
+    const list = listRepositories();
+    expect(list.map((r) => r.path)).toEqual([a, b]);
   });
 });
 
-describe("removeRepository", () => {
-  it("removes an existing repo", () => {
+describe("getRepositoryByAlias", () => {
+  it("returns the matching repo", () => {
     const repoPath = makeFakeGitRepo();
-    const { id } = registerRepository({ path: repoPath });
-
-    removeRepository(id);
-    expect(listRepositories()).toEqual([]);
+    writeConfig([repoPath]);
+    const parts = repoPath.split("/").filter(Boolean);
+    const alias = parts.slice(-2).join("/");
+    expect(getRepositoryByAlias(alias)?.path).toBe(repoPath);
   });
 
-  it("throws when the id does not exist", () => {
-    expect(() => removeRepository(9999)).toThrow("not found");
+  it("returns undefined for unknown alias", () => {
+    expect(getRepositoryByAlias("no/such")).toBeUndefined();
   });
 });
 
 describe("validateRepository", () => {
-  it("returns valid:true for a registered repo whose path still exists", () => {
+  it("returns valid:true for an existing git repo", () => {
     const repoPath = makeFakeGitRepo();
-    const { id } = registerRepository({ path: repoPath });
-
-    expect(validateRepository(id)).toEqual({ valid: true });
+    expect(validateRepository(repoPath)).toEqual({ valid: true });
   });
 
-  it("returns valid:false when the path no longer exists", () => {
-    const repoPath = makeFakeGitRepo();
-    const { id } = registerRepository({ path: repoPath });
-    rmSync(repoPath, { recursive: true });
-
-    const result = validateRepository(id);
+  it("returns valid:false when the path does not exist", () => {
+    const result = validateRepository("/nonexistent/path");
     expect(result.valid).toBe(false);
     expect(result.reason).toMatch(/does not exist/i);
   });
 
-  it("returns valid:false when the path is no longer a git repo", () => {
-    const repoPath = makeFakeGitRepo();
-    const { id } = registerRepository({ path: repoPath });
-    rmSync(join(repoPath, ".git"), { recursive: true });
-
-    const result = validateRepository(id);
+  it("returns valid:false when the path is not a git repo", () => {
+    const dir = makeTempDir();
+    const result = validateRepository(dir);
     expect(result.valid).toBe(false);
     expect(result.reason).toMatch(/not a git repository/i);
-  });
-
-  it("throws when the id does not exist", () => {
-    expect(() => validateRepository(9999)).toThrow("not found");
+    rmSync(dir, { recursive: true });
   });
 });

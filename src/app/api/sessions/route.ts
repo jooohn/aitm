@@ -16,17 +16,13 @@ function errorResponse(err: unknown): NextResponse {
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const { searchParams } = request.nextUrl;
-    const repositoryIdParam = searchParams.get("repository_id");
-    const worktreeBranch = searchParams.get("worktree_branch") ?? undefined;
+    const repository_path = searchParams.get("repository_path") ?? undefined;
+    const worktree_branch = searchParams.get("worktree_branch") ?? undefined;
     const statusParam = searchParams.get("status") ?? undefined;
-
-    const repository_id = repositoryIdParam
-      ? Number(repositoryIdParam)
-      : undefined;
     const status = statusParam as SessionStatus | undefined;
 
     return NextResponse.json(
-      listSessions({ repository_id, worktree_branch: worktreeBranch, status }),
+      listSessions({ repository_path, worktree_branch, status }),
     );
   } catch (err) {
     return errorResponse(err);
@@ -64,7 +60,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     const session = createSession({
-      repository_id: repo.id,
+      repository_path: repo.path,
       worktree_branch,
       goal,
       completion_condition,

@@ -13,7 +13,7 @@ import {
 import styles from "./SessionSection.module.css";
 
 interface Props {
-  repositoryId: number;
+  repositoryPath: string;
   organization: string;
   name: string;
   branch: string;
@@ -29,7 +29,7 @@ const STATUS_LABELS: Record<SessionStatus, string> = {
 const TERMINAL_STATUSES: SessionStatus[] = ["SUCCEEDED", "FAILED"];
 
 export default function SessionSection({
-  repositoryId,
+  repositoryPath,
   organization,
   name,
   branch,
@@ -51,7 +51,7 @@ export default function SessionSection({
     setLoading(true);
     setLoadError(null);
     try {
-      setSessions(await fetchSessions(repositoryId, branch));
+      setSessions(await fetchSessions(repositoryPath, branch));
     } catch (err) {
       setLoadError(
         err instanceof Error ? err.message : "Failed to load sessions",

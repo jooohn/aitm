@@ -3,7 +3,6 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { beforeEach, describe, expect, it } from "vitest";
 import { db } from "./db";
-import { registerRepository } from "./repositories";
 import {
   createSession,
   failSession,
@@ -25,14 +24,13 @@ function makeFakeGitRepo(): string {
 beforeEach(() => {
   db.prepare("DELETE FROM session_messages").run();
   db.prepare("DELETE FROM sessions").run();
-  db.prepare("DELETE FROM repositories").run();
 });
 
 describe("createSession", () => {
   it("creates a session with RUNNING status", () => {
-    const repo = registerRepository({ path: makeFakeGitRepo() });
+    const repoPath = makeFakeGitRepo();
     const session = createSession({
-      repository_id: repo.id,
+      repository_path: repoPath,
       worktree_branch: "feat/test",
       goal: "Write an implementation plan",
       completion_condition: "Plan document exists",
@@ -40,7 +38,7 @@ describe("createSession", () => {
 
     expect(session.id).toBeTypeOf("string");
     expect(session.status).toBe("RUNNING");
-    expect(session.repository_id).toBe(repo.id);
+    expect(session.repository_path).toBe(repoPath);
     expect(session.worktree_branch).toBe("feat/test");
     expect(session.goal).toBe("Write an implementation plan");
     expect(session.completion_condition).toBe("Plan document exists");
@@ -51,15 +49,15 @@ describe("createSession", () => {
 
 describe("listSessions", () => {
   it("returns all sessions ordered by created_at descending", () => {
-    const repo = registerRepository({ path: makeFakeGitRepo() });
+    const repoPath = makeFakeGitRepo();
     createSession({
-      repository_id: repo.id,
+      repository_path: repoPath,
       worktree_branch: "feat/a",
       goal: "Goal A",
       completion_condition: "Done A",
     });
     createSession({
-      repository_id: repo.id,
+      repository_path: repoPath,
       worktree_branch: "feat/b",
       goal: "Goal B",
       completion_condition: "Done B",
@@ -72,37 +70,37 @@ describe("listSessions", () => {
     expect(branches).toContain("feat/b");
   });
 
-  it("filters by repository_id", () => {
-    const repo1 = registerRepository({ path: makeFakeGitRepo() });
-    const repo2 = registerRepository({ path: makeFakeGitRepo() });
+  it("filters by repository_path", () => {
+    const path1 = makeFakeGitRepo();
+    const path2 = makeFakeGitRepo();
     createSession({
-      repository_id: repo1.id,
+      repository_path: path1,
       worktree_branch: "feat/a",
       goal: "A",
       completion_condition: "Done",
     });
     createSession({
-      repository_id: repo2.id,
+      repository_path: path2,
       worktree_branch: "feat/b",
       goal: "B",
       completion_condition: "Done",
     });
 
-    const sessions = listSessions({ repository_id: repo1.id });
+    const sessions = listSessions({ repository_path: path1 });
     expect(sessions).toHaveLength(1);
     expect(sessions[0].worktree_branch).toBe("feat/a");
   });
 
   it("filters by worktree_branch", () => {
-    const repo = registerRepository({ path: makeFakeGitRepo() });
+    const repoPath = makeFakeGitRepo();
     createSession({
-      repository_id: repo.id,
+      repository_path: repoPath,
       worktree_branch: "feat/a",
       goal: "A",
       completion_condition: "Done",
     });
     createSession({
-      repository_id: repo.id,
+      repository_path: repoPath,
       worktree_branch: "feat/b",
       goal: "B",
       completion_condition: "Done",
@@ -114,16 +112,16 @@ describe("listSessions", () => {
   });
 
   it("filters by status", () => {
-    const repo = registerRepository({ path: makeFakeGitRepo() });
+    const repoPath = makeFakeGitRepo();
     const session = createSession({
-      repository_id: repo.id,
+      repository_path: repoPath,
       worktree_branch: "feat/a",
       goal: "A",
       completion_condition: "Done",
     });
     failSession(session.id);
     createSession({
-      repository_id: repo.id,
+      repository_path: repoPath,
       worktree_branch: "feat/b",
       goal: "B",
       completion_condition: "Done",
@@ -136,9 +134,9 @@ describe("listSessions", () => {
 
 describe("getSession", () => {
   it("returns the session by id", () => {
-    const repo = registerRepository({ path: makeFakeGitRepo() });
+    const repoPath = makeFakeGitRepo();
     const created = createSession({
-      repository_id: repo.id,
+      repository_path: repoPath,
       worktree_branch: "feat/a",
       goal: "A",
       completion_condition: "Done",
@@ -156,9 +154,9 @@ describe("getSession", () => {
 
 describe("listMessages", () => {
   it("returns messages ordered by created_at ascending", () => {
-    const repo = registerRepository({ path: makeFakeGitRepo() });
+    const repoPath = makeFakeGitRepo();
     const session = createSession({
-      repository_id: repo.id,
+      repository_path: repoPath,
       worktree_branch: "feat/a",
       goal: "A",
       completion_condition: "Done",
@@ -175,9 +173,9 @@ describe("listMessages", () => {
   });
 
   it("returns empty array for session with no messages", () => {
-    const repo = registerRepository({ path: makeFakeGitRepo() });
+    const repoPath = makeFakeGitRepo();
     const session = createSession({
-      repository_id: repo.id,
+      repository_path: repoPath,
       worktree_branch: "feat/a",
       goal: "A",
       completion_condition: "Done",
@@ -186,15 +184,15 @@ describe("listMessages", () => {
   });
 
   it("only returns messages for the specified session", () => {
-    const repo = registerRepository({ path: makeFakeGitRepo() });
+    const repoPath = makeFakeGitRepo();
     const s1 = createSession({
-      repository_id: repo.id,
+      repository_path: repoPath,
       worktree_branch: "feat/a",
       goal: "A",
       completion_condition: "Done",
     });
     const s2 = createSession({
-      repository_id: repo.id,
+      repository_path: repoPath,
       worktree_branch: "feat/b",
       goal: "B",
       completion_condition: "Done",
@@ -208,9 +206,9 @@ describe("listMessages", () => {
 
 describe("failSession", () => {
   it("marks a RUNNING session as FAILED", () => {
-    const repo = registerRepository({ path: makeFakeGitRepo() });
+    const repoPath = makeFakeGitRepo();
     const session = createSession({
-      repository_id: repo.id,
+      repository_path: repoPath,
       worktree_branch: "feat/a",
       goal: "A",
       completion_condition: "Done",
@@ -225,9 +223,9 @@ describe("failSession", () => {
   });
 
   it("throws when session is already in a terminal state", () => {
-    const repo = registerRepository({ path: makeFakeGitRepo() });
+    const repoPath = makeFakeGitRepo();
     const session = createSession({
-      repository_id: repo.id,
+      repository_path: repoPath,
       worktree_branch: "feat/a",
       goal: "A",
       completion_condition: "Done",

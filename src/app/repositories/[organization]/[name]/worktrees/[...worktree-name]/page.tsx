@@ -69,7 +69,7 @@ export default async function WorktreePage({ params }: Props) {
         </div>
       </dl>
       <SessionSection
-        repositoryId={repo.id}
+        repositoryPath={repo.path}
         organization={organization}
         name={name}
         branch={branch}

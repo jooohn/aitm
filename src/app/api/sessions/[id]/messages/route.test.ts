@@ -4,7 +4,6 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { beforeEach, describe, expect, it } from "vitest";
 import { db } from "@/lib/db";
-import { registerRepository } from "@/lib/repositories";
 import { createSession, saveMessage } from "@/lib/sessions";
 import { GET } from "./route";
 
@@ -24,14 +23,12 @@ function makeParams(id: string): { params: Promise<{ id: string }> } {
 beforeEach(() => {
   db.prepare("DELETE FROM session_messages").run();
   db.prepare("DELETE FROM sessions").run();
-  db.prepare("DELETE FROM repositories").run();
 });
 
 describe("GET /api/sessions/:id/messages", () => {
   it("returns 200 with messages in order", async () => {
-    const repo = registerRepository({ path: makeFakeGitRepo() });
     const session = createSession({
-      repository_id: repo.id,
+      repository_path: makeFakeGitRepo(),
       worktree_branch: "feat/test",
       goal: "Do something",
       completion_condition: "Done",
@@ -53,9 +50,8 @@ describe("GET /api/sessions/:id/messages", () => {
   });
 
   it("returns 200 with empty array when no messages", async () => {
-    const repo = registerRepository({ path: makeFakeGitRepo() });
     const session = createSession({
-      repository_id: repo.id,
+      repository_path: makeFakeGitRepo(),
       worktree_branch: "feat/test",
       goal: "Do something",
       completion_condition: "Done",

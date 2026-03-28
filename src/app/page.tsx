@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { fetchRepositories, type Repository } from "@/lib/api";
-import AddRepositoryForm from "./components/AddRepositoryForm";
 import RepositoryRow from "./components/RepositoryRow";
 import styles from "./page.module.css";
 
@@ -22,27 +21,21 @@ export default function Home() {
       .finally(() => setLoading(false));
   }, []);
 
-  function handleAdd(repo: Repository) {
-    setRepos((prev) => [repo, ...prev]);
-  }
-
-  function handleRemove(id: number) {
-    setRepos((prev) => prev.filter((r) => r.id !== id));
-  }
-
   return (
     <main className={styles.page}>
       <h1 className={styles.heading}>Repositories</h1>
       {globalError && <div className={styles.errorBanner}>{globalError}</div>}
-      <AddRepositoryForm onAdd={handleAdd} />
       {loading ? (
         <p className={styles.empty}>Loading…</p>
       ) : repos.length === 0 ? (
-        <p className={styles.empty}>No repositories registered yet.</p>
+        <p className={styles.empty}>
+          No repositories configured. Add entries to{" "}
+          <code>~/.aitm/config.yaml</code>.
+        </p>
       ) : (
         <ul className={styles.list}>
           {repos.map((repo) => (
-            <RepositoryRow key={repo.id} repo={repo} onRemove={handleRemove} />
+            <RepositoryRow key={repo.path} repo={repo} />
           ))}
         </ul>
       )}

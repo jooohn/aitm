@@ -1,10 +1,10 @@
-import { mkdirSync } from "fs";
-import { NextRequest } from "next/server";
+import { mkdirSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
-import { beforeEach, describe, expect, it } from "vitest";
-import { db } from "@/lib/db";
-import { GET, POST } from "./route";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { GET } from "./route";
+
+let configFile: string;
 
 function makeFakeGitRepo(): string {
   const dir = join(
@@ -15,63 +15,35 @@ function makeFakeGitRepo(): string {
   return dir;
 }
 
-function postRequest(body: unknown): NextRequest {
-  return new NextRequest("http://localhost/api/repositories", {
-    method: "POST",
-    body: JSON.stringify(body),
-    headers: { "content-type": "application/json" },
-  });
-}
-
 beforeEach(() => {
-  db.prepare("DELETE FROM repositories").run();
+  const dir = join(
+    tmpdir(),
+    `aitm-config-test-${Math.random().toString(36).slice(2)}`,
+  );
+  mkdirSync(dir, { recursive: true });
+  configFile = join(dir, "config.yaml");
+  process.env.AITM_CONFIG_PATH = configFile;
 });
 
-describe("POST /api/repositories", () => {
-  it("returns 201 with the created repo on success", async () => {
-    const path = makeFakeGitRepo();
-    const res = await POST(postRequest({ path }));
-    expect(res.status).toBe(201);
-    const body = await res.json();
-    expect(body.path).toBe(path);
-  });
-
-  it("returns 409 for a duplicate path", async () => {
-    const path = makeFakeGitRepo();
-    await POST(postRequest({ path }));
-    const res = await POST(postRequest({ path }));
-    expect(res.status).toBe(409);
-  });
-
-  it("returns 422 for a non-existent path", async () => {
-    const res = await POST(postRequest({ path: "/no/such/path" }));
-    expect(res.status).toBe(422);
-  });
-
-  it("returns 422 for a path that is not a git repo", async () => {
-    const dir = join(
-      tmpdir(),
-      `aitm-test-${Math.random().toString(36).slice(2)}`,
-    );
-    mkdirSync(dir, { recursive: true });
-    const res = await POST(postRequest({ path: dir }));
-    expect(res.status).toBe(422);
-  });
+afterEach(() => {
+  delete process.env.AITM_CONFIG_PATH;
 });
 
 describe("GET /api/repositories", () => {
-  it("returns 200 with an empty array initially", async () => {
+  it("returns 200 with an empty array when config has no repositories", async () => {
+    writeFileSync(configFile, "");
     const res = await GET();
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual([]);
   });
 
-  it("returns registered repos", async () => {
-    const path = makeFakeGitRepo();
-    await POST(postRequest({ path }));
+  it("returns repos defined in config", async () => {
+    const repoPath = makeFakeGitRepo();
+    writeFileSync(configFile, `repositories:\n  - path: ${repoPath}\n`);
     const res = await GET();
+    expect(res.status).toBe(200);
     const body = await res.json();
     expect(body).toHaveLength(1);
-    expect(body[0].path).toBe(path);
+    expect(body[0].path).toBe(repoPath);
   });
 });

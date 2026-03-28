@@ -13,7 +13,7 @@ export type SessionStatus =
 
 export interface Session {
   id: string;
-  repository_id: number;
+  repository_path: string;
   worktree_branch: string;
   goal: string;
   completion_condition: string;
@@ -26,14 +26,14 @@ export interface Session {
 }
 
 export interface CreateSessionInput {
-  repository_id: number;
+  repository_path: string;
   worktree_branch: string;
   goal: string;
   completion_condition: string;
 }
 
 export interface ListSessionsFilter {
-  repository_id?: number;
+  repository_path?: string;
   worktree_branch?: string;
   status?: SessionStatus;
 }
@@ -49,20 +49,15 @@ export function createSession(input: CreateSessionInput): Session {
   const now = new Date().toISOString();
   const log_file_path = join(sessionsLogDir(), `${id}.log`);
 
-  const repo = db
-    .prepare("SELECT path FROM repositories WHERE id = ?")
-    .get(input.repository_id) as { path: string } | undefined;
-  if (!repo) throw new Error(`Repository not found: ${input.repository_id}`);
-
   db.prepare(
     `INSERT INTO sessions
-       (id, repository_id, worktree_branch, goal, completion_condition,
+       (id, repository_path, worktree_branch, goal, completion_condition,
         status, terminal_attach_command, log_file_path, claude_session_id,
         created_at, updated_at)
      VALUES (?, ?, ?, ?, ?, 'RUNNING', NULL, ?, NULL, ?, ?)`,
   ).run(
     id,
-    input.repository_id,
+    input.repository_path,
     input.worktree_branch,
     input.goal,
     input.completion_condition,
@@ -74,7 +69,7 @@ export function createSession(input: CreateSessionInput): Session {
   // Start the agent asynchronously — errors are handled inside startAgent.
   startAgent(
     id,
-    repo.path,
+    input.repository_path,
     input.worktree_branch,
     input.goal,
     input.completion_condition,
@@ -86,11 +81,11 @@ export function createSession(input: CreateSessionInput): Session {
 
 export function listSessions(filter: ListSessionsFilter = {}): Session[] {
   const conditions: string[] = [];
-  const params: (string | number)[] = [];
+  const params: string[] = [];
 
-  if (filter.repository_id !== undefined) {
-    conditions.push("repository_id = ?");
-    params.push(filter.repository_id);
+  if (filter.repository_path !== undefined) {
+    conditions.push("repository_path = ?");
+    params.push(filter.repository_path);
   }
   if (filter.worktree_branch !== undefined) {
     conditions.push("worktree_branch = ?");

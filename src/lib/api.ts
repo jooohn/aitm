@@ -1,10 +1,8 @@
 export interface Repository {
-  id: number;
   path: string;
-  alias: string;
   name: string;
+  alias: string;
   main_branch: string;
-  created_at: string;
 }
 
 export interface ValidationResult {
@@ -24,27 +22,6 @@ async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
 
 export function fetchRepositories(): Promise<Repository[]> {
   return apiFetch("/api/repositories");
-}
-
-export function addRepository(input: {
-  path: string;
-  name?: string;
-  main_branch?: string;
-}): Promise<Repository> {
-  return apiFetch("/api/repositories", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(input),
-  });
-}
-
-export async function removeRepository(
-  organization: string,
-  name: string,
-): Promise<void> {
-  await apiFetch(`/api/repositories/${organization}/${name}`, {
-    method: "DELETE",
-  });
 }
 
 export function validateRepository(
@@ -100,7 +77,7 @@ export type SessionStatus =
 
 export interface Session {
   id: string;
-  repository_id: number;
+  repository_path: string;
   worktree_branch: string;
   goal: string;
   completion_condition: string;
@@ -129,11 +106,11 @@ export function fetchSessionMessages(id: string): Promise<SessionMessage[]> {
 }
 
 export function fetchSessions(
-  repositoryId: number,
+  repositoryPath: string,
   worktreeBranch: string,
 ): Promise<Session[]> {
   const params = new URLSearchParams({
-    repository_id: String(repositoryId),
+    repository_path: repositoryPath,
     worktree_branch: worktreeBranch,
   });
   return apiFetch(`/api/sessions?${params}`);
