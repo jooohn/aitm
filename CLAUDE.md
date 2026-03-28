@@ -4,6 +4,15 @@
 
 aitm is a Next.js web UI for managing Claude Code tasks across git worktrees. It wraps the git-worktree-runner workflow, letting you create, monitor, review, and merge agent-driven coding tasks running in parallel — each isolated in its own worktree.
 
+## npm Commands
+
+| Command | Description |
+|---|---|
+| `npm run dev` | Start development server |
+| `npm run build` | Build for production |
+| `npm run start` | Start production server |
+| `npm run lint` | Run ESLint |
+
 ## Documentation: ADRs vs. Specs
 
 **ADRs** (`docs/adr/${yyyymmdd}-${hhmmss}-${title}.md`, e.g. `docs/adr/20260328-140530-use-nextjs-for-frontend.md`) — record past decisions. Immutable; supersede instead of edit.
