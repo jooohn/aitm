@@ -7,45 +7,45 @@ import RepositoryRow from "./components/RepositoryRow";
 import styles from "./page.module.css";
 
 export default function Home() {
-	const [repos, setRepos] = useState<Repository[]>([]);
-	const [loading, setLoading] = useState(true);
-	const [globalError, setGlobalError] = useState<string | null>(null);
+  const [repos, setRepos] = useState<Repository[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [globalError, setGlobalError] = useState<string | null>(null);
 
-	useEffect(() => {
-		fetchRepositories()
-			.then(setRepos)
-			.catch((err) => {
-				setGlobalError(
-					err instanceof Error ? err.message : "Failed to load repositories",
-				);
-			})
-			.finally(() => setLoading(false));
-	}, []);
+  useEffect(() => {
+    fetchRepositories()
+      .then(setRepos)
+      .catch((err) => {
+        setGlobalError(
+          err instanceof Error ? err.message : "Failed to load repositories",
+        );
+      })
+      .finally(() => setLoading(false));
+  }, []);
 
-	function handleAdd(repo: Repository) {
-		setRepos((prev) => [repo, ...prev]);
-	}
+  function handleAdd(repo: Repository) {
+    setRepos((prev) => [repo, ...prev]);
+  }
 
-	function handleRemove(id: number) {
-		setRepos((prev) => prev.filter((r) => r.id !== id));
-	}
+  function handleRemove(id: number) {
+    setRepos((prev) => prev.filter((r) => r.id !== id));
+  }
 
-	return (
-		<main className={styles.page}>
-			<h1 className={styles.heading}>Repositories</h1>
-			{globalError && <div className={styles.errorBanner}>{globalError}</div>}
-			<AddRepositoryForm onAdd={handleAdd} />
-			{loading ? (
-				<p className={styles.empty}>Loading…</p>
-			) : repos.length === 0 ? (
-				<p className={styles.empty}>No repositories registered yet.</p>
-			) : (
-				<ul className={styles.list}>
-					{repos.map((repo) => (
-						<RepositoryRow key={repo.id} repo={repo} onRemove={handleRemove} />
-					))}
-				</ul>
-			)}
-		</main>
-	);
+  return (
+    <main className={styles.page}>
+      <h1 className={styles.heading}>Repositories</h1>
+      {globalError && <div className={styles.errorBanner}>{globalError}</div>}
+      <AddRepositoryForm onAdd={handleAdd} />
+      {loading ? (
+        <p className={styles.empty}>Loading…</p>
+      ) : repos.length === 0 ? (
+        <p className={styles.empty}>No repositories registered yet.</p>
+      ) : (
+        <ul className={styles.list}>
+          {repos.map((repo) => (
+            <RepositoryRow key={repo.id} repo={repo} onRemove={handleRemove} />
+          ))}
+        </ul>
+      )}
+    </main>
+  );
 }
