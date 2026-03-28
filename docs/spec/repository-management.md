@@ -5,7 +5,7 @@
 
 ## Summary
 
-Allow users to register local git repositories with aitm so they can be used as targets for agent-driven tasks. Registrations are persisted in a local SQLite database. Each registered repository tracks the path on disk, a display name, and the main branch name.
+Allow users to register local git repositories with aitm so they can be used as targets for agent-driven tasks. Registrations are persisted in a local SQLite database. Each registered repository tracks the path on disk.
 
 ## Requirements
 
@@ -17,8 +17,6 @@ A `repositories` table in SQLite:
 |---|---|---|---|
 | `id` | INTEGER | PRIMARY KEY AUTOINCREMENT | Internal ID |
 | `path` | TEXT | NOT NULL, UNIQUE | Absolute path to the repository root |
-| `name` | TEXT | NOT NULL | Display name (defaults to the directory basename) |
-| `main_branch` | TEXT | NOT NULL | Name of the main branch (e.g. `main`, `master`) |
 | `created_at` | TEXT | NOT NULL | ISO 8601 timestamp |
 
 ### Operations
@@ -27,14 +25,12 @@ A `repositories` table in SQLite:
 
 - Accept an absolute path to a local directory.
 - Validate that the path exists and is a git repository (contains `.git`).
-- Default `name` to the basename of the path if not provided.
-- Default `main_branch` to `main` if not provided.
 - Reject duplicate paths (return a clear error, not a silent upsert).
 - Return the created repository record.
 
 #### List
 
-- Return all registered repositories ordered by `name` ascending.
+- Return all registered repositories ordered by `path` ascending.
 - Each record includes all columns.
 - No filtering or pagination required initially.
 
@@ -71,7 +67,7 @@ The backend exposes these operations as plain functions/classes first. REST or R
 ## Out of scope
 
 - Remote repositories (SSH, HTTPS URLs).
-- Editing a registration (path, name, or main branch) after creation — remove and re-add instead.
+- Editing a registration after creation — remove and re-add instead.
 - Scanning the filesystem to auto-discover repositories.
 - Authentication or multi-user support.
 
