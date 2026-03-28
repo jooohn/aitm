@@ -21,9 +21,7 @@ Repositories are declared under a top-level `repositories` key:
 ```yaml
 repositories:
   - path: /Users/alice/projects/myapp
-    main_branch: main
   - path: /Users/alice/projects/another-app
-    main_branch: develop
 ```
 
 See spec: repository-management.md for the full field reference.

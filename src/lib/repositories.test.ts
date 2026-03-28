@@ -70,7 +70,7 @@ describe("listRepositories", () => {
     expect(list[0].path).toBe(repoPath);
   });
 
-  it("includes alias, name, and main_branch on each repo", () => {
+  it("includes alias and name on each repo", () => {
     const repoPath = makeFakeGitRepo();
     writeConfig([repoPath]);
 
@@ -78,7 +78,6 @@ describe("listRepositories", () => {
     const parts = repoPath.split("/").filter(Boolean);
     expect(repo.alias).toBe(parts.slice(-2).join("/"));
     expect(repo.name).toBe(parts.at(-1));
-    expect(repo.main_branch).toBe("main");
   });
 
   it("returns repos sorted by path ascending", () => {

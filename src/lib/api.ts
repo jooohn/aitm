@@ -2,7 +2,6 @@ export interface Repository {
   path: string;
   name: string;
   alias: string;
-  main_branch: string;
 }
 
 export interface ValidationResult {

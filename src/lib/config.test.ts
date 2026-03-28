@@ -37,12 +37,11 @@ describe("getConfigRepositories", () => {
       `
 repositories:
   - path: /projects/org/repo1
-    main_branch: main
   - path: /projects/org/repo2
 `,
     );
     expect(getConfigRepositories()).toEqual([
-      { path: "/projects/org/repo1", main_branch: "main" },
+      { path: "/projects/org/repo1" },
       { path: "/projects/org/repo2" },
     ]);
   });

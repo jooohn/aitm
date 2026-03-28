@@ -1,0 +1,74 @@
+# aitm configuration file
+# Copy to ~/.aitm/config.yaml and edit to match your setup.
+
+repositories:
+  - path: /path/to/git-repository
+
+workflows:
+  development-flow:
+    initial_state: plan
+    states:
+      plan:
+        goal: |
+          Read the task goal. If the spec is ambiguous or missing, ask clarifying
+          questions and document a clear plan in PLAN.md. Otherwise, document your
+          understanding and proceed.
+        transitions:
+          - state: plan
+            when: "specs need clarification or the plan is not yet documented"
+          - state: implement
+            when: "a clear plan is documented in PLAN.md"
+          - terminal: failure
+            when: "the task is out of scope or cannot be planned"
+
+      implement:
+        goal: |
+          Implement the plan documented in PLAN.md. Write production-quality code.
+        transitions:
+          - state: implement
+            when: "implementation is incomplete"
+          - state: test
+            when: "implementation is complete and ready for testing"
+          - terminal: failure
+            when: "implementation is blocked and cannot proceed"
+
+      test:
+        goal: |
+          Run the test suite. Fix any failures. Ensure all tests pass.
+        transitions:
+          - state: implement
+            when: "test failures reveal implementation issues"
+          - state: review
+            when: "all tests pass"
+          - terminal: failure
+            when: "tests cannot be fixed without reconsidering the plan"
+
+      review:
+        goal: |
+          Review the diff. Check for correctness, style, and completeness.
+          Request changes if needed.
+        transitions:
+          - state: implement
+            when: "review found issues that require code changes"
+          - state: commit
+            when: "code is ready to commit"
+          - terminal: failure
+            when: "changes should be abandoned"
+
+      commit:
+        goal: |
+          Stage all relevant changes and create a well-formed git commit.
+        transitions:
+          - state: push
+            when: "commit was created successfully"
+          - terminal: failure
+            when: "commit could not be created"
+
+      push:
+        goal: |
+          Push the branch to the remote repository.
+        transitions:
+          - terminal: success
+            when: "push succeeded"
+          - terminal: failure
+            when: "push failed and cannot be resolved"

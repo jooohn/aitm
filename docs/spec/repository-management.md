@@ -14,15 +14,12 @@ Repositories are defined in `~/.aitm/config.yaml` under a top-level `repositorie
 ```yaml
 repositories:
   - path: /Users/alice/projects/myapp
-    main_branch: main
   - path: /Users/alice/projects/another-app
-    main_branch: develop
 ```
 
-| Field | Required | Default | Description |
-|---|---|---|---|
-| `path` | yes | — | Absolute path to the repository root on disk |
-| `main_branch` | no | `main` | Branch name used as the base for new worktrees |
+| Field | Required | Description |
+|---|---|---|
+| `path` | yes | Absolute path to the repository root on disk |
 
 `path` must be unique across all entries. The repository name displayed in the UI is derived from the last path component (e.g. `myapp`). The alias used in API routes is derived from the last two path components (e.g. `alice/myapp`) and must be unique across all configured repositories.
 

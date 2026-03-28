@@ -6,7 +6,6 @@ export interface Repository {
   path: string;
   name: string;
   alias: string;
-  main_branch: string;
 }
 
 export interface ValidationResult {
@@ -29,7 +28,6 @@ export function listRepositories(): Repository[] {
       path: r.path,
       name: basename(r.path),
       alias: inferAlias(r.path),
-      main_branch: r.main_branch ?? "main",
     }))
     .sort((a, b) => a.path.localeCompare(b.path));
 }

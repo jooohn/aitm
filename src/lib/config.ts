@@ -11,7 +11,6 @@ function getConfigPath(): string {
 
 export interface ConfigRepository {
   path: string;
-  main_branch?: string;
 }
 
 interface Config {
