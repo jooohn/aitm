@@ -38,13 +38,7 @@
 				"useNamespaceKeyword": "error"
 			}
 		},
-		"includes": [
-			"**",
-			"!.next/**",
-			"!out/**",
-			"!build/**",
-			"!next-env.d.ts"
-		]
+		"includes": ["**", "!.next/**", "!out/**", "!build/**", "!next-env.d.ts"]
 	},
 	"javascript": { "formatter": { "quoteStyle": "double" }, "globals": [] },
 	"overrides": [

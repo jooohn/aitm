@@ -11,6 +11,8 @@ aitm is a Next.js web UI for managing Claude Code tasks across git worktrees. It
 | `npm run dev` | Start development server |
 | `npm run build` | Build for production |
 | `npm run start` | Start production server |
+| `npm run test` | Run tests once |
+| `npm run test:watch` | Run tests in watch mode |
 | `npm run lint` | Run Biome checks (lint + format) |
 | `npm run lint:fix` | Run Biome checks and auto-fix |
 | `npm run format` | Format files with Biome |
