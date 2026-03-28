@@ -8,17 +8,8 @@
   @apply flex flex-col gap-1 min-w-0;
 }
 
-.name {
-  @apply font-medium text-zinc-900 dark:text-zinc-100;
-}
-
 .path {
   @apply text-xs text-zinc-500 font-mono truncate;
-}
-
-.branch {
-  @apply text-xs rounded px-1.5 py-0.5 self-start;
-  @apply bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400;
 }
 
 .removeError {

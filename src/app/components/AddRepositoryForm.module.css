@@ -13,10 +13,6 @@
   @apply flex flex-col gap-1;
 }
 
-.fieldRow {
-  @apply flex gap-3;
-}
-
 .label {
   @apply text-xs font-medium text-zinc-600 dark:text-zinc-400;
 }
