@@ -1,8 +1,8 @@
 import { randomUUID } from "crypto";
-import { startWorkflowStateAgent, type TransitionDecision } from "./agent";
-import { getConfigWorkflows } from "./config";
+import { type TransitionDecision } from "./agent";
+import { getConfigWorkflows, type WorkflowTransition } from "./config";
 import { db } from "./db";
-import { insertSession } from "./sessions";
+import { createSession } from "./sessions";
 
 export type WorkflowRunStatus = "running" | "success" | "failure";
 
@@ -50,32 +50,11 @@ type PreviousExecutionHandoff = {
   log_file_path: string;
 };
 
-function buildStatePrompt(
-  goal: string,
-  transitions: Array<{ state?: string; terminal?: string; when: string }>,
+function buildGoal(
+  stateGoal: string,
   previousExecutions: PreviousExecutionHandoff[],
 ): string {
-  const transitionList = transitions
-    .map((t) => {
-      const target =
-        "state" in t && t.state
-          ? t.state
-          : `terminal:${(t as { terminal: string }).terminal}`;
-      return `  - "${target}": ${t.when}`;
-    })
-    .join("\n");
-
-  const parts = [
-    "<goal>",
-    goal,
-    "</goal>",
-    "",
-    "<transitions>",
-    "When you finish your work, evaluate which transition applies and emit it as your final structured output.",
-    "Available transitions (emit the exact transition name in the 'transition' field):",
-    transitionList,
-    "</transitions>",
-  ];
+  const parts = ["<goal>", stateGoal, "</goal>"];
 
   if (previousExecutions.length > 0) {
     parts.push("", "<handoff>", "Previous states (oldest first):", "");
@@ -108,44 +87,28 @@ function startStateExecution(
   const stateDef = workflow.states[stateName];
   if (!stateDef) throw new Error(`State not found: ${stateName}`);
 
-  const prompt = buildStatePrompt(
-    stateDef.goal,
-    stateDef.transitions as Array<{
-      state?: string;
-      terminal?: string;
-      when: string;
-    }>,
-    previousExecutions,
-  );
+  const goal = buildGoal(stateDef.goal, previousExecutions);
 
-  const session = insertSession({
-    repository_path: repositoryPath,
-    worktree_branch: worktreeBranch,
-    goal: prompt,
-    completion_condition:
-      "Emit a structured transition decision as final output.",
-  });
-
-  const now = new Date().toISOString();
   const executionId = randomUUID();
+  const now = new Date().toISOString();
+
+  const session = createSession(
+    {
+      repository_path: repositoryPath,
+      worktree_branch: worktreeBranch,
+      goal,
+      transitions: stateDef.transitions as WorkflowTransition[],
+    },
+    (decision) => {
+      completeStateExecution(executionId, decision);
+    },
+  );
 
   db.prepare(
     `INSERT INTO state_executions
        (id, workflow_run_id, state, session_id, transition_decision, handoff_summary, created_at, completed_at)
      VALUES (?, ?, ?, ?, NULL, NULL, ?, NULL)`,
   ).run(executionId, workflowRunId, stateName, session.id, now);
-
-  // Wire up the agent to advance the workflow when it completes.
-  startWorkflowStateAgent(
-    session.id,
-    repositoryPath,
-    worktreeBranch,
-    prompt,
-    session.log_file_path,
-    (decision) => {
-      completeStateExecution(executionId, decision);
-    },
-  ).catch(console.error);
 
   return db
     .prepare("SELECT * FROM state_executions WHERE id = ?")

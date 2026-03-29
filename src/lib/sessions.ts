@@ -2,7 +2,13 @@ import { randomUUID } from "crypto";
 import { mkdirSync } from "fs";
 import { homedir } from "os";
 import { join } from "path";
-import { cancelAgent, sendMessageToAgent, startAgent } from "./agent";
+import {
+  cancelAgent,
+  sendMessageToAgent,
+  startAgent,
+  type TransitionDecision,
+} from "./agent";
+import type { WorkflowTransition } from "./config";
 import { db } from "./db";
 
 export type SessionStatus =
@@ -16,7 +22,8 @@ export interface Session {
   repository_path: string;
   worktree_branch: string;
   goal: string;
-  completion_condition: string;
+  transitions: string; // JSON-serialized WorkflowTransition[]
+  transition_decision: string | null; // JSON-serialized TransitionDecision
   status: SessionStatus;
   terminal_attach_command: string | null;
   log_file_path: string;
@@ -29,7 +36,7 @@ export interface CreateSessionInput {
   repository_path: string;
   worktree_branch: string;
   goal: string;
-  completion_condition: string;
+  transitions: WorkflowTransition[];
 }
 
 export interface ListSessionsFilter {
@@ -44,49 +51,42 @@ function sessionsLogDir(): string {
   return dir;
 }
 
-/**
- * Insert a session record without starting an agent.
- * Used by workflow state executions that start their own agent variant.
- */
-export function insertSession(input: CreateSessionInput): Session {
+export function createSession(
+  input: CreateSessionInput,
+  onComplete?: (decision: TransitionDecision | null) => void,
+): Session {
   const id = randomUUID();
   const now = new Date().toISOString();
   const log_file_path = join(sessionsLogDir(), `${id}.log`);
 
   db.prepare(
     `INSERT INTO sessions
-       (id, repository_path, worktree_branch, goal, completion_condition,
-        status, terminal_attach_command, log_file_path, claude_session_id,
-        created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, 'RUNNING', NULL, ?, NULL, ?, ?)`,
+       (id, repository_path, worktree_branch, goal, transitions,
+        transition_decision, status, terminal_attach_command, log_file_path,
+        claude_session_id, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, NULL, 'RUNNING', NULL, ?, NULL, ?, ?)`,
   ).run(
     id,
     input.repository_path,
     input.worktree_branch,
     input.goal,
-    input.completion_condition,
+    JSON.stringify(input.transitions),
     log_file_path,
     now,
     now,
   );
 
-  return getSession(id) as Session;
-}
-
-export function createSession(input: CreateSessionInput): Session {
-  const session = insertSession(input);
-
-  // Start the agent asynchronously — errors are handled inside startAgent.
   startAgent(
-    session.id,
+    id,
     input.repository_path,
     input.worktree_branch,
     input.goal,
-    input.completion_condition,
-    session.log_file_path,
+    input.transitions,
+    log_file_path,
+    onComplete,
   ).catch(console.error);
 
-  return session;
+  return getSession(id) as Session;
 }
 
 export function listSessions(filter: ListSessionsFilter = {}): Session[] {

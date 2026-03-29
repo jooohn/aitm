@@ -12,6 +12,8 @@ import {
   saveMessage,
 } from "./sessions";
 
+const DEFAULT_TRANSITIONS = [{ terminal: "success" as const, when: "Done" }];
+
 function makeFakeGitRepo(): string {
   const dir = join(
     tmpdir(),
@@ -33,7 +35,7 @@ describe("createSession", () => {
       repository_path: repoPath,
       worktree_branch: "feat/test",
       goal: "Write an implementation plan",
-      completion_condition: "Plan document exists",
+      transitions: DEFAULT_TRANSITIONS,
     });
 
     expect(session.id).toBeTypeOf("string");
@@ -41,7 +43,8 @@ describe("createSession", () => {
     expect(session.repository_path).toBe(repoPath);
     expect(session.worktree_branch).toBe("feat/test");
     expect(session.goal).toBe("Write an implementation plan");
-    expect(session.completion_condition).toBe("Plan document exists");
+    expect(JSON.parse(session.transitions)).toEqual(DEFAULT_TRANSITIONS);
+    expect(session.transition_decision).toBeNull();
     expect(session.log_file_path).toContain(session.id);
     expect(session.created_at).toMatch(/^\d{4}-\d{2}-\d{2}T/);
   });
@@ -54,13 +57,13 @@ describe("listSessions", () => {
       repository_path: repoPath,
       worktree_branch: "feat/a",
       goal: "Goal A",
-      completion_condition: "Done A",
+      transitions: DEFAULT_TRANSITIONS,
     });
     createSession({
       repository_path: repoPath,
       worktree_branch: "feat/b",
       goal: "Goal B",
-      completion_condition: "Done B",
+      transitions: DEFAULT_TRANSITIONS,
     });
 
     const sessions = listSessions();
@@ -77,13 +80,13 @@ describe("listSessions", () => {
       repository_path: path1,
       worktree_branch: "feat/a",
       goal: "A",
-      completion_condition: "Done",
+      transitions: DEFAULT_TRANSITIONS,
     });
     createSession({
       repository_path: path2,
       worktree_branch: "feat/b",
       goal: "B",
-      completion_condition: "Done",
+      transitions: DEFAULT_TRANSITIONS,
     });
 
     const sessions = listSessions({ repository_path: path1 });
@@ -97,13 +100,13 @@ describe("listSessions", () => {
       repository_path: repoPath,
       worktree_branch: "feat/a",
       goal: "A",
-      completion_condition: "Done",
+      transitions: DEFAULT_TRANSITIONS,
     });
     createSession({
       repository_path: repoPath,
       worktree_branch: "feat/b",
       goal: "B",
-      completion_condition: "Done",
+      transitions: DEFAULT_TRANSITIONS,
     });
 
     const sessions = listSessions({ worktree_branch: "feat/a" });
@@ -117,14 +120,14 @@ describe("listSessions", () => {
       repository_path: repoPath,
       worktree_branch: "feat/a",
       goal: "A",
-      completion_condition: "Done",
+      transitions: DEFAULT_TRANSITIONS,
     });
     failSession(session.id);
     createSession({
       repository_path: repoPath,
       worktree_branch: "feat/b",
       goal: "B",
-      completion_condition: "Done",
+      transitions: DEFAULT_TRANSITIONS,
     });
 
     expect(listSessions({ status: "RUNNING" })).toHaveLength(1);
@@ -139,7 +142,7 @@ describe("getSession", () => {
       repository_path: repoPath,
       worktree_branch: "feat/a",
       goal: "A",
-      completion_condition: "Done",
+      transitions: DEFAULT_TRANSITIONS,
     });
 
     const found = getSession(created.id);
@@ -159,7 +162,7 @@ describe("listMessages", () => {
       repository_path: repoPath,
       worktree_branch: "feat/a",
       goal: "A",
-      completion_condition: "Done",
+      transitions: DEFAULT_TRANSITIONS,
     });
     saveMessage(session.id, "agent", "What branch?");
     saveMessage(session.id, "user", "feature/x");
@@ -178,7 +181,7 @@ describe("listMessages", () => {
       repository_path: repoPath,
       worktree_branch: "feat/a",
       goal: "A",
-      completion_condition: "Done",
+      transitions: DEFAULT_TRANSITIONS,
     });
     expect(listMessages(session.id)).toEqual([]);
   });
@@ -189,13 +192,13 @@ describe("listMessages", () => {
       repository_path: repoPath,
       worktree_branch: "feat/a",
       goal: "A",
-      completion_condition: "Done",
+      transitions: DEFAULT_TRANSITIONS,
     });
     const s2 = createSession({
       repository_path: repoPath,
       worktree_branch: "feat/b",
       goal: "B",
-      completion_condition: "Done",
+      transitions: DEFAULT_TRANSITIONS,
     });
     saveMessage(s1.id, "agent", "Message for s1");
 
@@ -211,7 +214,7 @@ describe("failSession", () => {
       repository_path: repoPath,
       worktree_branch: "feat/a",
       goal: "A",
-      completion_condition: "Done",
+      transitions: DEFAULT_TRANSITIONS,
     });
 
     const failed = failSession(session.id);
@@ -228,7 +231,7 @@ describe("failSession", () => {
       repository_path: repoPath,
       worktree_branch: "feat/a",
       goal: "A",
-      completion_condition: "Done",
+      transitions: DEFAULT_TRANSITIONS,
     });
     failSession(session.id);
 

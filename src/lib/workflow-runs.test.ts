@@ -284,10 +284,9 @@ describe("completeStateExecution", () => {
     const implement2Exec = db
       .prepare(
         `SELECT * FROM state_executions
-         WHERE workflow_run_id = ? AND state = 'implement'
-         ORDER BY created_at DESC LIMIT 1`,
+         WHERE workflow_run_id = ? AND state = 'implement' AND id != ?`,
       )
-      .get(run.id) as { session_id: string };
+      .get(run.id, implementExec.id) as { session_id: string };
 
     const implement2Session = db
       .prepare("SELECT * FROM sessions WHERE id = ?")

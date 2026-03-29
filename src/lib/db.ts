@@ -11,16 +11,18 @@ if (dbPath !== ":memory:") {
 
 export const db = new Database(dbPath);
 
-// Migration: if sessions still uses the old repository_id FK (pre-config era),
-// drop and recreate sessions and session_messages. Data loss is accepted —
-// sessions from the old schema cannot be migrated without the repositories table.
+// Migration: drop dependent tables then sessions when the schema needs updating.
+// Data loss is accepted for these structural migrations.
 const sessionCols = db.prepare("PRAGMA table_info(sessions)").all() as {
   name: string;
 }[];
-if (
+const needsSessionRebuild =
   sessionCols.length > 0 &&
-  sessionCols.some((c) => c.name === "repository_id")
-) {
+  (sessionCols.some((c) => c.name === "repository_id") ||
+    sessionCols.some((c) => c.name === "completion_condition"));
+if (needsSessionRebuild) {
+  db.exec("DROP TABLE IF EXISTS state_executions");
+  db.exec("DROP TABLE IF EXISTS workflow_runs");
   db.exec("DROP TABLE IF EXISTS session_messages");
   db.exec("DROP TABLE IF EXISTS sessions");
 }
@@ -34,7 +36,8 @@ db.exec(`
     repository_path         TEXT    NOT NULL,
     worktree_branch         TEXT    NOT NULL,
     goal                    TEXT    NOT NULL,
-    completion_condition    TEXT    NOT NULL,
+    transitions             TEXT    NOT NULL DEFAULT '[]',
+    transition_decision     TEXT,
     status                  TEXT    NOT NULL DEFAULT 'RUNNING',
     terminal_attach_command TEXT,
     log_file_path           TEXT    NOT NULL,

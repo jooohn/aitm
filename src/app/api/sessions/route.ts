@@ -32,20 +32,20 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const body = await request.json();
-    const { organization, name, worktree_branch, goal, completion_condition } =
-      body;
+    const { organization, name, worktree_branch, goal, transitions } = body;
 
     if (
       !organization ||
       !name ||
       !worktree_branch ||
       !goal ||
-      !completion_condition
+      !Array.isArray(transitions) ||
+      transitions.length === 0
     ) {
       return NextResponse.json(
         {
           error:
-            "organization, name, worktree_branch, goal, and completion_condition are required",
+            "organization, name, worktree_branch, goal, and transitions are required",
         },
         { status: 422 },
       );
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       repository_path: repo.path,
       worktree_branch,
       goal,
-      completion_condition,
+      transitions,
     });
     return NextResponse.json(session, { status: 201 });
   } catch (err) {

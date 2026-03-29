@@ -31,7 +31,7 @@ describe("GET /api/sessions/:id/messages", () => {
       repository_path: makeFakeGitRepo(),
       worktree_branch: "feat/test",
       goal: "Do something",
-      completion_condition: "Done",
+      transitions: [{ terminal: "success" as const, when: "Done" }],
     });
     saveMessage(session.id, "agent", "First question");
     saveMessage(session.id, "user", "My answer");
@@ -54,7 +54,7 @@ describe("GET /api/sessions/:id/messages", () => {
       repository_path: makeFakeGitRepo(),
       worktree_branch: "feat/test",
       goal: "Do something",
-      completion_condition: "Done",
+      transitions: [{ terminal: "success" as const, when: "Done" }],
     });
 
     const res = await GET(

@@ -5,6 +5,7 @@ import {
 } from "@anthropic-ai/claude-agent-sdk";
 import type { AskUserQuestionInput } from "@anthropic-ai/claude-agent-sdk/sdk-tools";
 import { appendFileSync, writeFileSync } from "fs";
+import type { WorkflowTransition } from "./config";
 import { db } from "./db";
 import { type SessionStatus, saveMessage } from "./sessions";
 import { listWorktrees } from "./worktrees";
@@ -119,18 +120,40 @@ function waitForInput(sessionId: string, signal: AbortSignal): Promise<string> {
 // Exported API
 // ---------------------------------------------------------------------------
 
+function buildTransitionsSection(transitions: WorkflowTransition[]): string {
+  const list = transitions
+    .map((t) => {
+      const name =
+        "state" in t
+          ? t.state
+          : (t as { terminal: string; when: string }).terminal;
+      return `  - "${name}": ${t.when}`;
+    })
+    .join("\n");
+
+  return [
+    "<transitions>",
+    "When you finish your work, evaluate which transition applies and emit it as your final structured output.",
+    "Available transitions (emit the exact transition name in the 'transition' field):",
+    list,
+    "</transitions>",
+  ].join("\n");
+}
+
 /**
  * Start a Claude Code agent for a session. Fire-and-forget — call without
  * awaiting. All errors are handled internally; the session is marked FAILED
- * if anything goes wrong.
+ * if anything goes wrong. Calls onComplete with the structured transition
+ * decision when the session ends (null if the session failed or produced no output).
  */
 export async function startAgent(
   sessionId: string,
   repoPath: string,
   worktreeBranch: string,
   goal: string,
-  completionCondition: string,
+  transitions: WorkflowTransition[],
   logFilePath: string,
+  onComplete?: (decision: TransitionDecision | null) => void,
 ): Promise<void> {
   // Yield to the event loop so createSession can return the RUNNING record
   // before any synchronous work here (like worktree lookup) can change status.
@@ -150,6 +173,7 @@ export async function startAgent(
       message: err instanceof Error ? err.message : String(err),
     });
     setStatus(sessionId, "FAILED");
+    onComplete?.(null);
     return;
   }
 
@@ -157,16 +181,16 @@ export async function startAgent(
   activeAbortControllers.set(sessionId, abortController);
 
   const prompt = [
-    `Goal: ${goal}`,
+    goal,
     "",
-    `Work autonomously to accomplish the goal above. When you believe the following completion condition is met, stop:`,
-    `${completionCondition}`,
+    buildTransitionsSection(transitions),
     "",
-    `Use the AskUserQuestion tool if you need clarification from the user.`,
+    "Use the AskUserQuestion tool if you need clarification from the user.",
   ].join("\n");
 
   const canUseTool = createToolPermissionHandler(sessionId, logFilePath);
 
+  let decision: TransitionDecision | null = null;
   try {
     for await (const message of query({
       prompt,
@@ -175,6 +199,7 @@ export async function startAgent(
         permissionMode: "acceptEdits",
         abortController,
         canUseTool,
+        outputFormat: TRANSITION_OUTPUT_FORMAT,
       },
     })) {
       appendToLog(logFilePath, message);
@@ -184,6 +209,12 @@ export async function startAgent(
       }
 
       if (message.type === "result") {
+        if (message.subtype === "success" && message.structured_output) {
+          decision = message.structured_output as TransitionDecision;
+          db.prepare(
+            "UPDATE sessions SET transition_decision = ? WHERE id = ?",
+          ).run(JSON.stringify(decision), sessionId);
+        }
         setStatus(
           sessionId,
           message.subtype === "success" ? "SUCCEEDED" : "FAILED",
@@ -202,6 +233,8 @@ export async function startAgent(
     activeAbortControllers.delete(sessionId);
     pendingInputs.delete(sessionId);
   }
+
+  onComplete?.(decision);
 }
 
 /**
@@ -252,85 +285,3 @@ const TRANSITION_OUTPUT_FORMAT = {
     additionalProperties: false,
   },
 };
-
-/**
- * Start a Claude Code agent for a workflow state execution. Fire-and-forget.
- * Uses outputFormat to constrain Claude's final output to a transition decision.
- * Calls onComplete when done (with structured decision or null on failure).
- */
-export async function startWorkflowStateAgent(
-  sessionId: string,
-  repoPath: string,
-  worktreeBranch: string,
-  prompt: string,
-  logFilePath: string,
-  onComplete: (decision: TransitionDecision | null) => void,
-): Promise<void> {
-  await Promise.resolve();
-
-  writeFileSync(logFilePath, "", "utf8");
-
-  let worktreePath: string;
-  try {
-    const worktrees = listWorktrees(repoPath);
-    const worktree = worktrees.find((w) => w.branch === worktreeBranch);
-    if (!worktree) throw new Error(`Worktree not found: ${worktreeBranch}`);
-    worktreePath = worktree.path;
-  } catch (err) {
-    appendToLog(logFilePath, {
-      type: "error",
-      message: err instanceof Error ? err.message : String(err),
-    });
-    setStatus(sessionId, "FAILED");
-    onComplete(null);
-    return;
-  }
-
-  const abortController = new AbortController();
-  activeAbortControllers.set(sessionId, abortController);
-
-  const canUseTool = createToolPermissionHandler(sessionId, logFilePath);
-
-  let decision: TransitionDecision | null = null;
-  try {
-    for await (const message of query({
-      prompt,
-      options: {
-        cwd: worktreePath,
-        permissionMode: "acceptEdits",
-        abortController,
-        canUseTool,
-        outputFormat: TRANSITION_OUTPUT_FORMAT,
-      },
-    })) {
-      appendToLog(logFilePath, message);
-
-      if (message.type === "system" && message.subtype === "init") {
-        setClaudeSession(sessionId, message.session_id);
-      }
-
-      if (message.type === "result") {
-        if (message.subtype === "success" && message.structured_output) {
-          decision = message.structured_output as TransitionDecision;
-        }
-        setStatus(
-          sessionId,
-          message.subtype === "success" ? "SUCCEEDED" : "FAILED",
-        );
-      }
-    }
-  } catch (err) {
-    if (!(err instanceof AbortError)) {
-      appendToLog(logFilePath, {
-        type: "error",
-        message: err instanceof Error ? err.message : String(err),
-      });
-      setStatus(sessionId, "FAILED");
-    }
-  } finally {
-    activeAbortControllers.delete(sessionId);
-    pendingInputs.delete(sessionId);
-  }
-
-  onComplete(decision);
-}

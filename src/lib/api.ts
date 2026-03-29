@@ -79,7 +79,8 @@ export interface Session {
   repository_path: string;
   worktree_branch: string;
   goal: string;
-  completion_condition: string;
+  transitions: string; // JSON-serialized WorkflowTransition[]
+  transition_decision: string | null; // JSON-serialized TransitionDecision
   status: SessionStatus;
   terminal_attach_command: string | null;
   log_file_path: string;
@@ -120,7 +121,7 @@ export function startSession(input: {
   name: string;
   worktree_branch: string;
   goal: string;
-  completion_condition: string;
+  transitions: WorkflowTransition[];
 }): Promise<Session> {
   return apiFetch("/api/sessions", {
     method: "POST",

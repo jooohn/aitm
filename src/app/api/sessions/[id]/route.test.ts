@@ -31,7 +31,7 @@ describe("GET /api/sessions/:id", () => {
       repository_path: makeFakeGitRepo(),
       worktree_branch: "feat/test",
       goal: "Do something",
-      completion_condition: "Done",
+      transitions: [{ terminal: "success" as const, when: "Done" }],
     });
 
     const res = await GET(
