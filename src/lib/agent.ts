@@ -89,7 +89,7 @@ function createToolPermissionHandler(
     }
 
     // Auto-approve everything else.
-    return { behavior: "allow" };
+    return { behavior: "allow", updatedInput: input };
   };
 }
 
