@@ -183,7 +183,12 @@ export function sendUserMessage(sessionId: string, content: string): void {
 
 // Mark any sessions left in a non-terminal state as FAILED.
 // Called on module load so that sessions from a previous server run are recovered.
+// Uses a global flag so hot-reloads in dev mode don't kill live sessions.
 export function recoverCrashedSessions(): void {
+  const g = global as typeof global & { __aitm_recovered?: boolean };
+  if (g.__aitm_recovered) return;
+  g.__aitm_recovered = true;
+
   const now = new Date().toISOString();
   db.prepare(
     `UPDATE sessions SET status = 'FAILED', updated_at = ?
