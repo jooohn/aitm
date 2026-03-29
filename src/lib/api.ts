@@ -144,8 +144,16 @@ export interface WorkflowState {
   transitions: WorkflowTransition[];
 }
 
+export interface WorkflowInput {
+  name: string;
+  label: string;
+  description?: string;
+  required?: boolean;
+}
+
 export interface WorkflowDefinition {
   initial_state: string;
+  inputs?: WorkflowInput[];
   states: Record<string, WorkflowState>;
 }
 
@@ -156,6 +164,7 @@ export interface WorkflowRun {
   workflow_name: string;
   current_state: string | null;
   status: WorkflowRunStatus;
+  inputs: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -194,6 +203,7 @@ export function createWorkflowRun(input: {
   repository_path: string;
   worktree_branch: string;
   workflow_name: string;
+  inputs?: Record<string, string>;
 }): Promise<WorkflowRun> {
   return apiFetch("/api/workflow-runs", {
     method: "POST",

@@ -10,6 +10,7 @@ import {
   type WorkflowRun,
   type WorkflowRunStatus,
 } from "@/lib/api";
+
 import styles from "./WorkflowSection.module.css";
 
 interface Props {
@@ -31,6 +32,7 @@ export default function WorkflowSection({ repositoryPath, branch }: Props) {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedWorkflow, setSelectedWorkflow] = useState("");
+  const [inputValues, setInputValues] = useState<Record<string, string>>({});
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
 
@@ -46,7 +48,10 @@ export default function WorkflowSection({ repositoryPath, branch }: Props) {
       setRuns(wfRuns);
       if (!selectedWorkflow) {
         const names = Object.keys(wfs);
-        if (names.length > 0) setSelectedWorkflow(names[0]);
+        if (names.length > 0) {
+          setSelectedWorkflow(names[0]);
+          setInputValues({});
+        }
       }
     } catch (err) {
       setLoadError(
@@ -72,6 +77,7 @@ export default function WorkflowSection({ repositoryPath, branch }: Props) {
         repository_path: repositoryPath,
         worktree_branch: branch,
         workflow_name: selectedWorkflow,
+        inputs: Object.keys(inputValues).length > 0 ? inputValues : undefined,
       });
       await load();
     } catch (err) {
@@ -128,7 +134,10 @@ export default function WorkflowSection({ repositoryPath, branch }: Props) {
           <select
             className={styles.select}
             value={selectedWorkflow}
-            onChange={(e) => setSelectedWorkflow(e.target.value)}
+            onChange={(e) => {
+              setSelectedWorkflow(e.target.value);
+              setInputValues({});
+            }}
             disabled={starting}
           >
             {workflowNames.map((name) => (
@@ -137,6 +146,39 @@ export default function WorkflowSection({ repositoryPath, branch }: Props) {
               </option>
             ))}
           </select>
+          {selectedWorkflow &&
+            (workflows[selectedWorkflow]?.inputs ?? []).map((inputDef) => (
+              <div key={inputDef.name} className={styles.inputGroup}>
+                <label
+                  htmlFor={`input-${inputDef.name}`}
+                  className={styles.inputLabel}
+                >
+                  {inputDef.label}
+                  {inputDef.required !== false && (
+                    <span className={styles.inputRequired}>*</span>
+                  )}
+                </label>
+                {inputDef.description && (
+                  <span className={styles.inputDescription}>
+                    {inputDef.description}
+                  </span>
+                )}
+                <input
+                  id={`input-${inputDef.name}`}
+                  type="text"
+                  className={styles.input}
+                  value={inputValues[inputDef.name] ?? ""}
+                  onChange={(e) =>
+                    setInputValues((prev) => ({
+                      ...prev,
+                      [inputDef.name]: e.target.value,
+                    }))
+                  }
+                  disabled={starting}
+                  placeholder={inputDef.label}
+                />
+              </div>
+            ))}
           <button
             type="submit"
             className={styles.startButton}

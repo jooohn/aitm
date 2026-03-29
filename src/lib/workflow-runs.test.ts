@@ -125,6 +125,179 @@ describe("createWorkflowRun", () => {
       }),
     ).toThrow("Workflow not found");
   });
+
+  it("stores inputs as JSON on the workflow run record", () => {
+    const configWithInputs = `
+workflows:
+  my-flow:
+    inputs:
+      - name: feature-description
+        label: Feature Description
+        required: true
+    initial_state: plan
+    states:
+      plan:
+        goal: "Write a plan"
+        transitions:
+          - terminal: success
+            when: "done"
+`;
+    process.env.AITM_CONFIG_PATH = writeTempConfig(configWithInputs);
+    const repoPath = makeFakeGitRepo();
+
+    const run = createWorkflowRun({
+      repository_path: repoPath,
+      worktree_branch: "feat/test",
+      workflow_name: "my-flow",
+      inputs: { "feature-description": "Implement login page" },
+    });
+
+    expect(run.inputs).toBe(
+      JSON.stringify({ "feature-description": "Implement login page" }),
+    );
+  });
+
+  it("injects inputs into the initial session goal as an <inputs> block", () => {
+    const configWithInputs = `
+workflows:
+  my-flow:
+    inputs:
+      - name: feature-description
+        label: Feature Description
+        required: true
+    initial_state: plan
+    states:
+      plan:
+        goal: "Write a plan"
+        transitions:
+          - state: implement
+            when: "plan is ready"
+          - terminal: failure
+            when: "cannot proceed"
+      implement:
+        goal: "Write the code"
+        transitions:
+          - terminal: success
+            when: "code is done"
+          - terminal: failure
+            when: "blocked"
+`;
+    process.env.AITM_CONFIG_PATH = writeTempConfig(configWithInputs);
+    const repoPath = makeFakeGitRepo();
+
+    const run = createWorkflowRun({
+      repository_path: repoPath,
+      worktree_branch: "feat/test",
+      workflow_name: "my-flow",
+      inputs: { "feature-description": "Implement login page" },
+    });
+
+    const planExec = db
+      .prepare("SELECT * FROM state_executions WHERE workflow_run_id = ?")
+      .get(run.id) as { session_id: string };
+    const planSession = db
+      .prepare("SELECT * FROM sessions WHERE id = ?")
+      .get(planExec.session_id) as { goal: string };
+
+    expect(planSession.goal).toContain("<inputs>");
+    expect(planSession.goal).toContain(
+      "feature-description: Implement login page",
+    );
+    expect(planSession.goal).toContain("</inputs>");
+  });
+
+  it("does not inject inputs block into subsequent state session goals", () => {
+    const configWithInputs = `
+workflows:
+  my-flow:
+    inputs:
+      - name: feature-description
+        label: Feature Description
+        required: true
+    initial_state: plan
+    states:
+      plan:
+        goal: "Write a plan"
+        transitions:
+          - state: implement
+            when: "plan is ready"
+          - terminal: failure
+            when: "cannot proceed"
+      implement:
+        goal: "Write the code"
+        transitions:
+          - terminal: success
+            when: "code is done"
+          - terminal: failure
+            when: "blocked"
+`;
+    process.env.AITM_CONFIG_PATH = writeTempConfig(configWithInputs);
+    const repoPath = makeFakeGitRepo();
+
+    const run = createWorkflowRun({
+      repository_path: repoPath,
+      worktree_branch: "feat/test",
+      workflow_name: "my-flow",
+      inputs: { "feature-description": "Implement login page" },
+    });
+
+    const [planExec] = db
+      .prepare(
+        "SELECT * FROM state_executions WHERE workflow_run_id = ? ORDER BY created_at ASC",
+      )
+      .all(run.id) as { id: string; state: string }[];
+
+    completeStateExecution(planExec.id, {
+      transition: "implement",
+      reason: "Plan done",
+      handoff_summary: "Wrote PLAN.md",
+    });
+
+    const implementExec = db
+      .prepare(
+        "SELECT * FROM state_executions WHERE workflow_run_id = ? AND state = 'implement'",
+      )
+      .get(run.id) as { session_id: string };
+
+    const implementSession = db
+      .prepare("SELECT * FROM sessions WHERE id = ?")
+      .get(implementExec.session_id) as { goal: string };
+
+    // The implement session should NOT have a raw <inputs> block
+    expect(implementSession.goal).not.toContain("<inputs>");
+    // But it should have the handoff context
+    expect(implementSession.goal).toContain("<handoff>");
+    expect(implementSession.goal).toContain("Wrote PLAN.md");
+  });
+
+  it("throws when a required input is missing", () => {
+    const configWithInputs = `
+workflows:
+  my-flow:
+    inputs:
+      - name: feature-description
+        label: Feature Description
+        required: true
+    initial_state: plan
+    states:
+      plan:
+        goal: "Write a plan"
+        transitions:
+          - terminal: success
+            when: "done"
+`;
+    process.env.AITM_CONFIG_PATH = writeTempConfig(configWithInputs);
+    const repoPath = makeFakeGitRepo();
+
+    expect(() =>
+      createWorkflowRun({
+        repository_path: repoPath,
+        worktree_branch: "feat/test",
+        workflow_name: "my-flow",
+        inputs: {},
+      }),
+    ).toThrow("Missing required input: Feature Description");
+  });
 });
 
 describe("completeStateExecution", () => {

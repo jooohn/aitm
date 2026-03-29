@@ -13,6 +13,7 @@ export interface WorkflowRun {
   workflow_name: string;
   current_state: string | null;
   status: WorkflowRunStatus;
+  inputs: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -36,6 +37,7 @@ export interface CreateWorkflowRunInput {
   repository_path: string;
   worktree_branch: string;
   workflow_name: string;
+  inputs?: Record<string, string>;
 }
 
 export interface ListWorkflowRunsFilter {
@@ -53,8 +55,21 @@ type PreviousExecutionHandoff = {
 function buildGoal(
   stateGoal: string,
   previousExecutions: PreviousExecutionHandoff[],
+  inputs?: Record<string, string>,
 ): string {
   const parts = ["<goal>", stateGoal, "</goal>"];
+
+  if (
+    previousExecutions.length === 0 &&
+    inputs &&
+    Object.keys(inputs).length > 0
+  ) {
+    parts.push("", "<inputs>");
+    for (const [key, value] of Object.entries(inputs)) {
+      parts.push(`${key}: ${value}`);
+    }
+    parts.push("</inputs>");
+  }
 
   if (previousExecutions.length > 0) {
     parts.push("", "<handoff>", "Previous states (oldest first):", "");
@@ -79,6 +94,7 @@ function startStateExecution(
   worktreeBranch: string,
   workflowName: string,
   previousExecutions: PreviousExecutionHandoff[],
+  inputs?: Record<string, string>,
 ): StateExecution {
   const workflows = getConfigWorkflows();
   const workflow = workflows[workflowName];
@@ -87,7 +103,7 @@ function startStateExecution(
   const stateDef = workflow.states[stateName];
   if (!stateDef) throw new Error(`State not found: ${stateName}`);
 
-  const goal = buildGoal(stateDef.goal, previousExecutions);
+  const goal = buildGoal(stateDef.goal, previousExecutions, inputs);
 
   const executionId = randomUUID();
   const now = new Date().toISOString();
@@ -120,19 +136,36 @@ export function createWorkflowRun(input: CreateWorkflowRunInput): WorkflowRun {
   const workflow = workflows[input.workflow_name];
   if (!workflow) throw new Error(`Workflow not found: ${input.workflow_name}`);
 
+  // Validate required inputs.
+  if (workflow.inputs) {
+    for (const inputDef of workflow.inputs) {
+      const required = inputDef.required !== false; // default true
+      if (required) {
+        const value = input.inputs?.[inputDef.name];
+        if (!value || value.trim() === "") {
+          throw new Error(
+            `Missing required input: ${inputDef.label ?? inputDef.name}`,
+          );
+        }
+      }
+    }
+  }
+
   const id = randomUUID();
   const now = new Date().toISOString();
+  const inputsJson = input.inputs ? JSON.stringify(input.inputs) : null;
 
   db.prepare(
     `INSERT INTO workflow_runs
-       (id, repository_path, worktree_branch, workflow_name, current_state, status, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, 'running', ?, ?)`,
+       (id, repository_path, worktree_branch, workflow_name, current_state, status, inputs, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, 'running', ?, ?, ?)`,
   ).run(
     id,
     input.repository_path,
     input.worktree_branch,
     input.workflow_name,
     workflow.initial_state,
+    inputsJson,
     now,
     now,
   );
@@ -144,6 +177,7 @@ export function createWorkflowRun(input: CreateWorkflowRunInput): WorkflowRun {
     input.worktree_branch,
     input.workflow_name,
     [],
+    input.inputs,
   );
 
   return db

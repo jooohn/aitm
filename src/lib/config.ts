@@ -22,8 +22,16 @@ export interface WorkflowState {
   transitions: WorkflowTransition[];
 }
 
+export interface WorkflowInput {
+  name: string;
+  label: string;
+  description?: string;
+  required?: boolean;
+}
+
 export interface WorkflowDefinition {
   initial_state: string;
+  inputs?: WorkflowInput[];
   states: Record<string, WorkflowState>;
 }
 
