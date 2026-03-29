@@ -30,6 +30,17 @@ if (needsSessionRebuild) {
 // Remove legacy repositories table if present.
 db.exec("DROP TABLE IF EXISTS repositories");
 
+// Migration: add inputs column to workflow_runs if missing.
+const workflowRunCols = db
+  .prepare("PRAGMA table_info(workflow_runs)")
+  .all() as { name: string }[];
+if (
+  workflowRunCols.length > 0 &&
+  !workflowRunCols.some((c) => c.name === "inputs")
+) {
+  db.exec("ALTER TABLE workflow_runs ADD COLUMN inputs TEXT");
+}
+
 db.exec(`
   CREATE TABLE IF NOT EXISTS sessions (
     id                      TEXT    PRIMARY KEY,
@@ -61,6 +72,7 @@ db.exec(`
     workflow_name    TEXT    NOT NULL,
     current_state    TEXT,
     status           TEXT    NOT NULL DEFAULT 'running',
+    inputs           TEXT,
     created_at       TEXT    NOT NULL,
     updated_at       TEXT    NOT NULL
   );
