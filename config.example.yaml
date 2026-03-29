@@ -50,25 +50,17 @@ workflows:
         transitions:
           - state: implement
             when: "review found issues that require code changes"
-          - state: commit
+          - state: commit-push-pr
             when: "code is ready to commit"
           - terminal: failure
             when: "changes should be abandoned"
 
-      commit:
+      commit-push-pr:
         goal: |
-          Stage all relevant changes and create a well-formed git commit.
-        transitions:
-          - state: push
-            when: "commit was created successfully"
-          - terminal: failure
-            when: "commit could not be created"
-
-      push:
-        goal: |
-          Push the branch to the remote repository.
+          Stage all relevant changes, create a well-formed git commit, push the
+          branch to the remote repository, and open a pull request.
         transitions:
           - terminal: success
-            when: "push succeeded"
+            when: "pull request was created successfully"
           - terminal: failure
-            when: "push failed and cannot be resolved"
+            when: "commit, push, or PR creation failed and cannot be resolved"
