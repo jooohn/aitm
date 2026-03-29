@@ -127,9 +127,8 @@ export default function SessionSection({ repositoryPath, branch }: Props) {
                     onSubmit={(e) => handleReply(e, session)}
                     className={styles.replyForm}
                   >
-                    <input
-                      type="text"
-                      className={styles.input}
+                    <textarea
+                      className={styles.textarea}
                       placeholder="Your reply…"
                       value={replyContent[session.id] ?? ""}
                       onChange={(e) =>
@@ -138,6 +137,11 @@ export default function SessionSection({ repositoryPath, branch }: Props) {
                           [session.id]: e.target.value,
                         }))
                       }
+                      onKeyDown={(e) => {
+                        if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+                          handleReply(e as unknown as React.FormEvent, session);
+                        }
+                      }}
                       disabled={sendingReplyId === session.id}
                     />
                     <button

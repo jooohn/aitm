@@ -234,9 +234,8 @@ export default function SessionDetail({
       {/* Input form */}
       {!isTerminal && (
         <form onSubmit={handleSend} className={styles.inputForm}>
-          <input
-            type="text"
-            className={styles.input}
+          <textarea
+            className={styles.textarea}
             placeholder={
               session.status === "WAITING_FOR_INPUT"
                 ? "Reply to the agent…"
@@ -244,6 +243,11 @@ export default function SessionDetail({
             }
             value={replyContent}
             onChange={(e) => setReplyContent(e.target.value)}
+            onKeyDown={(e) => {
+              if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+                handleSend(e as unknown as React.FormEvent);
+              }
+            }}
             disabled={sending}
           />
           <button
