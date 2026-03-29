@@ -240,6 +240,34 @@ function terminateRun(
   ).run(terminal, now, runId);
 }
 
+// Mark state_executions as completed where the session has reached a terminal
+// state but the execution was never closed (e.g., due to a server crash).
+// Then fail any workflow runs that have no remaining active state execution.
+// Must be called after recoverCrashedSessions() has run (sessions.ts module load).
+function recoverCrashedWorkflowRuns(): void {
+  const now = new Date().toISOString();
+
+  db.prepare(
+    `UPDATE state_executions
+     SET completed_at = ?
+     WHERE completed_at IS NULL
+       AND session_id IN (
+         SELECT id FROM sessions WHERE status IN ('SUCCEEDED', 'FAILED')
+       )`,
+  ).run(now);
+
+  db.prepare(
+    `UPDATE workflow_runs
+     SET status = 'failure', current_state = NULL, updated_at = ?
+     WHERE status = 'running'
+       AND id NOT IN (
+         SELECT workflow_run_id FROM state_executions WHERE completed_at IS NULL
+       )`,
+  ).run(now);
+}
+
+recoverCrashedWorkflowRuns();
+
 export function listWorkflowRuns(
   filter: ListWorkflowRunsFilter,
 ): WorkflowRun[] {
