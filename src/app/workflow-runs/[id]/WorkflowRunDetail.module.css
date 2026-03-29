@@ -1,0 +1,131 @@
+@reference "tailwindcss";
+
+.container {
+  @apply flex flex-col gap-6;
+}
+
+/* Header */
+.header {
+  @apply flex items-start justify-between gap-4;
+}
+
+.headerLeft {
+  @apply flex flex-col gap-2;
+}
+
+.title {
+  @apply text-2xl font-semibold text-zinc-900 dark:text-zinc-50;
+}
+
+/* Status badges */
+.badge {
+  @apply self-start inline-block text-xs font-medium px-1.5 py-0.5 rounded;
+}
+
+.badge-running {
+  @apply bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300;
+}
+
+.badge-success {
+  @apply bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300;
+}
+
+.badge-failure {
+  @apply bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-400;
+}
+
+.badge-completed {
+  @apply bg-zinc-100 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300;
+}
+
+/* Details */
+.details {
+  @apply flex flex-col divide-y divide-zinc-200 dark:divide-zinc-700;
+}
+
+.detailRow {
+  @apply py-3 flex flex-col gap-1 sm:flex-row sm:gap-8;
+}
+
+.detailLabel {
+  @apply text-sm font-medium text-zinc-500 sm:w-44 shrink-0;
+}
+
+.detailValue {
+  @apply text-sm text-zinc-800 dark:text-zinc-200;
+}
+
+/* Section headings */
+.sectionHeading {
+  @apply text-sm font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-3;
+}
+
+.empty {
+  @apply text-sm text-zinc-500;
+}
+
+/* State executions list */
+.executions {
+  @apply flex flex-col gap-3;
+}
+
+.execution {
+  @apply flex flex-col gap-2 rounded-lg border border-zinc-200 dark:border-zinc-700 px-4 py-3;
+}
+
+.executionHeader {
+  @apply flex items-center gap-2;
+}
+
+.stateName {
+  @apply text-sm font-semibold text-zinc-900 dark:text-zinc-100 font-mono;
+}
+
+.executionMeta {
+  @apply flex items-center gap-3 text-xs text-zinc-500 dark:text-zinc-400;
+}
+
+.sessionLink {
+  @apply font-mono hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors underline underline-offset-2;
+}
+
+.timestamp {
+  @apply tabular-nums;
+}
+
+/* Transition decision */
+.decision {
+  @apply flex flex-col gap-1.5 mt-1 pt-2 border-t border-zinc-100 dark:border-zinc-800;
+}
+
+.decisionTransition {
+  @apply flex items-center gap-3;
+}
+
+.decisionRow {
+  @apply flex flex-col gap-0.5 sm:flex-row sm:gap-3;
+}
+
+.decisionLabel {
+  @apply text-xs font-medium text-zinc-400 dark:text-zinc-500 sm:w-20 shrink-0;
+}
+
+.decisionValue {
+  @apply text-xs text-zinc-700 dark:text-zinc-300;
+}
+
+.transitionTarget {
+  @apply text-xs font-medium font-mono px-1.5 py-0.5 rounded;
+}
+
+.transition-success {
+  @apply bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300;
+}
+
+.transition-failure {
+  @apply bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-400;
+}
+
+.transition-state {
+  @apply bg-zinc-100 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-200;
+}

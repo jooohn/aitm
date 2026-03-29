@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
   createWorkflowRun,
@@ -99,7 +100,12 @@ export default function WorkflowSection({ repositoryPath, branch }: Props) {
           {runs.map((run) => (
             <li key={run.id} className={styles.item}>
               <div className={styles.info}>
-                <span className={styles.workflowName}>{run.workflow_name}</span>
+                <Link
+                  href={`/workflow-runs/${run.id}`}
+                  className={styles.workflowName}
+                >
+                  {run.workflow_name}
+                </Link>
                 <div className={styles.meta}>
                   <span
                     className={`${styles.badge} ${styles[`badge-${run.status}`]}`}
