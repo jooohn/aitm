@@ -68,12 +68,7 @@ export default async function WorktreePage({ params }: Props) {
           <dd className={styles.value}>{worktree.is_bare ? "Yes" : "No"}</dd>
         </div>
       </dl>
-      <SessionSection
-        repositoryPath={repo.path}
-        organization={organization}
-        name={name}
-        branch={branch}
-      />
+      <SessionSection repositoryPath={repo.path} branch={branch} />
     </main>
   );
 }

@@ -116,20 +116,6 @@ export function fetchSessions(
   return apiFetch(`/api/sessions?${params}`);
 }
 
-export function startSession(input: {
-  organization: string;
-  name: string;
-  worktree_branch: string;
-  goal: string;
-  transitions: WorkflowTransition[];
-}): Promise<Session> {
-  return apiFetch("/api/sessions", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(input),
-  });
-}
-
 export async function failSession(id: string): Promise<Session> {
   return apiFetch(`/api/sessions/${id}/fail`, { method: "POST" });
 }

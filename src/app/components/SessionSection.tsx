@@ -8,14 +8,11 @@ import {
   type Session,
   type SessionStatus,
   sendMessage,
-  startSession,
 } from "@/lib/api";
 import styles from "./SessionSection.module.css";
 
 interface Props {
   repositoryPath: string;
-  organization: string;
-  name: string;
   branch: string;
 }
 
@@ -28,19 +25,10 @@ const STATUS_LABELS: Record<SessionStatus, string> = {
 
 const TERMINAL_STATUSES: SessionStatus[] = ["SUCCEEDED", "FAILED"];
 
-export default function SessionSection({
-  repositoryPath,
-  organization,
-  name,
-  branch,
-}: Props) {
+export default function SessionSection({ repositoryPath, branch }: Props) {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [goal, setGoal] = useState("");
-  const [completionCondition, setCompletionCondition] = useState("");
-  const [starting, setStarting] = useState(false);
-  const [startError, setStartError] = useState<string | null>(null);
   const [failingId, setFailingId] = useState<string | null>(null);
   const [failError, setFailError] = useState<string | null>(null);
   const [replyContent, setReplyContent] = useState<Record<string, string>>({});
@@ -65,30 +53,6 @@ export default function SessionSection({
   useEffect(() => {
     load();
   }, []);
-
-  async function handleStart(e: React.FormEvent) {
-    e.preventDefault();
-    setStarting(true);
-    setStartError(null);
-    try {
-      await startSession({
-        organization,
-        name,
-        worktree_branch: branch,
-        goal,
-        completion_condition: completionCondition,
-      });
-      setGoal("");
-      setCompletionCondition("");
-      await load();
-    } catch (err) {
-      setStartError(
-        err instanceof Error ? err.message : "Failed to start session",
-      );
-    } finally {
-      setStarting(false);
-    }
-  }
 
   async function handleFail(session: Session) {
     setFailingId(session.id);
@@ -206,45 +170,6 @@ export default function SessionSection({
 
       {failError && <p className={styles.error}>{failError}</p>}
       {replyError && <p className={styles.error}>{replyError}</p>}
-
-      <form onSubmit={handleStart} className={styles.form}>
-        <div className={styles.formRow}>
-          <label className={styles.label} htmlFor="session-goal">
-            Goal
-          </label>
-          <textarea
-            id="session-goal"
-            className={styles.textarea}
-            placeholder="What should the agent accomplish?"
-            value={goal}
-            onChange={(e) => setGoal(e.target.value)}
-            disabled={starting}
-            required
-          />
-        </div>
-        <div className={styles.formRow}>
-          <label className={styles.label} htmlFor="session-completion">
-            Completion condition
-          </label>
-          <textarea
-            id="session-completion"
-            className={styles.textarea}
-            placeholder="When is the session done? e.g. Implementation plan has been written and reviewed by user"
-            value={completionCondition}
-            onChange={(e) => setCompletionCondition(e.target.value)}
-            disabled={starting}
-            required
-          />
-        </div>
-        <button
-          type="submit"
-          className={styles.startButton}
-          disabled={starting || !goal.trim() || !completionCondition.trim()}
-        >
-          {starting ? "Starting…" : "Start session"}
-        </button>
-      </form>
-      {startError && <p className={styles.error}>{startError}</p>}
     </section>
   );
 }
