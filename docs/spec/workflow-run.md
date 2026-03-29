@@ -1,7 +1,7 @@
 # Spec: Workflow Run
 
-**Status:** draft
-**Last updated:** 2026-03-28
+**Status:** implemented
+**Last updated:** 2026-03-29
 
 ## Summary
 
@@ -17,7 +17,7 @@ A workflow run has:
 |---|---|
 | `id` | Unique identifier |
 | `worktree_branch` | The worktree this run is executing against |
-| `repository_id` | The repository the worktree belongs to |
+| `repository_path` | Absolute path to the repository |
 | `workflow_name` | Name of the workflow as defined in `~/.aitm/config.yaml` |
 | `current_state` | Name of the currently active state, or `null` if terminal |
 | `status` | `running` \| `success` \| `failure` |
@@ -77,15 +77,24 @@ For the first state execution, the session receives:
 </goal>
 ```
 
-For subsequent state executions, the session additionally receives:
+For subsequent state executions, the session additionally receives the full history of all completed prior states (oldest first):
 
 ```
 <handoff>
-Previous state: {previous_state_execution.state}
-Summary: {previous_state_execution.handoff_summary}
-Full log: {previous_session.log_file_path}
+Previous states (oldest first):
+
+State: {state_execution_1.state}
+Summary: {state_execution_1.handoff_summary}
+Log: {session_1.log_file_path}
+
+State: {state_execution_2.state}
+Summary: {state_execution_2.handoff_summary}
+Log: {session_2.log_file_path}
+
 </handoff>
 ```
+
+Only state executions that produced a non-null handoff summary are included. The log file path is available for deeper inspection but is not loaded automatically.
 
 The session is invoked via the Agent SDK's `query()` with an `outputFormat` schema. This constrains Claude's final output to a validated JSON structure — no manual parsing or failure-on-malformed-JSON needed:
 

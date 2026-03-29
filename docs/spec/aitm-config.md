@@ -1,7 +1,7 @@
 # Spec: aitm config.yaml
 
-**Status:** draft
-**Last updated:** 2026-03-28
+**Status:** implemented
+**Last updated:** 2026-03-29
 
 ## Summary
 
@@ -130,12 +130,12 @@ Each item in `transitions` is one of two forms:
 
 ### Context handoff between states
 
-When a session ends and a transition fires, a structured handoff is passed to the next session. It contains:
+When a session ends and a transition fires, the full history of all prior state executions is passed to the next session. Each entry contains:
 
 1. **Summary** — a brief, Claude-generated note of what was accomplished, key decisions made, and any artifacts produced (e.g. files created or modified)
-2. **Log file reference** — path to the previous session's log file
+2. **Log file reference** — path to that state's session log file
 
-The next session receives its `goal` prepended with this handoff context. The log file is not loaded automatically; the session may read it if deeper context is needed. This design keeps each session's context window small while preserving a traceable audit trail.
+The next session receives its `goal` wrapped in `<goal>` tags, followed by a `<handoff>` block listing all prior states oldest-first. Log files are not loaded automatically; the session may read them if deeper context is needed. This design keeps each session's context window small while preserving a full audit trail.
 
 ### Initiating a workflow run
 
