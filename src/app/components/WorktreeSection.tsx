@@ -104,7 +104,7 @@ export default function WorktreeSection({ organization, name }: Props) {
           disabled={cleaningMerged || loading}
           onClick={handleCleanMerged}
         >
-          {cleaningMerged ? "Removing…" : "Remove merged"}
+          {cleaningMerged ? "Cleaning up…" : "Cleanup"}
         </button>
       </div>
       {cleanMergedError && <p className={styles.error}>{cleanMergedError}</p>}

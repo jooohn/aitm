@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getRepositoryByAlias } from "@/lib/domain/repositories";
+import { deleteWorktreeData } from "@/lib/domain/sessions";
 import { cleanMergedWorktrees } from "@/lib/domain/worktrees";
 
 type Params = Promise<{ organization: string; name: string }>;
@@ -26,7 +27,8 @@ export async function POST(
         { status: 404 },
       );
     }
-    cleanMergedWorktrees(repo.path);
+    const removedBranches = cleanMergedWorktrees(repo.path);
+    deleteWorktreeData(repo.path, removedBranches);
     return new NextResponse(null, { status: 204 });
   } catch (err) {
     return errorResponse(err);
