@@ -183,13 +183,7 @@ export function sendUserMessage(sessionId: string, content: string): void {
 
 // Mark any sessions left in a non-terminal state as FAILED.
 // Called on module load so that sessions from a previous server run are recovered.
-// Uses process.env as a flag so hot-reloads in dev mode don't kill live sessions.
-// (process.env is shared across all module instances in the same process,
-// unlike `global` which may be sandboxed by Next.js's Turbopack module system.)
 export function recoverCrashedSessions(): void {
-  if (process.env.__AITM_RECOVERED) return;
-  process.env.__AITM_RECOVERED = "1";
-
   const now = new Date().toISOString();
   db.prepare(
     `UPDATE sessions SET status = 'FAILED', updated_at = ?
