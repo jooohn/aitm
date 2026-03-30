@@ -277,8 +277,7 @@ function terminateRun(
 // Mark state_executions as completed where the session has reached a terminal
 // state but the execution was never closed (e.g., due to a server crash).
 // Then fail any workflow runs that have no remaining active state execution.
-// Must be called after recoverCrashedSessions() has run (sessions.ts module load).
-function recoverCrashedWorkflowRuns(): void {
+export function recoverCrashedWorkflowRuns(): void {
   const now = new Date().toISOString();
 
   // For uncompleted state executions whose session SUCCEEDED: replay completeStateExecution()
@@ -329,8 +328,6 @@ function recoverCrashedWorkflowRuns(): void {
        )`,
   ).run(now);
 }
-
-recoverCrashedWorkflowRuns();
 
 export function listWorkflowRuns(
   filter: ListWorkflowRunsFilter,

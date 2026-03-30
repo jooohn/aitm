@@ -196,5 +196,3 @@ export function recoverCrashedSessions(): void {
      WHERE status IN ('RUNNING', 'WAITING_FOR_INPUT')`,
   ).run(now);
 }
-
-recoverCrashedSessions();
