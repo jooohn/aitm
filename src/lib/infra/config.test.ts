@@ -143,6 +143,52 @@ workflows:
     expect(flow.inputs![2].type).toBeUndefined();
   });
 
+  it("parses a workflow with a command state", () => {
+    writeFileSync(
+      configFile,
+      `
+workflows:
+  my-flow:
+    initial_state: cleanup
+    states:
+      cleanup:
+        command: "rm -rf PLAN.md"
+        transitions:
+          - state: commit
+            when: succeeded
+          - terminal: failure
+            when: failed
+      commit:
+        goal: "Commit the changes"
+        transitions:
+          - terminal: success
+            when: "committed"
+`,
+    );
+
+    const workflows = getConfigWorkflows();
+    const flow = workflows["my-flow"];
+    expect(flow.initial_state).toBe("cleanup");
+
+    const cleanupState = flow.states.cleanup;
+    expect("command" in cleanupState).toBe(true);
+    if ("command" in cleanupState) {
+      expect(cleanupState.command).toBe("rm -rf PLAN.md");
+    }
+    expect(cleanupState.transitions).toHaveLength(2);
+    expect(cleanupState.transitions[0]).toEqual({
+      state: "commit",
+      when: "succeeded",
+    });
+    expect(cleanupState.transitions[1]).toEqual({
+      terminal: "failure",
+      when: "failed",
+    });
+
+    const commitState = flow.states.commit;
+    expect("goal" in commitState).toBe(true);
+  });
+
   it("parses multiple workflows", () => {
     writeFileSync(
       configFile,

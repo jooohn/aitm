@@ -17,10 +17,9 @@ export type WorkflowTransition =
   | { state: string; when: string }
   | { terminal: "success" | "failure"; when: string };
 
-export interface WorkflowState {
-  goal: string;
-  transitions: WorkflowTransition[];
-}
+export type WorkflowState =
+  | { goal: string; transitions: WorkflowTransition[] }
+  | { command: string; transitions: WorkflowTransition[] };
 
 export interface WorkflowInput {
   name: string;
