@@ -193,6 +193,7 @@ export async function startAgent(
   let decision: TransitionDecision | null = null;
   try {
     for await (const message of claudeStub.query({
+      sessionId,
       prompt,
       cwd: worktreePath,
       permissionMode: "acceptEdits",

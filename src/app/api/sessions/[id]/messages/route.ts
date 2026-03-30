@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
+  deliverAnswer,
+  hasPendingQuestion,
+} from "@/lib/domain/pending-questions";
+import {
   getSession,
   listMessages,
+  saveMessage,
   sendUserMessage,
 } from "@/lib/domain/sessions";
 
@@ -45,6 +50,14 @@ export async function POST(
         { status: 422 },
       );
     }
+    // MCP path: deliver answer to the waiting question handler.
+    if (hasPendingQuestion(id)) {
+      saveMessage(id, "user", body.content);
+      deliverAnswer(id, body.content);
+      return new NextResponse(null, { status: 204 });
+    }
+
+    // In-process SDK path (tests / non-CLI sessions).
     sendUserMessage(id, body.content);
     return new NextResponse(null, { status: 204 });
   } catch (err) {

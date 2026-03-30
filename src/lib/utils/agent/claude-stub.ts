@@ -6,6 +6,7 @@ import type {
 } from "@anthropic-ai/claude-agent-sdk";
 
 export interface ClaudeQueryParams {
+  sessionId: string;
   prompt: string;
   cwd: string;
   permissionMode: PermissionMode;
