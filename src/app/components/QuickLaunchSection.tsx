@@ -23,9 +23,9 @@ export default function QuickLaunchSection({
   repositoryPath,
 }: Props) {
   const router = useRouter();
-  const [workflows, setWorkflows] = useState<Record<string, WorkflowDefinition>>(
-    {},
-  );
+  const [workflows, setWorkflows] = useState<
+    Record<string, WorkflowDefinition>
+  >({});
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [branch, setBranch] = useState("");

@@ -1,14 +1,14 @@
-import {
-  AbortError,
-  type CanUseTool,
-  query,
-} from "@anthropic-ai/claude-agent-sdk";
+import { AbortError, type CanUseTool } from "@anthropic-ai/claude-agent-sdk";
 import type { AskUserQuestionInput } from "@anthropic-ai/claude-agent-sdk/sdk-tools";
 import { appendFileSync, writeFileSync } from "fs";
-import { type SessionStatus, saveMessage } from "../domain/sessions";
-import { listWorktrees } from "../domain/worktrees";
-import type { WorkflowTransition } from "../infra/config";
-import { db } from "../infra/db";
+import { type SessionStatus, saveMessage } from "../../domain/sessions";
+import { listWorktrees } from "../../domain/worktrees";
+import type { WorkflowTransition } from "../../infra/config";
+import { db } from "../../infra/db";
+import { claudeCLI } from "./claude-cli";
+import type { ClaudeStub } from "./claude-stub";
+
+const claudeStub: ClaudeStub = claudeCLI;
 
 type PendingInput = {
   resolve: (answer: string) => void;
@@ -192,15 +192,13 @@ export async function startAgent(
 
   let decision: TransitionDecision | null = null;
   try {
-    for await (const message of query({
+    for await (const message of claudeStub.query({
       prompt,
-      options: {
-        cwd: worktreePath,
-        permissionMode: "acceptEdits",
-        abortController,
-        canUseTool,
-        outputFormat: TRANSITION_OUTPUT_FORMAT,
-      },
+      cwd: worktreePath,
+      permissionMode: "acceptEdits",
+      abortController,
+      canUseTool,
+      outputFormat: TRANSITION_OUTPUT_FORMAT,
     })) {
       appendToLog(logFilePath, message);
 

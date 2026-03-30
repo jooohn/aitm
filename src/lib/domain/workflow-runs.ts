@@ -415,9 +415,9 @@ export function listWorkflowRuns(
 }
 
 export function rerunWorkflowRun(id: string): WorkflowRun {
-  const run = db
-    .prepare("SELECT * FROM workflow_runs WHERE id = ?")
-    .get(id) as WorkflowRun | undefined;
+  const run = db.prepare("SELECT * FROM workflow_runs WHERE id = ?").get(id) as
+    | WorkflowRun
+    | undefined;
   if (!run) throw new Error("Workflow run not found");
 
   if (run.status !== "failure") {
@@ -427,9 +427,7 @@ export function rerunWorkflowRun(id: string): WorkflowRun {
   const worktrees = listWorktrees(run.repository_path);
   const worktree = worktrees.find((w) => w.branch === run.worktree_branch);
   if (!worktree) {
-    throw new Error(
-      `Worktree not found for branch: ${run.worktree_branch}`,
-    );
+    throw new Error(`Worktree not found for branch: ${run.worktree_branch}`);
   }
 
   try {
@@ -439,7 +437,10 @@ export function rerunWorkflowRun(id: string): WorkflowRun {
     });
   } catch (err) {
     // Non-zero exit from git stash is non-blocking — log a warning and continue.
-    console.warn("git stash warning:", err instanceof Error ? err.message : err);
+    console.warn(
+      "git stash warning:",
+      err instanceof Error ? err.message : err,
+    );
   }
 
   const inputs = run.inputs

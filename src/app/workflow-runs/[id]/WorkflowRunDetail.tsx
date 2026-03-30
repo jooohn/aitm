@@ -159,9 +159,7 @@ export default function WorkflowRunDetail({ run: initial }: Props) {
             >
               {rerunning ? "Re-running…" : "Re-run"}
             </button>
-            {rerunError && (
-              <p className={styles.rerunError}>{rerunError}</p>
-            )}
+            {rerunError && <p className={styles.rerunError}>{rerunError}</p>}
           </div>
         )}
       </div>
