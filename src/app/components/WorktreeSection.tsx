@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
+  cleanMergedWorktrees,
   createWorktree,
   fetchWorktrees,
   removeWorktree,
@@ -24,6 +25,8 @@ export default function WorktreeSection({ organization, name }: Props) {
   const [createError, setCreateError] = useState<string | null>(null);
   const [removingBranch, setRemovingBranch] = useState<string | null>(null);
   const [removeError, setRemoveError] = useState<string | null>(null);
+  const [cleaningMerged, setCleaningMerged] = useState(false);
+  const [cleanMergedError, setCleanMergedError] = useState<string | null>(null);
 
   async function load() {
     setLoading(true);
@@ -43,6 +46,21 @@ export default function WorktreeSection({ organization, name }: Props) {
   useEffect(() => {
     load();
   }, []);
+
+  async function handleCleanMerged() {
+    setCleaningMerged(true);
+    setCleanMergedError(null);
+    try {
+      await cleanMergedWorktrees(organization, name);
+      await load();
+    } catch (err) {
+      setCleanMergedError(
+        err instanceof Error ? err.message : "Failed to clean merged worktrees",
+      );
+    } finally {
+      setCleaningMerged(false);
+    }
+  }
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -78,7 +96,18 @@ export default function WorktreeSection({ organization, name }: Props) {
 
   return (
     <section className={styles.section}>
-      <h2 className={styles.heading}>Worktrees</h2>
+      <div className={styles.headingRow}>
+        <h2 className={styles.heading}>Worktrees</h2>
+        <button
+          type="button"
+          className={styles.cleanMergedButton}
+          disabled={cleaningMerged || loading}
+          onClick={handleCleanMerged}
+        >
+          {cleaningMerged ? "Removing…" : "Remove merged"}
+        </button>
+      </div>
+      {cleanMergedError && <p className={styles.error}>{cleanMergedError}</p>}
 
       {loading && <p className={styles.status}>Loading…</p>}
       {loadError && <p className={styles.error}>{loadError}</p>}

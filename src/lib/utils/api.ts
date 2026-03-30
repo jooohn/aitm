@@ -68,6 +68,16 @@ export async function removeWorktree(
   );
 }
 
+export async function cleanMergedWorktrees(
+  organization: string,
+  name: string,
+): Promise<void> {
+  await apiFetch(
+    `/api/repositories/${organization}/${name}/worktrees/clean-merged`,
+    { method: "POST" },
+  );
+}
+
 export type SessionStatus =
   | "RUNNING"
   | "WAITING_FOR_INPUT"
