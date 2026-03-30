@@ -215,3 +215,7 @@ export function createWorkflowRun(input: {
 export function fetchWorkflowRun(id: string): Promise<WorkflowRunDetail> {
   return apiFetch(`/api/workflow-runs/${id}`);
 }
+
+export function rerunWorkflowRun(id: string): Promise<WorkflowRun> {
+  return apiFetch(`/api/workflow-runs/${id}/rerun`, { method: "POST" });
+}
