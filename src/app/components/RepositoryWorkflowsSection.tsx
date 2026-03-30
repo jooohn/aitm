@@ -76,18 +76,22 @@ export default function RepositoryWorkflowsSection({
           {runs.map((run) => (
             <li key={run.id} className={styles.item}>
               <div className={styles.info}>
-                <Link
-                  href={`/workflow-runs/${run.id}`}
-                  className={styles.workflowName}
-                >
-                  {run.workflow_name}
-                </Link>
-                <div className={styles.meta}>
-                  <span className={styles.branch}>{run.worktree_branch}</span>
+                <div className={styles.header}>
                   <span
                     className={`${styles.badge} ${styles[`badge-${run.status}`]}`}
                   >
                     {STATUS_LABELS[run.status]}
+                  </span>
+                  <Link
+                    href={`/workflow-runs/${run.id}`}
+                    className={styles.branch}
+                  >
+                    {run.worktree_branch}
+                  </Link>
+                </div>
+                <div className={styles.meta}>
+                  <span className={styles.workflowName}>
+                    {run.workflow_name}
                   </span>
                   {run.current_state && (
                     <span className={styles.state}>· {run.current_state}</span>
