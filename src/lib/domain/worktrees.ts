@@ -61,16 +61,7 @@ export function createWorktree(
   try {
     execFileSync("git", args, { cwd: repoPath, encoding: "utf8" });
   } catch (err) {
-    const nodeErr = err as NodeJS.ErrnoException;
-    if (nodeErr.code === "ENOENT") {
-      throw new Error(
-        "git-worktree-runner is not installed. Install it with: npm install -g @coderabbitai/git-worktree-runner",
-      );
-    }
-    const stderr =
-      (err as { stderr?: string }).stderr?.trim() ??
-      (err instanceof Error ? err.message : String(err));
-    throw new Error(stderr);
+    handleGtrCommandError(err);
   }
 
   const worktrees = listWorktrees(repoPath);
@@ -100,15 +91,19 @@ export function removeWorktree(repoPath: string, branch: string): void {
       encoding: "utf8",
     });
   } catch (err) {
-    const nodeErr = err as NodeJS.ErrnoException;
-    if (nodeErr.code === "ENOENT") {
-      throw new Error(
-        "git-worktree-runner is not installed. Install it with: npm install -g @coderabbitai/git-worktree-runner",
-      );
-    }
-    const stderr =
-      (err as { stderr?: string }).stderr?.trim() ??
-      (err instanceof Error ? err.message : String(err));
-    throw new Error(stderr);
+    handleGtrCommandError(err);
   }
+}
+
+function handleGtrCommandError(err: unknown) {
+  const nodeErr = err as NodeJS.ErrnoException;
+  if (nodeErr.code === "ENOENT") {
+    throw new Error(
+      "git-worktree-runner is not installed. Install it by following the Quick Start instruction (https://github.com/coderabbitai/git-worktree-runner?tab=readme-ov-file#quick-start).",
+    );
+  }
+  const stderr =
+    (err as { stderr?: string }).stderr?.trim() ??
+    (err instanceof Error ? err.message : String(err));
+  throw new Error(stderr);
 }
