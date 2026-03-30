@@ -308,7 +308,64 @@ export function recoverCrashedWorkflowRuns(): void {
     completeStateExecution(execution_id, decision);
   }
 
-  // Close any remaining uncompleted state executions (session FAILED).
+  // For uncompleted state executions whose session FAILED while the workflow is still running:
+  // close the failed execution and retry the same state with a new session.
+  const pendingFailed = db
+    .prepare(
+      `SELECT se.id as execution_id, se.state, se.workflow_run_id
+       FROM state_executions se
+       JOIN sessions s ON se.session_id = s.id
+       JOIN workflow_runs wr ON se.workflow_run_id = wr.id
+       WHERE se.completed_at IS NULL AND s.status = 'FAILED' AND wr.status = 'running'`,
+    )
+    .all() as Array<{
+    execution_id: string;
+    state: string;
+    workflow_run_id: string;
+  }>;
+
+  for (const { execution_id, state, workflow_run_id } of pendingFailed) {
+    db.prepare("UPDATE state_executions SET completed_at = ? WHERE id = ?").run(
+      now,
+      execution_id,
+    );
+
+    const run = db
+      .prepare("SELECT * FROM workflow_runs WHERE id = ?")
+      .get(workflow_run_id) as WorkflowRun;
+
+    const previousExecutions = (
+      db
+        .prepare(
+          `SELECT se.state, se.handoff_summary, s.log_file_path
+           FROM state_executions se
+           JOIN sessions s ON se.session_id = s.id
+           WHERE se.workflow_run_id = ? AND se.completed_at IS NOT NULL
+           ORDER BY se.created_at ASC`,
+        )
+        .all(workflow_run_id) as Array<{
+        state: string;
+        handoff_summary: string | null;
+        log_file_path: string;
+      }>
+    ).filter((e): e is PreviousExecutionHandoff => e.handoff_summary !== null);
+
+    const inputs = run.inputs
+      ? (JSON.parse(run.inputs) as Record<string, string>)
+      : undefined;
+
+    startStateExecution(
+      workflow_run_id,
+      state,
+      run.repository_path,
+      run.worktree_branch,
+      run.workflow_name,
+      previousExecutions,
+      inputs,
+    );
+  }
+
+  // Close any remaining uncompleted state executions (workflow already terminated).
   db.prepare(
     `UPDATE state_executions
      SET completed_at = ?
