@@ -159,6 +159,7 @@ export interface WorkflowInput {
   label: string;
   description?: string;
   required?: boolean;
+  type?: "text" | "multiline-text";
 }
 
 export interface WorkflowDefinition {

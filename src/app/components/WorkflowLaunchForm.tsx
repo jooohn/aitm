@@ -80,16 +80,28 @@ export default function WorkflowLaunchForm({
             {inputDef.description && (
               <span className={styles.description}>{inputDef.description}</span>
             )}
-            <input
-              id={`${idPrefix}-input-${inputDef.name}`}
-              type="text"
-              className={styles.input}
-              value={inputValues[inputDef.name] ?? ""}
-              onChange={(e) => onInputChange(inputDef.name, e.target.value)}
-              disabled={disabled}
-              placeholder={inputDef.label}
-              required={inputDef.required !== false}
-            />
+            {inputDef.type === "multiline-text" ? (
+              <textarea
+                id={`${idPrefix}-input-${inputDef.name}`}
+                className={styles.input}
+                value={inputValues[inputDef.name] ?? ""}
+                onChange={(e) => onInputChange(inputDef.name, e.target.value)}
+                disabled={disabled}
+                placeholder={inputDef.label}
+                required={inputDef.required !== false}
+              />
+            ) : (
+              <input
+                id={`${idPrefix}-input-${inputDef.name}`}
+                type="text"
+                className={styles.input}
+                value={inputValues[inputDef.name] ?? ""}
+                onChange={(e) => onInputChange(inputDef.name, e.target.value)}
+                disabled={disabled}
+                placeholder={inputDef.label}
+                required={inputDef.required !== false}
+              />
+            )}
           </div>
         ))}
 

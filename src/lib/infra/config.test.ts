@@ -107,6 +107,42 @@ workflows:
     });
   });
 
+  it("parses workflow inputs with type field", () => {
+    writeFileSync(
+      configFile,
+      `
+workflows:
+  my-flow:
+    initial_state: step1
+    inputs:
+      title:
+        label: Title
+        type: text
+      description:
+        label: Description
+        type: multiline-text
+      notes:
+        label: Notes
+    states:
+      step1:
+        goal: "Do step 1"
+        transitions:
+          - terminal: success
+            when: "done"
+`,
+    );
+
+    const workflows = getConfigWorkflows();
+    const flow = workflows["my-flow"];
+    expect(flow.inputs).toHaveLength(3);
+    expect(flow.inputs![0]).toMatchObject({ name: "title", type: "text" });
+    expect(flow.inputs![1]).toMatchObject({
+      name: "description",
+      type: "multiline-text",
+    });
+    expect(flow.inputs![2].type).toBeUndefined();
+  });
+
   it("parses multiple workflows", () => {
     writeFileSync(
       configFile,

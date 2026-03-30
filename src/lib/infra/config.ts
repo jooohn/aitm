@@ -27,6 +27,20 @@ export interface WorkflowInput {
   label: string;
   description?: string;
   required?: boolean;
+  type?: "text" | "multiline-text";
+}
+
+interface WorkflowInputDef {
+  label: string;
+  description?: string;
+  required?: boolean;
+  type?: "text" | "multiline-text";
+}
+
+interface RawWorkflowDefinition {
+  initial_state: string;
+  inputs?: Record<string, WorkflowInputDef>;
+  states: Record<string, WorkflowState>;
 }
 
 export interface WorkflowDefinition {
@@ -35,16 +49,23 @@ export interface WorkflowDefinition {
   states: Record<string, WorkflowState>;
 }
 
-interface Config {
+interface RawConfig {
   repositories?: ConfigRepository[];
-  workflows?: Record<string, WorkflowDefinition>;
+  workflows?: Record<string, RawWorkflowDefinition>;
 }
 
-function readConfig(): Config {
+function normalizeWorkflow(raw: RawWorkflowDefinition): WorkflowDefinition {
+  const inputs = raw.inputs
+    ? Object.entries(raw.inputs).map(([name, def]) => ({ name, ...def }))
+    : undefined;
+  return { ...raw, inputs };
+}
+
+function readConfig(): RawConfig {
   const configPath = getConfigPath();
   if (!existsSync(configPath)) return {};
   const raw = yaml.load(readFileSync(configPath, "utf-8"));
-  if (raw && typeof raw === "object") return raw as Config;
+  if (raw && typeof raw === "object") return raw as RawConfig;
   return {};
 }
 
@@ -53,5 +74,8 @@ export function getConfigRepositories(): ConfigRepository[] {
 }
 
 export function getConfigWorkflows(): Record<string, WorkflowDefinition> {
-  return readConfig().workflows ?? {};
+  const raw = readConfig().workflows ?? {};
+  return Object.fromEntries(
+    Object.entries(raw).map(([name, def]) => [name, normalizeWorkflow(def)]),
+  );
 }

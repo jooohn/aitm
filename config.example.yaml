@@ -7,7 +7,7 @@ repositories:
 workflows:
   development-flow:
     inputs:
-      - name: feature-description
+      feature-description:
         label: Feature Description
         description: "Describe the feature you want to implement"
         required: true
