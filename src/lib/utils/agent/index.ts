@@ -232,6 +232,13 @@ export async function startAgent(
     pendingInputs.delete(sessionId);
   }
 
+  // Ensure the session always reaches a terminal state.
+  // The guard in setStatus prevents overwriting SUCCEEDED or FAILED.
+  // This handles cases where the CLI exits without producing a result message
+  // (e.g., empty stdout, unrecognised flags) or when an AbortError is thrown
+  // without a prior explicit failSession() call.
+  setStatus(sessionId, "FAILED");
+
   onComplete?.(decision);
 }
 

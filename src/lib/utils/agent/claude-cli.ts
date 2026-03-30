@@ -31,9 +31,17 @@ async function* spawnClaudeQuery(
     crlfDelay: Number.POSITIVE_INFINITY,
   });
 
+  // Collect stderr so we can surface it if the process produces no output.
+  let stderrOutput = "";
+  child.stderr!.on("data", (chunk: Buffer) => {
+    stderrOutput += chunk.toString("utf8");
+  });
+
   try {
+    let hadOutput = false;
     for await (const line of rl) {
       if (!line.trim()) continue;
+      hadOutput = true;
       const message = JSON.parse(line) as SDKMessage;
       // Populate structured_output by parsing the result text when outputFormat is set.
       if (
@@ -51,6 +59,13 @@ async function* spawnClaudeQuery(
         }
       }
       yield message;
+    }
+
+    // If the process exited without producing any output, surface stderr as an error.
+    if (!hadOutput && stderrOutput.trim()) {
+      throw new Error(
+        `claude CLI exited with no output: ${stderrOutput.trim()}`,
+      );
     }
   } finally {
     abortController.signal.removeEventListener("abort", onAbort);
