@@ -10,6 +10,7 @@ import {
   type WorkflowRun,
   type WorkflowRunStatus,
 } from "@/lib/utils/api";
+import WorkflowLaunchForm from "./WorkflowLaunchForm";
 
 import styles from "./WorkflowSection.module.css";
 
@@ -130,63 +131,26 @@ export default function WorkflowSection({ repositoryPath, branch }: Props) {
       )}
 
       {!loading && !loadError && workflowNames.length > 0 && (
-        <form onSubmit={handleStart} className={styles.form}>
-          <select
-            className={styles.select}
-            value={selectedWorkflow}
-            onChange={(e) => {
-              setSelectedWorkflow(e.target.value);
-              setInputValues({});
-            }}
-            disabled={starting}
-          >
-            {workflowNames.map((name) => (
-              <option key={name} value={name}>
-                {name}
-              </option>
-            ))}
-          </select>
-          {selectedWorkflow &&
-            (workflows[selectedWorkflow]?.inputs ?? []).map((inputDef) => (
-              <div key={inputDef.name} className={styles.inputGroup}>
-                <label
-                  htmlFor={`input-${inputDef.name}`}
-                  className={styles.inputLabel}
-                >
-                  {inputDef.label}
-                  {inputDef.required !== false && (
-                    <span className={styles.inputRequired}>*</span>
-                  )}
-                </label>
-                {inputDef.description && (
-                  <span className={styles.inputDescription}>
-                    {inputDef.description}
-                  </span>
-                )}
-                <input
-                  id={`input-${inputDef.name}`}
-                  type="text"
-                  className={styles.input}
-                  value={inputValues[inputDef.name] ?? ""}
-                  onChange={(e) =>
-                    setInputValues((prev) => ({
-                      ...prev,
-                      [inputDef.name]: e.target.value,
-                    }))
-                  }
-                  disabled={starting}
-                  placeholder={inputDef.label}
-                />
-              </div>
-            ))}
-          <button
-            type="submit"
-            className={styles.startButton}
-            disabled={starting || !selectedWorkflow}
-          >
-            {starting ? "Starting…" : "Start workflow"}
-          </button>
-        </form>
+        <WorkflowLaunchForm
+          workflowNames={workflowNames}
+          workflows={workflows}
+          selectedWorkflow={selectedWorkflow}
+          onWorkflowChange={(wf) => {
+            setSelectedWorkflow(wf);
+            setInputValues({});
+          }}
+          inputValues={inputValues}
+          onInputChange={(inputName, value) =>
+            setInputValues((prev) => ({ ...prev, [inputName]: value }))
+          }
+          onSubmit={handleStart}
+          disabled={starting}
+          submitDisabled={starting || !selectedWorkflow}
+          isSubmitting={starting}
+          submitLabel="Start workflow"
+          submittingLabel="Starting…"
+          idPrefix="ws"
+        />
       )}
 
       {!loading && !loadError && workflowNames.length === 0 && (

@@ -9,6 +9,7 @@ import {
   type WorkflowDefinition,
 } from "@/lib/utils/api";
 import styles from "./QuickLaunchSection.module.css";
+import WorkflowLaunchForm from "./WorkflowLaunchForm";
 
 interface Props {
   organization: string;
@@ -73,7 +74,9 @@ export default function QuickLaunchSection({
       router.push(`/workflow-runs/${run.id}`);
     } catch (err) {
       setSubmitError(
-        err instanceof Error ? err.message : "Failed to create worktree or launch workflow",
+        err instanceof Error
+          ? err.message
+          : "Failed to create worktree or launch workflow",
       );
       setSubmitting(false);
     }
@@ -96,7 +99,26 @@ export default function QuickLaunchSection({
       )}
 
       {!loading && !loadError && workflowNames.length > 0 && (
-        <form onSubmit={handleSubmit} className={styles.form}>
+        <WorkflowLaunchForm
+          workflowNames={workflowNames}
+          workflows={workflows}
+          selectedWorkflow={selectedWorkflow}
+          onWorkflowChange={(wf) => {
+            setSelectedWorkflow(wf);
+            setInputValues({});
+          }}
+          inputValues={inputValues}
+          onInputChange={(inputName, value) =>
+            setInputValues((prev) => ({ ...prev, [inputName]: value }))
+          }
+          onSubmit={handleSubmit}
+          disabled={submitting}
+          submitDisabled={submitting || !branch.trim()}
+          isSubmitting={submitting}
+          submitLabel="Create & launch"
+          submittingLabel="Launching…"
+          idPrefix="ql"
+        >
           <div className={styles.fieldGroup}>
             <label htmlFor="ql-branch" className={styles.label}>
               Branch name
@@ -113,74 +135,7 @@ export default function QuickLaunchSection({
               required
             />
           </div>
-
-          {workflowNames.length > 1 && (
-            <div className={styles.fieldGroup}>
-              <label htmlFor="ql-workflow" className={styles.label}>
-                Workflow
-              </label>
-              <select
-                id="ql-workflow"
-                className={styles.select}
-                value={selectedWorkflow}
-                onChange={(e) => {
-                  setSelectedWorkflow(e.target.value);
-                  setInputValues({});
-                }}
-                disabled={submitting}
-              >
-                {workflowNames.map((wfName) => (
-                  <option key={wfName} value={wfName}>
-                    {wfName}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {selectedWorkflow &&
-            (workflows[selectedWorkflow]?.inputs ?? []).map((inputDef) => (
-              <div key={inputDef.name} className={styles.fieldGroup}>
-                <label
-                  htmlFor={`ql-input-${inputDef.name}`}
-                  className={styles.label}
-                >
-                  {inputDef.label}
-                  {inputDef.required !== false && (
-                    <span className={styles.required}>*</span>
-                  )}
-                </label>
-                {inputDef.description && (
-                  <span className={styles.description}>
-                    {inputDef.description}
-                  </span>
-                )}
-                <input
-                  id={`ql-input-${inputDef.name}`}
-                  type="text"
-                  className={styles.input}
-                  value={inputValues[inputDef.name] ?? ""}
-                  onChange={(e) =>
-                    setInputValues((prev) => ({
-                      ...prev,
-                      [inputDef.name]: e.target.value,
-                    }))
-                  }
-                  disabled={submitting}
-                  placeholder={inputDef.label}
-                  required={inputDef.required !== false}
-                />
-              </div>
-            ))}
-
-          <button
-            type="submit"
-            className={styles.launchButton}
-            disabled={submitting || !branch.trim()}
-          >
-            {submitting ? "Launching…" : "Create & launch"}
-          </button>
-        </form>
+        </WorkflowLaunchForm>
       )}
 
       {submitError && <p className={styles.error}>{submitError}</p>}
