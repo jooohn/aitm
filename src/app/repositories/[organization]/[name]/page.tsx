@@ -4,6 +4,7 @@ import QuickLaunchSection from "@/app/components/QuickLaunchSection";
 import RepositoryWorkflowsSection from "@/app/components/RepositoryWorkflowsSection";
 import WorktreeSection from "@/app/components/WorktreeSection";
 import { getRepositoryByAlias } from "@/lib/domain/repositories";
+import { listWorktrees } from "@/lib/domain/worktrees";
 import styles from "./page.module.css";
 
 interface Props {
@@ -16,6 +17,14 @@ export default async function RepositoryPage({ params }: Props) {
   const repo = getRepositoryByAlias(alias);
 
   if (!repo) notFound();
+
+  let activeWorktreeBranches: string[] | null = null;
+  try {
+    const worktrees = listWorktrees(repo.path);
+    activeWorktreeBranches = worktrees.map((w) => w.branch).filter(Boolean);
+  } catch {
+    // fallback: show all workflow runs
+  }
 
   return (
     <main className={styles.page}>
@@ -33,7 +42,10 @@ export default async function RepositoryPage({ params }: Props) {
           <dd className={styles.value}>{repo.path}</dd>
         </div>
       </dl>
-      <RepositoryWorkflowsSection repositoryPath={repo.path} />
+      <RepositoryWorkflowsSection
+        repositoryPath={repo.path}
+        activeWorktreeBranches={activeWorktreeBranches}
+      />
       <QuickLaunchSection
         organization={organization}
         name={name}

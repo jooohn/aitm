@@ -11,6 +11,7 @@ import styles from "./RepositoryWorkflowsSection.module.css";
 
 interface Props {
   repositoryPath: string;
+  activeWorktreeBranches: string[] | null;
 }
 
 const STATUS_LABELS: Record<WorkflowRunStatus, string> = {
@@ -19,7 +20,10 @@ const STATUS_LABELS: Record<WorkflowRunStatus, string> = {
   failure: "Failure",
 };
 
-export default function RepositoryWorkflowsSection({ repositoryPath }: Props) {
+export default function RepositoryWorkflowsSection({
+  repositoryPath,
+  activeWorktreeBranches,
+}: Props) {
   const [runs, setRuns] = useState<WorkflowRun[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -28,7 +32,14 @@ export default function RepositoryWorkflowsSection({ repositoryPath }: Props) {
     setLoadError(null);
     try {
       const wfRuns = await fetchWorkflowRuns(repositoryPath);
-      setRuns(wfRuns);
+      const branchSet = activeWorktreeBranches
+        ? new Set(activeWorktreeBranches)
+        : null;
+      setRuns(
+        branchSet
+          ? wfRuns.filter((r) => branchSet.has(r.worktree_branch))
+          : wfRuns,
+      );
     } catch (err) {
       setLoadError(
         err instanceof Error ? err.message : "Failed to load workflow runs",
