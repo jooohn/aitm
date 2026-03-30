@@ -131,7 +131,7 @@ describe("createWorkflowRun", () => {
 workflows:
   my-flow:
     inputs:
-      - name: feature-description
+      feature-description:
         label: Feature Description
         required: true
     initial_state: plan
@@ -162,7 +162,7 @@ workflows:
 workflows:
   my-flow:
     inputs:
-      - name: feature-description
+      feature-description:
         label: Feature Description
         required: true
     initial_state: plan
@@ -211,7 +211,7 @@ workflows:
 workflows:
   my-flow:
     inputs:
-      - name: feature-description
+      feature-description:
         label: Feature Description
         required: true
     initial_state: plan
@@ -275,7 +275,7 @@ workflows:
 workflows:
   my-flow:
     inputs:
-      - name: feature-description
+      feature-description:
         label: Feature Description
         required: true
     initial_state: plan
