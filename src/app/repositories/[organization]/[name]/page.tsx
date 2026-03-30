@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import QuickLaunchSection from "@/app/components/QuickLaunchSection";
+import RepositoryWorkflowsSection from "@/app/components/RepositoryWorkflowsSection";
 import WorktreeSection from "@/app/components/WorktreeSection";
 import { getRepositoryByAlias } from "@/lib/domain/repositories";
 import styles from "./page.module.css";
@@ -32,6 +33,7 @@ export default async function RepositoryPage({ params }: Props) {
           <dd className={styles.value}>{repo.path}</dd>
         </div>
       </dl>
+      <RepositoryWorkflowsSection repositoryPath={repo.path} />
       <QuickLaunchSection
         organization={organization}
         name={name}
