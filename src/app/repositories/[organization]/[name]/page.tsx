@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import QuickLaunchSection from "@/app/components/QuickLaunchSection";
 import WorktreeSection from "@/app/components/WorktreeSection";
 import { getRepositoryByAlias } from "@/lib/domain/repositories";
 import styles from "./page.module.css";
@@ -38,6 +39,11 @@ export default async function RepositoryPage({ params }: Props) {
         </div>
       </dl>
       <WorktreeSection organization={organization} name={name} />
+      <QuickLaunchSection
+        organization={organization}
+        name={name}
+        repositoryPath={repo.path}
+      />
     </main>
   );
 }
