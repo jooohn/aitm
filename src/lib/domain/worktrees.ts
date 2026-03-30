@@ -95,6 +95,17 @@ export function removeWorktree(repoPath: string, branch: string): void {
   }
 }
 
+export function cleanMergedWorktrees(repoPath: string): void {
+  try {
+    execFileSync("git", ["gtr", "clean", "--merged", "--yes"], {
+      cwd: repoPath,
+      encoding: "utf8",
+    });
+  } catch (err) {
+    handleGtrCommandError(err);
+  }
+}
+
 function handleGtrCommandError(err: unknown) {
   const nodeErr = err as NodeJS.ErrnoException;
   if (nodeErr.code === "ENOENT") {

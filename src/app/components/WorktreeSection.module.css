@@ -4,8 +4,16 @@
   @apply flex flex-col gap-4;
 }
 
+.headingRow {
+  @apply flex items-center justify-between gap-4;
+}
+
 .heading {
   @apply text-lg font-semibold text-zinc-900 dark:text-zinc-50;
+}
+
+.cleanMergedButton {
+  @apply shrink-0 text-sm px-3 py-1 rounded border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors;
 }
 
 .status {
