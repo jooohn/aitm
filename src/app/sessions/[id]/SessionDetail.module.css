@@ -80,6 +80,63 @@
   @apply whitespace-pre-wrap break-words;
 }
 
+/* Tool call / group rows */
+.toolCallRow {
+  @apply flex flex-col;
+}
+
+.toolCallRowIndented {
+  @apply pl-4;
+}
+
+.toolCallHeader {
+  @apply flex items-center gap-1.5 text-left cursor-pointer hover:text-zinc-50 text-zinc-300 transition-colors py-0.5 w-full;
+}
+
+.toolCallChevron {
+  @apply text-xs leading-none shrink-0;
+}
+
+.toolCallName {
+  @apply font-semibold;
+}
+
+.toolCallBody {
+  @apply pl-5 py-1;
+}
+
+.toolCallNoDetails {
+  @apply italic text-zinc-500;
+}
+
+.toolCallInputList {
+  @apply flex flex-col gap-1;
+}
+
+.toolCallInputRow {
+  @apply flex gap-2;
+}
+
+.toolCallInputKey {
+  @apply text-zinc-400 shrink-0;
+}
+
+.toolCallInputValue {
+  @apply text-zinc-200 break-all;
+}
+
+.toolCallInputPre {
+  @apply whitespace-pre-wrap break-words text-zinc-200;
+}
+
+.toolGroupRow {
+  @apply flex flex-col;
+}
+
+.toolGroupBody {
+  @apply pl-2 flex flex-col;
+}
+
 /* Message thread */
 .messages {
   @apply flex flex-col gap-2;

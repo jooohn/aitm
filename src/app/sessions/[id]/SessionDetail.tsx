@@ -10,8 +10,41 @@ import {
   type SessionStatus,
   sendMessage,
 } from "@/lib/api";
-import { formatLogEntry } from "@/lib/formatLogEntry";
+import type { OutputItem, ToolCallItem, ToolGroupItem } from "@/lib/outputItem";
+import { parseLogEntry } from "@/lib/parseLogEntry";
+import OutputItemView from "./OutputItemView";
 import styles from "./SessionDetail.module.css";
+
+function appendWithGrouping(
+  items: OutputItem[],
+  newItem: OutputItem,
+): OutputItem[] {
+  if (newItem.kind !== "tool_call") {
+    return [...items, newItem];
+  }
+  const last = items[items.length - 1];
+  if (!last) {
+    return [newItem];
+  }
+  // Last item is a ToolCallItem with the same toolName → merge into a ToolGroupItem
+  if (last.kind === "tool_call" && last.toolName === newItem.toolName) {
+    const group: ToolGroupItem = {
+      kind: "tool_group",
+      toolName: newItem.toolName,
+      calls: [last, newItem],
+    };
+    return [...items.slice(0, -1), group];
+  }
+  // Last item is a ToolGroupItem with the same toolName → append to the group
+  if (last.kind === "tool_group" && last.toolName === newItem.toolName) {
+    const group: ToolGroupItem = {
+      ...last,
+      calls: [...last.calls, newItem],
+    };
+    return [...items.slice(0, -1), group];
+  }
+  return [...items, newItem];
+}
 
 interface Props {
   session: Session;
@@ -33,7 +66,7 @@ export default function SessionDetail({
 }: Props) {
   const [session, setSession] = useState<Session>(initial);
   const [messages, setMessages] = useState<SessionMessage[]>(initialMessages);
-  const [outputLines, setOutputLines] = useState<string[]>([]);
+  const [outputItems, setOutputItems] = useState<OutputItem[]>([]);
   const [replyContent, setReplyContent] = useState("");
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
@@ -52,10 +85,18 @@ export default function SessionDetail({
     es.onmessage = (e) => {
       try {
         const entry = JSON.parse(e.data) as Record<string, unknown>;
-        const text = formatLogEntry(entry);
-        if (text !== null) {
-          setOutputLines((prev) => [...prev, text]);
-        }
+        const parsed = parseLogEntry(entry);
+        if (parsed === null) return;
+        const newItems: OutputItem[] = Array.isArray(parsed)
+          ? parsed
+          : [parsed];
+        setOutputItems((prev) => {
+          let next = [...prev];
+          for (const item of newItems) {
+            next = appendWithGrouping(next, item);
+          }
+          return next;
+        });
       } catch {
         // ignore malformed entries
       }
@@ -72,13 +113,13 @@ export default function SessionDetail({
     return () => es.close();
   }, [session.id]);
 
-  // Auto-scroll output pane when new lines arrive
-  // biome-ignore lint/correctness/useExhaustiveDependencies: outputLines triggers the scroll
+  // Auto-scroll output pane when new items arrive
+  // biome-ignore lint/correctness/useExhaustiveDependencies: outputItems triggers the scroll
   useEffect(() => {
     if (autoScrollRef.current && outputRef.current) {
       outputRef.current.scrollTop = outputRef.current.scrollHeight;
     }
-  }, [outputLines]);
+  }, [outputItems]);
 
   // Poll for session status + messages updates
   useEffect(() => {
@@ -199,13 +240,12 @@ export default function SessionDetail({
           className={styles.output}
           onScroll={handleOutputScroll}
         >
-          {outputLines.length === 0 ? (
+          {outputItems.length === 0 ? (
             <span className={styles.outputEmpty}>No output yet…</span>
           ) : (
-            outputLines.map((line, i) => (
-              <div key={i} className={styles.outputLine}>
-                {line}
-              </div>
+            outputItems.map((item, i) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: stable ordering for output stream
+              <OutputItemView key={i} item={item} />
             ))
           )}
         </div>
