@@ -11,7 +11,7 @@
  *   AITM_URL    – base URL of the aitm server (default: http://localhost:3000)
  */
 
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { McpServer } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
   CallToolRequestSchema,
@@ -26,7 +26,7 @@ if (!SESSION_ID) {
   process.exit(1);
 }
 
-const server = new Server(
+const server = new McpServer(
   { name: "aitm-ask-user-question", version: "1.0.0" },
   { capabilities: { tools: {} } },
 );
