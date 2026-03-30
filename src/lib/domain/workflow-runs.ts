@@ -1,8 +1,10 @@
+import { execFileSync } from "child_process";
 import { randomUUID } from "crypto";
 import { getConfigWorkflows, type WorkflowTransition } from "../infra/config";
 import { db } from "../infra/db";
 import { type TransitionDecision } from "../utils/agent";
 import { createSession } from "./sessions";
+import { listWorktrees } from "./worktrees";
 
 export type WorkflowRunStatus = "running" | "success" | "failure";
 
@@ -410,6 +412,46 @@ export function listWorkflowRuns(
   return db
     .prepare(`SELECT * FROM workflow_runs ${where} ORDER BY created_at DESC`)
     .all(...params) as WorkflowRun[];
+}
+
+export function rerunWorkflowRun(id: string): WorkflowRun {
+  const run = db
+    .prepare("SELECT * FROM workflow_runs WHERE id = ?")
+    .get(id) as WorkflowRun | undefined;
+  if (!run) throw new Error("Workflow run not found");
+
+  if (run.status !== "failure") {
+    throw new Error("Only failed workflow runs can be re-run");
+  }
+
+  const worktrees = listWorktrees(run.repository_path);
+  const worktree = worktrees.find((w) => w.branch === run.worktree_branch);
+  if (!worktree) {
+    throw new Error(
+      `Worktree not found for branch: ${run.worktree_branch}`,
+    );
+  }
+
+  try {
+    execFileSync("git", ["stash", "--include-untracked"], {
+      cwd: worktree.path,
+      encoding: "utf8",
+    });
+  } catch (err) {
+    // Non-zero exit from git stash is non-blocking — log a warning and continue.
+    console.warn("git stash warning:", err instanceof Error ? err.message : err);
+  }
+
+  const inputs = run.inputs
+    ? (JSON.parse(run.inputs) as Record<string, string>)
+    : undefined;
+
+  return createWorkflowRun({
+    repository_path: run.repository_path,
+    worktree_branch: run.worktree_branch,
+    workflow_name: run.workflow_name,
+    inputs,
+  });
 }
 
 export function getWorkflowRun(

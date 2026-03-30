@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   fetchWorkflowRun,
+  rerunWorkflowRun,
   type StateExecution,
   type WorkflowRunDetail,
   type WorkflowRunStatus,
@@ -101,9 +103,25 @@ function StateExecutionItem({ execution }: { execution: StateExecution }) {
 }
 
 export default function WorkflowRunDetail({ run: initial }: Props) {
+  const router = useRouter();
   const [run, setRun] = useState<WorkflowRunDetail>(initial);
+  const [rerunning, setRerunning] = useState(false);
+  const [rerunError, setRerunError] = useState<string | null>(null);
 
   const isTerminal = TERMINAL_STATUSES.includes(run.status);
+
+  async function handleRerun() {
+    setRerunning(true);
+    setRerunError(null);
+    try {
+      const newRun = await rerunWorkflowRun(run.id);
+      router.push(`/workflow-runs/${newRun.id}`);
+    } catch (err) {
+      setRerunError(err instanceof Error ? err.message : "Re-run failed");
+    } finally {
+      setRerunning(false);
+    }
+  }
 
   useEffect(() => {
     if (isTerminal) return;
@@ -132,6 +150,20 @@ export default function WorkflowRunDetail({ run: initial }: Props) {
           </span>
           <h1 className={styles.title}>{run.workflow_name}</h1>
         </div>
+        {run.status === "failure" && (
+          <div className={styles.headerActions}>
+            <button
+              className={styles.rerunButton}
+              onClick={handleRerun}
+              disabled={rerunning}
+            >
+              {rerunning ? "Re-running…" : "Re-run"}
+            </button>
+            {rerunError && (
+              <p className={styles.rerunError}>{rerunError}</p>
+            )}
+          </div>
+        )}
       </div>
 
       <dl className={styles.details}>
