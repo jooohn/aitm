@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { mkdirSync } from "fs";
+import { mkdirSync, unlinkSync } from "fs";
 import { homedir } from "os";
 import { join } from "path";
 import type { WorkflowTransition } from "../infra/config";
@@ -179,6 +179,48 @@ export function sendUserMessage(sessionId: string, content: string): void {
 
   saveMessage(sessionId, "user", content);
   sendMessageToAgent(sessionId, content);
+}
+
+export function deleteWorktreeData(
+  repositoryPath: string,
+  branches: string[],
+): void {
+  if (branches.length === 0) return;
+  const placeholders = branches.map(() => "?").join(", ");
+  const params = [repositoryPath, ...branches];
+
+  const rows = db
+    .prepare(
+      `SELECT log_file_path FROM sessions WHERE repository_path = ? AND worktree_branch IN (${placeholders})`,
+    )
+    .all(...params) as { log_file_path: string }[];
+
+  db.transaction(() => {
+    db.prepare(
+      `DELETE FROM state_executions WHERE workflow_run_id IN (
+         SELECT id FROM workflow_runs WHERE repository_path = ? AND worktree_branch IN (${placeholders})
+       )`,
+    ).run(...params);
+    db.prepare(
+      `DELETE FROM session_messages WHERE session_id IN (
+         SELECT id FROM sessions WHERE repository_path = ? AND worktree_branch IN (${placeholders})
+       )`,
+    ).run(...params);
+    db.prepare(
+      `DELETE FROM workflow_runs WHERE repository_path = ? AND worktree_branch IN (${placeholders})`,
+    ).run(...params);
+    db.prepare(
+      `DELETE FROM sessions WHERE repository_path = ? AND worktree_branch IN (${placeholders})`,
+    ).run(...params);
+  })();
+
+  for (const { log_file_path } of rows) {
+    try {
+      unlinkSync(log_file_path);
+    } catch {
+      // ignore missing files
+    }
+  }
 }
 
 // Mark any sessions left in a non-terminal state as FAILED.

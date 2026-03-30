@@ -95,7 +95,8 @@ export function removeWorktree(repoPath: string, branch: string): void {
   }
 }
 
-export function cleanMergedWorktrees(repoPath: string): void {
+export function cleanMergedWorktrees(repoPath: string): string[] {
+  const before = listWorktrees(repoPath).map((w) => w.branch);
   try {
     execFileSync("git", ["gtr", "clean", "--merged", "--yes"], {
       cwd: repoPath,
@@ -104,6 +105,8 @@ export function cleanMergedWorktrees(repoPath: string): void {
   } catch (err) {
     handleGtrCommandError(err);
   }
+  const after = new Set(listWorktrees(repoPath).map((w) => w.branch));
+  return before.filter((b) => !after.has(b));
 }
 
 function handleGtrCommandError(err: unknown) {
