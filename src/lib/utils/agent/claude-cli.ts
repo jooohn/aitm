@@ -55,6 +55,15 @@ async function* spawnClaudeQuery(
     stdio: ["pipe", "pipe", "pipe"],
   });
 
+  // Capture spawn errors (e.g. ENOENT when the claude binary is not installed)
+  // so they surface through the generator rather than as unhandled events.
+  let spawnError: Error | null = null;
+  child.on("error", (err) => {
+    spawnError = err;
+  });
+  child.stdin!.on("error", () => {});
+  child.stderr!.on("error", () => {});
+
   const onAbort = () => child.kill("SIGTERM");
   abortController.signal.addEventListener("abort", onAbort, { once: true });
 
@@ -94,6 +103,11 @@ async function* spawnClaudeQuery(
         }
       }
       yield message;
+    }
+
+    // If the process failed to spawn (e.g. binary not found), surface that error.
+    if (spawnError) {
+      throw spawnError;
     }
 
     // If the process exited without producing any output, surface stderr as an error.

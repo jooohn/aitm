@@ -65,6 +65,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.clearAllMocks();
   if (originalConfigPath === undefined) {
     delete process.env.AITM_CONFIG_PATH;
   } else {
