@@ -281,15 +281,45 @@ function terminateRun(
 function recoverCrashedWorkflowRuns(): void {
   const now = new Date().toISOString();
 
+  // For uncompleted state executions whose session SUCCEEDED: replay completeStateExecution()
+  // so the workflow advances (or terminates) correctly using the session's decision.
+  // This handles the case where the server crashed after the session completed but before
+  // the onComplete callback was invoked.
+  const pendingSucceeded = db
+    .prepare(
+      `SELECT se.id as execution_id, s.transition_decision
+       FROM state_executions se
+       JOIN sessions s ON se.session_id = s.id
+       WHERE se.completed_at IS NULL AND s.status = 'SUCCEEDED'`,
+    )
+    .all() as Array<{
+    execution_id: string;
+    transition_decision: string | null;
+  }>;
+
+  for (const { execution_id, transition_decision } of pendingSucceeded) {
+    let decision: TransitionDecision | null = null;
+    if (transition_decision) {
+      try {
+        decision = JSON.parse(transition_decision) as TransitionDecision;
+      } catch {
+        // malformed JSON — treat as no decision, will terminate as failure
+      }
+    }
+    completeStateExecution(execution_id, decision);
+  }
+
+  // Close any remaining uncompleted state executions (session FAILED).
   db.prepare(
     `UPDATE state_executions
      SET completed_at = ?
      WHERE completed_at IS NULL
        AND session_id IN (
-         SELECT id FROM sessions WHERE status IN ('SUCCEEDED', 'FAILED')
+         SELECT id FROM sessions WHERE status = 'FAILED'
        )`,
   ).run(now);
 
+  // Fail any workflow runs that still have no active state execution.
   db.prepare(
     `UPDATE workflow_runs
      SET status = 'failure', current_state = NULL, updated_at = ?
