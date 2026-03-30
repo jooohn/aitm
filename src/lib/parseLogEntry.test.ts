@@ -1,0 +1,142 @@
+import { describe, expect, it } from "vitest";
+import { parseLogEntry } from "./parseLogEntry";
+
+describe("parseLogEntry", () => {
+  it("formats system/init", () => {
+    expect(parseLogEntry({ type: "system", subtype: "init" })).toEqual({
+      kind: "text",
+      content: "▶ Session started",
+    });
+  });
+
+  it("formats result/success", () => {
+    expect(parseLogEntry({ type: "result", subtype: "success" })).toEqual({
+      kind: "text",
+      content: "✓ Goal completed",
+    });
+  });
+
+  it("formats result with other subtype", () => {
+    expect(
+      parseLogEntry({ type: "result", subtype: "error_max_turns" }),
+    ).toEqual({
+      kind: "text",
+      content: "✗ Session ended: error_max_turns",
+    });
+  });
+
+  it("formats question", () => {
+    expect(
+      parseLogEntry({ type: "question", question: "Which branch?" }),
+    ).toEqual({ kind: "text", content: "? Which branch?" });
+  });
+
+  it("formats answer", () => {
+    expect(parseLogEntry({ type: "answer", answer: "main" })).toEqual({
+      kind: "text",
+      content: "> main",
+    });
+  });
+
+  it("formats error", () => {
+    expect(parseLogEntry({ type: "error", message: "Oops" })).toEqual({
+      kind: "text",
+      content: "! Error: Oops",
+    });
+  });
+
+  it("formats assistant with single text block", () => {
+    const entry = {
+      type: "assistant",
+      message: {
+        content: [{ type: "text", text: "Hello there" }],
+      },
+    };
+    expect(parseLogEntry(entry)).toEqual({
+      kind: "text",
+      content: "Hello there",
+    });
+  });
+
+  it("formats assistant with multiple text blocks", () => {
+    const entry = {
+      type: "assistant",
+      message: {
+        content: [
+          { type: "text", text: "Hello there" },
+          { type: "text", text: "How can I help?" },
+        ],
+      },
+    };
+    expect(parseLogEntry(entry)).toEqual([
+      { kind: "text", content: "Hello there" },
+      { kind: "text", content: "How can I help?" },
+    ]);
+  });
+
+  it("formats assistant tool_use block without input", () => {
+    const entry = {
+      type: "assistant",
+      message: {
+        content: [{ type: "tool_use", name: "Bash" }],
+      },
+    };
+    expect(parseLogEntry(entry)).toEqual({
+      kind: "tool_call",
+      toolName: "Bash",
+    });
+  });
+
+  it("formats assistant tool_use block with input", () => {
+    const entry = {
+      type: "assistant",
+      message: {
+        content: [
+          { type: "tool_use", name: "Bash", input: { command: "ls -la" } },
+        ],
+      },
+    };
+    expect(parseLogEntry(entry)).toEqual({
+      kind: "tool_call",
+      toolName: "Bash",
+      input: { command: "ls -la" },
+    });
+  });
+
+  it("formats assistant with mixed content", () => {
+    const entry = {
+      type: "assistant",
+      message: {
+        content: [
+          { type: "text", text: "Running command" },
+          { type: "tool_use", name: "Bash", input: { command: "ls" } },
+        ],
+      },
+    };
+    expect(parseLogEntry(entry)).toEqual([
+      { kind: "text", content: "Running command" },
+      { kind: "tool_call", toolName: "Bash", input: { command: "ls" } },
+    ]);
+  });
+
+  it("returns null for assistant with no displayable content", () => {
+    const entry = {
+      type: "assistant",
+      message: { content: [{ type: "tool_result" }] },
+    };
+    expect(parseLogEntry(entry)).toBeNull();
+  });
+
+  it("returns null for assistant with empty content array", () => {
+    const entry = { type: "assistant", message: { content: [] } };
+    expect(parseLogEntry(entry)).toBeNull();
+  });
+
+  it("returns null for user type (SDK-internal)", () => {
+    expect(parseLogEntry({ type: "user" })).toBeNull();
+  });
+
+  it("returns null for unknown types", () => {
+    expect(parseLogEntry({ type: "something_else" })).toBeNull();
+  });
+});
