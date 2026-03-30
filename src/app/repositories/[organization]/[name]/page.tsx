@@ -31,12 +31,6 @@ export default async function RepositoryPage({ params }: Props) {
           <dt className={styles.label}>Path</dt>
           <dd className={styles.value}>{repo.path}</dd>
         </div>
-        <div className={styles.row}>
-          <dt className={styles.label}>Registered</dt>
-          <dd className={styles.value}>
-            {new Date(repo.created_at).toLocaleString()}
-          </dd>
-        </div>
       </dl>
       <WorktreeSection organization={organization} name={name} />
       <QuickLaunchSection

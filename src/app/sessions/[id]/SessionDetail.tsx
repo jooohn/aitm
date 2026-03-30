@@ -220,10 +220,6 @@ export default function SessionDetail({
 
       {/* Details */}
       <dl className={styles.details}>
-        <div className={styles.detailRow}>
-          <dt className={styles.detailLabel}>Completion condition</dt>
-          <dd className={styles.detailValue}>{session.completion_condition}</dd>
-        </div>
         {session.terminal_attach_command && (
           <div className={styles.detailRow}>
             <dt className={styles.detailLabel}>Terminal attach</dt>
