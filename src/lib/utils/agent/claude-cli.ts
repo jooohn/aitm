@@ -8,17 +8,23 @@ async function* spawnClaudeQuery(
 ): AsyncIterable<SDKMessage> {
   const { prompt, cwd, permissionMode, abortController, outputFormat } = params;
 
-  const child = spawn(
-    "claude",
-    [
-      "--print",
-      "--output-format",
-      "stream-json",
-      "--permission-mode",
-      permissionMode,
-    ],
-    { cwd, stdio: ["pipe", "pipe", "pipe"] },
-  );
+  const args = [
+    "--print",
+    "--output-format",
+    "stream-json",
+    "--verbose",
+    "--permission-mode",
+    permissionMode,
+  ];
+
+  if (outputFormat?.type === "json_schema") {
+    args.push("--json-schema", JSON.stringify(outputFormat.schema));
+  }
+
+  const child = spawn("claude", args, {
+    cwd,
+    stdio: ["pipe", "pipe", "pipe"],
+  });
 
   const onAbort = () => child.kill("SIGTERM");
   abortController.signal.addEventListener("abort", onAbort, { once: true });
