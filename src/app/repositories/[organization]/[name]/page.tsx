@@ -32,12 +32,12 @@ export default async function RepositoryPage({ params }: Props) {
           <dd className={styles.value}>{repo.path}</dd>
         </div>
       </dl>
-      <WorktreeSection organization={organization} name={name} />
       <QuickLaunchSection
         organization={organization}
         name={name}
         repositoryPath={repo.path}
       />
+      <WorktreeSection organization={organization} name={name} />
     </main>
   );
 }
