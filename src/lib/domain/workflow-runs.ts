@@ -26,6 +26,7 @@ export interface StateExecution {
   state: string;
   session_id: string | null;
   command_output: string | null;
+  session_status: string | null;
   transition_decision: string | null;
   handoff_summary: string | null;
   created_at: string;
@@ -546,7 +547,11 @@ export function getWorkflowRun(
 
   const state_executions = db
     .prepare(
-      "SELECT * FROM state_executions WHERE workflow_run_id = ? ORDER BY created_at ASC",
+      `SELECT se.*, s.status as session_status
+       FROM state_executions se
+       LEFT JOIN sessions s ON se.session_id = s.id
+       WHERE se.workflow_run_id = ?
+       ORDER BY se.created_at ASC`,
     )
     .all(id) as StateExecution[];
 

@@ -186,6 +186,7 @@ export interface StateExecution {
   state: string;
   session_id: string | null;
   command_output: string | null;
+  session_status: SessionStatus | null;
   transition_decision: string | null;
   handoff_summary: string | null;
   created_at: string;
