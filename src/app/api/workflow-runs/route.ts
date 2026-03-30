@@ -3,7 +3,7 @@ import {
   createWorkflowRun,
   listWorkflowRuns,
   type WorkflowRunStatus,
-} from "@/lib/workflow-runs";
+} from "@/lib/domain/workflow-runs";
 
 function errorResponse(err: unknown): NextResponse {
   const message = err instanceof Error ? err.message : "Internal server error";

@@ -8,7 +8,7 @@ import {
   type Session,
   type SessionStatus,
   sendMessage,
-} from "@/lib/api";
+} from "@/lib/utils/api";
 import styles from "./SessionSection.module.css";
 
 interface Props {

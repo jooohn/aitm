@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { OutputItem, ToolCallItem } from "@/lib/outputItem";
+import type { OutputItem, ToolCallItem } from "@/lib/utils/outputItem";
 import styles from "./SessionDetail.module.css";
 
 interface Props {

@@ -7,7 +7,7 @@ import {
   fetchWorktrees,
   removeWorktree,
   type Worktree,
-} from "@/lib/api";
+} from "@/lib/utils/api";
 import styles from "./WorktreeSection.module.css";
 
 interface Props {

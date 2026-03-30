@@ -5,10 +5,10 @@ import {
 } from "@anthropic-ai/claude-agent-sdk";
 import type { AskUserQuestionInput } from "@anthropic-ai/claude-agent-sdk/sdk-tools";
 import { appendFileSync, writeFileSync } from "fs";
-import type { WorkflowTransition } from "./config";
-import { db } from "./db";
-import { type SessionStatus, saveMessage } from "./sessions";
-import { listWorktrees } from "./worktrees";
+import { type SessionStatus, saveMessage } from "../domain/sessions";
+import { listWorktrees } from "../domain/worktrees";
+import type { WorkflowTransition } from "../infra/config";
+import { db } from "../infra/db";
 
 type PendingInput = {
   resolve: (answer: string) => void;

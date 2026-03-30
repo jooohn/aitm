@@ -2,7 +2,7 @@ import { mkdirSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { beforeEach, describe, expect, it } from "vitest";
-import { db } from "./db";
+import { db } from "../infra/db";
 import {
   createSession,
   failSession,

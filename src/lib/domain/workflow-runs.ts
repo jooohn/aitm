@@ -1,7 +1,7 @@
 import { randomUUID } from "crypto";
-import { type TransitionDecision } from "./agent";
-import { getConfigWorkflows, type WorkflowTransition } from "./config";
-import { db } from "./db";
+import { getConfigWorkflows, type WorkflowTransition } from "../infra/config";
+import { db } from "../infra/db";
+import { type TransitionDecision } from "../utils/agent";
 import { createSession } from "./sessions";
 
 export type WorkflowRunStatus = "running" | "success" | "failure";

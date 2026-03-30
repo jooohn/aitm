@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getRepositoryByAlias } from "@/lib/repositories";
-import { createWorktree, listWorktrees } from "@/lib/worktrees";
+import { getRepositoryByAlias } from "@/lib/domain/repositories";
+import { createWorktree, listWorktrees } from "@/lib/domain/worktrees";
 
 type Params = Promise<{ organization: string; name: string }>;
 

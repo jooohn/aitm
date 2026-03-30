@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getRepositoryByAlias } from "@/lib/repositories";
+import { getRepositoryByAlias } from "@/lib/domain/repositories";
 import {
   createSession,
   listSessions,
   type SessionStatus,
-} from "@/lib/sessions";
+} from "@/lib/domain/sessions";
 
 function errorResponse(err: unknown): NextResponse {
   const message = err instanceof Error ? err.message : "Internal server error";

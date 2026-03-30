@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { fetchRepositories, type Repository } from "@/lib/api";
+import { fetchRepositories, type Repository } from "@/lib/utils/api";
 import RepositoryRow from "./components/RepositoryRow";
 import styles from "./page.module.css";
 

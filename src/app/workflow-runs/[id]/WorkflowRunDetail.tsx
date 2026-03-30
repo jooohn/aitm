@@ -7,7 +7,7 @@ import {
   type StateExecution,
   type WorkflowRunDetail,
   type WorkflowRunStatus,
-} from "@/lib/api";
+} from "@/lib/utils/api";
 import styles from "./WorkflowRunDetail.module.css";
 
 interface Props {

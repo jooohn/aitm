@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { listRepositories } from "@/lib/repositories";
+import { listRepositories } from "@/lib/domain/repositories";
 
 export async function GET(): Promise<NextResponse> {
   try {

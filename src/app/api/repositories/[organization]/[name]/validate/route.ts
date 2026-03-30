@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getRepositoryByAlias, validateRepository } from "@/lib/repositories";
+import {
+  getRepositoryByAlias,
+  validateRepository,
+} from "@/lib/domain/repositories";
 
 type Params = Promise<{ organization: string; name: string }>;
 

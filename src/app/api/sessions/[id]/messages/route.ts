@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession, listMessages, sendUserMessage } from "@/lib/sessions";
+import {
+  getSession,
+  listMessages,
+  sendUserMessage,
+} from "@/lib/domain/sessions";
 
 type Params = Promise<{ id: string }>;
 

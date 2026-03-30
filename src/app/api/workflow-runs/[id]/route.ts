@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getWorkflowRun } from "@/lib/workflow-runs";
+import { getWorkflowRun } from "@/lib/domain/workflow-runs";
 
 export async function GET(
   _request: NextRequest,

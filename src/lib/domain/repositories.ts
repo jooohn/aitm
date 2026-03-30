@@ -1,6 +1,6 @@
 import { existsSync } from "fs";
 import { basename, join } from "path";
-import { getConfigRepositories } from "./config";
+import { getConfigRepositories } from "../infra/config";
 
 export interface Repository {
   path: string;

@@ -9,9 +9,13 @@ import {
   type SessionMessage,
   type SessionStatus,
   sendMessage,
-} from "@/lib/api";
-import type { OutputItem, ToolCallItem, ToolGroupItem } from "@/lib/outputItem";
-import { parseLogEntry } from "@/lib/parseLogEntry";
+} from "@/lib/utils/api";
+import type {
+  OutputItem,
+  ToolCallItem,
+  ToolGroupItem,
+} from "@/lib/utils/outputItem";
+import { parseLogEntry } from "@/lib/utils/parseLogEntry";
 import OutputItemView from "./OutputItemView";
 import styles from "./SessionDetail.module.css";
 

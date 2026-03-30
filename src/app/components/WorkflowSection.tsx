@@ -9,7 +9,7 @@ import {
   type WorkflowDefinition,
   type WorkflowRun,
   type WorkflowRunStatus,
-} from "@/lib/api";
+} from "@/lib/utils/api";
 
 import styles from "./WorkflowSection.module.css";
 

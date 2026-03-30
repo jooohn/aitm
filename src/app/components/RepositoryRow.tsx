@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { type Repository, validateRepository } from "@/lib/api";
+import { type Repository, validateRepository } from "@/lib/utils/api";
 import styles from "./RepositoryRow.module.css";
 
 interface Props {
