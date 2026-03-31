@@ -58,9 +58,9 @@ let originalConfigPath: string | undefined;
 
 beforeEach(() => {
   originalConfigPath = process.env.AITM_CONFIG_PATH;
-  db.prepare("DELETE FROM state_executions").run();
   db.prepare("DELETE FROM session_messages").run();
   db.prepare("DELETE FROM sessions").run();
+  db.prepare("DELETE FROM state_executions").run();
   db.prepare("DELETE FROM workflow_runs").run();
 });
 
@@ -198,10 +198,10 @@ workflows:
 
     const planExec = db
       .prepare("SELECT * FROM state_executions WHERE workflow_run_id = ?")
-      .get(run.id) as { session_id: string };
+      .get(run.id) as { id: string };
     const planSession = db
-      .prepare("SELECT * FROM sessions WHERE id = ?")
-      .get(planExec.session_id) as { goal: string };
+      .prepare("SELECT * FROM sessions WHERE state_execution_id = ?")
+      .get(planExec.id) as { goal: string };
 
     expect(planSession.goal).toContain("<inputs>");
     expect(planSession.goal).toContain(
@@ -261,11 +261,11 @@ workflows:
       .prepare(
         "SELECT * FROM state_executions WHERE workflow_run_id = ? AND state = 'implement'",
       )
-      .get(run.id) as { session_id: string };
+      .get(run.id) as { id: string };
 
     const implementSession = db
-      .prepare("SELECT * FROM sessions WHERE id = ?")
-      .get(implementExec.session_id) as { goal: string };
+      .prepare("SELECT * FROM sessions WHERE state_execution_id = ?")
+      .get(implementExec.id) as { goal: string };
 
     // The implement session should NOT have a raw <inputs> block
     expect(implementSession.goal).not.toContain("<inputs>");
@@ -441,11 +441,11 @@ describe("completeStateExecution", () => {
       .prepare(
         "SELECT * FROM state_executions WHERE workflow_run_id = ? AND state = 'implement'",
       )
-      .get(run.id) as { session_id: string; id: string };
+      .get(run.id) as { id: string };
 
     const implementSession = db
-      .prepare("SELECT * FROM sessions WHERE id = ?")
-      .get(implementExec.session_id) as { goal: string };
+      .prepare("SELECT * FROM sessions WHERE state_execution_id = ?")
+      .get(implementExec.id) as { goal: string };
 
     // implement session should contain the plan handoff
     expect(implementSession.goal).toContain("Created PLAN.md with approach");
@@ -463,11 +463,11 @@ describe("completeStateExecution", () => {
         `SELECT * FROM state_executions
          WHERE workflow_run_id = ? AND state = 'implement' AND id != ?`,
       )
-      .get(run.id, implementExec.id) as { session_id: string };
+      .get(run.id, implementExec.id) as { id: string };
 
     const implement2Session = db
-      .prepare("SELECT * FROM sessions WHERE id = ?")
-      .get(implement2Exec.session_id) as { goal: string };
+      .prepare("SELECT * FROM sessions WHERE state_execution_id = ?")
+      .get(implement2Exec.id) as { goal: string };
 
     // Second implement session should contain BOTH prior handoffs
     expect(implement2Session.goal).toContain("Created PLAN.md with approach");

@@ -3,7 +3,7 @@ import { randomUUID } from "crypto";
 import { getConfigWorkflows, type WorkflowTransition } from "../infra/config";
 import { db } from "../infra/db";
 import { type TransitionDecision } from "../utils/agent";
-import { createSession } from "./sessions";
+import { createSession, type SessionStatus } from "./sessions";
 import { listWorktrees } from "./worktrees";
 
 export type WorkflowRunStatus = "running" | "success" | "failure";
@@ -24,9 +24,9 @@ export interface StateExecution {
   id: string;
   workflow_run_id: string;
   state: string;
-  session_id: string | null;
   command_output: string | null;
-  session_status: string | null;
+  session_id: string | null;
+  session_status: SessionStatus | null;
   transition_decision: string | null;
   handoff_summary: string | null;
   created_at: string;
@@ -112,8 +112,8 @@ function startStateExecution(
   if ("command" in stateDef) {
     db.prepare(
       `INSERT INTO state_executions
-         (id, workflow_run_id, state, session_id, command_output, transition_decision, handoff_summary, created_at, completed_at)
-       VALUES (?, ?, ?, NULL, NULL, NULL, NULL, ?, NULL)`,
+         (id, workflow_run_id, state, command_output, transition_decision, handoff_summary, created_at, completed_at)
+       VALUES (?, ?, ?, NULL, NULL, NULL, ?, NULL)`,
     ).run(executionId, workflowRunId, stateName, now);
 
     let worktreePath: string | undefined;
@@ -172,24 +172,24 @@ function startStateExecution(
   // Goal state path.
   const goal = buildGoal(stateDef.goal, previousExecutions, inputs);
 
-  const session = createSession(
+  db.prepare(
+    `INSERT INTO state_executions
+       (id, workflow_run_id, state, command_output, transition_decision, handoff_summary, created_at, completed_at)
+     VALUES (?, ?, ?, NULL, NULL, NULL, ?, NULL)`,
+  ).run(executionId, workflowRunId, stateName, now);
+
+  createSession(
     {
       repository_path: repositoryPath,
       worktree_branch: worktreeBranch,
       goal,
       transitions: stateDef.transitions as WorkflowTransition[],
-      workflow_run_id: workflowRunId,
+      state_execution_id: executionId,
     },
     (decision) => {
       completeStateExecution(executionId, decision);
     },
   );
-
-  db.prepare(
-    `INSERT INTO state_executions
-       (id, workflow_run_id, state, session_id, command_output, transition_decision, handoff_summary, created_at, completed_at)
-     VALUES (?, ?, ?, ?, NULL, NULL, NULL, ?, NULL)`,
-  ).run(executionId, workflowRunId, stateName, session.id, now);
 
   return db
     .prepare("SELECT * FROM state_executions WHERE id = ?")
@@ -308,7 +308,7 @@ export function completeStateExecution(
       .prepare(
         `SELECT se.state, se.handoff_summary, s.log_file_path
          FROM state_executions se
-         LEFT JOIN sessions s ON se.session_id = s.id
+         LEFT JOIN sessions s ON s.state_execution_id = se.id
          WHERE se.workflow_run_id = ? AND se.completed_at IS NOT NULL
          ORDER BY se.created_at ASC`,
       )
@@ -353,7 +353,7 @@ export function recoverCrashedWorkflowRuns(): void {
     .prepare(
       `SELECT se.id as execution_id, s.transition_decision
        FROM state_executions se
-       JOIN sessions s ON se.session_id = s.id
+       JOIN sessions s ON s.state_execution_id = se.id
        WHERE se.completed_at IS NULL AND s.status = 'SUCCEEDED'`,
     )
     .all() as Array<{
@@ -379,7 +379,7 @@ export function recoverCrashedWorkflowRuns(): void {
     .prepare(
       `SELECT se.id as execution_id, se.state, se.workflow_run_id
        FROM state_executions se
-       JOIN sessions s ON se.session_id = s.id
+       JOIN sessions s ON s.state_execution_id = se.id
        JOIN workflow_runs wr ON se.workflow_run_id = wr.id
        WHERE se.completed_at IS NULL AND s.status = 'FAILED' AND wr.status = 'running'`,
     )
@@ -404,7 +404,7 @@ export function recoverCrashedWorkflowRuns(): void {
         .prepare(
           `SELECT se.state, se.handoff_summary, s.log_file_path
            FROM state_executions se
-           LEFT JOIN sessions s ON se.session_id = s.id
+           LEFT JOIN sessions s ON s.state_execution_id = se.id
            WHERE se.workflow_run_id = ? AND se.completed_at IS NOT NULL
            ORDER BY se.created_at ASC`,
         )
@@ -430,14 +430,16 @@ export function recoverCrashedWorkflowRuns(): void {
     );
   }
 
-  // Fail workflow runs with uncompleted command state executions (session_id IS NULL).
+  // Fail workflow runs with uncompleted command state executions (no linked session).
   // These indicate a server crash during synchronous command execution.
   const orphanedCommandExecutions = db
     .prepare(
       `SELECT se.id as execution_id, se.workflow_run_id
        FROM state_executions se
        JOIN workflow_runs wr ON se.workflow_run_id = wr.id
-       WHERE se.completed_at IS NULL AND se.session_id IS NULL AND wr.status = 'running'`,
+       WHERE se.completed_at IS NULL
+         AND NOT EXISTS (SELECT 1 FROM sessions WHERE state_execution_id = se.id)
+         AND wr.status = 'running'`,
     )
     .all() as Array<{ execution_id: string; workflow_run_id: string }>;
 
@@ -454,8 +456,8 @@ export function recoverCrashedWorkflowRuns(): void {
     `UPDATE state_executions
      SET completed_at = ?
      WHERE completed_at IS NULL
-       AND session_id IN (
-         SELECT id FROM sessions WHERE status = 'FAILED'
+       AND id IN (
+         SELECT state_execution_id FROM sessions WHERE status = 'FAILED' AND state_execution_id IS NOT NULL
        )`,
   ).run(now);
 
@@ -547,9 +549,9 @@ export function getWorkflowRun(
 
   const state_executions = db
     .prepare(
-      `SELECT se.*, s.status as session_status
+      `SELECT se.*, s.id as session_id, s.status as session_status
        FROM state_executions se
-       LEFT JOIN sessions s ON se.session_id = s.id
+       LEFT JOIN sessions s ON s.state_execution_id = se.id
        WHERE se.workflow_run_id = ?
        ORDER BY se.created_at ASC`,
     )

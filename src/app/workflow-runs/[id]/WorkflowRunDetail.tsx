@@ -65,7 +65,7 @@ function StateExecutionItem({
     if (!content) return;
     setSending(true);
     try {
-      await onSendMessage(execution.session_id, content);
+      await onSendMessage(execution.session_id!, content);
       setReply("");
     } finally {
       setSending(false);
@@ -209,13 +209,13 @@ export default function WorkflowRunDetail({ run: initial }: Props) {
   // Fetch messages for sessions already waiting on mount
   useEffect(() => {
     const waiting = initial.state_executions.filter(
-      (e) => e.session_status === "WAITING_FOR_INPUT",
+      (e) => e.session_status === "WAITING_FOR_INPUT" && e.session_id != null,
     );
     if (waiting.length === 0) return;
     Promise.all(
       waiting.map(async (e) => {
-        const msgs = await fetchSessionMessages(e.session_id);
-        return [e.session_id, msgs] as const;
+        const msgs = await fetchSessionMessages(e.session_id!);
+        return [e.session_id!, msgs] as const;
       }),
     ).then((entries) => {
       setSessionMessages(Object.fromEntries(entries));
@@ -232,13 +232,14 @@ export default function WorkflowRunDetail({ run: initial }: Props) {
 
         // Fetch messages for any session waiting for input
         const waiting = updated.state_executions.filter(
-          (e) => e.session_status === "WAITING_FOR_INPUT",
+          (e) =>
+            e.session_status === "WAITING_FOR_INPUT" && e.session_id != null,
         );
         if (waiting.length > 0) {
           const entries = await Promise.all(
             waiting.map(async (e) => {
-              const msgs = await fetchSessionMessages(e.session_id);
-              return [e.session_id, msgs] as const;
+              const msgs = await fetchSessionMessages(e.session_id!);
+              return [e.session_id!, msgs] as const;
             }),
           );
           setSessionMessages((prev) => ({
@@ -314,7 +315,11 @@ export default function WorkflowRunDetail({ run: initial }: Props) {
               <StateExecutionItem
                 key={execution.id}
                 execution={execution}
-                messages={sessionMessages[execution.session_id] ?? []}
+                messages={
+                  (execution.session_id
+                    ? sessionMessages[execution.session_id]
+                    : null) ?? []
+                }
                 onSendMessage={handleSendMessage}
               />
             ))}
