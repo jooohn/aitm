@@ -341,7 +341,7 @@ export default function WorkflowRunDetail({ run: initial }: Props) {
           <p className={styles.empty}>No state executions yet.</p>
         ) : (
           <ul className={styles.executions}>
-            {run.state_executions.map((execution) => (
+            {[...run.state_executions].reverse().map((execution) => (
               <StateExecutionItem
                 key={execution.id}
                 execution={execution}
