@@ -103,7 +103,7 @@ function startStateExecution(
   const workflow = workflows[workflowName];
   if (!workflow) throw new Error(`Workflow not found: ${workflowName}`);
 
-  const stateDef = workflow.states[stateName];
+  const stateDef = workflow.states?.[stateName];
   if (!stateDef) throw new Error(`State not found: ${stateName}`);
 
   const executionId = randomUUID();
@@ -292,7 +292,7 @@ export function completeStateExecution(
   // Look up the workflow definition to validate the next state exists.
   const workflows = getConfigWorkflows();
   const workflow = workflows[run.workflow_name];
-  if (!workflow || !workflow.states[transition]) {
+  if (!workflow || !workflow.states?.[transition]) {
     terminateRun(run.id, "failure", now);
     return;
   }

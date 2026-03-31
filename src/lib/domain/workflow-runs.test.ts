@@ -476,6 +476,104 @@ describe("completeStateExecution", () => {
   });
 });
 
+describe("minimum workflow (single goal state, terminal-only transitions)", () => {
+  const MINIMAL_WORKFLOW_CONFIG = `
+workflows:
+  minimal-flow:
+    initial_state: goal
+    states:
+      goal:
+        goal: "Do the thing"
+        transitions:
+          - terminal: success
+            when: "done"
+          - terminal: failure
+            when: "blocked"
+`;
+
+  it("happy path: run reaches success after completing the only state", () => {
+    process.env.AITM_CONFIG_PATH = writeTempConfig(MINIMAL_WORKFLOW_CONFIG);
+    const repoPath = makeFakeGitRepo();
+
+    const run = createWorkflowRun({
+      repository_path: repoPath,
+      worktree_branch: "feat/test",
+      workflow_name: "minimal-flow",
+    });
+
+    expect(run.current_state).toBe("goal");
+    expect(run.status).toBe("running");
+
+    const [exec] = db
+      .prepare("SELECT * FROM state_executions WHERE workflow_run_id = ?")
+      .all(run.id) as { id: string }[];
+
+    completeStateExecution(exec.id, {
+      transition: "success",
+      reason: "All done",
+      handoff_summary: "Finished",
+    });
+
+    const updatedRun = getWorkflowRun(run.id);
+    expect(updatedRun?.status).toBe("success");
+    expect(updatedRun?.current_state).toBeNull();
+  });
+});
+
+describe("workflow config missing `states` key", () => {
+  const NO_STATES_CONFIG = `
+workflows:
+  no-states-flow:
+    initial_state: goal
+`;
+
+  it("createWorkflowRun throws a descriptive error instead of TypeError", () => {
+    process.env.AITM_CONFIG_PATH = writeTempConfig(NO_STATES_CONFIG);
+    const repoPath = makeFakeGitRepo();
+
+    expect(() =>
+      createWorkflowRun({
+        repository_path: repoPath,
+        worktree_branch: "feat/test",
+        workflow_name: "no-states-flow",
+      }),
+    ).toThrow("State not found: goal");
+  });
+
+  it("completeStateExecution terminates run as failure when workflow.states is undefined at transition time", () => {
+    // Create the run with a valid config first
+    process.env.AITM_CONFIG_PATH = writeTempConfig(SIMPLE_WORKFLOW_CONFIG);
+    const repoPath = makeFakeGitRepo();
+    const run = createWorkflowRun({
+      repository_path: repoPath,
+      worktree_branch: "feat/test",
+      workflow_name: "my-flow",
+    });
+
+    const [exec] = db
+      .prepare("SELECT * FROM state_executions WHERE workflow_run_id = ?")
+      .all(run.id) as { id: string }[];
+
+    // Swap to a config where my-flow exists but has no states key
+    process.env.AITM_CONFIG_PATH = writeTempConfig(`
+workflows:
+  my-flow:
+    initial_state: plan
+`);
+
+    // Should not throw — should terminate as failure
+    completeStateExecution(exec.id, {
+      transition: "implement",
+      reason: "Ready",
+      handoff_summary: "Plan done",
+    });
+
+    const updatedRun = getWorkflowRun(run.id);
+    expect(updatedRun?.status).toBe("failure");
+    expect(updatedRun?.current_state).toBeNull();
+  });
+});
+
 describe("listWorkflowRuns", () => {
   it("returns all runs ordered by created_at descending", () => {
     process.env.AITM_CONFIG_PATH = writeTempConfig(SIMPLE_WORKFLOW_CONFIG);
