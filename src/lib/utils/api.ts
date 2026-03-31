@@ -185,6 +185,7 @@ export interface StateExecution {
   workflow_run_id: string;
   state: string;
   command_output: string | null;
+  session_id: string | null;
   session_status: SessionStatus | null;
   transition_decision: string | null;
   handoff_summary: string | null;

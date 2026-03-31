@@ -3,7 +3,7 @@ import { randomUUID } from "crypto";
 import { getConfigWorkflows, type WorkflowTransition } from "../infra/config";
 import { db } from "../infra/db";
 import { type TransitionDecision } from "../utils/agent";
-import { createSession } from "./sessions";
+import { createSession, type SessionStatus } from "./sessions";
 import { listWorktrees } from "./worktrees";
 
 export type WorkflowRunStatus = "running" | "success" | "failure";
@@ -25,7 +25,8 @@ export interface StateExecution {
   workflow_run_id: string;
   state: string;
   command_output: string | null;
-  session_status: string | null;
+  session_id: string | null;
+  session_status: SessionStatus | null;
   transition_decision: string | null;
   handoff_summary: string | null;
   created_at: string;
@@ -548,9 +549,9 @@ export function getWorkflowRun(
 
   const state_executions = db
     .prepare(
-      `SELECT se.*, s.status as session_status
+      `SELECT se.*, s.id as session_id, s.status as session_status
        FROM state_executions se
-       LEFT JOIN sessions s ON se.session_id = s.id
+       LEFT JOIN sessions s ON s.state_execution_id = se.id
        WHERE se.workflow_run_id = ?
        ORDER BY se.created_at ASC`,
     )

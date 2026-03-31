@@ -58,8 +58,8 @@ const needsRelationshipRebuild =
     !sessionColsForMigration.some((c) => c.name === "state_execution_id"));
 if (needsRelationshipRebuild) {
   db.exec("DROP TABLE IF EXISTS session_messages");
-  db.exec("DROP TABLE IF EXISTS sessions");
   db.exec("DROP TABLE IF EXISTS state_executions");
+  db.exec("DROP TABLE IF EXISTS sessions");
 }
 
 db.exec(`
