@@ -8,6 +8,7 @@ import {
   createWorkflowRun,
   getWorkflowRun,
   listWorkflowRuns,
+  rerunWorkflowRunFromFailedState,
 } from "./workflow-runs";
 import { listWorktrees } from "./worktrees";
 
@@ -704,5 +705,109 @@ describe("getWorkflowRun", () => {
 
   it("returns undefined for unknown id", () => {
     expect(getWorkflowRun("nonexistent")).toBeUndefined();
+  });
+});
+
+describe("rerunWorkflowRunFromFailedState", () => {
+  function setupFailedRun() {
+    process.env.AITM_CONFIG_PATH = writeTempConfig(SIMPLE_WORKFLOW_CONFIG);
+    const repoPath = makeFakeGitRepo();
+    const run = createWorkflowRun({
+      repository_path: repoPath,
+      worktree_branch: "feat/test",
+      workflow_name: "my-flow",
+    });
+
+    // Complete plan → implement
+    const [planExec] = db
+      .prepare(
+        "SELECT * FROM state_executions WHERE workflow_run_id = ? ORDER BY created_at ASC",
+      )
+      .all(run.id) as { id: string }[];
+    completeStateExecution(planExec.id, {
+      transition: "implement",
+      reason: "Plan done",
+      handoff_summary: "Wrote PLAN.md",
+    });
+
+    // Fail implement → failure
+    const implementExec = db
+      .prepare(
+        "SELECT * FROM state_executions WHERE workflow_run_id = ? AND state = 'implement'",
+      )
+      .get(run.id) as { id: string };
+    completeStateExecution(implementExec.id, {
+      transition: "failure",
+      reason: "Blocked",
+      handoff_summary: "Could not proceed",
+    });
+
+    return { run, repoPath, planExec, implementExec };
+  }
+
+  it("throws for unknown run id", () => {
+    process.env.AITM_CONFIG_PATH = writeTempConfig(SIMPLE_WORKFLOW_CONFIG);
+    expect(() => rerunWorkflowRunFromFailedState("nonexistent")).toThrow(
+      "Workflow run not found",
+    );
+  });
+
+  it("throws when run is not in failure status", () => {
+    process.env.AITM_CONFIG_PATH = writeTempConfig(SIMPLE_WORKFLOW_CONFIG);
+    const repoPath = makeFakeGitRepo();
+    const run = createWorkflowRun({
+      repository_path: repoPath,
+      worktree_branch: "feat/test",
+      workflow_name: "my-flow",
+    });
+
+    expect(() => rerunWorkflowRunFromFailedState(run.id)).toThrow(
+      "Only failed workflow runs can be re-run from failed state",
+    );
+  });
+
+  it("sets workflow_run status to running and current_state to the failed state", () => {
+    const { run } = setupFailedRun();
+
+    rerunWorkflowRunFromFailedState(run.id);
+
+    const updated = getWorkflowRun(run.id);
+    expect(updated?.status).toBe("running");
+    expect(updated?.current_state).toBe("implement");
+  });
+
+  it("creates a new state_execution for the failed state", () => {
+    const { run, implementExec } = setupFailedRun();
+
+    rerunWorkflowRunFromFailedState(run.id);
+
+    const executions = db
+      .prepare(
+        "SELECT * FROM state_executions WHERE workflow_run_id = ? AND state = 'implement' ORDER BY created_at ASC",
+      )
+      .all(run.id) as { id: string }[];
+    expect(executions).toHaveLength(2);
+    expect(executions[1].id).not.toBe(implementExec.id);
+  });
+
+  it("passes handoff context from completed executions (excluding the failed one) to the new session", () => {
+    const { run, implementExec } = setupFailedRun();
+
+    rerunWorkflowRunFromFailedState(run.id);
+
+    const newImplementExec = db
+      .prepare(
+        "SELECT * FROM state_executions WHERE workflow_run_id = ? AND state = 'implement' AND id != ? ORDER BY created_at DESC LIMIT 1",
+      )
+      .get(run.id, implementExec.id) as { id: string };
+
+    const newSession = db
+      .prepare("SELECT * FROM sessions WHERE state_execution_id = ?")
+      .get(newImplementExec.id) as { goal: string } | undefined;
+
+    expect(newSession?.goal).toContain("Wrote PLAN.md");
+    // The failed implement execution had handoff_summary "Could not proceed"
+    // but it is the last/failed one and should be excluded
+    expect(newSession?.goal).not.toContain("Could not proceed");
   });
 });
