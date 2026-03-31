@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { db } from "../infra/db";
 import {
   completeStateExecution,
@@ -9,6 +9,9 @@ import {
   getWorkflowRun,
   listWorkflowRuns,
 } from "./workflow-runs";
+import { listWorktrees } from "./worktrees";
+
+vi.mock("./worktrees");
 
 function makeFakeGitRepo(): string {
   const dir = join(
@@ -62,6 +65,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.clearAllMocks();
   if (originalConfigPath === undefined) {
     delete process.env.AITM_CONFIG_PATH;
   } else {
@@ -530,6 +534,143 @@ describe("listWorkflowRuns", () => {
     const runs = listWorkflowRuns({ worktree_branch: "feat/a" });
     expect(runs).toHaveLength(1);
     expect(runs[0].worktree_branch).toBe("feat/a");
+  });
+});
+
+describe("command state execution", () => {
+  const COMMAND_WORKFLOW_CONFIG = `
+workflows:
+  cmd-flow:
+    initial_state: cleanup
+    states:
+      cleanup:
+        command: "exit 0"
+        transitions:
+          - state: next
+            when: succeeded
+          - terminal: failure
+            when: failed
+      next:
+        goal: "Do the next thing"
+        transitions:
+          - terminal: success
+            when: done
+`;
+
+  function setupCommandRun(config = COMMAND_WORKFLOW_CONFIG) {
+    process.env.AITM_CONFIG_PATH = writeTempConfig(config);
+    const repoPath = makeFakeGitRepo();
+    const worktreePath = makeFakeGitRepo();
+    vi.mocked(listWorktrees).mockReturnValue([
+      {
+        branch: "feat/test",
+        path: worktreePath,
+        is_main: true,
+        is_bare: false,
+        head: "abc123",
+      },
+    ]);
+    return { repoPath, worktreePath };
+  }
+
+  it("executes the command and advances to the next state on succeeded", () => {
+    const { repoPath } = setupCommandRun();
+
+    const run = createWorkflowRun({
+      repository_path: repoPath,
+      worktree_branch: "feat/test",
+      workflow_name: "cmd-flow",
+    });
+
+    // cleanup (exit 0 → succeeded → next) should have run synchronously
+    const updatedRun = getWorkflowRun(run.id);
+    expect(updatedRun?.current_state).toBe("next");
+    expect(updatedRun?.status).toBe("running");
+
+    const executions = db
+      .prepare(
+        "SELECT * FROM state_executions WHERE workflow_run_id = ? ORDER BY created_at ASC",
+      )
+      .all(run.id) as { state: string; completed_at: string | null }[];
+    expect(executions).toHaveLength(2);
+    expect(executions[0].state).toBe("cleanup");
+    expect(executions[0].completed_at).not.toBeNull();
+    expect(executions[1].state).toBe("next");
+  });
+
+  it("stores command output in command_output column", () => {
+    const { repoPath } = setupCommandRun(`
+workflows:
+  cmd-flow:
+    initial_state: greet
+    states:
+      greet:
+        command: "echo hello"
+        transitions:
+          - terminal: success
+            when: succeeded
+`);
+
+    const run = createWorkflowRun({
+      repository_path: repoPath,
+      worktree_branch: "feat/test",
+      workflow_name: "cmd-flow",
+    });
+
+    const execution = db
+      .prepare("SELECT * FROM state_executions WHERE workflow_run_id = ?")
+      .get(run.id) as { command_output: string | null };
+    expect(execution.command_output).toContain("hello");
+  });
+
+  it("uses the failed transition when command exits non-zero", () => {
+    const { repoPath } = setupCommandRun(`
+workflows:
+  cmd-flow:
+    initial_state: bad-cmd
+    states:
+      bad-cmd:
+        command: "exit 1"
+        transitions:
+          - terminal: success
+            when: succeeded
+          - terminal: failure
+            when: failed
+`);
+
+    const run = createWorkflowRun({
+      repository_path: repoPath,
+      worktree_branch: "feat/test",
+      workflow_name: "cmd-flow",
+    });
+
+    const updatedRun = getWorkflowRun(run.id);
+    expect(updatedRun?.status).toBe("failure");
+    expect(updatedRun?.current_state).toBeNull();
+  });
+
+  it("marks the run as failure when no transition matches the exit code outcome", () => {
+    const { repoPath } = setupCommandRun(`
+workflows:
+  cmd-flow:
+    initial_state: bad-cmd
+    states:
+      bad-cmd:
+        command: "exit 1"
+        transitions:
+          - terminal: success
+            when: succeeded
+`);
+
+    const run = createWorkflowRun({
+      repository_path: repoPath,
+      worktree_branch: "feat/test",
+      workflow_name: "cmd-flow",
+    });
+
+    const updatedRun = getWorkflowRun(run.id);
+    expect(updatedRun?.status).toBe("failure");
+    expect(updatedRun?.current_state).toBeNull();
   });
 });
 

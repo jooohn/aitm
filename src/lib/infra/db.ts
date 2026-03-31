@@ -54,6 +54,21 @@ if (
   );
 }
 
+// Migration: make session_id nullable and add command_output to state_executions.
+// SQLite cannot ALTER COLUMN, so drop and recreate if session_id is still NOT NULL.
+const seInfo = db.prepare("PRAGMA table_info(state_executions)").all() as {
+  name: string;
+  notnull: number;
+}[];
+const sessionIdCol = seInfo.find((c) => c.name === "session_id");
+const hasCommandOutput = seInfo.some((c) => c.name === "command_output");
+
+if (sessionIdCol?.notnull) {
+  db.exec("DROP TABLE IF EXISTS state_executions");
+} else if (!hasCommandOutput && seInfo.length > 0) {
+  db.exec("ALTER TABLE state_executions ADD COLUMN command_output TEXT");
+}
+
 db.exec(`
   CREATE TABLE IF NOT EXISTS sessions (
     id                      TEXT    PRIMARY KEY,
@@ -95,7 +110,8 @@ db.exec(`
     id                  TEXT    PRIMARY KEY,
     workflow_run_id     TEXT    NOT NULL REFERENCES workflow_runs(id),
     state               TEXT    NOT NULL,
-    session_id          TEXT    NOT NULL REFERENCES sessions(id),
+    session_id          TEXT    REFERENCES sessions(id),
+    command_output      TEXT,
     transition_decision TEXT,
     handoff_summary     TEXT,
     created_at          TEXT    NOT NULL,

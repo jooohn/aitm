@@ -1,4 +1,4 @@
-import { execFileSync } from "child_process";
+import { execFileSync, spawnSync } from "child_process";
 import { randomUUID } from "crypto";
 import { getConfigWorkflows, type WorkflowTransition } from "../infra/config";
 import { db } from "../infra/db";
@@ -24,7 +24,8 @@ export interface StateExecution {
   id: string;
   workflow_run_id: string;
   state: string;
-  session_id: string;
+  session_id: string | null;
+  command_output: string | null;
   transition_decision: string | null;
   handoff_summary: string | null;
   created_at: string;
@@ -51,7 +52,7 @@ export interface ListWorkflowRunsFilter {
 type PreviousExecutionHandoff = {
   state: string;
   handoff_summary: string;
-  log_file_path: string;
+  log_file_path: string | null;
 };
 
 function buildGoal(
@@ -76,12 +77,11 @@ function buildGoal(
   if (previousExecutions.length > 0) {
     parts.push("", "<handoff>", "Previous states (oldest first):", "");
     for (const prev of previousExecutions) {
-      parts.push(
-        `State: ${prev.state}`,
-        `Summary: ${prev.handoff_summary}`,
-        `Log: ${prev.log_file_path}`,
-        "",
-      );
+      parts.push(`State: ${prev.state}`, `Summary: ${prev.handoff_summary}`);
+      if (prev.log_file_path) {
+        parts.push(`Log: ${prev.log_file_path}`);
+      }
+      parts.push("");
     }
     parts.push("</handoff>");
   }
@@ -105,10 +105,71 @@ function startStateExecution(
   const stateDef = workflow.states[stateName];
   if (!stateDef) throw new Error(`State not found: ${stateName}`);
 
-  const goal = buildGoal(stateDef.goal, previousExecutions, inputs);
-
   const executionId = randomUUID();
   const now = new Date().toISOString();
+
+  if ("command" in stateDef) {
+    db.prepare(
+      `INSERT INTO state_executions
+         (id, workflow_run_id, state, session_id, command_output, transition_decision, handoff_summary, created_at, completed_at)
+       VALUES (?, ?, ?, NULL, NULL, NULL, NULL, ?, NULL)`,
+    ).run(executionId, workflowRunId, stateName, now);
+
+    let worktreePath: string | undefined;
+    try {
+      worktreePath = listWorktrees(repositoryPath).find(
+        (w) => w.branch === worktreeBranch,
+      )?.path;
+    } catch {
+      // Worktree lookup failed — will be treated as no-path below.
+    }
+
+    if (!worktreePath) {
+      completeStateExecution(executionId, null);
+      return db
+        .prepare("SELECT * FROM state_executions WHERE id = ?")
+        .get(executionId) as StateExecution;
+    }
+
+    const result = spawnSync("sh", ["-c", stateDef.command], {
+      cwd: worktreePath,
+      encoding: "utf8",
+    });
+    const commandOutput =
+      [result.stdout, result.stderr].filter(Boolean).join("\n") || null;
+    const outcome = result.status === 0 ? "succeeded" : "failed";
+
+    db.prepare(
+      "UPDATE state_executions SET command_output = ? WHERE id = ?",
+    ).run(commandOutput, executionId);
+
+    const matchedTransition = stateDef.transitions.find(
+      (t) => t.when === outcome,
+    );
+
+    let decision: TransitionDecision | null;
+    if (!matchedTransition) {
+      decision = null;
+    } else {
+      const transitionName =
+        "state" in matchedTransition
+          ? matchedTransition.state
+          : matchedTransition.terminal;
+      decision = {
+        transition: transitionName,
+        reason: `exit code ${result.status ?? "unknown"}`,
+        handoff_summary: commandOutput ?? "",
+      };
+    }
+
+    completeStateExecution(executionId, decision);
+    return db
+      .prepare("SELECT * FROM state_executions WHERE id = ?")
+      .get(executionId) as StateExecution;
+  }
+
+  // Goal state path.
+  const goal = buildGoal(stateDef.goal, previousExecutions, inputs);
 
   const session = createSession(
     {
@@ -125,8 +186,8 @@ function startStateExecution(
 
   db.prepare(
     `INSERT INTO state_executions
-       (id, workflow_run_id, state, session_id, transition_decision, handoff_summary, created_at, completed_at)
-     VALUES (?, ?, ?, ?, NULL, NULL, ?, NULL)`,
+       (id, workflow_run_id, state, session_id, command_output, transition_decision, handoff_summary, created_at, completed_at)
+     VALUES (?, ?, ?, ?, NULL, NULL, NULL, ?, NULL)`,
   ).run(executionId, workflowRunId, stateName, session.id, now);
 
   return db
@@ -246,14 +307,14 @@ export function completeStateExecution(
       .prepare(
         `SELECT se.state, se.handoff_summary, s.log_file_path
          FROM state_executions se
-         JOIN sessions s ON se.session_id = s.id
+         LEFT JOIN sessions s ON se.session_id = s.id
          WHERE se.workflow_run_id = ? AND se.completed_at IS NOT NULL
          ORDER BY se.created_at ASC`,
       )
       .all(run.id) as Array<{
       state: string;
       handoff_summary: string | null;
-      log_file_path: string;
+      log_file_path: string | null;
     }>
   ).filter((e): e is PreviousExecutionHandoff => e.handoff_summary !== null);
 
@@ -342,14 +403,14 @@ export function recoverCrashedWorkflowRuns(): void {
         .prepare(
           `SELECT se.state, se.handoff_summary, s.log_file_path
            FROM state_executions se
-           JOIN sessions s ON se.session_id = s.id
+           LEFT JOIN sessions s ON se.session_id = s.id
            WHERE se.workflow_run_id = ? AND se.completed_at IS NOT NULL
            ORDER BY se.created_at ASC`,
         )
         .all(workflow_run_id) as Array<{
         state: string;
         handoff_summary: string | null;
-        log_file_path: string;
+        log_file_path: string | null;
       }>
     ).filter((e): e is PreviousExecutionHandoff => e.handoff_summary !== null);
 
@@ -366,6 +427,25 @@ export function recoverCrashedWorkflowRuns(): void {
       previousExecutions,
       inputs,
     );
+  }
+
+  // Fail workflow runs with uncompleted command state executions (session_id IS NULL).
+  // These indicate a server crash during synchronous command execution.
+  const orphanedCommandExecutions = db
+    .prepare(
+      `SELECT se.id as execution_id, se.workflow_run_id
+       FROM state_executions se
+       JOIN workflow_runs wr ON se.workflow_run_id = wr.id
+       WHERE se.completed_at IS NULL AND se.session_id IS NULL AND wr.status = 'running'`,
+    )
+    .all() as Array<{ execution_id: string; workflow_run_id: string }>;
+
+  for (const { execution_id, workflow_run_id } of orphanedCommandExecutions) {
+    db.prepare("UPDATE state_executions SET completed_at = ? WHERE id = ?").run(
+      now,
+      execution_id,
+    );
+    terminateRun(workflow_run_id, "failure", now);
   }
 
   // Close any remaining uncompleted state executions (workflow already terminated).

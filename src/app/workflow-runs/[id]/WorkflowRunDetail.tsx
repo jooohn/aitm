@@ -58,12 +58,14 @@ function StateExecutionItem({ execution }: { execution: StateExecution }) {
         )}
       </div>
       <div className={styles.executionMeta}>
-        <Link
-          href={`/sessions/${execution.session_id}`}
-          className={styles.sessionLink}
-        >
-          Session {execution.session_id.slice(0, 8)}…
-        </Link>
+        {execution.session_id && (
+          <Link
+            href={`/sessions/${execution.session_id}`}
+            className={styles.sessionLink}
+          >
+            Session {execution.session_id.slice(0, 8)}…
+          </Link>
+        )}
         <span className={styles.timestamp}>
           {new Date(execution.created_at).toLocaleString()}
         </span>
