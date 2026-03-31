@@ -116,6 +116,7 @@ function startStateExecution(
       worktree_branch: worktreeBranch,
       goal,
       transitions: stateDef.transitions as WorkflowTransition[],
+      workflow_run_id: workflowRunId,
     },
     (decision) => {
       completeStateExecution(executionId, decision);

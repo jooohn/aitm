@@ -41,6 +41,19 @@ if (
   db.exec("ALTER TABLE workflow_runs ADD COLUMN inputs TEXT");
 }
 
+// Migration: add workflow_run_id column to sessions if missing.
+const sessionColsAfterRebuild = db
+  .prepare("PRAGMA table_info(sessions)")
+  .all() as { name: string }[];
+if (
+  sessionColsAfterRebuild.length > 0 &&
+  !sessionColsAfterRebuild.some((c) => c.name === "workflow_run_id")
+) {
+  db.exec(
+    "ALTER TABLE sessions ADD COLUMN workflow_run_id TEXT REFERENCES workflow_runs(id)",
+  );
+}
+
 db.exec(`
   CREATE TABLE IF NOT EXISTS sessions (
     id                      TEXT    PRIMARY KEY,
@@ -53,6 +66,7 @@ db.exec(`
     terminal_attach_command TEXT,
     log_file_path           TEXT    NOT NULL,
     claude_session_id       TEXT,
+    workflow_run_id         TEXT    REFERENCES workflow_runs(id),
     created_at              TEXT    NOT NULL,
     updated_at              TEXT    NOT NULL
   );
