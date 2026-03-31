@@ -2,7 +2,7 @@ import { spawn } from "node:child_process";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
 import type { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
-import type { ClaudeQueryParams, ClaudeStub } from "./claude-stub";
+import type { AgentMessage, AgentQueryParams, AgentRuntime } from "./runtime";
 
 const MCP_SERVER_PATH = join(
   process.cwd(),
@@ -11,12 +11,14 @@ const MCP_SERVER_PATH = join(
 );
 
 async function* spawnClaudeQuery(
-  params: ClaudeQueryParams,
-): AsyncIterable<SDKMessage> {
+  params: AgentQueryParams,
+): AsyncIterable<AgentMessage> {
   const {
     sessionId,
     prompt,
     cwd,
+    command,
+    model,
     permissionMode,
     abortController,
     outputFormat,
@@ -50,7 +52,11 @@ async function* spawnClaudeQuery(
     args.push("--json-schema", JSON.stringify(outputFormat.schema));
   }
 
-  const child = spawn("claude", args, {
+  if (model) {
+    args.push("--model", model);
+  }
+
+  const child = spawn(command ?? "claude", args, {
     cwd,
     stdio: ["pipe", "pipe", "pipe"],
   });
@@ -102,7 +108,7 @@ async function* spawnClaudeQuery(
           // Not valid JSON — leave structured_output undefined.
         }
       }
-      yield message;
+      yield message as unknown as AgentMessage;
     }
 
     // If the process failed to spawn (e.g. binary not found), surface that error.
@@ -123,6 +129,6 @@ async function* spawnClaudeQuery(
   }
 }
 
-export const claudeCLI: ClaudeStub = {
+export const claudeCLI: AgentRuntime = {
   query: spawnClaudeQuery,
 };

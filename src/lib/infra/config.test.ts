@@ -2,7 +2,11 @@ import { mkdirSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { getConfigRepositories, getConfigWorkflows } from "./config";
+import {
+  getAgentConfig,
+  getConfigRepositories,
+  getConfigWorkflows,
+} from "./config";
 
 let configFile: string;
 
@@ -89,6 +93,10 @@ workflows:
     expect(flow.states).toHaveProperty("implement");
 
     const planState = flow.states.plan;
+    expect("goal" in planState).toBe(true);
+    if (!("goal" in planState)) {
+      throw new Error("expected goal state");
+    }
     expect(planState.goal).toBe("Write a plan");
     expect(planState.transitions).toHaveLength(2);
     expect(planState.transitions[0]).toEqual({
@@ -101,6 +109,10 @@ workflows:
     });
 
     const implementState = flow.states.implement;
+    expect("goal" in implementState).toBe(true);
+    if (!("goal" in implementState)) {
+      throw new Error("expected goal state");
+    }
     expect(implementState.transitions[0]).toEqual({
       terminal: "success",
       when: "code is done",
@@ -216,5 +228,31 @@ workflows:
     const workflows = getConfigWorkflows();
     expect(Object.keys(workflows)).toContain("flow-a");
     expect(Object.keys(workflows)).toContain("flow-b");
+  });
+});
+
+describe("getAgentConfig", () => {
+  it("defaults to claude when agent config is absent", () => {
+    writeFileSync(configFile, "workflows: {}\n");
+    expect(getAgentConfig()).toEqual({ provider: "claude" });
+  });
+
+  it("parses codex agent settings", () => {
+    writeFileSync(
+      configFile,
+      `
+agent:
+  provider: codex
+  model: gpt-5.4
+  command: /opt/homebrew/bin/codex
+workflows: {}
+`,
+    );
+
+    expect(getAgentConfig()).toEqual({
+      provider: "codex",
+      model: "gpt-5.4",
+      command: "/opt/homebrew/bin/codex",
+    });
   });
 });

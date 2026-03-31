@@ -1,16 +1,16 @@
 import { query } from "@anthropic-ai/claude-agent-sdk";
-import type { ClaudeQueryParams, ClaudeStub } from "./claude-stub";
+import type { AgentMessage, AgentQueryParams, AgentRuntime } from "./runtime";
 
-export const claudeSDK: ClaudeStub = {
-  query({
+export const claudeSDK: AgentRuntime = {
+  async *query({
     prompt,
     cwd,
     permissionMode,
     abortController,
     canUseTool,
     outputFormat,
-  }) {
-    return query({
+  }: AgentQueryParams): AsyncIterable<AgentMessage> {
+    const result = query({
       prompt,
       options: {
         cwd,
@@ -20,5 +20,9 @@ export const claudeSDK: ClaudeStub = {
         outputFormat,
       },
     });
+
+    for await (const message of result) {
+      yield message as unknown as AgentMessage;
+    }
   },
 };

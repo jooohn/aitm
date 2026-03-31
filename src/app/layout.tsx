@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "aitm",
-  description: "Manage Claude Code tasks across git worktrees",
+  description: "Manage coding-agent tasks across git worktrees",
 };
 
 export default function RootLayout({

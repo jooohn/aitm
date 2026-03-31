@@ -4,6 +4,13 @@
 repositories:
   - path: /path/to/git-repository
 
+agent:
+  provider: claude
+  # Optional: override the default model used by your agent CLI.
+  # model: sonnet
+  # Optional: override the CLI executable path or command name.
+  # command: /opt/homebrew/bin/claude
+
 workflows:
   development-flow:
     inputs:

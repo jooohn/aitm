@@ -3,12 +3,11 @@ import type { AskUserQuestionInput } from "@anthropic-ai/claude-agent-sdk/sdk-to
 import { appendFileSync, writeFileSync } from "fs";
 import { type SessionStatus, saveMessage } from "../../domain/sessions";
 import { listWorktrees } from "../../domain/worktrees";
-import type { WorkflowTransition } from "../../infra/config";
+import { getAgentConfig, type WorkflowTransition } from "../../infra/config";
 import { db } from "../../infra/db";
 import { claudeCLI } from "./claude-cli";
-import type { ClaudeStub } from "./claude-stub";
-
-const claudeStub: ClaudeStub = claudeCLI;
+import { codexCLI } from "./codex-cli";
+import type { AgentRuntime } from "./runtime";
 
 type PendingInput = {
   resolve: (answer: string) => void;
@@ -40,12 +39,16 @@ function setStatus(sessionId: string, status: SessionStatus): void {
   ).run(status, now, sessionId);
 }
 
-function setClaudeSession(sessionId: string, claudeSessionId: string): void {
+function setAgentSession(
+  sessionId: string,
+  agentSessionId: string | null,
+  attachCommand: string | null,
+): void {
   db.prepare(
     `UPDATE sessions
      SET claude_session_id = ?, terminal_attach_command = ?
      WHERE id = ?`,
-  ).run(claudeSessionId, `claude --resume ${claudeSessionId}`, sessionId);
+  ).run(agentSessionId, attachCommand, sessionId);
 }
 
 function createToolPermissionHandler(
@@ -141,7 +144,7 @@ function buildTransitionsSection(transitions: WorkflowTransition[]): string {
 }
 
 /**
- * Start a Claude Code agent for a session. Fire-and-forget — call without
+ * Start a configured agent runtime for a session. Fire-and-forget — call without
  * awaiting. All errors are handled internally; the session is marked FAILED
  * if anything goes wrong. Calls onComplete with the structured transition
  * decision when the session ends (null if the session failed or produced no output).
@@ -179,6 +182,9 @@ export async function startAgent(
 
   const abortController = new AbortController();
   activeAbortControllers.set(sessionId, abortController);
+  const agentConfig = getAgentConfig();
+  const agentRuntime: AgentRuntime =
+    agentConfig.provider === "codex" ? codexCLI : claudeCLI;
 
   const prompt = [
     goal,
@@ -192,10 +198,12 @@ export async function startAgent(
 
   let decision: TransitionDecision | null = null;
   try {
-    for await (const message of claudeStub.query({
+    for await (const message of agentRuntime.query({
       sessionId,
       prompt,
       cwd: worktreePath,
+      command: agentConfig.command,
+      model: agentConfig.model,
       permissionMode: "acceptEdits",
       abortController,
       canUseTool,
@@ -204,7 +212,14 @@ export async function startAgent(
       appendToLog(logFilePath, message);
 
       if (message.type === "system" && message.subtype === "init") {
-        setClaudeSession(sessionId, message.session_id);
+        const attachCommand =
+          message.attach_command ??
+          (message.session_id
+            ? agentConfig.provider === "codex"
+              ? `codex resume ${message.session_id}`
+              : `claude --resume ${message.session_id}`
+            : null);
+        setAgentSession(sessionId, message.session_id ?? null, attachCommand);
       }
 
       if (message.type === "result") {
