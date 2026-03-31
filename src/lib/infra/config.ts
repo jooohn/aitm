@@ -9,6 +9,14 @@ function getConfigPath(): string {
   );
 }
 
+export type AgentProvider = "claude" | "codex";
+
+export interface AgentConfig {
+  provider: AgentProvider;
+  model?: string;
+  command?: string;
+}
+
 export interface ConfigRepository {
   path: string;
 }
@@ -49,6 +57,7 @@ export interface WorkflowDefinition {
 }
 
 interface RawConfig {
+  agent?: Partial<AgentConfig>;
   repositories?: ConfigRepository[];
   workflows?: Record<string, RawWorkflowDefinition>;
 }
@@ -70,6 +79,15 @@ function readConfig(): RawConfig {
 
 export function getConfigRepositories(): ConfigRepository[] {
   return readConfig().repositories ?? [];
+}
+
+export function getAgentConfig(): AgentConfig {
+  const raw = readConfig().agent;
+  return {
+    provider: raw?.provider ?? "claude",
+    model: raw?.model,
+    command: raw?.command,
+  };
 }
 
 export function getConfigWorkflows(): Record<string, WorkflowDefinition> {
