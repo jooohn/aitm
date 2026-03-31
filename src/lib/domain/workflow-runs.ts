@@ -158,7 +158,7 @@ function startStateExecution(
       decision = {
         transition: transitionName,
         reason: `exit code ${result.status ?? "unknown"}`,
-        handoff_summary: commandOutput,
+        handoff_summary: commandOutput ?? "",
       };
     }
 
