@@ -62,6 +62,7 @@ async function* spawnCodexQuery(
     "exec",
     "--json",
     "--skip-git-repo-check",
+    "--sandbox",
     "workspace-write",
     "--output-last-message",
     outputPath,
