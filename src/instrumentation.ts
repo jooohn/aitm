@@ -6,5 +6,9 @@ export async function register() {
     );
     recoverCrashedSessions();
     recoverCrashedWorkflowRuns();
+    const { startPeriodicHouseKeeping } = await import(
+      "./lib/domain/periodic-house-keeping"
+    );
+    startPeriodicHouseKeeping();
   }
 }
