@@ -104,7 +104,7 @@ export default function SessionSection({ repositoryPath, branch }: Props) {
             <li key={session.id} className={styles.item}>
               <div className={styles.info}>
                 <Link href={`/sessions/${session.id}`} className={styles.goal}>
-                  {session.goal}
+                  {session.state_name ?? session.goal}
                 </Link>
                 <div className={styles.meta}>
                   <span

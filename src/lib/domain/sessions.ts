@@ -29,6 +29,7 @@ export interface Session {
   log_file_path: string;
   claude_session_id: string | null;
   state_execution_id: string | null;
+  state_name: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -112,14 +113,25 @@ export function listSessions(filter: ListSessionsFilter = {}): Session[] {
   const where =
     conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
   return db
-    .prepare(`SELECT * FROM sessions ${where} ORDER BY created_at DESC`)
+    .prepare(
+      `SELECT s.*, se.state AS state_name
+       FROM sessions s
+       LEFT JOIN state_executions se ON se.id = s.state_execution_id
+       ${where}
+       ORDER BY s.created_at DESC`,
+    )
     .all(...params) as Session[];
 }
 
 export function getSession(id: string): Session | undefined {
-  return db.prepare("SELECT * FROM sessions WHERE id = ?").get(id) as
-    | Session
-    | undefined;
+  return db
+    .prepare(
+      `SELECT s.*, se.state AS state_name
+       FROM sessions s
+       LEFT JOIN state_executions se ON se.id = s.state_execution_id
+       WHERE s.id = ?`,
+    )
+    .get(id) as Session | undefined;
 }
 
 export function failSession(id: string): Session {
