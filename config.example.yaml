@@ -19,12 +19,19 @@ workflows:
           questions and document a clear plan in PLAN.md. Otherwise, document your
           understanding and proceed.
         transitions:
-          - state: plan
-            when: "specs need clarification or the plan is not yet documented"
+          - state: wait-for-clarification
+            when: "specs need clarification before planning can proceed"
           - state: implement
             when: "a clear plan is documented in PLAN.md"
           - terminal: failure
             when: "the task is out of scope or cannot be planned"
+
+      wait-for-clarification:
+        wait_for_input: true
+        prompt: "The agent needs clarification before continuing. Provide your response:"
+        transitions:
+          - state: plan
+            when: "always — after user input is collected"
 
       implement:
         goal: |

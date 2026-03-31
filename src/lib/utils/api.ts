@@ -142,7 +142,11 @@ export async function sendMessage(
   });
 }
 
-export type WorkflowRunStatus = "running" | "success" | "failure";
+export type WorkflowRunStatus =
+  | "running"
+  | "success"
+  | "failure"
+  | "waiting_for_input";
 
 export interface WorkflowTransition {
   state?: string;
@@ -237,5 +241,16 @@ export function rerunWorkflowRunFromFailedState(
 ): Promise<WorkflowRunDetail> {
   return apiFetch(`/api/workflow-runs/${id}/rerun-from-failed`, {
     method: "POST",
+  });
+}
+
+export function submitWorkflowRunInput(
+  id: string,
+  userInput: string,
+): Promise<WorkflowRunDetail> {
+  return apiFetch(`/api/workflow-runs/${id}/submit-input`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ user_input: userInput }),
   });
 }

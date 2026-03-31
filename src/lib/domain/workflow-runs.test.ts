@@ -5,10 +5,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { db } from "../infra/db";
 import {
   completeStateExecution,
+  completeWaitForInputStateExecution,
   createWorkflowRun,
   getWorkflowRun,
   listWorkflowRuns,
   rerunWorkflowRunFromFailedState,
+  submitWorkflowRunInput,
 } from "./workflow-runs";
 import { listWorktrees } from "./worktrees";
 
@@ -803,6 +805,184 @@ describe("getWorkflowRun", () => {
 
   it("returns undefined for unknown id", () => {
     expect(getWorkflowRun("nonexistent")).toBeUndefined();
+  });
+});
+
+describe("wait_for_input state execution", () => {
+  const WAIT_FOR_INPUT_CONFIG = `
+workflows:
+  clarify-flow:
+    initial_state: plan
+    states:
+      plan:
+        goal: "Write a plan"
+        transitions:
+          - state: wait-for-clarification
+            when: "needs clarification"
+          - terminal: failure
+            when: "blocked"
+      wait-for-clarification:
+        wait_for_input: true
+        prompt: "The agent needs clarification before continuing."
+        transitions:
+          - state: plan
+            when: "always"
+      implement:
+        goal: "Implement the plan"
+        transitions:
+          - terminal: success
+            when: "done"
+          - terminal: failure
+            when: "blocked"
+`;
+
+  function setupWaitForInputRun() {
+    process.env.AITM_CONFIG_PATH = writeTempConfig(WAIT_FOR_INPUT_CONFIG);
+    const repoPath = makeFakeGitRepo();
+    const run = createWorkflowRun({
+      repository_path: repoPath,
+      worktree_branch: "feat/test",
+      workflow_name: "clarify-flow",
+    });
+
+    // Complete plan → wait-for-clarification
+    const [planExec] = db
+      .prepare("SELECT * FROM state_executions WHERE workflow_run_id = ?")
+      .all(run.id) as { id: string }[];
+    completeStateExecution(planExec.id, {
+      transition: "wait-for-clarification",
+      reason: "Unclear spec",
+      handoff_summary: "Please clarify the scope of the feature.",
+    });
+
+    return { run, repoPath };
+  }
+
+  it("sets workflow run status to waiting_for_input when entering a wait_for_input state", () => {
+    const { run } = setupWaitForInputRun();
+
+    const updated = getWorkflowRun(run.id);
+    expect(updated?.status).toBe("waiting_for_input");
+    expect(updated?.current_state).toBe("wait-for-clarification");
+  });
+
+  it("creates a state execution for the wait_for_input state with no session", () => {
+    const { run } = setupWaitForInputRun();
+
+    const executions = db
+      .prepare(
+        "SELECT * FROM state_executions WHERE workflow_run_id = ? ORDER BY created_at ASC",
+      )
+      .all(run.id) as { state: string; completed_at: string | null }[];
+    expect(executions).toHaveLength(2);
+    expect(executions[1].state).toBe("wait-for-clarification");
+    expect(executions[1].completed_at).toBeNull();
+
+    const sessions = db
+      .prepare("SELECT * FROM sessions WHERE state_execution_id = ?")
+      .all(executions[1].id) as unknown[];
+    expect(sessions).toHaveLength(0);
+  });
+
+  it("completeWaitForInputStateExecution advances the workflow using user input as handoff_summary", () => {
+    const { run } = setupWaitForInputRun();
+
+    const waitExec = db
+      .prepare(
+        "SELECT * FROM state_executions WHERE workflow_run_id = ? AND completed_at IS NULL",
+      )
+      .get(run.id) as { id: string };
+
+    completeWaitForInputStateExecution(waitExec.id, "The scope is X and Y.");
+
+    const updated = getWorkflowRun(run.id);
+    // Should have transitioned back to plan (first transition)
+    expect(updated?.current_state).toBe("plan");
+    expect(updated?.status).toBe("running");
+
+    const completedExec = db
+      .prepare("SELECT * FROM state_executions WHERE id = ?")
+      .get(waitExec.id) as { handoff_summary: string; completed_at: string };
+    expect(completedExec.handoff_summary).toBe("The scope is X and Y.");
+    expect(completedExec.completed_at).not.toBeNull();
+  });
+
+  it("completeWaitForInputStateExecution includes user input in the next state's handoff context", () => {
+    const { run } = setupWaitForInputRun();
+
+    const waitExec = db
+      .prepare(
+        "SELECT * FROM state_executions WHERE workflow_run_id = ? AND completed_at IS NULL",
+      )
+      .get(run.id) as { id: string };
+
+    completeWaitForInputStateExecution(
+      waitExec.id,
+      "Clarification: focus on X.",
+    );
+
+    // The new plan execution's session goal should contain the user input
+    const newPlanExec = db
+      .prepare(
+        "SELECT * FROM state_executions WHERE workflow_run_id = ? AND completed_at IS NULL",
+      )
+      .get(run.id) as { id: string };
+
+    const planSession = db
+      .prepare("SELECT * FROM sessions WHERE state_execution_id = ?")
+      .get(newPlanExec.id) as { goal: string } | undefined;
+
+    expect(planSession?.goal).toContain("Clarification: focus on X.");
+  });
+
+  it("completeWaitForInputStateExecution throws when run is not in waiting_for_input status", () => {
+    process.env.AITM_CONFIG_PATH = writeTempConfig(WAIT_FOR_INPUT_CONFIG);
+    const repoPath = makeFakeGitRepo();
+    const run = createWorkflowRun({
+      repository_path: repoPath,
+      worktree_branch: "feat/test",
+      workflow_name: "clarify-flow",
+    });
+
+    const [planExec] = db
+      .prepare("SELECT * FROM state_executions WHERE workflow_run_id = ?")
+      .all(run.id) as { id: string }[];
+
+    expect(() =>
+      completeWaitForInputStateExecution(planExec.id, "some input"),
+    ).toThrow("not waiting for input");
+  });
+
+  it("submitWorkflowRunInput throws when run is not found", () => {
+    process.env.AITM_CONFIG_PATH = writeTempConfig(WAIT_FOR_INPUT_CONFIG);
+    expect(() => submitWorkflowRunInput("nonexistent", "input")).toThrow(
+      "not found",
+    );
+  });
+
+  it("submitWorkflowRunInput throws when run is not waiting_for_input", () => {
+    process.env.AITM_CONFIG_PATH = writeTempConfig(WAIT_FOR_INPUT_CONFIG);
+    const repoPath = makeFakeGitRepo();
+    const run = createWorkflowRun({
+      repository_path: repoPath,
+      worktree_branch: "feat/test",
+      workflow_name: "clarify-flow",
+    });
+
+    expect(() => submitWorkflowRunInput(run.id, "input")).toThrow(
+      "not waiting for input",
+    );
+  });
+
+  it("submitWorkflowRunInput advances the run and returns updated WorkflowRunWithExecutions", () => {
+    const { run } = setupWaitForInputRun();
+
+    const result = submitWorkflowRunInput(run.id, "Here is the clarification.");
+
+    expect(result.id).toBe(run.id);
+    expect(result.status).toBe("running");
+    expect(result.current_state).toBe("plan");
+    expect(Array.isArray(result.state_executions)).toBe(true);
   });
 });
 

@@ -6,7 +6,11 @@ import { type TransitionDecision } from "../utils/agent";
 import { createSession, type SessionStatus } from "./sessions";
 import { listWorktrees } from "./worktrees";
 
-export type WorkflowRunStatus = "running" | "success" | "failure";
+export type WorkflowRunStatus =
+  | "running"
+  | "success"
+  | "failure"
+  | "waiting_for_input";
 
 export interface WorkflowRun {
   id: string;
@@ -164,6 +168,23 @@ function startStateExecution(
     }
 
     completeStateExecution(executionId, decision);
+    return db
+      .prepare("SELECT * FROM state_executions WHERE id = ?")
+      .get(executionId) as StateExecution;
+  }
+
+  // Wait-for-input state path.
+  if ("wait_for_input" in stateDef) {
+    db.prepare(
+      `INSERT INTO state_executions
+         (id, workflow_run_id, state, command_output, transition_decision, handoff_summary, created_at, completed_at)
+       VALUES (?, ?, ?, NULL, NULL, NULL, ?, NULL)`,
+    ).run(executionId, workflowRunId, stateName, now);
+
+    db.prepare(
+      "UPDATE workflow_runs SET status = 'waiting_for_input', updated_at = ? WHERE id = ?",
+    ).run(now, workflowRunId);
+
     return db
       .prepare("SELECT * FROM state_executions WHERE id = ?")
       .get(executionId) as StateExecution;
@@ -327,6 +348,80 @@ export function completeStateExecution(
     run.workflow_name,
     previousExecutions,
   );
+}
+
+export function completeWaitForInputStateExecution(
+  stateExecutionId: string,
+  userInput: string,
+): void {
+  const execution = db
+    .prepare("SELECT * FROM state_executions WHERE id = ?")
+    .get(stateExecutionId) as StateExecution | undefined;
+  if (!execution) throw new Error("State execution not found");
+
+  const run = db
+    .prepare("SELECT * FROM workflow_runs WHERE id = ?")
+    .get(execution.workflow_run_id) as WorkflowRun | undefined;
+  if (!run || run.status !== "waiting_for_input") {
+    throw new Error("Workflow run is not waiting for input");
+  }
+
+  const workflows = getConfigWorkflows();
+  const workflow = workflows[run.workflow_name];
+  const stateDef = workflow?.states?.[execution.state];
+
+  const now = new Date().toISOString();
+
+  let transition: string;
+  if (
+    stateDef &&
+    "wait_for_input" in stateDef &&
+    stateDef.transitions.length > 0
+  ) {
+    const t = stateDef.transitions[0];
+    transition = "state" in t ? t.state : t.terminal;
+  } else {
+    // No valid transition — restore running and fail.
+    db.prepare(
+      "UPDATE workflow_runs SET status = 'running', updated_at = ? WHERE id = ?",
+    ).run(now, run.id);
+    completeStateExecution(stateExecutionId, null);
+    return;
+  }
+
+  // Restore running status so completeStateExecution can advance the workflow.
+  db.prepare(
+    "UPDATE workflow_runs SET status = 'running', updated_at = ? WHERE id = ?",
+  ).run(now, run.id);
+
+  completeStateExecution(stateExecutionId, {
+    transition,
+    reason: "user provided input",
+    handoff_summary: userInput,
+  });
+}
+
+export function submitWorkflowRunInput(
+  runId: string,
+  userInput: string,
+): WorkflowRunWithExecutions {
+  const run = db
+    .prepare("SELECT * FROM workflow_runs WHERE id = ?")
+    .get(runId) as WorkflowRun | undefined;
+  if (!run) throw new Error("Workflow run not found");
+  if (run.status !== "waiting_for_input") {
+    throw new Error("Workflow run is not waiting for input");
+  }
+
+  const execution = db
+    .prepare(
+      "SELECT * FROM state_executions WHERE workflow_run_id = ? AND completed_at IS NULL ORDER BY created_at DESC LIMIT 1",
+    )
+    .get(runId) as StateExecution | undefined;
+  if (!execution) throw new Error("No active state execution found");
+
+  completeWaitForInputStateExecution(execution.id, userInput);
+  return getWorkflowRun(runId)!;
 }
 
 function terminateRun(

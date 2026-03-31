@@ -64,6 +64,10 @@
   @apply bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300;
 }
 
+.badge-waiting_for_input {
+  @apply bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300;
+}
+
 .form {
   @apply flex flex-wrap items-end gap-3 pt-2;
 }

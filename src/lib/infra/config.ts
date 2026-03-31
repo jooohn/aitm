@@ -19,7 +19,12 @@ export type WorkflowTransition =
 
 export type WorkflowState =
   | { goal: string; transitions: WorkflowTransition[] }
-  | { command: string; transitions: WorkflowTransition[] };
+  | { command: string; transitions: WorkflowTransition[] }
+  | {
+      wait_for_input: true;
+      prompt?: string;
+      transitions: WorkflowTransition[];
+    };
 
 export interface WorkflowInput {
   name: string;

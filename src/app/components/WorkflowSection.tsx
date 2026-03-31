@@ -23,6 +23,7 @@ const STATUS_LABELS: Record<WorkflowRunStatus, string> = {
   running: "Running",
   success: "Success",
   failure: "Failure",
+  waiting_for_input: "Waiting for input",
 };
 
 export default function WorkflowSection({ repositoryPath, branch }: Props) {

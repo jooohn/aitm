@@ -11,6 +11,7 @@ import {
   type SessionMessage,
   type StateExecution,
   sendMessage,
+  submitWorkflowRunInput,
   type WorkflowRunDetail,
   type WorkflowRunStatus,
 } from "@/lib/utils/api";
@@ -24,6 +25,7 @@ const STATUS_LABELS: Record<WorkflowRunStatus, string> = {
   running: "Running",
   success: "Success",
   failure: "Failure",
+  waiting_for_input: "Waiting for input",
 };
 
 const TERMINAL_STATUSES: WorkflowRunStatus[] = ["success", "failure"];
@@ -176,6 +178,59 @@ function StateExecutionItem({
   );
 }
 
+interface WaitForInputFormProps {
+  context: string | null;
+  onSubmit: (userInput: string) => Promise<void>;
+}
+
+function WaitForInputForm({ context, onSubmit }: WaitForInputFormProps) {
+  const [input, setInput] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const trimmed = input.trim();
+    if (!trimmed) return;
+    setSubmitting(true);
+    try {
+      await onSubmit(trimmed);
+      setInput("");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <section className={styles.waitForInputSection}>
+      <h2 className={styles.sectionHeading}>
+        Provide clarification to continue
+      </h2>
+      {context && <div className={styles.waitForInputContext}>{context}</div>}
+      <form onSubmit={handleSubmit} className={styles.inputForm}>
+        <textarea
+          className={styles.textarea}
+          placeholder="Your response…"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+              handleSubmit(e as unknown as React.FormEvent);
+            }
+          }}
+          disabled={submitting}
+        />
+        <button
+          type="submit"
+          className={styles.sendButton}
+          disabled={submitting || !input.trim()}
+        >
+          {submitting ? "Submitting…" : "Submit"}
+        </button>
+      </form>
+    </section>
+  );
+}
+
 export default function WorkflowRunDetail({ run: initial }: Props) {
   const router = useRouter();
   const [run, setRun] = useState<WorkflowRunDetail>(initial);
@@ -218,6 +273,11 @@ export default function WorkflowRunDetail({ run: initial }: Props) {
     } finally {
       setRerunningFromFailed(false);
     }
+  }
+
+  async function handleSubmitInput(userInput: string) {
+    const updated = await submitWorkflowRunInput(run.id, userInput);
+    setRun(updated);
   }
 
   async function handleSendMessage(sessionId: string, content: string) {
@@ -334,6 +394,17 @@ export default function WorkflowRunDetail({ run: initial }: Props) {
           </dd>
         </div>
       </dl>
+
+      {run.status === "waiting_for_input" && (
+        <WaitForInputForm
+          context={
+            run.state_executions
+              .filter((e) => e.completed_at !== null && e.handoff_summary)
+              .at(-1)?.handoff_summary ?? null
+          }
+          onSubmit={handleSubmitInput}
+        />
+      )}
 
       <section>
         <h2 className={styles.sectionHeading}>State executions</h2>

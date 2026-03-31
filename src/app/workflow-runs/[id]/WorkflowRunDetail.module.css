@@ -46,6 +46,10 @@
   @apply bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-400;
 }
 
+.badge-waiting_for_input {
+  @apply bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300;
+}
+
 .badge-completed {
   @apply bg-zinc-100 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300;
 }
@@ -185,4 +189,13 @@
 
 .sendButton {
   @apply text-sm font-medium px-3 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors;
+}
+
+/* Wait-for-input section */
+.waitForInputSection {
+  @apply flex flex-col gap-3 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950 px-4 py-4;
+}
+
+.waitForInputContext {
+  @apply text-sm text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap max-w-prose;
 }
