@@ -203,7 +203,10 @@ export default function SessionDetail({
           >
             {STATUS_LABELS[session.status]}
           </span>
-          <h1 className={styles.goal}>{session.goal}</h1>
+          <h1 className={styles.goal}>{session.state_name ?? session.goal}</h1>
+          {session.state_name && (
+            <p className={styles.goalSubtitle}>{session.goal}</p>
+          )}
         </div>
         {!isTerminal && (
           <button
