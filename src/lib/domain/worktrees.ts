@@ -109,6 +109,45 @@ export function cleanMergedWorktrees(repoPath: string): string[] {
   return before.filter((b) => !after.has(b));
 }
 
+export function pullMainBranchIfOutdated(
+  repoPath: string,
+): "up-to-date" | "pulled" {
+  const worktrees = listWorktrees(repoPath);
+  const main = worktrees.find((w) => w.is_main);
+  if (!main) {
+    throw new Error(`No main worktree found in ${repoPath}`);
+  }
+  if (main.is_bare) {
+    console.warn(
+      `[house-keeping] Skipping pull for bare main worktree in ${repoPath}`,
+    );
+    return "up-to-date";
+  }
+
+  execFileSync("git", ["fetch", "origin"], {
+    cwd: main.path,
+    encoding: "utf8",
+  });
+
+  let mergeOutput: string;
+  try {
+    mergeOutput = execFileSync("git", ["merge", "--ff-only", "@{u}"], {
+      cwd: main.path,
+      encoding: "utf8",
+    });
+  } catch (err) {
+    const stderr =
+      (err as { stderr?: string }).stderr?.trim() ??
+      (err instanceof Error ? err.message : String(err));
+    throw new Error(`Failed to fast-forward main branch: ${stderr}`);
+  }
+
+  if (mergeOutput.trim() === "Already up to date.") {
+    return "up-to-date";
+  }
+  return "pulled";
+}
+
 function handleGtrCommandError(err: unknown) {
   const nodeErr = err as NodeJS.ErrnoException;
   if (nodeErr.code === "ENOENT") {
