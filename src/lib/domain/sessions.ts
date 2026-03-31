@@ -28,7 +28,7 @@ export interface Session {
   terminal_attach_command: string | null;
   log_file_path: string;
   claude_session_id: string | null;
-  workflow_run_id: string | null;
+  state_execution_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -38,7 +38,7 @@ export interface CreateSessionInput {
   worktree_branch: string;
   goal: string;
   transitions: WorkflowTransition[];
-  workflow_run_id?: string;
+  state_execution_id?: string;
 }
 
 export interface ListSessionsFilter {
@@ -65,7 +65,7 @@ export function createSession(
     `INSERT INTO sessions
        (id, repository_path, worktree_branch, goal, transitions,
         transition_decision, status, terminal_attach_command, log_file_path,
-        claude_session_id, workflow_run_id, created_at, updated_at)
+        claude_session_id, state_execution_id, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?, NULL, 'RUNNING', NULL, ?, NULL, ?, ?, ?)`,
   ).run(
     id,
@@ -74,7 +74,7 @@ export function createSession(
     input.goal,
     JSON.stringify(input.transitions),
     log_file_path,
-    input.workflow_run_id ?? null,
+    input.state_execution_id ?? null,
     now,
     now,
   );
@@ -200,20 +200,20 @@ export function deleteWorktreeData(
 
   db.transaction(() => {
     db.prepare(
-      `DELETE FROM state_executions WHERE workflow_run_id IN (
-         SELECT id FROM workflow_runs WHERE repository_path = ? AND worktree_branch IN (${placeholders})
-       )`,
-    ).run(...params);
-    db.prepare(
       `DELETE FROM session_messages WHERE session_id IN (
          SELECT id FROM sessions WHERE repository_path = ? AND worktree_branch IN (${placeholders})
        )`,
     ).run(...params);
     db.prepare(
-      `DELETE FROM workflow_runs WHERE repository_path = ? AND worktree_branch IN (${placeholders})`,
+      `DELETE FROM sessions WHERE repository_path = ? AND worktree_branch IN (${placeholders})`,
     ).run(...params);
     db.prepare(
-      `DELETE FROM sessions WHERE repository_path = ? AND worktree_branch IN (${placeholders})`,
+      `DELETE FROM state_executions WHERE workflow_run_id IN (
+         SELECT id FROM workflow_runs WHERE repository_path = ? AND worktree_branch IN (${placeholders})
+       )`,
+    ).run(...params);
+    db.prepare(
+      `DELETE FROM workflow_runs WHERE repository_path = ? AND worktree_branch IN (${placeholders})`,
     ).run(...params);
   })();
 

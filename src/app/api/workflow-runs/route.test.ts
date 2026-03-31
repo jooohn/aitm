@@ -26,9 +26,9 @@ beforeEach(() => {
   configFile = join(dir, "config.yaml");
   process.env.AITM_CONFIG_PATH = configFile;
 
-  db.prepare("DELETE FROM state_executions").run();
   db.prepare("DELETE FROM session_messages").run();
   db.prepare("DELETE FROM sessions").run();
+  db.prepare("DELETE FROM state_executions").run();
   db.prepare("DELETE FROM workflow_runs").run();
 });
 
