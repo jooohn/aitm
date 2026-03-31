@@ -2,7 +2,7 @@ import { mkdirSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { beforeEach, describe, expect, it } from "vitest";
-import { db } from "../infra/db";
+import { db } from "../../infra/db";
 import {
   createSession,
   failSession,
@@ -10,7 +10,7 @@ import {
   listMessages,
   listSessions,
   saveMessage,
-} from "./sessions";
+} from "./index";
 
 const DEFAULT_TRANSITIONS = [{ terminal: "success" as const, when: "Done" }];
 

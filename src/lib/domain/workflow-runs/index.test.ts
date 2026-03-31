@@ -2,17 +2,17 @@ import { mkdirSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { db } from "../infra/db";
+import { db } from "../../infra/db";
+import { listWorktrees } from "../worktrees";
 import {
   completeStateExecution,
   createWorkflowRun,
   getWorkflowRun,
   listWorkflowRuns,
   rerunWorkflowRunFromFailedState,
-} from "./workflow-runs";
-import { listWorktrees } from "./worktrees";
+} from "./index";
 
-vi.mock("./worktrees");
+vi.mock("../worktrees");
 
 function makeFakeGitRepo(): string {
   const dir = join(

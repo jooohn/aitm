@@ -2,14 +2,14 @@ import { randomUUID } from "crypto";
 import { mkdirSync, unlinkSync } from "fs";
 import { homedir } from "os";
 import { join } from "path";
-import type { WorkflowTransition } from "../infra/config";
-import { db } from "../infra/db";
+import type { WorkflowTransition } from "../../infra/config";
+import { db } from "../../infra/db";
 import {
   cancelAgent,
   sendMessageToAgent,
   startAgent,
   type TransitionDecision,
-} from "../utils/agent";
+} from "../../utils/agent";
 
 export type SessionStatus =
   | "RUNNING"
