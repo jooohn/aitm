@@ -1,8 +1,9 @@
-import { mkdirSync } from "fs";
+import { mkdirSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { db } from "../../infra/db";
+import * as agentModule from "../../utils/agent";
 import {
   createSession,
   failSession,
@@ -11,6 +12,12 @@ import {
   listSessions,
   saveMessage,
 } from "./index";
+
+vi.mock("../../utils/agent", () => ({
+  startAgent: vi.fn(() => Promise.resolve()),
+  cancelAgent: vi.fn(),
+  sendMessageToAgent: vi.fn(),
+}));
 
 const DEFAULT_TRANSITIONS = [{ terminal: "success" as const, when: "Done" }];
 
@@ -26,6 +33,7 @@ function makeFakeGitRepo(): string {
 beforeEach(() => {
   db.prepare("DELETE FROM session_messages").run();
   db.prepare("DELETE FROM sessions").run();
+  vi.clearAllMocks();
 });
 
 describe("createSession", () => {
@@ -47,6 +55,82 @@ describe("createSession", () => {
     expect(session.transition_decision).toBeNull();
     expect(session.log_file_path).toContain(session.id);
     expect(session.created_at).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+  });
+
+  it("passes an explicit agent config to startAgent", () => {
+    const repoPath = makeFakeGitRepo();
+    const agentConfig = {
+      provider: "codex" as const,
+      model: "gpt-5.4",
+      command: "/opt/homebrew/bin/codex",
+    };
+
+    const session = createSession({
+      repository_path: repoPath,
+      worktree_branch: "feat/test",
+      goal: "Write code",
+      transitions: DEFAULT_TRANSITIONS,
+      agent_config: agentConfig,
+    });
+
+    expect(agentModule.startAgent).toHaveBeenCalledWith(
+      session.id,
+      repoPath,
+      "feat/test",
+      "Write code",
+      DEFAULT_TRANSITIONS,
+      agentConfig,
+      session.log_file_path,
+      undefined,
+    );
+  });
+
+  it("uses the top-level agent config when no override is provided", async () => {
+    const dir = join(
+      tmpdir(),
+      `aitm-config-test-${Math.random().toString(36).slice(2)}`,
+    );
+    const configPath = join(dir, "config.yaml");
+    mkdirSync(dir, { recursive: true });
+    process.env.AITM_CONFIG_PATH = configPath;
+
+    const repoPath = makeFakeGitRepo();
+    try {
+      writeFileSync(
+        configPath,
+        `
+agent:
+  provider: codex
+  model: gpt-5.4
+  command: /opt/homebrew/bin/codex
+workflows: {}
+`,
+      );
+
+      const session = createSession({
+        repository_path: repoPath,
+        worktree_branch: "feat/test",
+        goal: "Write code",
+        transitions: DEFAULT_TRANSITIONS,
+      });
+
+      expect(agentModule.startAgent).toHaveBeenCalledWith(
+        session.id,
+        repoPath,
+        "feat/test",
+        "Write code",
+        DEFAULT_TRANSITIONS,
+        {
+          provider: "codex",
+          model: "gpt-5.4",
+          command: "/opt/homebrew/bin/codex",
+        },
+        session.log_file_path,
+        undefined,
+      );
+    } finally {
+      delete process.env.AITM_CONFIG_PATH;
+    }
   });
 });
 

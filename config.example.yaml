@@ -25,6 +25,9 @@ workflows:
           Read the task goal. If the spec is ambiguous or missing, ask clarifying
           questions and document a clear plan in PLAN.md. Otherwise, document your
           understanding and proceed.
+        agent:
+          provider: codex
+          model: gpt-5.4
         transitions:
           - state: plan
             when: "specs need clarification or the plan is not yet documented"
@@ -36,6 +39,10 @@ workflows:
       implement:
         goal: |
           Implement the plan documented in PLAN.md. Write production-quality code.
+        agent:
+          # provider is optional here; this state inherits the top-level provider
+          # and only overrides the model.
+          model: sonnet-4.5
         transitions:
           - state: implement
             when: "implementation is incomplete"
