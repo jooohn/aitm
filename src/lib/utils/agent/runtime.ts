@@ -16,6 +16,12 @@ export type AgentMessage =
       attach_command?: string;
     }
   | {
+      type: "event";
+      event_type: string;
+      message?: string;
+      detail?: unknown;
+    }
+  | {
       type: "assistant";
       message: { content?: AssistantContentBlock[] };
     }

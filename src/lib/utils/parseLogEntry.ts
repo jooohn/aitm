@@ -44,6 +44,18 @@ export function parseLogEntry(
     case "error":
       return text(`! Error: ${entry.message}`);
 
+    case "event": {
+      const eventType = entry.event_type;
+      const message = entry.message;
+      if (typeof eventType !== "string" || eventType.trim() === "") {
+        return null;
+      }
+      if (typeof message === "string" && message.trim() !== "") {
+        return text(`• ${eventType}: ${message}`);
+      }
+      return text(`• ${eventType}`);
+    }
+
     case "assistant": {
       const msg = entry.message as { content?: ContentBlock[] } | undefined;
       if (!msg?.content?.length) return null;

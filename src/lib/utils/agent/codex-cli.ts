@@ -31,6 +31,20 @@ function extractTextBlocks(event: unknown): string[] {
   });
 }
 
+function extractEventType(event: unknown): string | null {
+  if (!event || typeof event !== "object") return null;
+  const type = (event as { type?: unknown }).type;
+  return typeof type === "string" && type.trim() !== "" ? type : null;
+}
+
+function extractMessage(event: unknown): string | undefined {
+  if (!event || typeof event !== "object") return undefined;
+  const message = (event as { message?: unknown }).message;
+  return typeof message === "string" && message.trim() !== ""
+    ? message
+    : undefined;
+}
+
 async function* spawnCodexQuery(
   params: AgentQueryParams,
 ): AsyncIterable<AgentMessage> {
@@ -113,11 +127,24 @@ async function* spawnCodexQuery(
         continue;
       }
 
-      for (const text of extractTextBlocks(event)) {
+      const texts = extractTextBlocks(event);
+      for (const text of texts) {
         yield {
           type: "assistant",
           message: { content: [{ type: "text", text }] },
         };
+      }
+
+      if (texts.length === 0) {
+        const eventType = extractEventType(event);
+        if (eventType) {
+          yield {
+            type: "event",
+            event_type: eventType,
+            message: extractMessage(event),
+            detail: event,
+          };
+        }
       }
     }
 

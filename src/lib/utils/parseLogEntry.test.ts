@@ -45,6 +45,31 @@ describe("parseLogEntry", () => {
     });
   });
 
+  it("formats generic event with message", () => {
+    expect(
+      parseLogEntry({
+        type: "event",
+        event_type: "error",
+        message: "Reconnecting... 2/5",
+      }),
+    ).toEqual({
+      kind: "text",
+      content: "• error: Reconnecting... 2/5",
+    });
+  });
+
+  it("formats generic event without message", () => {
+    expect(
+      parseLogEntry({
+        type: "event",
+        event_type: "turn.started",
+      }),
+    ).toEqual({
+      kind: "text",
+      content: "• turn.started",
+    });
+  });
+
   it("formats assistant with single text block", () => {
     const entry = {
       type: "assistant",
