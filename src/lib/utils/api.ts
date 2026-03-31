@@ -211,6 +211,14 @@ export function fetchWorkflowRuns(
   return apiFetch(`/api/workflow-runs?${params}`);
 }
 
+export function fetchAllWorkflowRuns(
+  status?: WorkflowRunStatus,
+): Promise<WorkflowRun[]> {
+  const params = new URLSearchParams();
+  if (status) params.set("status", status);
+  return apiFetch(`/api/workflow-runs?${params}`);
+}
+
 export function createWorkflowRun(input: {
   repository_path: string;
   worktree_branch: string;
