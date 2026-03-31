@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getRepositoryByAlias } from "@/lib/domain/repositories";
+import { deleteWorktreeData } from "@/lib/domain/sessions";
 import { removeWorktree } from "@/lib/domain/worktrees";
 
 type Params = Promise<{ organization: string; name: string; branch: string[] }>;
@@ -28,7 +29,9 @@ export async function DELETE(
         { status: 404 },
       );
     }
-    removeWorktree(repo.path, branch.join("/"));
+    const branchName = branch.join("/");
+    removeWorktree(repo.path, branchName);
+    deleteWorktreeData(repo.path, [branchName]);
     return NextResponse.json({ success: true });
   } catch (err) {
     return errorResponse(err);
