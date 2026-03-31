@@ -539,6 +539,67 @@ export function rerunWorkflowRun(id: string): WorkflowRun {
   });
 }
 
+export function rerunWorkflowRunFromFailedState(
+  id: string,
+): WorkflowRunWithExecutions {
+  const run = db.prepare("SELECT * FROM workflow_runs WHERE id = ?").get(id) as
+    | WorkflowRun
+    | undefined;
+  if (!run) throw new Error("Workflow run not found");
+
+  if (run.status !== "failure") {
+    throw new Error(
+      "Only failed workflow runs can be re-run from failed state",
+    );
+  }
+
+  const lastExecution = db
+    .prepare(
+      "SELECT * FROM state_executions WHERE workflow_run_id = ? ORDER BY rowid DESC LIMIT 1",
+    )
+    .get(id) as StateExecution | undefined;
+  if (!lastExecution) throw new Error("Workflow run not found");
+
+  const failedState = lastExecution.state;
+  const now = new Date().toISOString();
+
+  db.prepare(
+    "UPDATE workflow_runs SET status = 'running', current_state = ?, updated_at = ? WHERE id = ?",
+  ).run(failedState, now, id);
+
+  const previousExecutions = (
+    db
+      .prepare(
+        `SELECT se.state, se.handoff_summary, s.log_file_path
+         FROM state_executions se
+         LEFT JOIN sessions s ON s.state_execution_id = se.id
+         WHERE se.workflow_run_id = ? AND se.id != ? AND se.completed_at IS NOT NULL
+         ORDER BY se.created_at ASC`,
+      )
+      .all(id, lastExecution.id) as Array<{
+      state: string;
+      handoff_summary: string | null;
+      log_file_path: string | null;
+    }>
+  ).filter((e): e is PreviousExecutionHandoff => e.handoff_summary !== null);
+
+  const inputs = run.inputs
+    ? (JSON.parse(run.inputs) as Record<string, string>)
+    : undefined;
+
+  startStateExecution(
+    id,
+    failedState,
+    run.repository_path,
+    run.worktree_branch,
+    run.workflow_name,
+    previousExecutions,
+    inputs,
+  );
+
+  return getWorkflowRun(id)!;
+}
+
 export function getWorkflowRun(
   id: string,
 ): WorkflowRunWithExecutions | undefined {

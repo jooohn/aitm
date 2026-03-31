@@ -7,6 +7,7 @@ import {
   fetchSessionMessages,
   fetchWorkflowRun,
   rerunWorkflowRun,
+  rerunWorkflowRunFromFailedState,
   type SessionMessage,
   type StateExecution,
   sendMessage,
@@ -180,6 +181,10 @@ export default function WorkflowRunDetail({ run: initial }: Props) {
   const [run, setRun] = useState<WorkflowRunDetail>(initial);
   const [rerunning, setRerunning] = useState(false);
   const [rerunError, setRerunError] = useState<string | null>(null);
+  const [rerunningFromFailed, setRerunningFromFailed] = useState(false);
+  const [rerunFromFailedError, setRerunFromFailedError] = useState<
+    string | null
+  >(null);
   // messages keyed by session_id for waiting executions
   const [sessionMessages, setSessionMessages] = useState<
     Record<string, SessionMessage[]>
@@ -197,6 +202,21 @@ export default function WorkflowRunDetail({ run: initial }: Props) {
       setRerunError(err instanceof Error ? err.message : "Re-run failed");
     } finally {
       setRerunning(false);
+    }
+  }
+
+  async function handleRerunFromFailed() {
+    setRerunningFromFailed(true);
+    setRerunFromFailedError(null);
+    try {
+      const updated = await rerunWorkflowRunFromFailedState(run.id);
+      setRun(updated);
+    } catch (err) {
+      setRerunFromFailedError(
+        err instanceof Error ? err.message : "Re-run from failed state failed",
+      );
+    } finally {
+      setRerunningFromFailed(false);
     }
   }
 
@@ -277,7 +297,17 @@ export default function WorkflowRunDetail({ run: initial }: Props) {
             >
               {rerunning ? "Re-running…" : "Re-run"}
             </button>
+            <button
+              className={styles.rerunButton}
+              onClick={handleRerunFromFailed}
+              disabled={rerunningFromFailed}
+            >
+              {rerunningFromFailed ? "Re-running…" : "Re-run from failed state"}
+            </button>
             {rerunError && <p className={styles.rerunError}>{rerunError}</p>}
+            {rerunFromFailedError && (
+              <p className={styles.rerunError}>{rerunFromFailedError}</p>
+            )}
           </div>
         )}
       </div>

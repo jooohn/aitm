@@ -230,3 +230,11 @@ export function fetchWorkflowRun(id: string): Promise<WorkflowRunDetail> {
 export function rerunWorkflowRun(id: string): Promise<WorkflowRun> {
   return apiFetch(`/api/workflow-runs/${id}/rerun`, { method: "POST" });
 }
+
+export function rerunWorkflowRunFromFailedState(
+  id: string,
+): Promise<WorkflowRunDetail> {
+  return apiFetch(`/api/workflow-runs/${id}/rerun-from-failed`, {
+    method: "POST",
+  });
+}
