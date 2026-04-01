@@ -4,9 +4,9 @@ import { join } from "path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { db } from "../../infra/db";
 import * as sessionsDomain from "../sessions";
+import * as sessionsModule from "../sessions";
 import { failSession } from "../sessions";
 import { listWorktrees } from "../worktrees";
-import * as sessionsModule from "../sessions";
 import {
   completeStateExecution,
   createWorkflowRun,
