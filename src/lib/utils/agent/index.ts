@@ -143,29 +143,6 @@ function buildTransitionsSection(transitions: WorkflowTransition[]): string {
   ].join("\n");
 }
 
-export function buildTransitionOutputFormat(transitions: WorkflowTransition[]) {
-  const transitionNames = transitions.map((t) =>
-    "state" in t ? t.state : t.terminal,
-  );
-
-  return {
-    type: "json_schema" as const,
-    schema: {
-      type: "object",
-      properties: {
-        transition: {
-          type: "string",
-          enum: transitionNames,
-        },
-        reason: { type: "string" },
-        handoff_summary: { type: "string" },
-      },
-      required: ["transition", "reason", "handoff_summary"],
-      additionalProperties: false,
-    },
-  };
-}
-
 /**
  * Start a configured agent runtime for a session. Fire-and-forget — call without
  * awaiting. All errors are handled internally; the session is marked FAILED
@@ -230,7 +207,7 @@ export async function startAgent(
       permissionMode: "acceptEdits",
       abortController,
       canUseTool,
-      outputFormat: buildTransitionOutputFormat(transitions),
+      outputFormat: agentRuntime.buildTransitionOutputFormat(transitions),
     })) {
       appendToLog(logFilePath, message);
 

@@ -1,8 +1,8 @@
 import type {
   CanUseTool,
-  OutputFormat,
   PermissionMode,
 } from "@anthropic-ai/claude-agent-sdk";
+import { WorkflowTransition } from "@/lib/infra/config";
 
 type AssistantContentBlock =
   | { type: "text"; text: string }
@@ -44,6 +44,13 @@ export interface AgentQueryParams {
   outputFormat?: OutputFormat;
 }
 
+export interface OutputFormat {
+  type: "json_schema";
+  schema: Record<string, unknown>;
+}
+
 export interface AgentRuntime {
   query(params: AgentQueryParams): AsyncIterable<AgentMessage>;
+
+  buildTransitionOutputFormat(transitions: WorkflowTransition[]): OutputFormat;
 }

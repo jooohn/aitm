@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { buildTransitionOutputFormat } from "./index";
+import { buildTransitionOutputFormatForCodex } from "./codex-cli";
 
-describe("buildTransitionOutputFormat", () => {
+describe("buildTransitionOutputFormatForCodex", () => {
   it("restricts transition to the configured state and terminal names", () => {
-    const outputFormat = buildTransitionOutputFormat([
+    const outputFormat = buildTransitionOutputFormatForCodex([
       { state: "plan", when: "needs clarification" },
       { state: "implement", when: "plan is ready" },
       { terminal: "failure", when: "blocked" },

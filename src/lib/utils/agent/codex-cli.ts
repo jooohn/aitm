@@ -3,7 +3,13 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
-import type { AgentMessage, AgentQueryParams, AgentRuntime } from "./runtime";
+import { WorkflowTransition } from "@/lib/infra/config";
+import type {
+  AgentMessage,
+  AgentQueryParams,
+  AgentRuntime,
+  OutputFormat,
+} from "./runtime";
 
 function extractTextBlocks(event: unknown): string[] {
   if (!event || typeof event !== "object") return [];
@@ -181,6 +187,32 @@ async function* spawnCodexQuery(
   }
 }
 
+export function buildTransitionOutputFormatForCodex(
+  transitions: WorkflowTransition[],
+): OutputFormat {
+  const transitionNames = transitions.map((t) =>
+    "state" in t ? t.state : t.terminal,
+  );
+
+  return {
+    type: "json_schema" as const,
+    schema: {
+      type: "object",
+      properties: {
+        transition: {
+          type: "string",
+          enum: transitionNames,
+        },
+        reason: { type: "string" },
+        handoff_summary: { type: "string" },
+      },
+      required: ["transition", "reason", "handoff_summary"],
+      additionalProperties: false,
+    },
+  };
+}
+
 export const codexCLI: AgentRuntime = {
   query: spawnCodexQuery,
+  buildTransitionOutputFormat: buildTransitionOutputFormatForCodex,
 };
