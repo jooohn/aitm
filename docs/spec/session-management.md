@@ -216,7 +216,7 @@ Sessions are created internally by the workflow engine, not directly by users.
 ## Decisions
 
 ### Process management
-Server restarts mark any `RUNNING` session as `FAILED`. `AWAITING_INPUT` sessions are also marked `FAILED` on restart because the in-memory pending-input Promise is lost. On startup, aitm scans for non-terminal sessions and transitions them to `FAILED`.
+Server restarts mark any `RUNNING` session as `FAILED`. `AWAITING_INPUT` sessions survive restarts since they don't depend on in-memory state — the user can still reply after the server comes back. On startup, aitm scans for non-terminal sessions and transitions `RUNNING` ones to `FAILED`.
 
 ### Output storage
 Agent stdout/stderr is written to an append-only log file at `~/.aitm/sessions/<id>.log`. The path is stored in `log_file_path`. The stream endpoint tails this file and replays it from the beginning on each new connection. Log output from resumed sessions is appended to the same file.
@@ -225,4 +225,4 @@ Agent stdout/stderr is written to an append-only log file at `~/.aitm/sessions/<
 Sessions use the agent runtime's `outputFormat` with a `json_schema` type. The agent's final output is constrained to `{transition, reason, handoff_summary}`. The `__REQUIRE_USER_INPUT__` transition is included in the schema's enum so the agent can select it. This output is stored in `transition_decision` and consumed by the workflow engine (which never sees `__REQUIRE_USER_INPUT__` because the session resolves it internally).
 
 ### Workflow transparency
-The `AWAITING_INPUT` state and `__REQUIRE_USER_INPUT__` transition are fully encapsulated within the session layer. The workflow engine's `onComplete` callback is only invoked when the session reaches a real workflow transition. From the workflow's perspective, the session is simply `RUNNING` for longer.
+The `AWAITING_INPUT` state and `__REQUIRE_USER_INPUT__` transition are fully encapsulated within the session layer. Session completion is communicated via the typed `EventHandler` (`src/backend/infra/event-handler.ts`), which emits a `"session.completed"` event with `{ sessionId, decision }`. `WorkflowRunService` subscribes to this event in its constructor to advance the workflow. The event is only emitted when the session reaches a real workflow transition (not `__REQUIRE_USER_INPUT__`). From the workflow's perspective, the session is simply `RUNNING` for longer.

@@ -7,6 +7,7 @@ import {
   getAgentConfig,
   type WorkflowTransition,
 } from "@/backend/infra/config";
+import { eventHandler } from "@/backend/infra/event-handler";
 import type { AgentService, TransitionDecision } from "../agent";
 import type { WorktreeService } from "../worktrees";
 import type { SessionRepository } from "./session-repository";
@@ -49,11 +50,6 @@ export interface ListSessionsFilter {
   status?: SessionStatus;
 }
 
-export type SessionCompleteListener = (
-  sessionId: string,
-  decision: TransitionDecision | null,
-) => void;
-
 function sessionsLogDir(): string {
   const candidates = [
     process.env.AITM_SESSION_LOG_DIR,
@@ -76,35 +72,17 @@ function sessionsLogDir(): string {
 }
 
 export class SessionService {
-  private listeners: SessionCompleteListener[] = [];
-
   constructor(
     private sessionRepository: SessionRepository,
     private agentService: AgentService,
     private worktreeService: WorktreeService,
   ) {}
 
-  onSessionComplete(listener: SessionCompleteListener): void {
-    this.listeners.push(listener);
-  }
-
-  private emitSessionComplete(
-    sessionId: string,
-    decision: TransitionDecision | null,
-  ): void {
-    for (const listener of this.listeners) {
-      try {
-        listener(sessionId, decision);
-      } catch (err) {
-        console.error("SessionComplete listener error:", err);
-      }
-    }
-  }
-
   private buildOnComplete(
     sessionId: string,
   ): (decision: TransitionDecision | null) => void {
-    return (decision) => this.emitSessionComplete(sessionId, decision);
+    return (decision) =>
+      eventHandler.emit("session.completed", { sessionId, decision });
   }
 
   createSession(input: CreateSessionInput): Session {
@@ -142,7 +120,7 @@ export class SessionService {
         err instanceof Error ? err.message : err,
       );
       this.sessionRepository.setSessionFailed(id, now);
-      this.emitSessionComplete(id, null);
+      eventHandler.emit("session.completed", { sessionId: id, decision: null });
       return this.getSession(id) as Session;
     }
 
