@@ -1,7 +1,7 @@
 import { appendFileSync } from "fs";
 import { NextRequest, NextResponse } from "next/server";
+import { sessionService } from "@/lib/container";
 import { waitForAnswer } from "@/lib/domain/pending-questions";
-import { getSession, saveMessage } from "@/lib/domain/sessions";
 import { db } from "@/lib/infra/db";
 
 type Params = Promise<{ id: string }>;
@@ -18,7 +18,7 @@ export async function POST(
 ): Promise<NextResponse> {
   const { id } = await params;
 
-  const session = getSession(id);
+  const session = sessionService.getSession(id);
   if (!session) {
     return NextResponse.json({ error: "Session not found" }, { status: 404 });
   }
@@ -38,7 +38,7 @@ export async function POST(
     `${JSON.stringify({ type: "question", question })}\n`,
     "utf8",
   );
-  saveMessage(id, "agent", question);
+  sessionService.saveMessage(id, "agent", question);
 
   // Mark session as waiting.
   const now = new Date().toISOString();

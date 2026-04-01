@@ -6,7 +6,7 @@ import {
   type WorkflowTransition,
 } from "../../infra/config";
 import { type TransitionDecision } from "../../utils/agent";
-import { createSession, failSession, type SessionStatus } from "../sessions";
+import type { SessionService, SessionStatus } from "../sessions";
 import { listWorktrees } from "../worktrees";
 import type {
   PreviousExecutionHandoff,
@@ -104,7 +104,10 @@ function isAlreadyTerminalSessionError(
 }
 
 export class WorkflowRunService {
-  constructor(private workflowRunRepository: WorkflowRunRepository) {}
+  constructor(
+    private workflowRunRepository: WorkflowRunRepository,
+    private sessionService: SessionService,
+  ) {}
 
   private startStateExecution(
     workflowRunId: string,
@@ -198,7 +201,7 @@ export class WorkflowRunService {
       now,
     });
 
-    createSession(
+    this.sessionService.createSession(
       {
         repository_path: repositoryPath,
         worktree_branch: worktreeBranch,
@@ -349,7 +352,7 @@ export class WorkflowRunService {
       activeExecution.session_status === "WAITING_FOR_INPUT"
     ) {
       try {
-        failSession(activeExecution.session_id);
+        this.sessionService.failSession(activeExecution.session_id);
       } catch (err) {
         if (!isAlreadyTerminalSessionError(err, activeExecution.session_id)) {
           throw err;

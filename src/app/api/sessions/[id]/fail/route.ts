@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { failSession } from "@/lib/domain/sessions";
+import { sessionService } from "@/lib/container";
 
 type Params = Promise<{ id: string }>;
 
@@ -18,7 +18,7 @@ export async function POST(
 ): Promise<NextResponse> {
   try {
     const { id } = await params;
-    const session = failSession(id);
+    const session = sessionService.failSession(id);
     return NextResponse.json(session);
   } catch (err) {
     return errorResponse(err);

@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "fs";
 import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@/lib/domain/sessions";
+import { sessionService } from "@/lib/container";
 
 type Params = Promise<{ id: string }>;
 
@@ -12,7 +12,7 @@ export async function GET(
   { params }: { params: Params },
 ): Promise<Response | NextResponse> {
   const { id } = await params;
-  const session = getSession(id);
+  const session = sessionService.getSession(id);
   if (!session) {
     return NextResponse.json({ error: "Session not found" }, { status: 404 });
   }
@@ -42,7 +42,7 @@ export async function GET(
       }
 
       function checkAndClose() {
-        const current = getSession(id);
+        const current = sessionService.getSession(id);
         if (!current || TERMINAL_STATUSES.has(current.status)) {
           sendNewLines();
           try {
@@ -60,7 +60,9 @@ export async function GET(
 
       sendNewLines();
 
-      if (TERMINAL_STATUSES.has(getSession(id)?.status ?? "FAILED")) {
+      if (
+        TERMINAL_STATUSES.has(sessionService.getSession(id)?.status ?? "FAILED")
+      ) {
         controller.enqueue(encoder.encode("event: done\ndata: {}\n\n"));
         controller.close();
         return;

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { sessionService } from "@/lib/container";
 import { inferAlias } from "@/lib/domain/repositories";
-import { getSession, listMessages } from "@/lib/domain/sessions";
 import styles from "./page.module.css";
 import SessionDetail from "./SessionDetail";
 
@@ -11,13 +11,13 @@ interface Props {
 
 export default async function SessionPage({ params }: Props) {
   const { id } = await params;
-  const session = getSession(id);
+  const session = sessionService.getSession(id);
   if (!session) notFound();
 
   const repoAlias = inferAlias(session.repository_path);
   const [organization, repoName] = repoAlias.split("/");
   const branch = session.worktree_branch;
-  const initialMessages = listMessages(id);
+  const initialMessages = sessionService.listMessages(id);
 
   return (
     <main className={styles.page}>

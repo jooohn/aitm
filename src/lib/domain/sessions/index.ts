@@ -2,7 +2,6 @@ import { randomUUID } from "crypto";
 import { accessSync, constants, mkdirSync, unlinkSync } from "fs";
 import { homedir, tmpdir } from "os";
 import { join } from "path";
-import { sessionRepository } from "@/lib/container";
 import {
   type AgentConfig,
   getAgentConfig,
@@ -14,6 +13,7 @@ import {
   startAgent,
   type TransitionDecision,
 } from "../../utils/agent";
+import type { SessionRepository } from "./session-repository";
 
 export type SessionStatus =
   | "RUNNING"
@@ -74,67 +74,6 @@ function sessionsLogDir(): string {
   throw new Error("Unable to create a writable session log directory");
 }
 
-export function createSession(
-  input: CreateSessionInput,
-  onComplete?: (decision: TransitionDecision | null) => void,
-): Session {
-  const id = randomUUID();
-  const now = new Date().toISOString();
-  const log_file_path = join(sessionsLogDir(), `${id}.log`);
-  const agentConfig = input.agent_config ?? getAgentConfig();
-
-  sessionRepository.insertSession({
-    id,
-    repository_path: input.repository_path,
-    worktree_branch: input.worktree_branch,
-    goal: input.goal,
-    transitions: JSON.stringify(input.transitions),
-    log_file_path,
-    state_execution_id: input.state_execution_id ?? null,
-    now,
-  });
-
-  startAgent(
-    id,
-    input.repository_path,
-    input.worktree_branch,
-    input.goal,
-    input.transitions,
-    agentConfig,
-    log_file_path,
-    onComplete,
-  ).catch(console.error);
-
-  return getSession(id) as Session;
-}
-
-export function listSessions(filter: ListSessionsFilter = {}): Session[] {
-  return sessionRepository.listSessions(filter);
-}
-
-export function getSession(id: string): Session | undefined {
-  return sessionRepository.getSession(id);
-}
-
-export function failSession(id: string): Session {
-  const session = getSession(id);
-  if (!session) {
-    throw new Error(`Session not found: ${id}`);
-  }
-  if (session.status === "SUCCEEDED" || session.status === "FAILED") {
-    throw new Error(
-      `Session ${id} is already in a terminal state: ${session.status}`,
-    );
-  }
-
-  cancelAgent(id);
-
-  const now = new Date().toISOString();
-  sessionRepository.setSessionFailed(id, now);
-
-  return getSession(id) as Session;
-}
-
 export interface SessionMessage {
   id: string;
   session_id: string;
@@ -143,50 +82,115 @@ export interface SessionMessage {
   created_at: string;
 }
 
-export function listMessages(sessionId: string): SessionMessage[] {
-  return sessionRepository.listMessages(sessionId);
-}
+export class SessionService {
+  constructor(private sessionRepository: SessionRepository) {}
 
-export function saveMessage(
-  sessionId: string,
-  role: "user" | "agent",
-  content: string,
-): void {
-  sessionRepository.insertMessage(sessionId, role, content);
-}
+  createSession(
+    input: CreateSessionInput,
+    onComplete?: (decision: TransitionDecision | null) => void,
+  ): Session {
+    const id = randomUUID();
+    const now = new Date().toISOString();
+    const log_file_path = join(sessionsLogDir(), `${id}.log`);
+    const agentConfig = input.agent_config ?? getAgentConfig();
 
-export function sendUserMessage(sessionId: string, content: string): void {
-  const session = getSession(sessionId);
-  if (!session) throw new Error(`Session not found: ${sessionId}`);
-  if (session.status !== "WAITING_FOR_INPUT") {
-    throw new Error(
-      `Session is not waiting for input (status: ${session.status})`,
-    );
+    this.sessionRepository.insertSession({
+      id,
+      repository_path: input.repository_path,
+      worktree_branch: input.worktree_branch,
+      goal: input.goal,
+      transitions: JSON.stringify(input.transitions),
+      log_file_path,
+      state_execution_id: input.state_execution_id ?? null,
+      now,
+    });
+
+    startAgent(
+      id,
+      input.repository_path,
+      input.worktree_branch,
+      input.goal,
+      input.transitions,
+      agentConfig,
+      log_file_path,
+      onComplete,
+    ).catch(console.error);
+
+    return this.getSession(id) as Session;
   }
 
-  saveMessage(sessionId, "user", content);
-  sendMessageToAgent(sessionId, content);
-}
+  listSessions(filter: ListSessionsFilter = {}): Session[] {
+    return this.sessionRepository.listSessions(filter);
+  }
 
-export function deleteWorktreeData(
-  repositoryPath: string,
-  branches: string[],
-): void {
-  if (branches.length === 0) return;
+  getSession(id: string): Session | undefined {
+    return this.sessionRepository.getSession(id);
+  }
 
-  const rows = sessionRepository.deleteWorktreeData(repositoryPath, branches);
+  failSession(id: string): Session {
+    const session = this.getSession(id);
+    if (!session) {
+      throw new Error(`Session not found: ${id}`);
+    }
+    if (session.status === "SUCCEEDED" || session.status === "FAILED") {
+      throw new Error(
+        `Session ${id} is already in a terminal state: ${session.status}`,
+      );
+    }
 
-  for (const { log_file_path } of rows) {
-    try {
-      unlinkSync(log_file_path);
-    } catch {
-      // ignore missing files
+    cancelAgent(id);
+
+    const now = new Date().toISOString();
+    this.sessionRepository.setSessionFailed(id, now);
+
+    return this.getSession(id) as Session;
+  }
+
+  listMessages(sessionId: string): SessionMessage[] {
+    return this.sessionRepository.listMessages(sessionId);
+  }
+
+  saveMessage(
+    sessionId: string,
+    role: "user" | "agent",
+    content: string,
+  ): void {
+    this.sessionRepository.insertMessage(sessionId, role, content);
+  }
+
+  sendUserMessage(sessionId: string, content: string): void {
+    const session = this.getSession(sessionId);
+    if (!session) throw new Error(`Session not found: ${sessionId}`);
+    if (session.status !== "WAITING_FOR_INPUT") {
+      throw new Error(
+        `Session is not waiting for input (status: ${session.status})`,
+      );
+    }
+
+    this.saveMessage(sessionId, "user", content);
+    sendMessageToAgent(sessionId, content);
+  }
+
+  deleteWorktreeData(repositoryPath: string, branches: string[]): void {
+    if (branches.length === 0) return;
+
+    const rows = this.sessionRepository.deleteWorktreeData(
+      repositoryPath,
+      branches,
+    );
+
+    for (const { log_file_path } of rows) {
+      try {
+        unlinkSync(log_file_path);
+      } catch {
+        // ignore missing files
+      }
     }
   }
-}
 
-// Mark any sessions left in a non-terminal state as FAILED.
-// Called on module load so that sessions from a previous server run are recovered.
-export function recoverCrashedSessions(): void {
-  sessionRepository.recoverCrashedSessions();
+  // Mark any sessions left in a non-terminal state as FAILED.
+  // Called on startup so that sessions from a previous server run are recovered.
+  recoverCrashedSessions(): void {
+    this.sessionRepository.recoverCrashedSessions();
+  }
 }

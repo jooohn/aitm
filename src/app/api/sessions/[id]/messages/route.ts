@@ -1,14 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { sessionService } from "@/lib/container";
 import {
   deliverAnswer,
   hasPendingQuestion,
 } from "@/lib/domain/pending-questions";
-import {
-  getSession,
-  listMessages,
-  saveMessage,
-  sendUserMessage,
-} from "@/lib/domain/sessions";
 
 type Params = Promise<{ id: string }>;
 
@@ -27,11 +22,11 @@ export async function GET(
 ): Promise<NextResponse> {
   try {
     const { id } = await params;
-    const session = getSession(id);
+    const session = sessionService.getSession(id);
     if (!session) {
       return NextResponse.json({ error: "Session not found" }, { status: 404 });
     }
-    return NextResponse.json(listMessages(id));
+    return NextResponse.json(sessionService.listMessages(id));
   } catch (err) {
     return errorResponse(err);
   }
@@ -52,13 +47,13 @@ export async function POST(
     }
     // MCP path: deliver answer to the waiting question handler.
     if (hasPendingQuestion(id)) {
-      saveMessage(id, "user", body.content);
+      sessionService.saveMessage(id, "user", body.content);
       deliverAnswer(id, body.content);
       return new NextResponse(null, { status: 204 });
     }
 
     // In-process SDK path (tests / non-CLI sessions).
-    sendUserMessage(id, body.content);
+    sessionService.sendUserMessage(id, body.content);
     return new NextResponse(null, { status: 204 });
   } catch (err) {
     return errorResponse(err);

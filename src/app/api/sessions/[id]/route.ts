@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@/lib/domain/sessions";
+import { sessionService } from "@/lib/container";
 
 type Params = Promise<{ id: string }>;
 
@@ -8,7 +8,7 @@ export async function GET(
   { params }: { params: Params },
 ): Promise<NextResponse> {
   const { id } = await params;
-  const session = getSession(id);
+  const session = sessionService.getSession(id);
   if (!session) {
     return NextResponse.json({ error: "Session not found" }, { status: 404 });
   }

@@ -1,12 +1,11 @@
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { sessionService } from "@/lib/container";
 import { getRepositoryByAlias } from "@/lib/domain/repositories";
-import { deleteWorktreeData } from "@/lib/domain/sessions";
 import { removeWorktree } from "@/lib/domain/worktrees";
 import { DELETE } from "./route";
 
 vi.mock("@/lib/domain/repositories");
-vi.mock("@/lib/domain/sessions");
 vi.mock("@/lib/domain/worktrees");
 
 function makeParams(
@@ -19,8 +18,13 @@ function makeParams(
   return { params: Promise.resolve({ organization, name, branch }) };
 }
 
+let deleteWorktreeDataSpy: ReturnType<typeof vi.spyOn>;
+
 beforeEach(() => {
   vi.resetAllMocks();
+  deleteWorktreeDataSpy = vi
+    .spyOn(sessionService, "deleteWorktreeData")
+    .mockImplementation(() => {});
 });
 
 describe("DELETE /api/repositories/:organization/:name/worktrees/[...branch]", () => {
@@ -39,7 +43,7 @@ describe("DELETE /api/repositories/:organization/:name/worktrees/[...branch]", (
 
     expect(res.status).toBe(404);
     expect(vi.mocked(removeWorktree)).not.toHaveBeenCalled();
-    expect(vi.mocked(deleteWorktreeData)).not.toHaveBeenCalled();
+    expect(deleteWorktreeDataSpy).not.toHaveBeenCalled();
   });
 
   it("removes worktree and deletes worktree data", async () => {
@@ -64,7 +68,7 @@ describe("DELETE /api/repositories/:organization/:name/worktrees/[...branch]", (
       "/repo/path",
       "feat/test",
     );
-    expect(vi.mocked(deleteWorktreeData)).toHaveBeenCalledWith("/repo/path", [
+    expect(deleteWorktreeDataSpy).toHaveBeenCalledWith("/repo/path", [
       "feat/test",
     ]);
   });
@@ -90,7 +94,7 @@ describe("DELETE /api/repositories/:organization/:name/worktrees/[...branch]", (
     );
 
     expect(res.status).toBe(422);
-    expect(vi.mocked(deleteWorktreeData)).not.toHaveBeenCalled();
+    expect(deleteWorktreeDataSpy).not.toHaveBeenCalled();
   });
 
   it("returns 404 when worktree branch is not found", async () => {
@@ -114,6 +118,6 @@ describe("DELETE /api/repositories/:organization/:name/worktrees/[...branch]", (
     );
 
     expect(res.status).toBe(404);
-    expect(vi.mocked(deleteWorktreeData)).not.toHaveBeenCalled();
+    expect(deleteWorktreeDataSpy).not.toHaveBeenCalled();
   });
 });

@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { sessionService } from "@/lib/container";
 import { getRepositoryByAlias } from "@/lib/domain/repositories";
-import {
-  createSession,
-  listSessions,
-  type SessionStatus,
-} from "@/lib/domain/sessions";
+import type { SessionStatus } from "@/lib/domain/sessions";
 
 function errorResponse(err: unknown): NextResponse {
   const message = err instanceof Error ? err.message : "Internal server error";
@@ -22,7 +19,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const status = statusParam as SessionStatus | undefined;
 
     return NextResponse.json(
-      listSessions({ repository_path, worktree_branch, status }),
+      sessionService.listSessions({ repository_path, worktree_branch, status }),
     );
   } catch (err) {
     return errorResponse(err);
@@ -59,7 +56,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    const session = createSession({
+    const session = sessionService.createSession({
       repository_path: repo.path,
       worktree_branch,
       goal,

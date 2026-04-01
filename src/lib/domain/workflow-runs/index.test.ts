@@ -2,12 +2,11 @@ import { mkdirSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { workflowRunService } from "@/lib/container";
+import { sessionService, workflowRunService } from "@/lib/container";
 import { db } from "../../infra/db";
-import * as sessionsDomain from "../sessions";
-import * as sessionsModule from "../sessions";
-import { failSession } from "../sessions";
 import { listWorktrees } from "../worktrees";
+
+const failSession = sessionService.failSession.bind(sessionService);
 
 const {
   completeStateExecution,
@@ -247,7 +246,7 @@ workflows:
             when: "done"
 `);
     const repoPath = makeFakeGitRepo();
-    const createSessionSpy = vi.spyOn(sessionsModule, "createSession");
+    const createSessionSpy = vi.spyOn(sessionService, "createSession");
 
     createWorkflowRun({
       repository_path: repoPath,
@@ -649,7 +648,7 @@ workflows:
   it("still fails the workflow run when failSession loses a race to a terminal session update", () => {
     const { run, execution, session } = setupRunningRun();
 
-    vi.spyOn(sessionsDomain, "failSession").mockImplementationOnce((id) => {
+    vi.spyOn(sessionService, "failSession").mockImplementationOnce((id) => {
       db.prepare("UPDATE sessions SET status = 'SUCCEEDED' WHERE id = ?").run(
         id,
       );

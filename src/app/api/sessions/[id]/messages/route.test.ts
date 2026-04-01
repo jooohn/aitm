@@ -3,7 +3,11 @@ import { NextRequest } from "next/server";
 import { tmpdir } from "os";
 import { join } from "path";
 import { beforeEach, describe, expect, it } from "vitest";
-import { createSession, saveMessage } from "@/lib/domain/sessions";
+import { sessionService } from "@/lib/container";
+
+const createSession = sessionService.createSession.bind(sessionService);
+const saveMessage = sessionService.saveMessage.bind(sessionService);
+
 import { db } from "@/lib/infra/db";
 import { GET } from "./route";
 

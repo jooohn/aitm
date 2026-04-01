@@ -1,7 +1,8 @@
 import { AbortError, type CanUseTool } from "@anthropic-ai/claude-agent-sdk";
 import type { AskUserQuestionInput } from "@anthropic-ai/claude-agent-sdk/sdk-tools";
 import { appendFileSync, writeFileSync } from "fs";
-import { type SessionStatus, saveMessage } from "../../domain/sessions";
+import { sessionService } from "../../container";
+import type { SessionStatus } from "../../domain/sessions";
 import { listWorktrees } from "../../domain/worktrees";
 import type { AgentConfig, WorkflowTransition } from "../../infra/config";
 import { db } from "../../infra/db";
@@ -90,7 +91,7 @@ function createToolPermissionHandler(
         .join("\n\n");
 
       appendToLog(logFilePath, { type: "question", question: questionText });
-      saveMessage(sessionId, "agent", questionText);
+      sessionService.saveMessage(sessionId, "agent", questionText);
       setStatus(sessionId, "WAITING_FOR_INPUT");
 
       try {

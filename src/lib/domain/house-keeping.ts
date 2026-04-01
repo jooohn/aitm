@@ -1,4 +1,4 @@
-import { deleteWorktreeData } from "./sessions";
+import { sessionService } from "../container";
 import { cleanMergedWorktrees, pullMainBranchIfOutdated } from "./worktrees";
 
 export async function runHouseKeeping(repoPath: string): Promise<void> {
@@ -19,7 +19,7 @@ export async function runHouseKeeping(repoPath: string): Promise<void> {
 
   if (removedBranches.length > 0) {
     try {
-      deleteWorktreeData(repoPath, removedBranches);
+      sessionService.deleteWorktreeData(repoPath, removedBranches);
     } catch (err) {
       console.error(
         `[house-keeping] Failed to delete worktree data in ${repoPath}:`,
