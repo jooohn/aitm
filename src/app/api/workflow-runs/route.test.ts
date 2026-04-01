@@ -2,7 +2,8 @@ import { mkdirSync, writeFileSync } from "fs";
 import { NextRequest } from "next/server";
 import { tmpdir } from "os";
 import { join } from "path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { worktreeService } from "@/backend/container";
 import { db } from "@/backend/infra/db";
 import { GET, POST } from "./route";
 
@@ -30,6 +31,30 @@ beforeEach(() => {
   db.prepare("DELETE FROM sessions").run();
   db.prepare("DELETE FROM state_executions").run();
   db.prepare("DELETE FROM workflow_runs").run();
+
+  vi.spyOn(worktreeService, "listWorktrees").mockImplementation((repoPath) => [
+    {
+      branch: "feat/test",
+      path: repoPath,
+      is_main: false,
+      is_bare: false,
+      head: "HEAD",
+    },
+    {
+      branch: "feat/a",
+      path: repoPath,
+      is_main: false,
+      is_bare: false,
+      head: "HEAD",
+    },
+    {
+      branch: "feat/b",
+      path: repoPath,
+      is_main: false,
+      is_bare: false,
+      head: "HEAD",
+    },
+  ]);
 });
 
 afterEach(() => {

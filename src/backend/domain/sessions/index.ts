@@ -7,12 +7,8 @@ import {
   getAgentConfig,
   type WorkflowTransition,
 } from "@/backend/infra/config";
-import {
-  cancelAgent,
-  sendMessageToAgent,
-  startAgent,
-  type TransitionDecision,
-} from "../agent";
+import type { AgentService, TransitionDecision } from "../agent";
+import type { WorktreeService } from "../worktrees";
 import type { SessionRepository } from "./session-repository";
 
 export type SessionStatus =
@@ -83,7 +79,11 @@ export interface SessionMessage {
 }
 
 export class SessionService {
-  constructor(private sessionRepository: SessionRepository) {}
+  constructor(
+    private sessionRepository: SessionRepository,
+    private agentService: AgentService,
+    private worktreeService: WorktreeService,
+  ) {}
 
   createSession(
     input: CreateSessionInput,
@@ -105,16 +105,39 @@ export class SessionService {
       now,
     });
 
-    startAgent(
-      id,
-      input.repository_path,
-      input.worktree_branch,
-      input.goal,
-      input.transitions,
-      agentConfig,
-      log_file_path,
-      onComplete,
-    ).catch(console.error);
+    let cwd: string;
+    try {
+      const worktrees = this.worktreeService.listWorktrees(
+        input.repository_path,
+      );
+      const worktree = worktrees.find(
+        (w) => w.branch === input.worktree_branch,
+      );
+      if (!worktree) {
+        throw new Error(`Worktree not found: ${input.worktree_branch}`);
+      }
+      cwd = worktree.path;
+    } catch (err) {
+      console.error(
+        `Failed to resolve worktree for session ${id}:`,
+        err instanceof Error ? err.message : err,
+      );
+      this.sessionRepository.setSessionFailed(id, now);
+      onComplete?.(null);
+      return this.getSession(id) as Session;
+    }
+
+    this.agentService
+      .startAgent(
+        id,
+        cwd,
+        input.goal,
+        input.transitions,
+        agentConfig,
+        log_file_path,
+        onComplete,
+      )
+      .catch(console.error);
 
     return this.getSession(id) as Session;
   }
@@ -138,7 +161,7 @@ export class SessionService {
       );
     }
 
-    cancelAgent(id);
+    this.agentService.cancelAgent(id);
 
     const now = new Date().toISOString();
     this.sessionRepository.setSessionFailed(id, now);
@@ -168,7 +191,7 @@ export class SessionService {
     }
 
     this.saveMessage(sessionId, "user", content);
-    sendMessageToAgent(sessionId, content);
+    this.agentService.sendMessageToAgent(sessionId, content);
   }
 
   deleteWorktreeData(repositoryPath: string, branches: string[]): void {

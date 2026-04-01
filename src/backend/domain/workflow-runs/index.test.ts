@@ -80,6 +80,32 @@ beforeEach(() => {
   db.prepare("DELETE FROM sessions").run();
   db.prepare("DELETE FROM state_executions").run();
   db.prepare("DELETE FROM workflow_runs").run();
+
+  // Default mock: return a worktree matching any branch so SessionService
+  // can resolve cwd when creating sessions.
+  vi.spyOn(worktreeService, "listWorktrees").mockImplementation((repoPath) => [
+    {
+      branch: "feat/test",
+      path: repoPath,
+      is_main: false,
+      is_bare: false,
+      head: "HEAD",
+    },
+    {
+      branch: "feat/a",
+      path: repoPath,
+      is_main: false,
+      is_bare: false,
+      head: "HEAD",
+    },
+    {
+      branch: "feat/b",
+      path: repoPath,
+      is_main: false,
+      is_bare: false,
+      head: "HEAD",
+    },
+  ]);
 });
 
 afterEach(() => {

@@ -2,8 +2,8 @@ import { mkdirSync, writeFileSync } from "fs";
 import { NextRequest } from "next/server";
 import { tmpdir } from "os";
 import { join } from "path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { workflowRunService } from "@/backend/container";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { workflowRunService, worktreeService } from "@/backend/container";
 
 const createWorkflowRun =
   workflowRunService.createWorkflowRun.bind(workflowRunService);
@@ -56,6 +56,16 @@ workflows:
   db.prepare("DELETE FROM sessions").run();
   db.prepare("DELETE FROM state_executions").run();
   db.prepare("DELETE FROM workflow_runs").run();
+
+  vi.spyOn(worktreeService, "listWorktrees").mockImplementation((repoPath) => [
+    {
+      branch: "feat/test",
+      path: repoPath,
+      is_main: false,
+      is_bare: false,
+      head: "HEAD",
+    },
+  ]);
 });
 
 afterEach(() => {

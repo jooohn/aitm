@@ -2,9 +2,12 @@ import { mkdirSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { sessionService } from "@/backend/container";
+import {
+  agentService,
+  sessionService,
+  worktreeService,
+} from "@/backend/container";
 import { db } from "@/backend/infra/db";
-import * as agentModule from "../agent";
 
 const createSession = sessionService.createSession.bind(sessionService);
 const failSession = sessionService.failSession.bind(sessionService);
@@ -13,11 +16,32 @@ const listMessages = sessionService.listMessages.bind(sessionService);
 const listSessions = sessionService.listSessions.bind(sessionService);
 const saveMessage = sessionService.saveMessage.bind(sessionService);
 
-vi.mock("../../utils/agent", () => ({
-  startAgent: vi.fn(() => Promise.resolve()),
-  cancelAgent: vi.fn(),
-  sendMessageToAgent: vi.fn(),
-}));
+vi.spyOn(agentService, "startAgent").mockResolvedValue();
+vi.spyOn(agentService, "cancelAgent").mockImplementation(() => {});
+vi.spyOn(agentService, "sendMessageToAgent").mockImplementation(() => {});
+vi.spyOn(worktreeService, "listWorktrees").mockImplementation((repoPath) => [
+  {
+    branch: "feat/test",
+    path: repoPath,
+    is_main: false,
+    is_bare: false,
+    head: "HEAD",
+  },
+  {
+    branch: "feat/a",
+    path: repoPath,
+    is_main: false,
+    is_bare: false,
+    head: "HEAD",
+  },
+  {
+    branch: "feat/b",
+    path: repoPath,
+    is_main: false,
+    is_bare: false,
+    head: "HEAD",
+  },
+]);
 
 const DEFAULT_TRANSITIONS = [{ terminal: "success" as const, when: "Done" }];
 
@@ -73,10 +97,9 @@ describe("createSession", () => {
       agent_config: agentConfig,
     });
 
-    expect(agentModule.startAgent).toHaveBeenCalledWith(
+    expect(agentService.startAgent).toHaveBeenCalledWith(
       session.id,
       repoPath,
-      "feat/test",
       "Write code",
       DEFAULT_TRANSITIONS,
       agentConfig,
@@ -114,10 +137,9 @@ workflows: {}
         transitions: DEFAULT_TRANSITIONS,
       });
 
-      expect(agentModule.startAgent).toHaveBeenCalledWith(
+      expect(agentService.startAgent).toHaveBeenCalledWith(
         session.id,
         repoPath,
-        "feat/test",
         "Write code",
         DEFAULT_TRANSITIONS,
         {

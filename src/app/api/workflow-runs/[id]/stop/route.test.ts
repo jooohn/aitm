@@ -4,13 +4,15 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/lib/utils/agent", () => ({
-  cancelAgent: vi.fn(),
-  sendMessageToAgent: vi.fn(),
-  startAgent: vi.fn(async () => {}),
-}));
+import {
+  agentService,
+  workflowRunService,
+  worktreeService,
+} from "@/backend/container";
 
-import { workflowRunService } from "@/backend/container";
+vi.spyOn(agentService, "startAgent").mockResolvedValue();
+vi.spyOn(agentService, "cancelAgent").mockImplementation(() => {});
+vi.spyOn(agentService, "sendMessageToAgent").mockImplementation(() => {});
 
 const createWorkflowRun =
   workflowRunService.createWorkflowRun.bind(workflowRunService);
@@ -66,6 +68,16 @@ beforeEach(() => {
   db.prepare("DELETE FROM sessions").run();
   db.prepare("DELETE FROM state_executions").run();
   db.prepare("DELETE FROM workflow_runs").run();
+
+  vi.spyOn(worktreeService, "listWorktrees").mockImplementation((repoPath) => [
+    {
+      branch: "feat/test",
+      path: repoPath,
+      is_main: false,
+      is_bare: false,
+      head: "HEAD",
+    },
+  ]);
 });
 
 afterEach(() => {

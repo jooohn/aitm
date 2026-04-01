@@ -2,26 +2,18 @@ import { mkdirSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { agentService } from "@/backend/container";
 import { db } from "@/backend/infra/db";
 
-const queryMock = vi.fn();
+const { queryMock } = vi.hoisted(() => ({
+  queryMock: vi.fn(),
+}));
+
 const agentConfig = {
   provider: "codex" as const,
   command: "codex",
   model: "test-model",
 };
-const listWorktreesMock = vi.fn();
-
-vi.mock("../../domain/worktrees", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@/backend/domain/worktrees")>();
-  return {
-    ...actual,
-    WorktreeService: class {
-      listWorktrees = listWorktreesMock;
-    },
-  };
-});
 
 vi.mock("./codex-cli", () => ({
   codexCLI: {
@@ -46,12 +38,12 @@ function makeFakeGitRepo(): string {
 
 beforeEach(() => {
   queryMock.mockReset();
-  listWorktreesMock.mockReset();
+  vi.restoreAllMocks();
   db.prepare("DELETE FROM session_messages").run();
   db.prepare("DELETE FROM sessions").run();
 });
 
-const { startAgent } = await import("./index");
+const startAgent = agentService.startAgent.bind(agentService);
 
 describe("startAgent", () => {
   it("does not launch the runtime when the session is already terminal before startup continues", async () => {
@@ -78,16 +70,6 @@ describe("startAgent", () => {
       now,
     );
 
-    listWorktreesMock.mockReturnValue([
-      {
-        branch: "feat/test",
-        path: repoPath,
-        is_main: false,
-        is_bare: false,
-        head: "HEAD",
-      },
-    ]);
-
     queryMock.mockImplementation(async function* () {
       yield {
         type: "result",
@@ -103,7 +85,6 @@ describe("startAgent", () => {
     const startPromise = startAgent(
       sessionId,
       repoPath,
-      "feat/test",
       "Goal",
       [{ terminal: "success", when: "done" }],
       agentConfig,
@@ -124,7 +105,7 @@ describe("startAgent", () => {
     ).toEqual({ status: "FAILED" });
   });
 
-  it("completes the session when it becomes terminal after worktree lookup but before runtime launch", async () => {
+  it("completes the session when it becomes terminal after cwd is set but before runtime launch", async () => {
     const repoPath = makeFakeGitRepo();
     const sessionId = "session-stopped-before-runtime";
     const now = new Date().toISOString();
@@ -148,25 +129,14 @@ describe("startAgent", () => {
       now,
     );
 
-    listWorktreesMock.mockImplementation(() => {
-      db.prepare("UPDATE sessions SET status = 'FAILED' WHERE id = ?").run(
-        sessionId,
-      );
-      return [
-        {
-          branch: "feat/test",
-          path: repoPath,
-          is_main: false,
-          is_bare: false,
-          head: "HEAD",
-        },
-      ];
-    });
+    // Mark session as FAILED before startAgent's second terminal check
+    db.prepare("UPDATE sessions SET status = 'FAILED' WHERE id = ?").run(
+      sessionId,
+    );
 
     await startAgent(
       sessionId,
       repoPath,
-      "feat/test",
       "Goal",
       [{ terminal: "success", when: "done" }],
       agentConfig,
