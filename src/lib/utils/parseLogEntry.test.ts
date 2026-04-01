@@ -25,19 +25,6 @@ describe("parseLogEntry", () => {
     });
   });
 
-  it("formats question", () => {
-    expect(
-      parseLogEntry({ type: "question", question: "Which branch?" }),
-    ).toEqual({ kind: "text", content: "? Which branch?" });
-  });
-
-  it("formats answer", () => {
-    expect(parseLogEntry({ type: "answer", answer: "main" })).toEqual({
-      kind: "text",
-      content: "> main",
-    });
-  });
-
   it("formats error", () => {
     expect(parseLogEntry({ type: "error", message: "Oops" })).toEqual({
       kind: "text",

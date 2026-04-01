@@ -1,7 +1,4 @@
-import type {
-  CanUseTool,
-  PermissionMode,
-} from "@anthropic-ai/claude-agent-sdk";
+import type { PermissionMode } from "@anthropic-ai/claude-agent-sdk";
 import { WorkflowTransition } from "@/backend/infra/config";
 
 type AssistantContentBlock =
@@ -40,7 +37,6 @@ export interface AgentQueryParams {
   model?: string;
   permissionMode: PermissionMode;
   abortController: AbortController;
-  canUseTool: CanUseTool;
   outputFormat?: OutputFormat;
 }
 

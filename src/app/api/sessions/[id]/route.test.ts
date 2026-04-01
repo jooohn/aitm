@@ -24,7 +24,6 @@ function makeParams(id: string): { params: Promise<{ id: string }> } {
 }
 
 beforeEach(() => {
-  db.prepare("DELETE FROM session_messages").run();
   db.prepare("DELETE FROM sessions").run();
 });
 

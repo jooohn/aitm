@@ -3,12 +3,7 @@
 import Link from "next/link";
 import { notFound, useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import {
-  fetchSession,
-  fetchSessionMessages,
-  type Session,
-  type SessionMessage,
-} from "@/lib/utils/api";
+import { fetchSession, type Session } from "@/lib/utils/api";
 import { inferAlias } from "@/lib/utils/inferAlias";
 import styles from "./page.module.css";
 import SessionDetail from "./SessionDetail";
@@ -16,15 +11,11 @@ import SessionDetail from "./SessionDetail";
 export default function SessionPage() {
   const { id } = useParams<{ id: string }>();
   const [session, setSession] = useState<Session | null>(null);
-  const [initialMessages, setInitialMessages] = useState<SessionMessage[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([fetchSession(id), fetchSessionMessages(id)])
-      .then(([s, msgs]) => {
-        setSession(s);
-        setInitialMessages(msgs);
-      })
+    fetchSession(id)
+      .then((s) => setSession(s))
       .catch(() => notFound())
       .finally(() => setLoading(false));
   }, [id]);
@@ -65,7 +56,7 @@ export default function SessionPage() {
         <span className={styles.breadcrumbSep}>/</span>
         <span className={styles.breadcrumbCurrent}>{id.slice(0, 8)}…</span>
       </nav>
-      <SessionDetail session={session} initialMessages={initialMessages} />
+      <SessionDetail session={session} />
     </main>
   );
 }

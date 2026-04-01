@@ -1,6 +1,5 @@
 import { AgentService } from "@/backend/domain/agent";
 import { HouseKeepingService } from "@/backend/domain/house-keeping";
-import { PendingQuestionService } from "@/backend/domain/pending-questions";
 import { RepositoryService } from "@/backend/domain/repositories";
 import { SessionService } from "@/backend/domain/sessions";
 import { SessionRepository } from "@/backend/domain/sessions/session-repository";
@@ -13,11 +12,7 @@ export const workflowRunRepository = new WorkflowRunRepository(db);
 export const sessionRepository = new SessionRepository(db);
 export const worktreeService = new WorktreeService();
 export const repositoryService = new RepositoryService();
-export const pendingQuestionService = new PendingQuestionService();
-export const agentService = new AgentService({
-  saveMessage: (sessionId, role, content) =>
-    sessionRepository.insertMessage(sessionId, role, content),
-});
+export const agentService = new AgentService();
 export const sessionService = new SessionService(
   sessionRepository,
   agentService,

@@ -8,7 +8,6 @@ export const claudeSDK: AgentRuntime = {
     cwd,
     permissionMode,
     abortController,
-    canUseTool,
     outputFormat,
   }: AgentQueryParams): AsyncIterable<AgentMessage> {
     const result = query({
@@ -17,7 +16,6 @@ export const claudeSDK: AgentRuntime = {
         cwd,
         permissionMode,
         abortController,
-        canUseTool,
         outputFormat,
       },
     });

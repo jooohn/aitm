@@ -348,10 +348,7 @@ export class WorkflowRunService {
       throw new Error("No active session to stop for this workflow run");
     }
 
-    if (
-      activeExecution.session_status === "RUNNING" ||
-      activeExecution.session_status === "WAITING_FOR_INPUT"
-    ) {
+    if (activeExecution.session_status === "RUNNING") {
       try {
         this.sessionService.failSession(activeExecution.session_id);
       } catch (err) {

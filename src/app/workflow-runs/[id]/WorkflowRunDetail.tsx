@@ -5,13 +5,10 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   canStopWorkflowRun,
-  fetchSessionMessages,
   fetchWorkflowRun,
   rerunWorkflowRun,
   rerunWorkflowRunFromFailedState,
-  type SessionMessage,
   type StateExecution,
-  sendMessage,
   stopWorkflowRun,
   type WorkflowRunDetail,
   type WorkflowRunStatus,
@@ -48,45 +45,19 @@ function parseDecision(raw: string | null): TransitionDecision | null {
 
 interface StateExecutionItemProps {
   execution: StateExecution;
-  messages: SessionMessage[];
-  onSendMessage: (sessionId: string, content: string) => Promise<void>;
 }
 
-function StateExecutionItem({
-  execution,
-  messages,
-  onSendMessage,
-}: StateExecutionItemProps) {
+function StateExecutionItem({ execution }: StateExecutionItemProps) {
   const decision = parseDecision(execution.transition_decision);
   const isRunning = execution.completed_at === null;
-  const isWaiting = execution.session_status === "WAITING_FOR_INPUT";
-  const [reply, setReply] = useState("");
-  const [sending, setSending] = useState(false);
-
-  async function handleSend(e: React.FormEvent) {
-    e.preventDefault();
-    const content = reply.trim();
-    if (!content) return;
-    setSending(true);
-    try {
-      await onSendMessage(execution.session_id!, content);
-      setReply("");
-    } finally {
-      setSending(false);
-    }
-  }
 
   return (
     <li className={styles.execution}>
       <div className={styles.executionHeader}>
         <span className={styles.stateName}>{execution.state}</span>
         {isRunning ? (
-          <span
-            className={`${styles.badge} ${
-              isWaiting ? styles["badge-waiting"] : styles["badge-running"]
-            }`}
-          >
-            {isWaiting ? "Waiting for input" : "Running"}
+          <span className={`${styles.badge} ${styles["badge-running"]}`}>
+            Running
           </span>
         ) : (
           <span className={`${styles.badge} ${styles["badge-completed"]}`}>
@@ -107,44 +78,6 @@ function StateExecutionItem({
           {new Date(execution.created_at).toLocaleString()}
         </span>
       </div>
-      {isWaiting && messages.length > 0 && (
-        <div className={styles.questionSection}>
-          <ul className={styles.messages}>
-            {messages.map((msg) => (
-              <li
-                key={msg.id}
-                className={`${styles.message} ${styles[`message-${msg.role}`]}`}
-              >
-                <span className={styles.messageRole}>
-                  {msg.role === "agent" ? "Agent" : "You"}
-                </span>
-                <span className={styles.messageContent}>{msg.content}</span>
-              </li>
-            ))}
-          </ul>
-          <form onSubmit={handleSend} className={styles.inputForm}>
-            <textarea
-              className={styles.textarea}
-              placeholder="Reply to the agent…"
-              value={reply}
-              onChange={(e) => setReply(e.target.value)}
-              onKeyDown={(e) => {
-                if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-                  handleSend(e as unknown as React.FormEvent);
-                }
-              }}
-              disabled={sending}
-            />
-            <button
-              type="submit"
-              className={styles.sendButton}
-              disabled={sending || !reply.trim()}
-            >
-              {sending ? "Sending…" : "Send"}
-            </button>
-          </form>
-        </div>
-      )}
       {decision && (
         <div className={styles.decision}>
           <div className={styles.decisionTransition}>
@@ -190,10 +123,6 @@ export default function WorkflowRunDetail({ run: initial }: Props) {
   const [rerunFromFailedError, setRerunFromFailedError] = useState<
     string | null
   >(null);
-  // messages keyed by session_id for waiting executions
-  const [sessionMessages, setSessionMessages] = useState<
-    Record<string, SessionMessage[]>
-  >({});
 
   const isTerminal = TERMINAL_STATUSES.includes(run.status);
   const inputEntries = parseWorkflowRunInputs(run.inputs);
@@ -242,28 +171,6 @@ export default function WorkflowRunDetail({ run: initial }: Props) {
     }
   }
 
-  async function handleSendMessage(sessionId: string, content: string) {
-    await sendMessage(sessionId, content);
-    const msgs = await fetchSessionMessages(sessionId);
-    setSessionMessages((prev) => ({ ...prev, [sessionId]: msgs }));
-  }
-
-  // Fetch messages for sessions already waiting on mount
-  useEffect(() => {
-    const waiting = initial.state_executions.filter(
-      (e) => e.session_status === "WAITING_FOR_INPUT" && e.session_id != null,
-    );
-    if (waiting.length === 0) return;
-    Promise.all(
-      waiting.map(async (e) => {
-        const msgs = await fetchSessionMessages(e.session_id!);
-        return [e.session_id!, msgs] as const;
-      }),
-    ).then((entries) => {
-      setSessionMessages(Object.fromEntries(entries));
-    });
-  }, [initial]);
-
   useEffect(() => {
     if (isTerminal) return;
 
@@ -271,24 +178,6 @@ export default function WorkflowRunDetail({ run: initial }: Props) {
       try {
         const updated = await fetchWorkflowRun(run.id);
         setRun(updated);
-
-        // Fetch messages for any session waiting for input
-        const waiting = updated.state_executions.filter(
-          (e) =>
-            e.session_status === "WAITING_FOR_INPUT" && e.session_id != null,
-        );
-        if (waiting.length > 0) {
-          const entries = await Promise.all(
-            waiting.map(async (e) => {
-              const msgs = await fetchSessionMessages(e.session_id!);
-              return [e.session_id!, msgs] as const;
-            }),
-          );
-          setSessionMessages((prev) => ({
-            ...prev,
-            ...Object.fromEntries(entries),
-          }));
-        }
 
         if (TERMINAL_STATUSES.includes(updated.status)) {
           clearInterval(interval);
@@ -391,16 +280,7 @@ export default function WorkflowRunDetail({ run: initial }: Props) {
         ) : (
           <ul className={styles.executions}>
             {[...run.state_executions].reverse().map((execution) => (
-              <StateExecutionItem
-                key={execution.id}
-                execution={execution}
-                messages={
-                  (execution.session_id
-                    ? sessionMessages[execution.session_id]
-                    : null) ?? []
-                }
-                onSendMessage={handleSendMessage}
-              />
+              <StateExecutionItem key={execution.id} execution={execution} />
             ))}
           </ul>
         )}

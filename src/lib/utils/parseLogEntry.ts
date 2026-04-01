@@ -35,12 +35,6 @@ export function parseLogEntry(
       if (entry.subtype === "success") return text("✓ Goal completed");
       return text(`✗ Session ended: ${entry.subtype}`);
 
-    case "question":
-      return text(`? ${entry.question}`);
-
-    case "answer":
-      return text(`> ${entry.answer}`);
-
     case "error":
       return text(`! Error: ${entry.message}`);
 

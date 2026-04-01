@@ -4,11 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import {
   failSession,
   fetchSession,
-  fetchSessionMessages,
   type Session,
-  type SessionMessage,
   type SessionStatus,
-  sendMessage,
 } from "@/lib/utils/api";
 import type {
   OutputItem,
@@ -52,28 +49,19 @@ function appendWithGrouping(
 
 interface Props {
   session: Session;
-  initialMessages: SessionMessage[];
 }
 
 const STATUS_LABELS: Record<SessionStatus, string> = {
   RUNNING: "Running",
-  WAITING_FOR_INPUT: "Waiting for input",
   SUCCEEDED: "Succeeded",
   FAILED: "Failed",
 };
 
 const TERMINAL_STATUSES: SessionStatus[] = ["SUCCEEDED", "FAILED"];
 
-export default function SessionDetail({
-  session: initial,
-  initialMessages,
-}: Props) {
+export default function SessionDetail({ session: initial }: Props) {
   const [session, setSession] = useState<Session>(initial);
-  const [messages, setMessages] = useState<SessionMessage[]>(initialMessages);
   const [outputItems, setOutputItems] = useState<OutputItem[]>([]);
-  const [replyContent, setReplyContent] = useState("");
-  const [sending, setSending] = useState(false);
-  const [sendError, setSendError] = useState<string | null>(null);
   const [failing, setFailing] = useState(false);
   const [failError, setFailError] = useState<string | null>(null);
   const [isGoalExpanded, setIsGoalExpanded] = useState(false);
@@ -160,18 +148,14 @@ export default function SessionDetail({
     return () => observer.disconnect();
   }, [stateName]);
 
-  // Poll for session status + messages updates
+  // Poll for session status updates
   useEffect(() => {
     if (isTerminal) return;
 
     const interval = setInterval(async () => {
       try {
-        const [updated, msgs] = await Promise.all([
-          fetchSession(session.id),
-          fetchSessionMessages(session.id),
-        ]);
+        const updated = await fetchSession(session.id);
         setSession(updated);
-        setMessages(msgs);
         if (TERMINAL_STATUSES.includes(updated.status)) {
           clearInterval(interval);
         }
@@ -187,30 +171,6 @@ export default function SessionDetail({
     if (!outputRef.current) return;
     const { scrollTop, scrollHeight, clientHeight } = outputRef.current;
     autoScrollRef.current = scrollTop + clientHeight >= scrollHeight - 10;
-  }
-
-  async function handleSend(e: React.FormEvent) {
-    e.preventDefault();
-    const content = replyContent.trim();
-    if (!content) return;
-    setSending(true);
-    setSendError(null);
-    try {
-      await sendMessage(session.id, content);
-      setReplyContent("");
-      const [updated, msgs] = await Promise.all([
-        fetchSession(session.id),
-        fetchSessionMessages(session.id),
-      ]);
-      setSession(updated);
-      setMessages(msgs);
-    } catch (err) {
-      setSendError(
-        err instanceof Error ? err.message : "Failed to send message",
-      );
-    } finally {
-      setSending(false);
-    }
   }
 
   async function handleFail() {
@@ -341,56 +301,6 @@ export default function SessionDetail({
           )}
         </div>
       </section>
-
-      {/* Message thread */}
-      {messages.length > 0 && (
-        <section>
-          <h2 className={styles.sectionHeading}>Messages</h2>
-          <ul className={styles.messages}>
-            {messages.map((msg) => (
-              <li
-                key={msg.id}
-                className={`${styles.message} ${styles[`message-${msg.role}`]}`}
-              >
-                <span className={styles.messageRole}>
-                  {msg.role === "agent" ? "Agent" : "You"}
-                </span>
-                <span className={styles.messageContent}>{msg.content}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {/* Input form */}
-      {!isTerminal && (
-        <form onSubmit={handleSend} className={styles.inputForm}>
-          <textarea
-            className={styles.textarea}
-            placeholder={
-              session.status === "WAITING_FOR_INPUT"
-                ? "Reply to the agent…"
-                : "Send a message…"
-            }
-            value={replyContent}
-            onChange={(e) => setReplyContent(e.target.value)}
-            onKeyDown={(e) => {
-              if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-                handleSend(e as unknown as React.FormEvent);
-              }
-            }}
-            disabled={sending}
-          />
-          <button
-            type="submit"
-            className={styles.sendButton}
-            disabled={sending || !replyContent.trim()}
-          >
-            {sending ? "Sending…" : "Send"}
-          </button>
-        </form>
-      )}
-      {sendError && <p className={styles.error}>{sendError}</p>}
     </div>
   );
 }

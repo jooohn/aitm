@@ -12,13 +12,10 @@ import { db } from "@/backend/infra/db";
 const createSession = sessionService.createSession.bind(sessionService);
 const failSession = sessionService.failSession.bind(sessionService);
 const getSession = sessionService.getSession.bind(sessionService);
-const listMessages = sessionService.listMessages.bind(sessionService);
 const listSessions = sessionService.listSessions.bind(sessionService);
-const saveMessage = sessionService.saveMessage.bind(sessionService);
 
 vi.spyOn(agentService, "startAgent").mockResolvedValue();
 vi.spyOn(agentService, "cancelAgent").mockImplementation(() => {});
-vi.spyOn(agentService, "sendMessageToAgent").mockImplementation(() => {});
 vi.spyOn(worktreeService, "listWorktrees").mockImplementation((repoPath) => [
   {
     branch: "feat/test",
@@ -55,7 +52,6 @@ function makeFakeGitRepo(): string {
 }
 
 beforeEach(() => {
-  db.prepare("DELETE FROM session_messages").run();
   db.prepare("DELETE FROM sessions").run();
   vi.clearAllMocks();
 });
@@ -258,58 +254,6 @@ describe("getSession", () => {
 
   it("returns undefined for unknown id", () => {
     expect(getSession("nonexistent")).toBeUndefined();
-  });
-});
-
-describe("listMessages", () => {
-  it("returns messages ordered by created_at ascending", () => {
-    const repoPath = makeFakeGitRepo();
-    const session = createSession({
-      repository_path: repoPath,
-      worktree_branch: "feat/a",
-      goal: "A",
-      transitions: DEFAULT_TRANSITIONS,
-    });
-    saveMessage(session.id, "agent", "What branch?");
-    saveMessage(session.id, "user", "feature/x");
-
-    const messages = listMessages(session.id);
-    expect(messages).toHaveLength(2);
-    expect(messages[0].role).toBe("agent");
-    expect(messages[0].content).toBe("What branch?");
-    expect(messages[1].role).toBe("user");
-    expect(messages[1].content).toBe("feature/x");
-  });
-
-  it("returns empty array for session with no messages", () => {
-    const repoPath = makeFakeGitRepo();
-    const session = createSession({
-      repository_path: repoPath,
-      worktree_branch: "feat/a",
-      goal: "A",
-      transitions: DEFAULT_TRANSITIONS,
-    });
-    expect(listMessages(session.id)).toEqual([]);
-  });
-
-  it("only returns messages for the specified session", () => {
-    const repoPath = makeFakeGitRepo();
-    const s1 = createSession({
-      repository_path: repoPath,
-      worktree_branch: "feat/a",
-      goal: "A",
-      transitions: DEFAULT_TRANSITIONS,
-    });
-    const s2 = createSession({
-      repository_path: repoPath,
-      worktree_branch: "feat/b",
-      goal: "B",
-      transitions: DEFAULT_TRANSITIONS,
-    });
-    saveMessage(s1.id, "agent", "Message for s1");
-
-    expect(listMessages(s2.id)).toHaveLength(0);
-    expect(listMessages(s1.id)).toHaveLength(1);
   });
 });
 

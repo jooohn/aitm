@@ -44,10 +44,6 @@
   @apply bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300;
 }
 
-.badge-WAITING_FOR_INPUT {
-  @apply bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300;
-}
-
 .badge-SUCCEEDED {
   @apply bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300;
 }
@@ -58,14 +54,6 @@
 
 .attachCommand {
   @apply mt-1 text-xs font-mono bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 px-2 py-0.5 rounded break-all;
-}
-
-.replyForm {
-  @apply mt-2 flex gap-2;
-}
-
-.replyButton {
-  @apply shrink-0 text-sm px-3 py-1 rounded bg-zinc-900 dark:bg-zinc-100 text-zinc-50 dark:text-zinc-900 hover:bg-zinc-700 dark:hover:bg-zinc-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors;
 }
 
 .failButton {

@@ -39,7 +39,6 @@ function makeFakeGitRepo(): string {
 beforeEach(() => {
   queryMock.mockReset();
   vi.restoreAllMocks();
-  db.prepare("DELETE FROM session_messages").run();
   db.prepare("DELETE FROM sessions").run();
 });
 

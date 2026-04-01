@@ -25,7 +25,6 @@ function makeQueryParams(
     cwd: "/tmp/repo",
     permissionMode: "acceptEdits",
     abortController: new AbortController(),
-    canUseTool: async () => ({ behavior: "allow" as const, updatedInput: {} }),
     ...overrides,
   };
 }

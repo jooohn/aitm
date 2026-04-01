@@ -21,10 +21,6 @@
   @apply bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300;
 }
 
-.badge-WAITING_FOR_INPUT {
-  @apply bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300;
-}
-
 .badge-SUCCEEDED {
   @apply bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300;
 }
@@ -159,48 +155,6 @@
 
 .toolGroupBody {
   @apply pl-2 flex flex-col;
-}
-
-/* Message thread */
-.messages {
-  @apply flex flex-col gap-2;
-}
-
-.message {
-  @apply flex flex-col gap-0.5 rounded-lg px-3 py-2 text-sm;
-}
-
-.message-agent {
-  @apply bg-zinc-100 dark:bg-zinc-800 self-start max-w-[85%];
-}
-
-.message-user {
-  @apply bg-blue-50 dark:bg-blue-950 self-end max-w-[85%];
-}
-
-.messageRole {
-  @apply text-xs font-medium text-zinc-500 dark:text-zinc-400;
-}
-
-.messageContent {
-  @apply text-zinc-900 dark:text-zinc-100 whitespace-pre-wrap;
-}
-
-/* Input form */
-.inputForm {
-  @apply flex gap-2;
-}
-
-.input {
-  @apply flex-1 text-sm px-3 py-1.5 rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-500;
-}
-
-.textarea {
-  @apply flex-1 text-sm px-3 py-1.5 rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-500 resize-y min-h-16;
-}
-
-.sendButton {
-  @apply shrink-0 text-sm px-3 py-1.5 rounded bg-zinc-900 dark:bg-zinc-100 text-zinc-50 dark:text-zinc-900 hover:bg-zinc-700 dark:hover:bg-zinc-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors;
 }
 
 /* Error */

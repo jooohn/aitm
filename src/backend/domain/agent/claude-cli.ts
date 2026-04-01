@@ -1,21 +1,13 @@
 import { spawn } from "node:child_process";
-import { join } from "node:path";
 import { createInterface } from "node:readline";
 import type { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import { buildTransitionOutputFormatForClaude } from "@/backend/domain/agent/claude-common";
 import type { AgentMessage, AgentQueryParams, AgentRuntime } from "./runtime";
 
-const MCP_SERVER_PATH = join(
-  process.cwd(),
-  "scripts",
-  "mcp-ask-user-question.mjs",
-);
-
 async function* spawnClaudeQuery(
   params: AgentQueryParams,
 ): AsyncIterable<AgentMessage> {
   const {
-    sessionId,
     prompt,
     cwd,
     command,
@@ -25,19 +17,6 @@ async function* spawnClaudeQuery(
     outputFormat,
   } = params;
 
-  const mcpConfig = JSON.stringify({
-    mcpServers: {
-      aitm: {
-        command: "node",
-        args: [MCP_SERVER_PATH],
-        env: {
-          SESSION_ID: sessionId,
-          AITM_URL: `http://localhost:${process.env.PORT ?? 3000}`,
-        },
-      },
-    },
-  });
-
   const args = [
     "--print",
     "--output-format",
@@ -45,8 +24,6 @@ async function* spawnClaudeQuery(
     "--verbose",
     "--permission-mode",
     permissionMode,
-    "--mcp-config",
-    mcpConfig,
   ];
 
   if (outputFormat?.type === "json_schema") {

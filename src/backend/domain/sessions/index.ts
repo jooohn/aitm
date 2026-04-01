@@ -11,11 +11,7 @@ import type { AgentService, TransitionDecision } from "../agent";
 import type { WorktreeService } from "../worktrees";
 import type { SessionRepository } from "./session-repository";
 
-export type SessionStatus =
-  | "RUNNING"
-  | "WAITING_FOR_INPUT"
-  | "SUCCEEDED"
-  | "FAILED";
+export type SessionStatus = "RUNNING" | "SUCCEEDED" | "FAILED";
 
 export interface Session {
   id: string;
@@ -68,14 +64,6 @@ function sessionsLogDir(): string {
   }
 
   throw new Error("Unable to create a writable session log directory");
-}
-
-export interface SessionMessage {
-  id: string;
-  session_id: string;
-  role: "user" | "agent";
-  content: string;
-  created_at: string;
 }
 
 export class SessionService {
@@ -167,31 +155,6 @@ export class SessionService {
     this.sessionRepository.setSessionFailed(id, now);
 
     return this.getSession(id) as Session;
-  }
-
-  listMessages(sessionId: string): SessionMessage[] {
-    return this.sessionRepository.listMessages(sessionId);
-  }
-
-  saveMessage(
-    sessionId: string,
-    role: "user" | "agent",
-    content: string,
-  ): void {
-    this.sessionRepository.insertMessage(sessionId, role, content);
-  }
-
-  sendUserMessage(sessionId: string, content: string): void {
-    const session = this.getSession(sessionId);
-    if (!session) throw new Error(`Session not found: ${sessionId}`);
-    if (session.status !== "WAITING_FOR_INPUT") {
-      throw new Error(
-        `Session is not waiting for input (status: ${session.status})`,
-      );
-    }
-
-    this.saveMessage(sessionId, "user", content);
-    this.agentService.sendMessageToAgent(sessionId, content);
   }
 
   deleteWorktreeData(repositoryPath: string, branches: string[]): void {

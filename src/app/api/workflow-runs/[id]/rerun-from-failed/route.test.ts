@@ -55,7 +55,6 @@ beforeEach(() => {
   process.env.AITM_CONFIG_PATH = configFile;
   writeFileSync(configFile, WORKFLOW_CONFIG);
 
-  db.prepare("DELETE FROM session_messages").run();
   db.prepare("DELETE FROM sessions").run();
   db.prepare("DELETE FROM state_executions").run();
   db.prepare("DELETE FROM workflow_runs").run();

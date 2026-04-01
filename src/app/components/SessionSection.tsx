@@ -7,7 +7,6 @@ import {
   fetchSessions,
   type Session,
   type SessionStatus,
-  sendMessage,
 } from "@/lib/utils/api";
 import styles from "./SessionSection.module.css";
 
@@ -18,7 +17,6 @@ interface Props {
 
 const STATUS_LABELS: Record<SessionStatus, string> = {
   RUNNING: "Running",
-  WAITING_FOR_INPUT: "Waiting for input",
   SUCCEEDED: "Succeeded",
   FAILED: "Failed",
 };
@@ -31,9 +29,6 @@ export default function SessionSection({ repositoryPath, branch }: Props) {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [failingId, setFailingId] = useState<string | null>(null);
   const [failError, setFailError] = useState<string | null>(null);
-  const [replyContent, setReplyContent] = useState<Record<string, string>>({});
-  const [sendingReplyId, setSendingReplyId] = useState<string | null>(null);
-  const [replyError, setReplyError] = useState<string | null>(null);
 
   async function load() {
     setLoading(true);
@@ -66,25 +61,6 @@ export default function SessionSection({ repositoryPath, branch }: Props) {
       );
     } finally {
       setFailingId(null);
-    }
-  }
-
-  async function handleReply(e: React.FormEvent, session: Session) {
-    e.preventDefault();
-    const content = replyContent[session.id]?.trim();
-    if (!content) return;
-    setSendingReplyId(session.id);
-    setReplyError(null);
-    try {
-      await sendMessage(session.id, content);
-      setReplyContent((prev) => ({ ...prev, [session.id]: "" }));
-      await load();
-    } catch (err) {
-      setReplyError(
-        err instanceof Error ? err.message : "Failed to send message",
-      );
-    } finally {
-      setSendingReplyId(null);
     }
   }
 
@@ -122,40 +98,6 @@ export default function SessionSection({ repositoryPath, branch }: Props) {
                     {session.terminal_attach_command}
                   </code>
                 )}
-                {session.status === "WAITING_FOR_INPUT" && (
-                  <form
-                    onSubmit={(e) => handleReply(e, session)}
-                    className={styles.replyForm}
-                  >
-                    <textarea
-                      className={styles.textarea}
-                      placeholder="Your reply…"
-                      value={replyContent[session.id] ?? ""}
-                      onChange={(e) =>
-                        setReplyContent((prev) => ({
-                          ...prev,
-                          [session.id]: e.target.value,
-                        }))
-                      }
-                      onKeyDown={(e) => {
-                        if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-                          handleReply(e as unknown as React.FormEvent, session);
-                        }
-                      }}
-                      disabled={sendingReplyId === session.id}
-                    />
-                    <button
-                      type="submit"
-                      className={styles.replyButton}
-                      disabled={
-                        sendingReplyId === session.id ||
-                        !replyContent[session.id]?.trim()
-                      }
-                    >
-                      {sendingReplyId === session.id ? "Sending…" : "Send"}
-                    </button>
-                  </form>
-                )}
               </div>
               {!TERMINAL_STATUSES.includes(session.status) && (
                 <button
@@ -173,7 +115,6 @@ export default function SessionSection({ repositoryPath, branch }: Props) {
       )}
 
       {failError && <p className={styles.error}>{failError}</p>}
-      {replyError && <p className={styles.error}>{replyError}</p>}
     </section>
   );
 }

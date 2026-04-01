@@ -1,6 +1,5 @@
 import type Database from "better-sqlite3";
-import { randomUUID } from "crypto";
-import type { ListSessionsFilter, Session, SessionMessage } from "./index";
+import type { ListSessionsFilter, Session } from "./index";
 
 export class SessionRepository {
   constructor(private db: Database.Database) {}
@@ -21,14 +20,6 @@ export class SessionRepository {
         state_execution_id      TEXT    REFERENCES state_executions(id),
         created_at              TEXT    NOT NULL,
         updated_at              TEXT    NOT NULL
-      );
-
-      CREATE TABLE IF NOT EXISTS session_messages (
-        id         TEXT    PRIMARY KEY,
-        session_id TEXT    NOT NULL REFERENCES sessions(id),
-        role       TEXT    NOT NULL,
-        content    TEXT    NOT NULL,
-        created_at TEXT    NOT NULL
       );
     `);
   }
@@ -113,28 +104,6 @@ export class SessionRepository {
       .run(now, id);
   }
 
-  listMessages(sessionId: string): SessionMessage[] {
-    return this.db
-      .prepare(
-        "SELECT * FROM session_messages WHERE session_id = ? ORDER BY created_at ASC",
-      )
-      .all(sessionId) as SessionMessage[];
-  }
-
-  insertMessage(
-    sessionId: string,
-    role: "user" | "agent",
-    content: string,
-  ): void {
-    const now = new Date().toISOString();
-    this.db
-      .prepare(
-        `INSERT INTO session_messages (id, session_id, role, content, created_at)
-       VALUES (?, ?, ?, ?, ?)`,
-      )
-      .run(randomUUID(), sessionId, role, content, now);
-  }
-
   /**
    * Deletes all session and workflow data for the given worktree branches within
    * a single transaction. Returns the log file paths of deleted sessions so the
@@ -156,13 +125,6 @@ export class SessionRepository {
       .all(...params) as { log_file_path: string }[];
 
     this.db.transaction(() => {
-      this.db
-        .prepare(
-          `DELETE FROM session_messages WHERE session_id IN (
-           SELECT id FROM sessions WHERE repository_path = ? AND worktree_branch IN (${placeholders})
-         )`,
-        )
-        .run(...params);
       this.db
         .prepare(
           `DELETE FROM sessions WHERE repository_path = ? AND worktree_branch IN (${placeholders})`,
@@ -190,7 +152,7 @@ export class SessionRepository {
     this.db
       .prepare(
         `UPDATE sessions SET status = 'FAILED', updated_at = ?
-       WHERE status IN ('RUNNING', 'WAITING_FOR_INPUT')`,
+       WHERE status = 'RUNNING'`,
       )
       .run(now);
   }
