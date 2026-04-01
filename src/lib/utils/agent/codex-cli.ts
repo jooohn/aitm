@@ -92,8 +92,10 @@ async function* spawnCodexQuery(
     args.push("--model", model);
   }
 
-  const child = spawn(command ?? "codex", args, {
-    cwd,
+  const spawnInput = { command: command ?? "codex", args, cwd };
+  console.log(JSON.stringify(spawnInput));
+  const child = spawn(spawnInput.command, spawnInput.args, {
+    cwd: spawnInput.cwd,
     stdio: ["pipe", "pipe", "pipe"],
   });
 
@@ -137,6 +139,7 @@ async function* spawnCodexQuery(
       let event: unknown;
       try {
         event = JSON.parse(line);
+        console.log(JSON.stringify({ message: "codex line output", event }));
       } catch {
         continue;
       }
