@@ -31,4 +31,4 @@ export class EventBus {
   }
 }
 
-export const eventHandler = new EventBus();
+export const eventBus = new EventBus();

@@ -7,7 +7,7 @@ import {
   getAgentConfig,
   type WorkflowTransition,
 } from "@/backend/infra/config";
-import { eventHandler } from "@/backend/infra/event-bus";
+import type { EventBus } from "@/backend/infra/event-bus";
 import type { AgentService, TransitionDecision } from "../agent";
 import type { WorktreeService } from "../worktrees";
 import type { SessionRepository } from "./session-repository";
@@ -76,13 +76,14 @@ export class SessionService {
     private sessionRepository: SessionRepository,
     private agentService: AgentService,
     private worktreeService: WorktreeService,
+    private eventBus: EventBus,
   ) {}
 
   private buildOnComplete(
     sessionId: string,
   ): (decision: TransitionDecision | null) => void {
     return (decision) =>
-      eventHandler.emit("session.completed", { sessionId, decision });
+      this.eventBus.emit("session.completed", { sessionId, decision });
   }
 
   createSession(input: CreateSessionInput): Session {
@@ -120,7 +121,10 @@ export class SessionService {
         err instanceof Error ? err.message : err,
       );
       this.sessionRepository.setSessionFailed(id, now);
-      eventHandler.emit("session.completed", { sessionId: id, decision: null });
+      this.eventBus.emit("session.completed", {
+        sessionId: id,
+        decision: null,
+      });
       return this.getSession(id) as Session;
     }
 

@@ -7,6 +7,7 @@ import { WorkflowRunService } from "@/backend/domain/workflow-runs";
 import { WorkflowRunRepository } from "@/backend/domain/workflow-runs/workflow-run-repository";
 import { WorktreeService } from "@/backend/domain/worktrees";
 import { db } from "@/backend/infra/db";
+import { eventBus } from "@/backend/infra/event-bus";
 
 export const workflowRunRepository = new WorkflowRunRepository(db);
 export const sessionRepository = new SessionRepository(db);
@@ -17,11 +18,13 @@ export const sessionService = new SessionService(
   sessionRepository,
   agentService,
   worktreeService,
+  eventBus,
 );
 export const workflowRunService = new WorkflowRunService(
   workflowRunRepository,
   sessionService,
   worktreeService,
+  eventBus,
 );
 export const houseKeepingService = new HouseKeepingService(
   sessionService,

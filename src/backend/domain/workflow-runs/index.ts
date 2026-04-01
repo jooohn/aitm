@@ -5,7 +5,7 @@ import {
   resolveAgentConfig,
   type WorkflowTransition,
 } from "@/backend/infra/config";
-import { eventHandler } from "@/backend/infra/event-bus";
+import type { EventBus } from "@/backend/infra/event-bus";
 import { type TransitionDecision } from "../agent";
 import type { SessionService, SessionStatus } from "../sessions";
 import type { WorktreeService } from "../worktrees";
@@ -109,8 +109,9 @@ export class WorkflowRunService {
     private workflowRunRepository: WorkflowRunRepository,
     private sessionService: SessionService,
     private worktreeService: WorktreeService,
+    eventBus: EventBus,
   ) {
-    eventHandler.on("session.completed", ({ sessionId, decision }) => {
+    eventBus.on("session.completed", ({ sessionId, decision }) => {
       this.handleSessionComplete(sessionId, decision);
     });
   }
