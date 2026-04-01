@@ -3,13 +3,26 @@ import { NextRequest } from "next/server";
 import { tmpdir } from "os";
 import { join } from "path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { agentService, sessionService } from "@/backend/container";
+import {
+  agentService,
+  sessionService,
+  worktreeService,
+} from "@/backend/container";
 import { db } from "@/backend/infra/db";
 import { POST } from "./route";
 
 vi.spyOn(agentService, "startAgent").mockResolvedValue();
+vi.spyOn(agentService, "resumeAgent").mockResolvedValue();
 vi.spyOn(agentService, "cancelAgent").mockImplementation(() => {});
-vi.spyOn(agentService, "provideInput").mockImplementation(() => {});
+vi.spyOn(worktreeService, "listWorktrees").mockImplementation((repoPath) => [
+  {
+    branch: "feat/test",
+    path: repoPath,
+    is_main: false,
+    is_bare: false,
+    head: "HEAD",
+  },
+]);
 
 const createSession = sessionService.createSession.bind(sessionService);
 
@@ -31,7 +44,7 @@ beforeEach(() => {
 });
 
 describe("POST /api/sessions/:id/reply", () => {
-  it("returns 200 and calls provideInput for AWAITING_INPUT session", async () => {
+  it("returns 200 and calls resumeAgent for AWAITING_INPUT session", async () => {
     const session = createSession({
       repository_path: makeFakeGitRepo(),
       worktree_branch: "feat/test",
@@ -51,9 +64,14 @@ describe("POST /api/sessions/:id/reply", () => {
     );
 
     expect(res.status).toBe(200);
-    expect(agentService.provideInput).toHaveBeenCalledWith(
+    expect(agentService.resumeAgent).toHaveBeenCalledWith(
       session.id,
       "Use PostgreSQL",
+      expect.any(String),
+      expect.any(Array),
+      expect.any(Object),
+      session.log_file_path,
+      expect.any(Function),
     );
   });
 

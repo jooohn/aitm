@@ -49,6 +49,11 @@ export interface ListSessionsFilter {
   status?: SessionStatus;
 }
 
+export type SessionCompleteListener = (
+  sessionId: string,
+  decision: TransitionDecision | null,
+) => void;
+
 function sessionsLogDir(): string {
   const candidates = [
     process.env.AITM_SESSION_LOG_DIR,
@@ -71,16 +76,38 @@ function sessionsLogDir(): string {
 }
 
 export class SessionService {
+  private listeners: SessionCompleteListener[] = [];
+
   constructor(
     private sessionRepository: SessionRepository,
     private agentService: AgentService,
     private worktreeService: WorktreeService,
   ) {}
 
-  createSession(
-    input: CreateSessionInput,
-    onComplete?: (decision: TransitionDecision | null) => void,
-  ): Session {
+  onSessionComplete(listener: SessionCompleteListener): void {
+    this.listeners.push(listener);
+  }
+
+  private emitSessionComplete(
+    sessionId: string,
+    decision: TransitionDecision | null,
+  ): void {
+    for (const listener of this.listeners) {
+      try {
+        listener(sessionId, decision);
+      } catch (err) {
+        console.error("SessionComplete listener error:", err);
+      }
+    }
+  }
+
+  private buildOnComplete(
+    sessionId: string,
+  ): (decision: TransitionDecision | null) => void {
+    return (decision) => this.emitSessionComplete(sessionId, decision);
+  }
+
+  createSession(input: CreateSessionInput): Session {
     const id = randomUUID();
     const now = new Date().toISOString();
     const log_file_path = join(sessionsLogDir(), `${id}.log`);
@@ -115,7 +142,7 @@ export class SessionService {
         err instanceof Error ? err.message : err,
       );
       this.sessionRepository.setSessionFailed(id, now);
-      onComplete?.(null);
+      this.emitSessionComplete(id, null);
       return this.getSession(id) as Session;
     }
 
@@ -127,7 +154,7 @@ export class SessionService {
         input.transitions,
         agentConfig,
         log_file_path,
-        onComplete,
+        this.buildOnComplete(id),
       )
       .catch(console.error);
 
@@ -170,7 +197,38 @@ export class SessionService {
       throw new Error(`Session ${id} is not awaiting input`);
     }
 
-    this.agentService.provideInput(id, message);
+    const transitions: WorkflowTransition[] = JSON.parse(session.transitions);
+    const agentConfig = getAgentConfig();
+
+    let cwd: string;
+    try {
+      const worktrees = this.worktreeService.listWorktrees(
+        session.repository_path,
+      );
+      const worktree = worktrees.find(
+        (w) => w.branch === session.worktree_branch,
+      );
+      if (!worktree) {
+        throw new Error(`Worktree not found: ${session.worktree_branch}`);
+      }
+      cwd = worktree.path;
+    } catch (err) {
+      throw new Error(
+        `Failed to resolve worktree: ${err instanceof Error ? err.message : err}`,
+      );
+    }
+
+    this.agentService
+      .resumeAgent(
+        id,
+        message,
+        cwd,
+        transitions,
+        agentConfig,
+        session.log_file_path,
+        this.buildOnComplete(id),
+      )
+      .catch(console.error);
   }
 
   deleteWorktreeData(repositoryPath: string, branches: string[]): void {
@@ -190,8 +248,9 @@ export class SessionService {
     }
   }
 
-  // Mark any sessions left in a non-terminal state as FAILED.
-  // Called on startup so that sessions from a previous server run are recovered.
+  // Mark any RUNNING sessions as FAILED on startup.
+  // AWAITING_INPUT sessions survive restarts since they don't depend on
+  // in-memory state.
   recoverCrashedSessions(): void {
     this.sessionRepository.recoverCrashedSessions();
   }

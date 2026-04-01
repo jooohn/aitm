@@ -44,6 +44,33 @@ function makeFakeGitRepo(): string {
   return dir;
 }
 
+function insertSession(
+  sessionId: string,
+  repoPath: string,
+  logFilePath: string,
+  opts?: { status?: string; claude_session_id?: string },
+) {
+  const now = new Date().toISOString();
+  db.prepare(
+    `INSERT INTO sessions
+       (id, repository_path, worktree_branch, goal, transitions,
+        transition_decision, status, terminal_attach_command, log_file_path,
+        claude_session_id, state_execution_id, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, NULL, ?, NULL, ?, ?, NULL, ?, ?)`,
+  ).run(
+    sessionId,
+    repoPath,
+    "feat/test",
+    "Goal",
+    JSON.stringify([{ terminal: "success", when: "done" }]),
+    opts?.status ?? "RUNNING",
+    logFilePath,
+    opts?.claude_session_id ?? null,
+    now,
+    now,
+  );
+}
+
 beforeEach(() => {
   queryMock.mockReset();
   resumeMock.mockReset();
@@ -52,33 +79,98 @@ beforeEach(() => {
 });
 
 const startAgent = agentService.startAgent.bind(agentService);
-const provideInput = agentService.provideInput.bind(agentService);
-const cancelAgent = agentService.cancelAgent.bind(agentService);
+const resumeAgent = agentService.resumeAgent.bind(agentService);
 
 describe("startAgent", () => {
+  it("sets AWAITING_INPUT and returns when agent selects __REQUIRE_USER_INPUT__", async () => {
+    const repoPath = makeFakeGitRepo();
+    const sessionId = "session-user-input";
+    const logFilePath = join(tmpdir(), `${sessionId}.log`);
+    const onComplete = vi.fn();
+    insertSession(sessionId, repoPath, logFilePath);
+
+    queryMock.mockImplementation(async function* () {
+      yield {
+        type: "system",
+        subtype: "init",
+        session_id: "agent-session-123",
+      };
+      yield {
+        type: "result",
+        subtype: "success",
+        structured_output: {
+          transition: "__REQUIRE_USER_INPUT__",
+          reason: "Need clarification",
+          handoff_summary: "What database should I use?",
+        },
+      };
+    });
+
+    await startAgent(
+      sessionId,
+      repoPath,
+      "Goal",
+      [{ terminal: "success", when: "done" }],
+      agentConfig,
+      logFilePath,
+      onComplete,
+    );
+
+    // Session should be AWAITING_INPUT
+    const row = db
+      .prepare("SELECT status FROM sessions WHERE id = ?")
+      .get(sessionId) as { status: string };
+    expect(row.status).toBe("AWAITING_INPUT");
+
+    // onComplete should NOT have been called
+    expect(onComplete).not.toHaveBeenCalled();
+  });
+
+  it("sets SUCCEEDED when agent completes with a real transition", async () => {
+    const repoPath = makeFakeGitRepo();
+    const sessionId = "session-success";
+    const logFilePath = join(tmpdir(), `${sessionId}.log`);
+    const onComplete = vi.fn();
+    insertSession(sessionId, repoPath, logFilePath);
+
+    queryMock.mockImplementation(async function* () {
+      yield { type: "system", subtype: "init", session_id: "agent-1" };
+      yield {
+        type: "result",
+        subtype: "success",
+        structured_output: {
+          transition: "success",
+          reason: "done",
+          handoff_summary: "All done",
+        },
+      };
+    });
+
+    await startAgent(
+      sessionId,
+      repoPath,
+      "Goal",
+      [{ terminal: "success", when: "done" }],
+      agentConfig,
+      logFilePath,
+      onComplete,
+    );
+
+    const row = db
+      .prepare("SELECT status FROM sessions WHERE id = ?")
+      .get(sessionId) as { status: string };
+    expect(row.status).toBe("SUCCEEDED");
+    expect(onComplete).toHaveBeenCalledWith(
+      expect.objectContaining({ transition: "success" }),
+    );
+  });
+
   it("does not launch the runtime when the session is already terminal before startup continues", async () => {
     const repoPath = makeFakeGitRepo();
     const sessionId = "session-stopped-before-start";
-    const now = new Date().toISOString();
     const logFilePath = join(tmpdir(), `${sessionId}.log`);
     const onComplete = vi.fn();
-
-    db.prepare(
-      `INSERT INTO sessions
-         (id, repository_path, worktree_branch, goal, transitions,
-          transition_decision, status, terminal_attach_command, log_file_path,
-          claude_session_id, state_execution_id, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, NULL, 'RUNNING', NULL, ?, NULL, NULL, ?, ?)`,
-    ).run(
-      sessionId,
-      repoPath,
-      "feat/test",
-      "Goal",
-      JSON.stringify([{ terminal: "success", when: "done" }]),
-      logFilePath,
-      now,
-      now,
-    );
+    insertSession(sessionId, repoPath, logFilePath);
 
     queryMock.mockImplementation(async function* () {
       yield {
@@ -115,313 +207,12 @@ describe("startAgent", () => {
     ).toEqual({ status: "FAILED" });
   });
 
-  it("pauses session as AWAITING_INPUT when agent selects __REQUIRE_USER_INPUT__ and resumes on provideInput", async () => {
-    const repoPath = makeFakeGitRepo();
-    const sessionId = "session-user-input";
-    const now = new Date().toISOString();
-    const logFilePath = join(tmpdir(), `${sessionId}.log`);
-    const onComplete = vi.fn();
-
-    db.prepare(
-      `INSERT INTO sessions
-         (id, repository_path, worktree_branch, goal, transitions,
-          transition_decision, status, terminal_attach_command, log_file_path,
-          claude_session_id, state_execution_id, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, NULL, 'RUNNING', NULL, ?, NULL, NULL, ?, ?)`,
-    ).run(
-      sessionId,
-      repoPath,
-      "feat/test",
-      "Goal",
-      JSON.stringify([{ terminal: "success", when: "done" }]),
-      logFilePath,
-      now,
-      now,
-    );
-
-    // First call: agent requests user input
-    queryMock.mockImplementation(async function* () {
-      yield {
-        type: "system",
-        subtype: "init",
-        session_id: "agent-session-123",
-      };
-      yield {
-        type: "result",
-        subtype: "success",
-        structured_output: {
-          transition: "__REQUIRE_USER_INPUT__",
-          reason: "Need clarification",
-          handoff_summary: "What database should I use?",
-        },
-      };
-    });
-
-    // Second call (resume): agent completes normally
-    resumeMock.mockImplementation(async function* () {
-      yield {
-        type: "result",
-        subtype: "success",
-        structured_output: {
-          transition: "success",
-          reason: "done",
-          handoff_summary: "Used PostgreSQL as instructed",
-        },
-      };
-    });
-
-    const startPromise = startAgent(
-      sessionId,
-      repoPath,
-      "Goal",
-      [{ terminal: "success", when: "done" }],
-      agentConfig,
-      logFilePath,
-      onComplete,
-    );
-
-    // Wait for the session to reach AWAITING_INPUT
-    await vi.waitFor(() => {
-      const row = db
-        .prepare("SELECT status FROM sessions WHERE id = ?")
-        .get(sessionId) as { status: string };
-      expect(row.status).toBe("AWAITING_INPUT");
-    });
-
-    // onComplete should NOT have been called yet
-    expect(onComplete).not.toHaveBeenCalled();
-
-    // Provide user input to resume the session
-    provideInput(sessionId, "Use PostgreSQL");
-
-    await startPromise;
-
-    // Session should now be SUCCEEDED
-    const row = db
-      .prepare("SELECT status, transition_decision FROM sessions WHERE id = ?")
-      .get(sessionId) as { status: string; transition_decision: string };
-    expect(row.status).toBe("SUCCEEDED");
-    const decision = JSON.parse(row.transition_decision);
-    expect(decision.transition).toBe("success");
-
-    // onComplete called with real transition decision
-    expect(onComplete).toHaveBeenCalledWith(
-      expect.objectContaining({ transition: "success" }),
-    );
-
-    // resume was called with user input
-    expect(resumeMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        agentSessionId: "agent-session-123",
-        prompt: "Use PostgreSQL",
-      }),
-    );
-  });
-
-  it("supports multiple rounds of user input", async () => {
-    const repoPath = makeFakeGitRepo();
-    const sessionId = "session-multi-input";
-    const now = new Date().toISOString();
-    const logFilePath = join(tmpdir(), `${sessionId}.log`);
-    const onComplete = vi.fn();
-
-    db.prepare(
-      `INSERT INTO sessions
-         (id, repository_path, worktree_branch, goal, transitions,
-          transition_decision, status, terminal_attach_command, log_file_path,
-          claude_session_id, state_execution_id, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, NULL, 'RUNNING', NULL, ?, NULL, NULL, ?, ?)`,
-    ).run(
-      sessionId,
-      repoPath,
-      "feat/test",
-      "Goal",
-      JSON.stringify([{ terminal: "success", when: "done" }]),
-      logFilePath,
-      now,
-      now,
-    );
-
-    // Initial query: request user input
-    queryMock.mockImplementation(async function* () {
-      yield {
-        type: "system",
-        subtype: "init",
-        session_id: "agent-session-456",
-      };
-      yield {
-        type: "result",
-        subtype: "success",
-        structured_output: {
-          transition: "__REQUIRE_USER_INPUT__",
-          reason: "Need DB choice",
-          handoff_summary: "Which DB?",
-        },
-      };
-    });
-
-    let resumeCallCount = 0;
-    resumeMock.mockImplementation(async function* () {
-      resumeCallCount++;
-      if (resumeCallCount === 1) {
-        // Second round: request more input
-        yield {
-          type: "result",
-          subtype: "success",
-          structured_output: {
-            transition: "__REQUIRE_USER_INPUT__",
-            reason: "Need port",
-            handoff_summary: "Which port?",
-          },
-        };
-      } else {
-        // Third round: complete
-        yield {
-          type: "result",
-          subtype: "success",
-          structured_output: {
-            transition: "success",
-            reason: "done",
-            handoff_summary: "All done",
-          },
-        };
-      }
-    });
-
-    const startPromise = startAgent(
-      sessionId,
-      repoPath,
-      "Goal",
-      [{ terminal: "success", when: "done" }],
-      agentConfig,
-      logFilePath,
-      onComplete,
-    );
-
-    // First AWAITING_INPUT
-    await vi.waitFor(() => {
-      const row = db
-        .prepare("SELECT status FROM sessions WHERE id = ?")
-        .get(sessionId) as { status: string };
-      expect(row.status).toBe("AWAITING_INPUT");
-    });
-    provideInput(sessionId, "PostgreSQL");
-
-    // Second AWAITING_INPUT
-    await vi.waitFor(() => {
-      // Must wait for status to cycle back to AWAITING_INPUT after being RUNNING
-      const row = db
-        .prepare("SELECT status FROM sessions WHERE id = ?")
-        .get(sessionId) as { status: string };
-      // resumeCallCount === 1 means the first resume happened
-      expect(resumeCallCount).toBeGreaterThanOrEqual(1);
-      expect(row.status).toBe("AWAITING_INPUT");
-    });
-    provideInput(sessionId, "5432");
-
-    await startPromise;
-
-    const row = db
-      .prepare("SELECT status FROM sessions WHERE id = ?")
-      .get(sessionId) as { status: string };
-    expect(row.status).toBe("SUCCEEDED");
-    expect(resumeMock).toHaveBeenCalledTimes(2);
-  });
-
-  it("cancelAgent cleans up pending input and fails the session", async () => {
-    const repoPath = makeFakeGitRepo();
-    const sessionId = "session-cancel-input";
-    const now = new Date().toISOString();
-    const logFilePath = join(tmpdir(), `${sessionId}.log`);
-    const onComplete = vi.fn();
-
-    db.prepare(
-      `INSERT INTO sessions
-         (id, repository_path, worktree_branch, goal, transitions,
-          transition_decision, status, terminal_attach_command, log_file_path,
-          claude_session_id, state_execution_id, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, NULL, 'RUNNING', NULL, ?, NULL, NULL, ?, ?)`,
-    ).run(
-      sessionId,
-      repoPath,
-      "feat/test",
-      "Goal",
-      JSON.stringify([{ terminal: "success", when: "done" }]),
-      logFilePath,
-      now,
-      now,
-    );
-
-    queryMock.mockImplementation(async function* () {
-      yield {
-        type: "system",
-        subtype: "init",
-        session_id: "agent-session-789",
-      };
-      yield {
-        type: "result",
-        subtype: "success",
-        structured_output: {
-          transition: "__REQUIRE_USER_INPUT__",
-          reason: "Need info",
-          handoff_summary: "Question?",
-        },
-      };
-    });
-
-    const startPromise = startAgent(
-      sessionId,
-      repoPath,
-      "Goal",
-      [{ terminal: "success", when: "done" }],
-      agentConfig,
-      logFilePath,
-      onComplete,
-    );
-
-    // Wait for AWAITING_INPUT
-    await vi.waitFor(() => {
-      const row = db
-        .prepare("SELECT status FROM sessions WHERE id = ?")
-        .get(sessionId) as { status: string };
-      expect(row.status).toBe("AWAITING_INPUT");
-    });
-
-    // Cancel the agent
-    cancelAgent(sessionId);
-
-    await startPromise;
-
-    // The session should reach FAILED (set by the finally block / fallback)
-    const row = db
-      .prepare("SELECT status FROM sessions WHERE id = ?")
-      .get(sessionId) as { status: string };
-    expect(row.status).toBe("FAILED");
-  });
-
   it("completes the session when it becomes terminal after cwd is set but before runtime launch", async () => {
     const repoPath = makeFakeGitRepo();
     const sessionId = "session-stopped-before-runtime";
-    const now = new Date().toISOString();
     const logFilePath = join(tmpdir(), `${sessionId}.log`);
     const onComplete = vi.fn();
-
-    db.prepare(
-      `INSERT INTO sessions
-         (id, repository_path, worktree_branch, goal, transitions,
-          transition_decision, status, terminal_attach_command, log_file_path,
-          claude_session_id, state_execution_id, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, NULL, 'RUNNING', NULL, ?, NULL, NULL, ?, ?)`,
-    ).run(
-      sessionId,
-      repoPath,
-      "feat/test",
-      "Goal",
-      JSON.stringify([{ terminal: "success", when: "done" }]),
-      logFilePath,
-      now,
-      now,
-    );
+    insertSession(sessionId, repoPath, logFilePath);
 
     // Mark session as FAILED before startAgent's second terminal check
     db.prepare("UPDATE sessions SET status = 'FAILED' WHERE id = ?").run(
@@ -443,5 +234,131 @@ describe("startAgent", () => {
     expect(
       db.prepare("SELECT status FROM sessions WHERE id = ?").get(sessionId),
     ).toEqual({ status: "FAILED" });
+  });
+});
+
+describe("resumeAgent", () => {
+  it("resumes agent and sets SUCCEEDED when agent completes with a real transition", async () => {
+    const repoPath = makeFakeGitRepo();
+    const sessionId = "session-resume-success";
+    const logFilePath = join(tmpdir(), `${sessionId}.log`);
+    const onComplete = vi.fn();
+    insertSession(sessionId, repoPath, logFilePath, {
+      status: "AWAITING_INPUT",
+      claude_session_id: "agent-session-123",
+    });
+
+    resumeMock.mockImplementation(async function* () {
+      yield {
+        type: "result",
+        subtype: "success",
+        structured_output: {
+          transition: "success",
+          reason: "done",
+          handoff_summary: "Used PostgreSQL",
+        },
+      };
+    });
+
+    await resumeAgent(
+      sessionId,
+      "Use PostgreSQL",
+      repoPath,
+      [{ terminal: "success", when: "done" }],
+      agentConfig,
+      logFilePath,
+      onComplete,
+    );
+
+    const row = db
+      .prepare("SELECT status, transition_decision FROM sessions WHERE id = ?")
+      .get(sessionId) as { status: string; transition_decision: string };
+    expect(row.status).toBe("SUCCEEDED");
+    expect(JSON.parse(row.transition_decision).transition).toBe("success");
+
+    expect(onComplete).toHaveBeenCalledWith(
+      expect.objectContaining({ transition: "success" }),
+    );
+
+    expect(resumeMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        agentSessionId: "agent-session-123",
+        prompt: "Use PostgreSQL",
+      }),
+    );
+  });
+
+  it("sets AWAITING_INPUT again when agent requests more input", async () => {
+    const repoPath = makeFakeGitRepo();
+    const sessionId = "session-resume-more-input";
+    const logFilePath = join(tmpdir(), `${sessionId}.log`);
+    const onComplete = vi.fn();
+    insertSession(sessionId, repoPath, logFilePath, {
+      status: "AWAITING_INPUT",
+      claude_session_id: "agent-session-456",
+    });
+
+    resumeMock.mockImplementation(async function* () {
+      yield {
+        type: "result",
+        subtype: "success",
+        structured_output: {
+          transition: "__REQUIRE_USER_INPUT__",
+          reason: "Need port",
+          handoff_summary: "Which port?",
+        },
+      };
+    });
+
+    await resumeAgent(
+      sessionId,
+      "PostgreSQL",
+      repoPath,
+      [{ terminal: "success", when: "done" }],
+      agentConfig,
+      logFilePath,
+      onComplete,
+    );
+
+    const row = db
+      .prepare("SELECT status FROM sessions WHERE id = ?")
+      .get(sessionId) as { status: string };
+    expect(row.status).toBe("AWAITING_INPUT");
+    expect(onComplete).not.toHaveBeenCalled();
+  });
+
+  it("sets FAILED when resume produces an error result", async () => {
+    const repoPath = makeFakeGitRepo();
+    const sessionId = "session-resume-error";
+    const logFilePath = join(tmpdir(), `${sessionId}.log`);
+    const onComplete = vi.fn();
+    insertSession(sessionId, repoPath, logFilePath, {
+      status: "AWAITING_INPUT",
+      claude_session_id: "agent-session-789",
+    });
+
+    resumeMock.mockImplementation(async function* () {
+      yield {
+        type: "result",
+        subtype: "error",
+        result: "Something went wrong",
+      };
+    });
+
+    await resumeAgent(
+      sessionId,
+      "PostgreSQL",
+      repoPath,
+      [{ terminal: "success", when: "done" }],
+      agentConfig,
+      logFilePath,
+      onComplete,
+    );
+
+    const row = db
+      .prepare("SELECT status FROM sessions WHERE id = ?")
+      .get(sessionId) as { status: string };
+    expect(row.status).toBe("FAILED");
+    expect(onComplete).toHaveBeenCalledWith(null);
   });
 });

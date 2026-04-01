@@ -108,7 +108,20 @@ export class WorkflowRunService {
     private workflowRunRepository: WorkflowRunRepository,
     private sessionService: SessionService,
     private worktreeService: WorktreeService,
-  ) {}
+  ) {
+    this.sessionService.onSessionComplete((sessionId, decision) => {
+      this.handleSessionComplete(sessionId, decision);
+    });
+  }
+
+  private handleSessionComplete(
+    sessionId: string,
+    decision: TransitionDecision | null,
+  ): void {
+    const session = this.sessionService.getSession(sessionId);
+    if (!session?.state_execution_id) return;
+    this.completeStateExecution(session.state_execution_id, decision);
+  }
 
   private startStateExecution(
     workflowRunId: string,
@@ -202,19 +215,14 @@ export class WorkflowRunService {
       now,
     });
 
-    this.sessionService.createSession(
-      {
-        repository_path: repositoryPath,
-        worktree_branch: worktreeBranch,
-        goal,
-        transitions: stateDef.transitions as WorkflowTransition[],
-        agent_config: agentConfig,
-        state_execution_id: executionId,
-      },
-      (decision) => {
-        this.completeStateExecution(executionId, decision);
-      },
-    );
+    this.sessionService.createSession({
+      repository_path: repositoryPath,
+      worktree_branch: worktreeBranch,
+      goal,
+      transitions: stateDef.transitions as WorkflowTransition[],
+      agent_config: agentConfig,
+      state_execution_id: executionId,
+    });
 
     return this.workflowRunRepository.getStateExecution(
       executionId,

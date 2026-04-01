@@ -152,7 +152,7 @@ export class SessionRepository {
     this.db
       .prepare(
         `UPDATE sessions SET status = 'FAILED', updated_at = ?
-       WHERE status IN ('RUNNING', 'AWAITING_INPUT')`,
+       WHERE status = 'RUNNING'`,
       )
       .run(now);
   }

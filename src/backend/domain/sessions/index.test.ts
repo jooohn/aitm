@@ -16,8 +16,8 @@ const getSession = sessionService.getSession.bind(sessionService);
 const listSessions = sessionService.listSessions.bind(sessionService);
 
 vi.spyOn(agentService, "startAgent").mockResolvedValue();
+vi.spyOn(agentService, "resumeAgent").mockResolvedValue();
 vi.spyOn(agentService, "cancelAgent").mockImplementation(() => {});
-vi.spyOn(agentService, "provideInput").mockImplementation(() => {});
 vi.spyOn(worktreeService, "listWorktrees").mockImplementation((repoPath) => [
   {
     branch: "feat/test",
@@ -102,7 +102,7 @@ describe("createSession", () => {
       DEFAULT_TRANSITIONS,
       agentConfig,
       session.log_file_path,
-      undefined,
+      expect.any(Function),
     );
   });
 
@@ -146,7 +146,7 @@ workflows: {}
           command: "/opt/homebrew/bin/codex",
         },
         session.log_file_path,
-        undefined,
+        expect.any(Function),
       );
     } finally {
       delete process.env.AITM_CONFIG_PATH;
@@ -309,7 +309,7 @@ describe("failSession", () => {
 });
 
 describe("replyToSession", () => {
-  it("calls provideInput when session is AWAITING_INPUT", () => {
+  it("calls resumeAgent when session is AWAITING_INPUT", () => {
     const repoPath = makeFakeGitRepo();
     const session = createSession({
       repository_path: repoPath,
@@ -323,9 +323,14 @@ describe("replyToSession", () => {
 
     replyToSession(session.id, "Use PostgreSQL");
 
-    expect(agentService.provideInput).toHaveBeenCalledWith(
+    expect(agentService.resumeAgent).toHaveBeenCalledWith(
       session.id,
       "Use PostgreSQL",
+      repoPath,
+      DEFAULT_TRANSITIONS,
+      expect.any(Object),
+      session.log_file_path,
+      expect.any(Function),
     );
   });
 

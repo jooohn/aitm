@@ -95,6 +95,10 @@ function buildTransitionsSection(transitions: SessionTransition[]): string {
   ].join("\n");
 }
 
+function selectRuntime(agentConfig: AgentConfig): AgentRuntime {
+  return agentConfig.provider === "codex" ? codexSDK : claudeCLI;
+}
+
 /** Process messages from an agent stream. Returns the transition decision if one was produced. */
 function processResultMessage(
   sessionId: string,
@@ -111,9 +115,12 @@ function processResultMessage(
   return decision;
 }
 
+function isUserInputTransition(decision: TransitionDecision | null): boolean {
+  return decision?.transition === USER_INPUT_TRANSITION_NAME;
+}
+
 export class AgentService {
   private activeAbortControllers = new Map<string, AbortController>();
-  private pendingInputs = new Map<string, (input: string) => void>();
 
   private finishEarly(
     sessionId: string,
@@ -126,8 +133,15 @@ export class AgentService {
   /**
    * Start a configured agent runtime for a session. Fire-and-forget — call without
    * awaiting. All errors are handled internally; the session is marked FAILED
-   * if anything goes wrong. Calls onComplete with the structured transition
-   * decision when the session ends (null if the session failed or produced no output).
+   * if anything goes wrong.
+   *
+   * If the agent selects __REQUIRE_USER_INPUT__, the session is set to
+   * AWAITING_INPUT and the function returns without calling onComplete.
+   * Call resumeAgent() when the user provides input.
+   *
+   * onComplete is called with the structured transition decision when the
+   * session ends with a real transition (not __REQUIRE_USER_INPUT__), or null
+   * on failure.
    */
   async startAgent(
     sessionId: string,
@@ -159,9 +173,7 @@ export class AgentService {
       // Non-critical — subsequent append attempts are already best-effort.
     }
 
-    const agentRuntime: AgentRuntime =
-      agentConfig.provider === "codex" ? codexSDK : claudeCLI;
-
+    const agentRuntime = selectRuntime(agentConfig);
     const sessionTransitions = buildSessionTransitions(transitions);
     const prompt = [goal, "", buildTransitionsSection(sessionTransitions)].join(
       "\n",
@@ -179,7 +191,6 @@ export class AgentService {
         return;
       }
 
-      // Run the initial query
       decision = await this.consumeAgentStream(
         agentRuntime.query({
           sessionId,
@@ -195,66 +206,6 @@ export class AgentService {
         logFilePath,
         agentConfig,
       );
-
-      // Loop while the agent requests user input
-      while (
-        decision?.transition === USER_INPUT_TRANSITION_NAME &&
-        !abortController.signal.aborted
-      ) {
-        setStatus(sessionId, "AWAITING_INPUT");
-        appendToLog(logFilePath, {
-          type: "awaiting_input",
-          message: decision.handoff_summary,
-        });
-
-        const userInput = await new Promise<string>((resolve, reject) => {
-          this.pendingInputs.set(sessionId, resolve);
-          // If abort fires while waiting, reject so we exit the loop.
-          const onAbort = () => {
-            this.pendingInputs.delete(sessionId);
-            reject(new AbortError());
-          };
-          abortController.signal.addEventListener("abort", onAbort, {
-            once: true,
-          });
-        });
-        this.pendingInputs.delete(sessionId);
-
-        setStatus(sessionId, "RUNNING");
-
-        const agentSessionId = getAgentSessionId(sessionId);
-        if (!agentSessionId) {
-          appendToLog(logFilePath, {
-            type: "error",
-            message: "Cannot resume: no agent session ID available",
-          });
-          break;
-        }
-
-        decision = await this.consumeAgentStream(
-          agentRuntime.resume({
-            sessionId,
-            agentSessionId,
-            prompt: userInput,
-            cwd,
-            command: agentConfig.command,
-            model: agentConfig.model,
-            permissionMode: "acceptEdits",
-            abortController,
-            outputFormat,
-          }),
-          sessionId,
-          logFilePath,
-          agentConfig,
-        );
-      }
-
-      // Set terminal status based on the final decision
-      if (decision && decision.transition !== USER_INPUT_TRANSITION_NAME) {
-        setStatus(sessionId, "SUCCEEDED");
-      } else {
-        setStatus(sessionId, "FAILED");
-      }
     } catch (err) {
       if (!(err instanceof AbortError)) {
         appendToLog(logFilePath, {
@@ -263,18 +214,84 @@ export class AgentService {
         });
       }
       setStatus(sessionId, "FAILED");
-    } finally {
       this.activeAbortControllers.delete(sessionId);
-      this.pendingInputs.delete(sessionId);
+      onComplete?.(null);
+      return;
     }
 
-    // Ensure the session always reaches a terminal state.
-    // The guard in setStatus prevents overwriting SUCCEEDED or FAILED.
-    setStatus(sessionId, "FAILED");
+    this.activeAbortControllers.delete(sessionId);
+    this.handleDecision(sessionId, decision, logFilePath, onComplete);
+  }
 
-    onComplete?.(
-      decision?.transition === USER_INPUT_TRANSITION_NAME ? null : decision,
-    );
+  /**
+   * Resume a session that is awaiting user input. Fire-and-forget — call
+   * without awaiting. Behaves like startAgent for the result handling:
+   * if the agent selects __REQUIRE_USER_INPUT__ again, AWAITING_INPUT is
+   * set and onComplete is not called. Otherwise the session completes.
+   */
+  async resumeAgent(
+    sessionId: string,
+    userInput: string,
+    cwd: string,
+    transitions: WorkflowTransition[],
+    agentConfig: AgentConfig,
+    logFilePath: string,
+    onComplete?: (decision: TransitionDecision | null) => void,
+  ): Promise<void> {
+    const agentSessionId = getAgentSessionId(sessionId);
+    if (!agentSessionId) {
+      appendToLog(logFilePath, {
+        type: "error",
+        message: "Cannot resume: no agent session ID available",
+      });
+      setStatus(sessionId, "FAILED");
+      onComplete?.(null);
+      return;
+    }
+
+    setStatus(sessionId, "RUNNING");
+
+    const abortController = new AbortController();
+    this.activeAbortControllers.set(sessionId, abortController);
+
+    const agentRuntime = selectRuntime(agentConfig);
+    const sessionTransitions = buildSessionTransitions(transitions);
+    const outputFormat =
+      agentRuntime.buildTransitionOutputFormat(sessionTransitions);
+
+    let decision: TransitionDecision | null = null;
+    try {
+      decision = await this.consumeAgentStream(
+        agentRuntime.resume({
+          sessionId,
+          agentSessionId,
+          prompt: userInput,
+          cwd,
+          command: agentConfig.command,
+          model: agentConfig.model,
+          permissionMode: "acceptEdits",
+          abortController,
+          outputFormat,
+        }),
+        sessionId,
+        logFilePath,
+        agentConfig,
+      );
+    } catch (err) {
+      if (!(err instanceof AbortError)) {
+        appendToLog(logFilePath, {
+          type: "error",
+          message: err instanceof Error ? err.message : String(err),
+        });
+      }
+      setStatus(sessionId, "FAILED");
+      this.activeAbortControllers.delete(sessionId);
+      onComplete?.(null);
+      return;
+    }
+
+    this.activeAbortControllers.delete(sessionId);
+    this.handleDecision(sessionId, decision, logFilePath, onComplete);
   }
 
   /**
@@ -315,22 +332,42 @@ export class AgentService {
   }
 
   /**
-   * Provide user input to a session that is awaiting input.
-   * Resolves the pending Promise so startAgent can resume the agent.
+   * Handle the transition decision after an agent stream completes.
+   * Sets AWAITING_INPUT or terminal status accordingly.
    */
-  provideInput(sessionId: string, input: string): void {
-    const resolve = this.pendingInputs.get(sessionId);
-    if (resolve) {
-      resolve(input);
+  private handleDecision(
+    sessionId: string,
+    decision: TransitionDecision | null,
+    logFilePath: string,
+    onComplete?: (decision: TransitionDecision | null) => void,
+  ): void {
+    if (isUserInputTransition(decision)) {
+      setStatus(sessionId, "AWAITING_INPUT");
+      appendToLog(logFilePath, {
+        type: "awaiting_input",
+        message: decision!.handoff_summary,
+      });
+      // Do NOT call onComplete — session is paused, not finished.
+      return;
     }
+
+    if (decision) {
+      setStatus(sessionId, "SUCCEEDED");
+    } else {
+      setStatus(sessionId, "FAILED");
+    }
+
+    // Ensure the session always reaches a terminal state.
+    // The guard in setStatus prevents overwriting SUCCEEDED or FAILED.
+    setStatus(sessionId, "FAILED");
+
+    onComplete?.(decision);
   }
 
   /**
    * Abort a running agent. Signals the AbortController so the for-await loop exits.
-   * Also cleans up any pending input Promise.
    */
   cancelAgent(sessionId: string): void {
-    this.pendingInputs.delete(sessionId);
     const controller = this.activeAbortControllers.get(sessionId);
     if (controller) {
       this.activeAbortControllers.delete(sessionId);

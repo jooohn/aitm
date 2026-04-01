@@ -290,7 +290,6 @@ workflows:
           command: "/opt/homebrew/bin/claude",
         },
       }),
-      expect.any(Function),
     );
   });
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { repositoryService, sessionService } from "@/backend/container";
+import { sessionService } from "@/backend/container";
 import type { SessionStatus } from "@/backend/domain/sessions";
 
 function errorResponse(err: unknown): NextResponse {
@@ -20,50 +20,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json(
       sessionService.listSessions({ repository_path, worktree_branch, status }),
     );
-  } catch (err) {
-    return errorResponse(err);
-  }
-}
-
-export async function POST(request: NextRequest): Promise<NextResponse> {
-  try {
-    const body = await request.json();
-    const { organization, name, worktree_branch, goal, transitions } = body;
-
-    if (
-      !organization ||
-      !name ||
-      !worktree_branch ||
-      !goal ||
-      !Array.isArray(transitions) ||
-      transitions.length === 0
-    ) {
-      return NextResponse.json(
-        {
-          error:
-            "organization, name, worktree_branch, goal, and transitions are required",
-        },
-        { status: 422 },
-      );
-    }
-
-    const repo = repositoryService.getRepositoryByAlias(
-      `${organization}/${name}`,
-    );
-    if (!repo) {
-      return NextResponse.json(
-        { error: "Repository not found" },
-        { status: 404 },
-      );
-    }
-
-    const session = sessionService.createSession({
-      repository_path: repo.path,
-      worktree_branch,
-      goal,
-      transitions,
-    });
-    return NextResponse.json(session, { status: 201 });
   } catch (err) {
     return errorResponse(err);
   }
