@@ -7,13 +7,13 @@ import {
   getAgentConfig,
   type WorkflowTransition,
 } from "../../infra/config";
-import { db } from "../../infra/db";
 import {
   cancelAgent,
   sendMessageToAgent,
   startAgent,
   type TransitionDecision,
 } from "../../utils/agent";
+import * as sessionRepository from "./session-repository";
 
 export type SessionStatus =
   | "RUNNING"
@@ -83,23 +83,16 @@ export function createSession(
   const log_file_path = join(sessionsLogDir(), `${id}.log`);
   const agentConfig = input.agent_config ?? getAgentConfig();
 
-  db.prepare(
-    `INSERT INTO sessions
-       (id, repository_path, worktree_branch, goal, transitions,
-        transition_decision, status, terminal_attach_command, log_file_path,
-        claude_session_id, state_execution_id, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, NULL, 'RUNNING', NULL, ?, NULL, ?, ?, ?)`,
-  ).run(
+  sessionRepository.insertSession({
     id,
-    input.repository_path,
-    input.worktree_branch,
-    input.goal,
-    JSON.stringify(input.transitions),
+    repository_path: input.repository_path,
+    worktree_branch: input.worktree_branch,
+    goal: input.goal,
+    transitions: JSON.stringify(input.transitions),
     log_file_path,
-    input.state_execution_id ?? null,
+    state_execution_id: input.state_execution_id ?? null,
     now,
-    now,
-  );
+  });
 
   startAgent(
     id,
@@ -116,44 +109,11 @@ export function createSession(
 }
 
 export function listSessions(filter: ListSessionsFilter = {}): Session[] {
-  const conditions: string[] = [];
-  const params: string[] = [];
-
-  if (filter.repository_path !== undefined) {
-    conditions.push("repository_path = ?");
-    params.push(filter.repository_path);
-  }
-  if (filter.worktree_branch !== undefined) {
-    conditions.push("worktree_branch = ?");
-    params.push(filter.worktree_branch);
-  }
-  if (filter.status !== undefined) {
-    conditions.push("status = ?");
-    params.push(filter.status);
-  }
-
-  const where =
-    conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
-  return db
-    .prepare(
-      `SELECT s.*, se.state AS state_name
-       FROM sessions s
-       LEFT JOIN state_executions se ON se.id = s.state_execution_id
-       ${where}
-       ORDER BY s.created_at DESC`,
-    )
-    .all(...params) as Session[];
+  return sessionRepository.listSessions(filter);
 }
 
 export function getSession(id: string): Session | undefined {
-  return db
-    .prepare(
-      `SELECT s.*, se.state AS state_name
-       FROM sessions s
-       LEFT JOIN state_executions se ON se.id = s.state_execution_id
-       WHERE s.id = ?`,
-    )
-    .get(id) as Session | undefined;
+  return sessionRepository.getSession(id);
 }
 
 export function failSession(id: string): Session {
@@ -170,9 +130,7 @@ export function failSession(id: string): Session {
   cancelAgent(id);
 
   const now = new Date().toISOString();
-  db.prepare(
-    "UPDATE sessions SET status = 'FAILED', updated_at = ? WHERE id = ?",
-  ).run(now, id);
+  sessionRepository.setSessionFailed(id, now);
 
   return getSession(id) as Session;
 }
@@ -186,11 +144,7 @@ export interface SessionMessage {
 }
 
 export function listMessages(sessionId: string): SessionMessage[] {
-  return db
-    .prepare(
-      "SELECT * FROM session_messages WHERE session_id = ? ORDER BY created_at ASC",
-    )
-    .all(sessionId) as SessionMessage[];
+  return sessionRepository.listMessages(sessionId);
 }
 
 export function saveMessage(
@@ -198,11 +152,7 @@ export function saveMessage(
   role: "user" | "agent",
   content: string,
 ): void {
-  const now = new Date().toISOString();
-  db.prepare(
-    `INSERT INTO session_messages (id, session_id, role, content, created_at)
-     VALUES (?, ?, ?, ?, ?)`,
-  ).run(randomUUID(), sessionId, role, content, now);
+  sessionRepository.insertMessage(sessionId, role, content);
 }
 
 export function sendUserMessage(sessionId: string, content: string): void {
@@ -223,33 +173,8 @@ export function deleteWorktreeData(
   branches: string[],
 ): void {
   if (branches.length === 0) return;
-  const placeholders = branches.map(() => "?").join(", ");
-  const params = [repositoryPath, ...branches];
 
-  const rows = db
-    .prepare(
-      `SELECT log_file_path FROM sessions WHERE repository_path = ? AND worktree_branch IN (${placeholders})`,
-    )
-    .all(...params) as { log_file_path: string }[];
-
-  db.transaction(() => {
-    db.prepare(
-      `DELETE FROM session_messages WHERE session_id IN (
-         SELECT id FROM sessions WHERE repository_path = ? AND worktree_branch IN (${placeholders})
-       )`,
-    ).run(...params);
-    db.prepare(
-      `DELETE FROM sessions WHERE repository_path = ? AND worktree_branch IN (${placeholders})`,
-    ).run(...params);
-    db.prepare(
-      `DELETE FROM state_executions WHERE workflow_run_id IN (
-         SELECT id FROM workflow_runs WHERE repository_path = ? AND worktree_branch IN (${placeholders})
-       )`,
-    ).run(...params);
-    db.prepare(
-      `DELETE FROM workflow_runs WHERE repository_path = ? AND worktree_branch IN (${placeholders})`,
-    ).run(...params);
-  })();
+  const rows = sessionRepository.deleteWorktreeData(repositoryPath, branches);
 
   for (const { log_file_path } of rows) {
     try {
@@ -263,9 +188,5 @@ export function deleteWorktreeData(
 // Mark any sessions left in a non-terminal state as FAILED.
 // Called on module load so that sessions from a previous server run are recovered.
 export function recoverCrashedSessions(): void {
-  const now = new Date().toISOString();
-  db.prepare(
-    `UPDATE sessions SET status = 'FAILED', updated_at = ?
-     WHERE status IN ('RUNNING', 'WAITING_FOR_INPUT')`,
-  ).run(now);
+  sessionRepository.recoverCrashedSessions();
 }

@@ -5,10 +5,11 @@ import {
   resolveAgentConfig,
   type WorkflowTransition,
 } from "../../infra/config";
-import { db } from "../../infra/db";
 import { type TransitionDecision } from "../../utils/agent";
 import { createSession, failSession, type SessionStatus } from "../sessions";
 import { listWorktrees } from "../worktrees";
+import type { PreviousExecutionHandoff } from "./workflow-run-repository";
+import * as workflowRunRepository from "./workflow-run-repository";
 
 export type WorkflowRunStatus = "running" | "success" | "failure";
 
@@ -53,12 +54,6 @@ export interface ListWorkflowRunsFilter {
   worktree_branch?: string;
   status?: WorkflowRunStatus;
 }
-
-type PreviousExecutionHandoff = {
-  state: string;
-  handoff_summary: string;
-  log_file_path: string | null;
-};
 
 function buildGoal(
   stateGoal: string,
@@ -114,11 +109,12 @@ function startStateExecution(
   const now = new Date().toISOString();
 
   if ("command" in stateDef) {
-    db.prepare(
-      `INSERT INTO state_executions
-         (id, workflow_run_id, state, command_output, transition_decision, handoff_summary, created_at, completed_at)
-       VALUES (?, ?, ?, NULL, NULL, NULL, ?, NULL)`,
-    ).run(executionId, workflowRunId, stateName, now);
+    workflowRunRepository.insertStateExecution({
+      id: executionId,
+      workflowRunId,
+      stateName,
+      now,
+    });
 
     let worktreePath: string | undefined;
     try {
@@ -131,9 +127,9 @@ function startStateExecution(
 
     if (!worktreePath) {
       completeStateExecution(executionId, null);
-      return db
-        .prepare("SELECT * FROM state_executions WHERE id = ?")
-        .get(executionId) as StateExecution;
+      return workflowRunRepository.getStateExecution(
+        executionId,
+      ) as StateExecution;
     }
 
     const result = spawnSync("sh", ["-c", stateDef.command], {
@@ -144,9 +140,10 @@ function startStateExecution(
       [result.stdout, result.stderr].filter(Boolean).join("\n") || null;
     const outcome = result.status === 0 ? "succeeded" : "failed";
 
-    db.prepare(
-      "UPDATE state_executions SET command_output = ? WHERE id = ?",
-    ).run(commandOutput, executionId);
+    workflowRunRepository.setStateExecutionCommandOutput(
+      executionId,
+      commandOutput,
+    );
 
     const matchedTransition = stateDef.transitions.find(
       (t) => t.when === outcome,
@@ -168,20 +165,21 @@ function startStateExecution(
     }
 
     completeStateExecution(executionId, decision);
-    return db
-      .prepare("SELECT * FROM state_executions WHERE id = ?")
-      .get(executionId) as StateExecution;
+    return workflowRunRepository.getStateExecution(
+      executionId,
+    ) as StateExecution;
   }
 
   // Goal state path.
   const goal = buildGoal(stateDef.goal, previousExecutions, inputs);
   const agentConfig = resolveAgentConfig(stateDef.agent);
 
-  db.prepare(
-    `INSERT INTO state_executions
-       (id, workflow_run_id, state, command_output, transition_decision, handoff_summary, created_at, completed_at)
-     VALUES (?, ?, ?, NULL, NULL, NULL, ?, NULL)`,
-  ).run(executionId, workflowRunId, stateName, now);
+  workflowRunRepository.insertStateExecution({
+    id: executionId,
+    workflowRunId,
+    stateName,
+    now,
+  });
 
   createSession(
     {
@@ -197,9 +195,7 @@ function startStateExecution(
     },
   );
 
-  return db
-    .prepare("SELECT * FROM state_executions WHERE id = ?")
-    .get(executionId) as StateExecution;
+  return workflowRunRepository.getStateExecution(executionId) as StateExecution;
 }
 
 export function createWorkflowRun(input: CreateWorkflowRunInput): WorkflowRun {
@@ -224,22 +220,17 @@ export function createWorkflowRun(input: CreateWorkflowRunInput): WorkflowRun {
 
   const id = randomUUID();
   const now = new Date().toISOString();
-  const inputsJson = input.inputs ? JSON.stringify(input.inputs) : null;
+  const inputs_json = input.inputs ? JSON.stringify(input.inputs) : null;
 
-  db.prepare(
-    `INSERT INTO workflow_runs
-       (id, repository_path, worktree_branch, workflow_name, current_state, status, inputs, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, 'running', ?, ?, ?)`,
-  ).run(
+  workflowRunRepository.insertWorkflowRun({
     id,
-    input.repository_path,
-    input.worktree_branch,
-    input.workflow_name,
-    workflow.initial_state,
-    inputsJson,
+    repository_path: input.repository_path,
+    worktree_branch: input.worktree_branch,
+    workflow_name: input.workflow_name,
+    initial_state: workflow.initial_state,
+    inputs_json,
     now,
-    now,
-  );
+  });
 
   startStateExecution(
     id,
@@ -251,47 +242,40 @@ export function createWorkflowRun(input: CreateWorkflowRunInput): WorkflowRun {
     input.inputs,
   );
 
-  return db
-    .prepare("SELECT * FROM workflow_runs WHERE id = ?")
-    .get(id) as WorkflowRun;
+  return workflowRunRepository.getWorkflowRunById(id) as WorkflowRun;
 }
 
 export function completeStateExecution(
   stateExecutionId: string,
   decision: TransitionDecision | null,
 ): void {
-  const execution = db
-    .prepare("SELECT * FROM state_executions WHERE id = ?")
-    .get(stateExecutionId) as StateExecution | undefined;
+  const execution = workflowRunRepository.getStateExecution(stateExecutionId);
   if (!execution) return;
 
-  const run = db
-    .prepare("SELECT * FROM workflow_runs WHERE id = ?")
-    .get(execution.workflow_run_id) as WorkflowRun | undefined;
+  const run = workflowRunRepository.getWorkflowRunById(
+    execution.workflow_run_id,
+  );
   if (!run || run.status !== "running") return;
 
   const now = new Date().toISOString();
 
-  // Record transition decision on the execution.
-  db.prepare(
-    `UPDATE state_executions SET transition_decision = ?, handoff_summary = ?, completed_at = ? WHERE id = ?`,
-  ).run(
+  workflowRunRepository.completeStateExecution(
+    stateExecutionId,
     decision ? JSON.stringify(decision) : null,
     decision?.handoff_summary ?? null,
     now,
-    stateExecutionId,
   );
 
   if (!decision) {
     // No structured output → mark as failure.
-    terminateRun(run.id, "failure", now);
+    workflowRunRepository.terminateWorkflowRun(run.id, "failure", now);
     return;
   }
 
   const { transition } = decision;
 
   if (transition === "success" || transition === "failure") {
-    terminateRun(run.id, transition, now);
+    workflowRunRepository.terminateWorkflowRun(run.id, transition, now);
     return;
   }
 
@@ -299,31 +283,17 @@ export function completeStateExecution(
   const workflows = getConfigWorkflows();
   const workflow = workflows[run.workflow_name];
   if (!workflow || !workflow.states?.[transition]) {
-    terminateRun(run.id, "failure", now);
+    workflowRunRepository.terminateWorkflowRun(run.id, "failure", now);
     return;
   }
 
   // Advance to next state.
-  db.prepare(
-    "UPDATE workflow_runs SET current_state = ?, updated_at = ? WHERE id = ?",
-  ).run(transition, now, run.id);
+  workflowRunRepository.updateWorkflowRunCurrentState(run.id, transition, now);
 
   // Collect all completed executions (including the current one, now committed) for handoff.
-  const previousExecutions = (
-    db
-      .prepare(
-        `SELECT se.state, se.handoff_summary, s.log_file_path
-         FROM state_executions se
-         LEFT JOIN sessions s ON s.state_execution_id = se.id
-         WHERE se.workflow_run_id = ? AND se.completed_at IS NOT NULL
-         ORDER BY se.created_at ASC`,
-      )
-      .all(run.id) as Array<{
-      state: string;
-      handoff_summary: string | null;
-      log_file_path: string | null;
-    }>
-  ).filter((e): e is PreviousExecutionHandoff => e.handoff_summary !== null);
+  const previousExecutions = workflowRunRepository
+    .listCompletedExecutionsHandoff(run.id)
+    .filter((e): e is PreviousExecutionHandoff => e.handoff_summary !== null);
 
   startStateExecution(
     run.id,
@@ -333,16 +303,6 @@ export function completeStateExecution(
     run.workflow_name,
     previousExecutions,
   );
-}
-
-function terminateRun(
-  runId: string,
-  terminal: "success" | "failure",
-  now: string,
-): void {
-  db.prepare(
-    "UPDATE workflow_runs SET status = ?, current_state = NULL, updated_at = ? WHERE id = ?",
-  ).run(terminal, now, runId);
 }
 
 function isAlreadyTerminalSessionError(
@@ -358,28 +318,13 @@ function isAlreadyTerminalSessionError(
 }
 
 export function stopWorkflowRun(id: string): WorkflowRunWithExecutions {
-  const run = db.prepare("SELECT * FROM workflow_runs WHERE id = ?").get(id) as
-    | WorkflowRun
-    | undefined;
+  const run = workflowRunRepository.getWorkflowRunById(id);
   if (!run) throw new Error("Workflow run not found");
   if (run.status !== "running") {
     throw new Error("Workflow run is already in a terminal state");
   }
 
-  const activeExecution = db
-    .prepare(
-      `SELECT se.*, s.id AS session_id, s.status AS session_status
-       FROM state_executions se
-       LEFT JOIN sessions s ON s.state_execution_id = se.id
-       WHERE se.workflow_run_id = ? AND se.completed_at IS NULL
-       ORDER BY se.created_at DESC
-       LIMIT 1`,
-    )
-    .get(id) as
-    | (StateExecution & {
-        session_status: SessionStatus | null;
-      })
-    | undefined;
+  const activeExecution = workflowRunRepository.getActiveStateExecution(id);
 
   if (!activeExecution?.session_id) {
     throw new Error("No active session to stop for this workflow run");
@@ -417,17 +362,8 @@ export function recoverCrashedWorkflowRuns(): void {
   // so the workflow advances (or terminates) correctly using the session's decision.
   // This handles the case where the server crashed after the session completed but before
   // the onComplete callback was invoked.
-  const pendingSucceeded = db
-    .prepare(
-      `SELECT se.id as execution_id, s.transition_decision
-       FROM state_executions se
-       JOIN sessions s ON s.state_execution_id = se.id
-       WHERE se.completed_at IS NULL AND s.status = 'SUCCEEDED'`,
-    )
-    .all() as Array<{
-    execution_id: string;
-    transition_decision: string | null;
-  }>;
+  const pendingSucceeded =
+    workflowRunRepository.listPendingSucceededExecutions();
 
   for (const { execution_id, transition_decision } of pendingSucceeded) {
     let decision: TransitionDecision | null = null;
@@ -443,45 +379,18 @@ export function recoverCrashedWorkflowRuns(): void {
 
   // For uncompleted state executions whose session FAILED while the workflow is still running:
   // close the failed execution and retry the same state with a new session.
-  const pendingFailed = db
-    .prepare(
-      `SELECT se.id as execution_id, se.state, se.workflow_run_id
-       FROM state_executions se
-       JOIN sessions s ON s.state_execution_id = se.id
-       JOIN workflow_runs wr ON se.workflow_run_id = wr.id
-       WHERE se.completed_at IS NULL AND s.status = 'FAILED' AND wr.status = 'running'`,
-    )
-    .all() as Array<{
-    execution_id: string;
-    state: string;
-    workflow_run_id: string;
-  }>;
+  const pendingFailed = workflowRunRepository.listPendingFailedExecutions();
 
   for (const { execution_id, state, workflow_run_id } of pendingFailed) {
-    db.prepare("UPDATE state_executions SET completed_at = ? WHERE id = ?").run(
-      now,
-      execution_id,
-    );
+    workflowRunRepository.closeStateExecution(execution_id, now);
 
-    const run = db
-      .prepare("SELECT * FROM workflow_runs WHERE id = ?")
-      .get(workflow_run_id) as WorkflowRun;
+    const run = workflowRunRepository.getWorkflowRunById(
+      workflow_run_id,
+    ) as WorkflowRun;
 
-    const previousExecutions = (
-      db
-        .prepare(
-          `SELECT se.state, se.handoff_summary, s.log_file_path
-           FROM state_executions se
-           LEFT JOIN sessions s ON s.state_execution_id = se.id
-           WHERE se.workflow_run_id = ? AND se.completed_at IS NOT NULL
-           ORDER BY se.created_at ASC`,
-        )
-        .all(workflow_run_id) as Array<{
-        state: string;
-        handoff_summary: string | null;
-        log_file_path: string | null;
-      }>
-    ).filter((e): e is PreviousExecutionHandoff => e.handoff_summary !== null);
+    const previousExecutions = workflowRunRepository
+      .listCompletedExecutionsHandoff(workflow_run_id)
+      .filter((e): e is PreviousExecutionHandoff => e.handoff_summary !== null);
 
     const inputs = run.inputs
       ? (JSON.parse(run.inputs) as Record<string, string>)
@@ -500,76 +409,29 @@ export function recoverCrashedWorkflowRuns(): void {
 
   // Fail workflow runs with uncompleted command state executions (no linked session).
   // These indicate a server crash during synchronous command execution.
-  const orphanedCommandExecutions = db
-    .prepare(
-      `SELECT se.id as execution_id, se.workflow_run_id
-       FROM state_executions se
-       JOIN workflow_runs wr ON se.workflow_run_id = wr.id
-       WHERE se.completed_at IS NULL
-         AND NOT EXISTS (SELECT 1 FROM sessions WHERE state_execution_id = se.id)
-         AND wr.status = 'running'`,
-    )
-    .all() as Array<{ execution_id: string; workflow_run_id: string }>;
+  const orphanedCommandExecutions =
+    workflowRunRepository.listOrphanedCommandExecutions();
 
   for (const { execution_id, workflow_run_id } of orphanedCommandExecutions) {
-    db.prepare("UPDATE state_executions SET completed_at = ? WHERE id = ?").run(
-      now,
-      execution_id,
-    );
-    terminateRun(workflow_run_id, "failure", now);
+    workflowRunRepository.closeStateExecution(execution_id, now);
+    workflowRunRepository.terminateWorkflowRun(workflow_run_id, "failure", now);
   }
 
   // Close any remaining uncompleted state executions (workflow already terminated).
-  db.prepare(
-    `UPDATE state_executions
-     SET completed_at = ?
-     WHERE completed_at IS NULL
-       AND id IN (
-         SELECT state_execution_id FROM sessions WHERE status = 'FAILED' AND state_execution_id IS NOT NULL
-       )`,
-  ).run(now);
+  workflowRunRepository.closeRemainingFailedExecutions(now);
 
   // Fail any workflow runs that still have no active state execution.
-  db.prepare(
-    `UPDATE workflow_runs
-     SET status = 'failure', current_state = NULL, updated_at = ?
-     WHERE status = 'running'
-       AND id NOT IN (
-         SELECT workflow_run_id FROM state_executions WHERE completed_at IS NULL
-       )`,
-  ).run(now);
+  workflowRunRepository.failRemainingRunningWorkflowRuns(now);
 }
 
 export function listWorkflowRuns(
   filter: ListWorkflowRunsFilter,
 ): WorkflowRun[] {
-  const conditions: string[] = [];
-  const params: unknown[] = [];
-
-  if (filter.repository_path !== undefined) {
-    conditions.push("repository_path = ?");
-    params.push(filter.repository_path);
-  }
-  if (filter.worktree_branch !== undefined) {
-    conditions.push("worktree_branch = ?");
-    params.push(filter.worktree_branch);
-  }
-  if (filter.status !== undefined) {
-    conditions.push("status = ?");
-    params.push(filter.status);
-  }
-
-  const where =
-    conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
-  return db
-    .prepare(`SELECT * FROM workflow_runs ${where} ORDER BY created_at DESC`)
-    .all(...params) as WorkflowRun[];
+  return workflowRunRepository.listWorkflowRuns(filter);
 }
 
 export function rerunWorkflowRun(id: string): WorkflowRun {
-  const run = db.prepare("SELECT * FROM workflow_runs WHERE id = ?").get(id) as
-    | WorkflowRun
-    | undefined;
+  const run = workflowRunRepository.getWorkflowRunById(id);
   if (!run) throw new Error("Workflow run not found");
 
   if (run.status !== "failure") {
@@ -610,9 +472,7 @@ export function rerunWorkflowRun(id: string): WorkflowRun {
 export function rerunWorkflowRunFromFailedState(
   id: string,
 ): WorkflowRunWithExecutions {
-  const run = db.prepare("SELECT * FROM workflow_runs WHERE id = ?").get(id) as
-    | WorkflowRun
-    | undefined;
+  const run = workflowRunRepository.getWorkflowRunById(id);
   if (!run) throw new Error("Workflow run not found");
 
   if (run.status !== "failure") {
@@ -621,35 +481,17 @@ export function rerunWorkflowRunFromFailedState(
     );
   }
 
-  const lastExecution = db
-    .prepare(
-      "SELECT * FROM state_executions WHERE workflow_run_id = ? ORDER BY rowid DESC LIMIT 1",
-    )
-    .get(id) as StateExecution | undefined;
+  const lastExecution = workflowRunRepository.getLastStateExecution(id);
   if (!lastExecution) throw new Error("Workflow run not found");
 
   const failedState = lastExecution.state;
   const now = new Date().toISOString();
 
-  db.prepare(
-    "UPDATE workflow_runs SET status = 'running', current_state = ?, updated_at = ? WHERE id = ?",
-  ).run(failedState, now, id);
+  workflowRunRepository.setWorkflowRunRunning(id, failedState, now);
 
-  const previousExecutions = (
-    db
-      .prepare(
-        `SELECT se.state, se.handoff_summary, s.log_file_path
-         FROM state_executions se
-         LEFT JOIN sessions s ON s.state_execution_id = se.id
-         WHERE se.workflow_run_id = ? AND se.id != ? AND se.completed_at IS NOT NULL
-         ORDER BY se.created_at ASC`,
-      )
-      .all(id, lastExecution.id) as Array<{
-      state: string;
-      handoff_summary: string | null;
-      log_file_path: string | null;
-    }>
-  ).filter((e): e is PreviousExecutionHandoff => e.handoff_summary !== null);
+  const previousExecutions = workflowRunRepository
+    .listCompletedExecutionsHandoffExcluding(id, lastExecution.id)
+    .filter((e): e is PreviousExecutionHandoff => e.handoff_summary !== null);
 
   const inputs = run.inputs
     ? (JSON.parse(run.inputs) as Record<string, string>)
@@ -671,20 +513,5 @@ export function rerunWorkflowRunFromFailedState(
 export function getWorkflowRun(
   id: string,
 ): WorkflowRunWithExecutions | undefined {
-  const run = db.prepare("SELECT * FROM workflow_runs WHERE id = ?").get(id) as
-    | WorkflowRun
-    | undefined;
-  if (!run) return undefined;
-
-  const state_executions = db
-    .prepare(
-      `SELECT se.*, s.id as session_id, s.status as session_status
-       FROM state_executions se
-       LEFT JOIN sessions s ON s.state_execution_id = se.id
-       WHERE se.workflow_run_id = ?
-       ORDER BY se.created_at ASC`,
-    )
-    .all(id) as StateExecution[];
-
-  return { ...run, state_executions };
+  return workflowRunRepository.getWorkflowRunWithExecutions(id);
 }
