@@ -27,18 +27,20 @@ export type WorkflowTransition =
   | { state: string; when: string }
   | { terminal: "success" | "failure"; when: string };
 
-export interface GoalWorkflowState {
+export interface AgentWorkflowState {
+  type: "agent";
   goal: string;
   transitions: WorkflowTransition[];
   agent?: AgentConfigOverride;
 }
 
 export interface CommandWorkflowState {
+  type: "command";
   command: string;
   transitions: WorkflowTransition[];
 }
 
-export type WorkflowState = GoalWorkflowState | CommandWorkflowState;
+export type WorkflowState = AgentWorkflowState | CommandWorkflowState;
 
 export interface WorkflowInput {
   name: string;
@@ -84,9 +86,12 @@ function normalizeAgentConfigOverride(
   };
 }
 
-function normalizeWorkflowState(raw: WorkflowState): WorkflowState {
+function normalizeWorkflowState(
+  raw: Exclude<WorkflowState, "type">,
+): WorkflowState {
   if ("goal" in raw) {
     return {
+      type: "agent",
       goal: raw.goal,
       transitions: raw.transitions,
       agent: normalizeAgentConfigOverride(raw.agent),
@@ -94,6 +99,7 @@ function normalizeWorkflowState(raw: WorkflowState): WorkflowState {
   }
 
   return {
+    type: "command",
     command: raw.command,
     transitions: raw.transitions,
   };

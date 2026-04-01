@@ -63,6 +63,10 @@ export class WorktreeService {
     return parseWorktreeList(output);
   }
 
+  findWorktree(repoPath: string, branch: string): Worktree | undefined {
+    return this.listWorktrees(repoPath).find((w) => w.branch === branch);
+  }
+
   createWorktree(
     repoPath: string,
     branch: string,

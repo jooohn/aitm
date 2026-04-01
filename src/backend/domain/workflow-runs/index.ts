@@ -1,14 +1,16 @@
 import { execFileSync, spawnSync } from "child_process";
 import { randomUUID } from "crypto";
 import {
+  AgentWorkflowState,
+  CommandWorkflowState,
   getConfigWorkflows,
   resolveAgentConfig,
-  type WorkflowTransition,
+  WorkflowState,
 } from "@/backend/infra/config";
 import type { EventBus } from "@/backend/infra/event-bus";
 import { type TransitionDecision } from "../agent";
 import type { SessionService, SessionStatus } from "../sessions";
-import type { WorktreeService } from "../worktrees";
+import type { Worktree, WorktreeService } from "../worktrees";
 import type {
   PreviousExecutionHandoff,
   WorkflowRunRepository,
@@ -57,6 +59,17 @@ export interface ListWorkflowRunsFilter {
   worktree_branch?: string;
   status?: WorkflowRunStatus;
 }
+
+// interface CommandStateExecutionResult {
+//   type: "command";
+//   decision: TransitionDecision | null;
+//   commandOutput: string | null
+// }
+// interface AgentStateExecutionResult {
+//   type: "agent";
+//   decision: TransitionDecision | null;
+// }
+// type StateExecutionResult = CommandStateExecutionResult | AgentStateExecutionResult
 
 function buildGoal(
   stateGoal: string,
@@ -144,72 +157,6 @@ export class WorkflowRunService {
     const executionId = randomUUID();
     const now = new Date().toISOString();
 
-    if ("command" in stateDef) {
-      this.workflowRunRepository.insertStateExecution({
-        id: executionId,
-        workflowRunId,
-        stateName,
-        now,
-      });
-
-      let worktreePath: string | undefined;
-      try {
-        worktreePath = this.worktreeService
-          .listWorktrees(repositoryPath)
-          .find((w) => w.branch === worktreeBranch)?.path;
-      } catch {
-        // Worktree lookup failed — will be treated as no-path below.
-      }
-
-      if (!worktreePath) {
-        this.completeStateExecution(executionId, null);
-        return this.workflowRunRepository.getStateExecution(
-          executionId,
-        ) as StateExecution;
-      }
-
-      const result = spawnSync("sh", ["-c", stateDef.command], {
-        cwd: worktreePath,
-        encoding: "utf8",
-      });
-      const commandOutput =
-        [result.stdout, result.stderr].filter(Boolean).join("\n") || null;
-      const outcome = result.status === 0 ? "succeeded" : "failed";
-
-      this.workflowRunRepository.setStateExecutionCommandOutput(
-        executionId,
-        commandOutput,
-      );
-
-      const matchedTransition = stateDef.transitions.find(
-        (t) => t.when === outcome,
-      );
-
-      let decision: TransitionDecision | null;
-      if (!matchedTransition) {
-        decision = null;
-      } else {
-        const transitionName =
-          "state" in matchedTransition
-            ? matchedTransition.state
-            : matchedTransition.terminal;
-        decision = {
-          transition: transitionName,
-          reason: `exit code ${result.status ?? "unknown"}`,
-          handoff_summary: commandOutput ?? "",
-        };
-      }
-
-      this.completeStateExecution(executionId, decision);
-      return this.workflowRunRepository.getStateExecution(
-        executionId,
-      ) as StateExecution;
-    }
-
-    // Goal state path.
-    const goal = buildGoal(stateDef.goal, previousExecutions, inputs);
-    const agentConfig = resolveAgentConfig(stateDef.agent);
-
     this.workflowRunRepository.insertStateExecution({
       id: executionId,
       workflowRunId,
@@ -217,18 +164,111 @@ export class WorkflowRunService {
       now,
     });
 
+    const worktree = this.worktreeService.findWorktree(
+      repositoryPath,
+      worktreeBranch,
+    );
+    if (!worktree) {
+      this.completeStateExecution(executionId, null);
+      return this.workflowRunRepository.getStateExecution(executionId)!;
+    }
+    this.executeState({
+      stateDef,
+      executionId,
+      repositoryPath,
+      worktree,
+      inputs,
+      previousExecutions,
+    });
+    return this.workflowRunRepository.getStateExecution(executionId)!;
+  }
+
+  private executeState(params: {
+    stateDef: WorkflowState;
+    executionId: string;
+    repositoryPath: string;
+    worktree: Worktree;
+    inputs?: Record<string, string>;
+    previousExecutions: PreviousExecutionHandoff[];
+  }) {
+    const { stateDef, ...remaining } = params;
+    switch (stateDef.type) {
+      case "command":
+        return this.startCommandStateExecution({ stateDef, ...remaining });
+      case "agent":
+        return this.startAgentStateExecution({ stateDef, ...remaining });
+    }
+  }
+
+  private startCommandStateExecution({
+    stateDef,
+    executionId,
+    worktree,
+  }: {
+    stateDef: CommandWorkflowState;
+    executionId: string;
+    worktree: Worktree;
+  }) {
+    const result = spawnSync("sh", ["-c", stateDef.command], {
+      cwd: worktree.path,
+      encoding: "utf8",
+    });
+    const commandOutput =
+      [result.stdout, result.stderr].filter(Boolean).join("\n") || null;
+    const outcome = result.status === 0 ? "succeeded" : "failed";
+
+    this.workflowRunRepository.setStateExecutionCommandOutput(
+      executionId,
+      commandOutput,
+    );
+
+    const matchedTransition = stateDef.transitions.find(
+      (t) => t.when === outcome,
+    );
+
+    let decision: TransitionDecision | null;
+    if (!matchedTransition) {
+      decision = null;
+    } else {
+      const transitionName =
+        "state" in matchedTransition
+          ? matchedTransition.state
+          : matchedTransition.terminal;
+      decision = {
+        transition: transitionName,
+        reason: `exit code ${result.status ?? "unknown"}`,
+        handoff_summary: commandOutput ?? "",
+      };
+    }
+
+    this.completeStateExecution(executionId, decision);
+  }
+
+  private startAgentStateExecution({
+    stateDef,
+    executionId,
+    repositoryPath,
+    worktree,
+    inputs,
+    previousExecutions,
+  }: {
+    stateDef: AgentWorkflowState;
+    executionId: string;
+    repositoryPath: string;
+    worktree: Worktree;
+    inputs?: Record<string, string>;
+    previousExecutions: PreviousExecutionHandoff[];
+  }) {
+    const goal = buildGoal(stateDef.goal, previousExecutions, inputs);
+    const agentConfig = resolveAgentConfig(stateDef.agent);
     this.sessionService.createSession({
       repository_path: repositoryPath,
-      worktree_branch: worktreeBranch,
+      worktree_branch: worktree.branch,
       goal,
-      transitions: stateDef.transitions as WorkflowTransition[],
+      transitions: stateDef.transitions,
       agent_config: agentConfig,
       state_execution_id: executionId,
     });
-
-    return this.workflowRunRepository.getStateExecution(
-      executionId,
-    ) as StateExecution;
   }
 
   createWorkflowRun(input: CreateWorkflowRunInput): WorkflowRun {
