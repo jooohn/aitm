@@ -179,6 +179,36 @@ describe("getGitHubUrl", () => {
     expect(getGitHubUrl(dir)).toBe("https://github.com/org/repo");
   });
 
+  it("parses an ssh:// GitHub remote (with .git suffix)", () => {
+    const dir = makeRealGitRepo();
+    execFileSync(
+      "git",
+      ["remote", "add", "origin", "ssh://git@github.com/org/repo.git"],
+      { cwd: dir },
+    );
+    expect(getGitHubUrl(dir)).toBe("https://github.com/org/repo");
+  });
+
+  it("parses an ssh:// GitHub remote (without .git suffix)", () => {
+    const dir = makeRealGitRepo();
+    execFileSync(
+      "git",
+      ["remote", "add", "origin", "ssh://git@github.com/org/repo"],
+      { cwd: dir },
+    );
+    expect(getGitHubUrl(dir)).toBe("https://github.com/org/repo");
+  });
+
+  it("parses an HTTPS GitHub remote with embedded credentials", () => {
+    const dir = makeRealGitRepo();
+    execFileSync(
+      "git",
+      ["remote", "add", "origin", "https://user:token@github.com/org/repo.git"],
+      { cwd: dir },
+    );
+    expect(getGitHubUrl(dir)).toBe("https://github.com/org/repo");
+  });
+
   it("returns null for a non-existent path", () => {
     expect(getGitHubUrl("/nonexistent/path/that/does/not/exist")).toBeNull();
   });
