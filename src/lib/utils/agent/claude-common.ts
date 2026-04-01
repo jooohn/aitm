@@ -18,5 +18,6 @@ const TRANSITION_OUTPUT_FORMAT = {
 export function buildTransitionOutputFormatForClaude(
   transitions: WorkflowTransition[],
 ): OutputFormat {
+  // claude doesn't support enum, so just use general output format.
   return TRANSITION_OUTPUT_FORMAT;
 }
