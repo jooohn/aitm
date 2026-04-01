@@ -4,6 +4,10 @@ export interface Repository {
   alias: string;
 }
 
+export interface RepositoryDetail extends Repository {
+  github_url: string | null;
+}
+
 export interface ValidationResult {
   valid: boolean;
   reason?: string;
@@ -21,6 +25,13 @@ async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
 
 export function fetchRepositories(): Promise<Repository[]> {
   return apiFetch("/api/repositories");
+}
+
+export function fetchRepository(
+  organization: string,
+  name: string,
+): Promise<RepositoryDetail> {
+  return apiFetch(`/api/repositories/${organization}/${name}`);
 }
 
 export function validateRepository(

@@ -1,31 +1,49 @@
+"use client";
+
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, useParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import QuickLaunchSection from "@/app/components/QuickLaunchSection";
 import RepositoryWorkflowsSection from "@/app/components/RepositoryWorkflowsSection";
 import WorktreeSection from "@/app/components/WorktreeSection";
-import { repositoryService, worktreeService } from "@/backend/container";
+import {
+  fetchRepository,
+  fetchWorktrees,
+  type RepositoryDetail,
+} from "@/lib/utils/api";
 import styles from "./page.module.css";
 
-interface Props {
-  params: Promise<{ organization: string; name: string }>;
-}
-
-export default async function RepositoryPage({ params }: Props) {
-  const { organization, name } = await params;
+export default function RepositoryPage() {
+  const { organization, name } = useParams<{
+    organization: string;
+    name: string;
+  }>();
   const alias = `${organization}/${name}`;
-  const repo = repositoryService.getRepositoryByAlias(alias);
+  const [repo, setRepo] = useState<RepositoryDetail | null>(null);
+  const [activeWorktreeBranches, setActiveWorktreeBranches] = useState<
+    string[] | null
+  >(null);
+  const [loading, setLoading] = useState(true);
 
-  if (!repo) notFound();
+  useEffect(() => {
+    Promise.all([
+      fetchRepository(organization, name),
+      fetchWorktrees(organization, name).catch(() => null),
+    ])
+      .then(([r, worktrees]) => {
+        setRepo(r);
+        if (worktrees) {
+          setActiveWorktreeBranches(
+            worktrees.map((w) => w.branch).filter(Boolean),
+          );
+        }
+      })
+      .catch(() => notFound())
+      .finally(() => setLoading(false));
+  }, [organization, name]);
 
-  const githubUrl = repositoryService.getGitHubUrl(repo.path);
-
-  let activeWorktreeBranches: string[] | null = null;
-  try {
-    const worktrees = worktreeService.listWorktrees(repo.path);
-    activeWorktreeBranches = worktrees.map((w) => w.branch).filter(Boolean);
-  } catch {
-    // fallback: show all workflow runs
-  }
+  if (loading) return null;
+  if (!repo) return notFound();
 
   return (
     <main className={styles.page}>
@@ -38,9 +56,9 @@ export default async function RepositoryPage({ params }: Props) {
       </nav>
       <div className={styles.headingRow}>
         <h1 className={styles.heading}>{alias}</h1>
-        {githubUrl && (
+        {repo.github_url && (
           <a
-            href={githubUrl}
+            href={repo.github_url}
             target="_blank"
             rel="noopener noreferrer"
             className={styles.githubLink}

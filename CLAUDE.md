@@ -17,6 +17,10 @@ aitm is a Next.js web UI for managing Claude Code tasks across git worktrees. It
 | `npm run lint:fix` | Run Biome checks and auto-fix |
 | `npm run format` | Format files with Biome |
 
+## Architecture Rules
+
+**Frontend/backend boundary:** Files under `src/app/` must not import from `@/backend`. Only `src/app/api/` route handlers may depend on `@/backend`. Pages and components fetch data through API routes (via `@/lib/utils/api`). Pure shared utilities (e.g. `inferAlias`) live in `src/lib/utils/`.
+
 ## Documentation: ADRs vs. Specs
 
 **ADRs** (`docs/adr/${yyyymmdd}-${hhmmss}-${title}.md`, e.g. `docs/adr/20260328-140530-use-nextjs-for-frontend.md`) — record past decisions. Immutable; supersede instead of edit.

@@ -1,23 +1,40 @@
+"use client";
+
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { sessionService } from "@/backend/container";
-import { inferAlias } from "@/backend/domain/repositories";
+import { notFound, useParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import {
+  fetchSession,
+  fetchSessionMessages,
+  type Session,
+  type SessionMessage,
+} from "@/lib/utils/api";
+import { inferAlias } from "@/lib/utils/inferAlias";
 import styles from "./page.module.css";
 import SessionDetail from "./SessionDetail";
 
-interface Props {
-  params: Promise<{ id: string }>;
-}
+export default function SessionPage() {
+  const { id } = useParams<{ id: string }>();
+  const [session, setSession] = useState<Session | null>(null);
+  const [initialMessages, setInitialMessages] = useState<SessionMessage[]>([]);
+  const [loading, setLoading] = useState(true);
 
-export default async function SessionPage({ params }: Props) {
-  const { id } = await params;
-  const session = sessionService.getSession(id);
-  if (!session) notFound();
+  useEffect(() => {
+    Promise.all([fetchSession(id), fetchSessionMessages(id)])
+      .then(([s, msgs]) => {
+        setSession(s);
+        setInitialMessages(msgs);
+      })
+      .catch(() => notFound())
+      .finally(() => setLoading(false));
+  }, [id]);
+
+  if (loading) return null;
+  if (!session) return notFound();
 
   const repoAlias = inferAlias(session.repository_path);
   const [organization, repoName] = repoAlias.split("/");
   const branch = session.worktree_branch;
-  const initialMessages = sessionService.listMessages(id);
 
   return (
     <main className={styles.page}>

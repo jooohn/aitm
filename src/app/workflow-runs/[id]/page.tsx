@@ -1,18 +1,27 @@
+"use client";
+
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { workflowRunService } from "@/backend/container";
-import { inferAlias } from "@/backend/domain/repositories";
+import { notFound, useParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { fetchWorkflowRun, type WorkflowRunDetail } from "@/lib/utils/api";
+import { inferAlias } from "@/lib/utils/inferAlias";
 import styles from "./page.module.css";
-import WorkflowRunDetail from "./WorkflowRunDetail";
+import WorkflowRunDetailView from "./WorkflowRunDetail";
 
-interface Props {
-  params: Promise<{ id: string }>;
-}
+export default function WorkflowRunPage() {
+  const { id } = useParams<{ id: string }>();
+  const [run, setRun] = useState<WorkflowRunDetail | null>(null);
+  const [loading, setLoading] = useState(true);
 
-export default async function WorkflowRunPage({ params }: Props) {
-  const { id } = await params;
-  const run = workflowRunService.getWorkflowRun(id);
-  if (!run) notFound();
+  useEffect(() => {
+    fetchWorkflowRun(id)
+      .then(setRun)
+      .catch(() => notFound())
+      .finally(() => setLoading(false));
+  }, [id]);
+
+  if (loading) return null;
+  if (!run) return notFound();
 
   const repoAlias = inferAlias(run.repository_path);
   const [organization, repoName] = repoAlias.split("/");
@@ -47,7 +56,7 @@ export default async function WorkflowRunPage({ params }: Props) {
         <span className={styles.breadcrumbSep}>/</span>
         <span className={styles.breadcrumbCurrent}>{id.slice(0, 8)}…</span>
       </nav>
-      <WorkflowRunDetail run={run} />
+      <WorkflowRunDetailView run={run} />
     </main>
   );
 }

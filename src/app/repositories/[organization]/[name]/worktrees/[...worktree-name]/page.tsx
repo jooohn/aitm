@@ -1,37 +1,55 @@
+"use client";
+
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, useParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import SessionSection from "@/app/components/SessionSection";
 import WorkflowSection from "@/app/components/WorkflowSection";
-import { repositoryService, worktreeService } from "@/backend/container";
+import {
+  fetchRepository,
+  fetchWorktrees,
+  type RepositoryDetail,
+  type Worktree,
+} from "@/lib/utils/api";
 import styles from "./page.module.css";
 
-interface Props {
-  params: Promise<{
-    organization: string;
-    name: string;
-    "worktree-name": string[];
-  }>;
-}
-
-export default async function WorktreePage({ params }: Props) {
+export default function WorktreePage() {
   const {
     organization,
     name,
     "worktree-name": worktreeNameSegments,
-  } = await params;
+  } = useParams<{
+    organization: string;
+    name: string;
+    "worktree-name": string[];
+  }>();
   const alias = `${organization}/${name}`;
-  const repo = repositoryService.getRepositoryByAlias(alias);
-  if (!repo) notFound();
-
   const branch = worktreeNameSegments.join("/");
-  let worktree;
-  try {
-    const worktrees = worktreeService.listWorktrees(repo.path);
-    worktree = worktrees.find((w) => w.branch === branch);
-  } catch {
-    notFound();
-  }
-  if (!worktree) notFound();
+
+  const [repo, setRepo] = useState<RepositoryDetail | null>(null);
+  const [worktree, setWorktree] = useState<Worktree | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      fetchRepository(organization, name),
+      fetchWorktrees(organization, name),
+    ])
+      .then(([r, worktrees]) => {
+        setRepo(r);
+        const wt = worktrees.find((w) => w.branch === branch);
+        if (!wt) {
+          notFound();
+          return;
+        }
+        setWorktree(wt);
+      })
+      .catch(() => notFound())
+      .finally(() => setLoading(false));
+  }, [organization, name, branch]);
+
+  if (loading) return null;
+  if (!repo || !worktree) return notFound();
 
   return (
     <main className={styles.page}>

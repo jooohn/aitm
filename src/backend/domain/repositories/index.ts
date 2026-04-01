@@ -14,10 +14,9 @@ export interface ValidationResult {
   reason?: string;
 }
 
-export function inferAlias(path: string): string {
-  const parts = path.split("/").filter(Boolean);
-  return parts.slice(-2).join("/");
-}
+import { inferAlias } from "@/lib/utils/inferAlias";
+
+export { inferAlias };
 
 function isGitRepo(path: string): boolean {
   return existsSync(join(path, ".git"));
