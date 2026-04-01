@@ -16,8 +16,16 @@
   @apply select-none;
 }
 
+.headingRow {
+  @apply flex items-center gap-3;
+}
+
 .heading {
   @apply text-2xl font-semibold text-zinc-900 dark:text-zinc-50;
+}
+
+.githubLink {
+  @apply text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors;
 }
 
 .details {
