@@ -37,8 +37,28 @@
   @apply text-2xl font-semibold text-zinc-900 dark:text-zinc-50;
 }
 
+.goalSubtitleBlock {
+  @apply relative flex max-w-prose flex-col items-start gap-1;
+}
+
 .goalSubtitle {
-  @apply text-sm text-zinc-500 dark:text-zinc-400 truncate max-w-prose;
+  @apply text-sm text-zinc-500 dark:text-zinc-400 whitespace-pre-wrap break-words;
+}
+
+.goalCollapsed,
+.goalSubtitleCollapsed {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.goalSubtitleMeasure {
+  @apply invisible pointer-events-none absolute inset-x-0 top-0;
+}
+
+.goalSubtitleToggle {
+  @apply text-xs font-medium text-zinc-700 transition-colors hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100;
 }
 
 .failButton {
