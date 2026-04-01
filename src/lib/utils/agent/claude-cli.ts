@@ -56,8 +56,10 @@ async function* spawnClaudeQuery(
     args.push("--model", model);
   }
 
-  const child = spawn(command ?? "claude", args, {
-    cwd,
+  const spawnInput = { command: command ?? "claude", args, cwd };
+  console.log(JSON.stringify(spawnInput));
+  const child = spawn(spawnInput.command, spawnInput.args, {
+    cwd: spawnInput.cwd,
     stdio: ["pipe", "pipe", "pipe"],
   });
 
