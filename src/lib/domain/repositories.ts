@@ -1,3 +1,4 @@
+import { execFileSync } from "child_process";
 import { existsSync } from "fs";
 import { basename, join } from "path";
 import { getConfigRepositories } from "../infra/config";
@@ -34,6 +35,28 @@ export function listRepositories(): Repository[] {
 
 export function getRepositoryByAlias(alias: string): Repository | undefined {
   return listRepositories().find((r) => r.alias === alias);
+}
+
+export function getGitHubUrl(repoPath: string): string | null {
+  try {
+    const remoteUrl = execFileSync(
+      "git",
+      ["config", "--get", "remote.origin.url"],
+      { cwd: repoPath, encoding: "utf8" },
+    ).trim();
+
+    const sshMatch = remoteUrl.match(/^git@github\.com:(.+?)(?:\.git)?$/);
+    if (sshMatch) return `https://github.com/${sshMatch[1]}`;
+
+    const httpsMatch = remoteUrl.match(
+      /^https?:\/\/github\.com\/(.+?)(?:\.git)?$/,
+    );
+    if (httpsMatch) return `https://github.com/${httpsMatch[1]}`;
+
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 export function validateRepository(path: string): ValidationResult {

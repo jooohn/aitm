@@ -1,8 +1,10 @@
+import { execFileSync } from "child_process";
 import { mkdirSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
+  getGitHubUrl,
   getRepositoryByAlias,
   inferAlias,
   listRepositories,
@@ -100,6 +102,85 @@ describe("getRepositoryByAlias", () => {
 
   it("returns undefined for unknown alias", () => {
     expect(getRepositoryByAlias("no/such")).toBeUndefined();
+  });
+});
+
+function makeRealGitRepo(): string {
+  const dir = (() => {
+    const d = join(
+      tmpdir(),
+      `aitm-test-${Math.random().toString(36).slice(2)}`,
+    );
+    mkdirSync(d, { recursive: true });
+    return d;
+  })();
+  execFileSync("git", ["init"], { cwd: dir });
+  execFileSync("git", ["config", "user.email", "test@test.com"], { cwd: dir });
+  execFileSync("git", ["config", "user.name", "Test"], { cwd: dir });
+  writeFileSync(join(dir, "README.md"), "# test");
+  execFileSync("git", ["add", "."], { cwd: dir });
+  execFileSync("git", ["commit", "-m", "init"], { cwd: dir });
+  return dir;
+}
+
+describe("getGitHubUrl", () => {
+  it("returns null when no remote is configured", () => {
+    const dir = makeRealGitRepo();
+    expect(getGitHubUrl(dir)).toBeNull();
+  });
+
+  it("returns null for a non-GitHub HTTPS remote", () => {
+    const dir = makeRealGitRepo();
+    execFileSync(
+      "git",
+      ["remote", "add", "origin", "https://gitlab.com/org/repo.git"],
+      { cwd: dir },
+    );
+    expect(getGitHubUrl(dir)).toBeNull();
+  });
+
+  it("parses an SSH GitHub remote (with .git suffix)", () => {
+    const dir = makeRealGitRepo();
+    execFileSync(
+      "git",
+      ["remote", "add", "origin", "git@github.com:org/repo.git"],
+      { cwd: dir },
+    );
+    expect(getGitHubUrl(dir)).toBe("https://github.com/org/repo");
+  });
+
+  it("parses an SSH GitHub remote (without .git suffix)", () => {
+    const dir = makeRealGitRepo();
+    execFileSync(
+      "git",
+      ["remote", "add", "origin", "git@github.com:org/repo"],
+      { cwd: dir },
+    );
+    expect(getGitHubUrl(dir)).toBe("https://github.com/org/repo");
+  });
+
+  it("parses an HTTPS GitHub remote (with .git suffix)", () => {
+    const dir = makeRealGitRepo();
+    execFileSync(
+      "git",
+      ["remote", "add", "origin", "https://github.com/org/repo.git"],
+      { cwd: dir },
+    );
+    expect(getGitHubUrl(dir)).toBe("https://github.com/org/repo");
+  });
+
+  it("parses an HTTPS GitHub remote (without .git suffix)", () => {
+    const dir = makeRealGitRepo();
+    execFileSync(
+      "git",
+      ["remote", "add", "origin", "https://github.com/org/repo"],
+      { cwd: dir },
+    );
+    expect(getGitHubUrl(dir)).toBe("https://github.com/org/repo");
+  });
+
+  it("returns null for a non-existent path", () => {
+    expect(getGitHubUrl("/nonexistent/path/that/does/not/exist")).toBeNull();
   });
 });
 
