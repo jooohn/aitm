@@ -71,6 +71,22 @@
   @apply text-sm text-zinc-800 dark:text-zinc-200;
 }
 
+.inputsList {
+  @apply flex flex-col gap-3;
+}
+
+.inputItem {
+  @apply flex flex-col gap-1;
+}
+
+.inputKey {
+  @apply text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400;
+}
+
+.inputValue {
+  @apply text-sm text-zinc-800 dark:text-zinc-200 whitespace-pre-wrap break-words;
+}
+
 /* Section headings */
 .sectionHeading {
   @apply text-sm font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-3;

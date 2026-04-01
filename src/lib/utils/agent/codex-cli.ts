@@ -54,7 +54,15 @@ function extractMessage(event: unknown): string | undefined {
 async function* spawnCodexQuery(
   params: AgentQueryParams,
 ): AsyncIterable<AgentMessage> {
-  const { prompt, cwd, command, model, abortController, outputFormat } = params;
+  const {
+    prompt,
+    cwd,
+    command,
+    model,
+    permissionMode,
+    abortController,
+    outputFormat,
+  } = params;
 
   const tempDir = mkdtempSync(join(tmpdir(), "aitm-codex-"));
   const schemaPath = join(tempDir, "output-schema.json");
@@ -68,8 +76,8 @@ async function* spawnCodexQuery(
     "exec",
     "--json",
     "--skip-git-repo-check",
-    // "--sandbox",
-    // "workspace-write",
+    "--sandbox",
+    permissionMode === "acceptEdits" ? "workspace-write" : "read-only",
     "--output-last-message",
     outputPath,
     "-C",
