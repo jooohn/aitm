@@ -4,7 +4,7 @@ import {
   repositoryService,
   sessionService,
   worktreeService,
-} from "@/lib/container";
+} from "@/backend/container";
 import { DELETE } from "./route";
 
 function makeParams(

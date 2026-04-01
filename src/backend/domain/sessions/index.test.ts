@@ -2,9 +2,9 @@ import { mkdirSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { sessionService } from "@/lib/container";
-import { db } from "../../infra/db";
-import * as agentModule from "../../utils/agent";
+import { sessionService } from "@/backend/container";
+import { db } from "@/backend/infra/db";
+import * as agentModule from "../agent";
 
 const createSession = sessionService.createSession.bind(sessionService);
 const failSession = sessionService.failSession.bind(sessionService);

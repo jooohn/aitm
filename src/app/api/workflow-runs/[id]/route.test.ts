@@ -3,12 +3,12 @@ import { NextRequest } from "next/server";
 import { tmpdir } from "os";
 import { join } from "path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { workflowRunService } from "@/lib/container";
+import { workflowRunService } from "@/backend/container";
 
 const createWorkflowRun =
   workflowRunService.createWorkflowRun.bind(workflowRunService);
 
-import { db } from "@/lib/infra/db";
+import { db } from "@/backend/infra/db";
 import { GET } from "./route";
 
 function makeFakeGitRepo(): string {

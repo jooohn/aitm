@@ -2,7 +2,7 @@ import { spawn } from "node:child_process";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
 import type { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
-import { buildTransitionOutputFormatForClaude } from "@/lib/utils/agent/claude-common";
+import { buildTransitionOutputFormatForClaude } from "@/backend/domain/agent/claude-common";
 import type { AgentMessage, AgentQueryParams, AgentRuntime } from "./runtime";
 
 const MCP_SERVER_PATH = join(

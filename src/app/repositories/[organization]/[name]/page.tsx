@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import QuickLaunchSection from "@/app/components/QuickLaunchSection";
 import RepositoryWorkflowsSection from "@/app/components/RepositoryWorkflowsSection";
 import WorktreeSection from "@/app/components/WorktreeSection";
-import { repositoryService, worktreeService } from "@/lib/container";
+import { repositoryService, worktreeService } from "@/backend/container";
 import styles from "./page.module.css";
 
 interface Props {

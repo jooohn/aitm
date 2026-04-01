@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "fs";
 import { NextRequest, NextResponse } from "next/server";
-import { sessionService } from "@/lib/container";
+import { sessionService } from "@/backend/container";
 
 type Params = Promise<{ id: string }>;
 

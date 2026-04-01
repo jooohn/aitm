@@ -1,5 +1,5 @@
 import { query } from "@anthropic-ai/claude-agent-sdk";
-import { buildTransitionOutputFormatForClaude } from "@/lib/utils/agent/claude-common";
+import { buildTransitionOutputFormatForClaude } from "@/backend/domain/agent/claude-common";
 import type { AgentMessage, AgentQueryParams, AgentRuntime } from "./runtime";
 
 export const claudeSDK: AgentRuntime = {

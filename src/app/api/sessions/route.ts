@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { repositoryService, sessionService } from "@/lib/container";
-import type { SessionStatus } from "@/lib/domain/sessions";
+import { repositoryService, sessionService } from "@/backend/container";
+import type { SessionStatus } from "@/backend/domain/sessions";
 
 function errorResponse(err: unknown): NextResponse {
   const message = err instanceof Error ? err.message : "Internal server error";

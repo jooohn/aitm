@@ -4,8 +4,8 @@ import {
   getConfigWorkflows,
   resolveAgentConfig,
   type WorkflowTransition,
-} from "../../infra/config";
-import { type TransitionDecision } from "../../utils/agent";
+} from "@/backend/infra/config";
+import { type TransitionDecision } from "../agent";
 import type { SessionService, SessionStatus } from "../sessions";
 import type { WorktreeService } from "../worktrees";
 import type {

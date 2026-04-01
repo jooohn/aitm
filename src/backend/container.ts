@@ -1,12 +1,12 @@
-import { HouseKeepingService } from "@/lib/domain/house-keeping";
-import { PendingQuestionService } from "@/lib/domain/pending-questions";
-import { RepositoryService } from "@/lib/domain/repositories";
-import { SessionService } from "@/lib/domain/sessions";
-import { SessionRepository } from "@/lib/domain/sessions/session-repository";
-import { WorkflowRunService } from "@/lib/domain/workflow-runs";
-import { WorkflowRunRepository } from "@/lib/domain/workflow-runs/workflow-run-repository";
-import { WorktreeService } from "@/lib/domain/worktrees";
-import { db } from "@/lib/infra/db";
+import { HouseKeepingService } from "@/backend/domain/house-keeping";
+import { PendingQuestionService } from "@/backend/domain/pending-questions";
+import { RepositoryService } from "@/backend/domain/repositories";
+import { SessionService } from "@/backend/domain/sessions";
+import { SessionRepository } from "@/backend/domain/sessions/session-repository";
+import { WorkflowRunService } from "@/backend/domain/workflow-runs";
+import { WorkflowRunRepository } from "@/backend/domain/workflow-runs/workflow-run-repository";
+import { WorktreeService } from "@/backend/domain/worktrees";
+import { db } from "@/backend/infra/db";
 
 export const workflowRunRepository = new WorkflowRunRepository(db);
 export const sessionRepository = new SessionRepository(db);

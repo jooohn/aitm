@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { repositoryService } from "@/lib/container";
+import { repositoryService } from "@/backend/container";
 
 type Params = Promise<{ organization: string; name: string }>;
 

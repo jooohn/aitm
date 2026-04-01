@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import SessionSection from "@/app/components/SessionSection";
 import WorkflowSection from "@/app/components/WorkflowSection";
-import { repositoryService, worktreeService } from "@/lib/container";
+import { repositoryService, worktreeService } from "@/backend/container";
 import styles from "./page.module.css";
 
 interface Props {

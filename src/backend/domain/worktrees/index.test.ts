@@ -3,7 +3,7 @@ import { mkdirSync, realpathSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { describe, expect, it } from "vitest";
-import { worktreeService } from "@/lib/container";
+import { worktreeService } from "@/backend/container";
 import { parseWorktreeList } from "./index";
 
 const listWorktrees = worktreeService.listWorktrees.bind(worktreeService);

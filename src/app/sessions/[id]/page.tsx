@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { sessionService } from "@/lib/container";
-import { inferAlias } from "@/lib/domain/repositories";
+import { sessionService } from "@/backend/container";
+import { inferAlias } from "@/backend/domain/repositories";
 import styles from "./page.module.css";
 import SessionDetail from "./SessionDetail";
 

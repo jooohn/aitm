@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { workflowRunService } from "@/lib/container";
-import type { WorkflowRunStatus } from "@/lib/domain/workflow-runs";
+import { workflowRunService } from "@/backend/container";
+import type { WorkflowRunStatus } from "@/backend/domain/workflow-runs";
 
 function errorResponse(err: unknown): NextResponse {
   const message = err instanceof Error ? err.message : "Internal server error";

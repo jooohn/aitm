@@ -6,13 +6,13 @@ import {
   type AgentConfig,
   getAgentConfig,
   type WorkflowTransition,
-} from "../../infra/config";
+} from "@/backend/infra/config";
 import {
   cancelAgent,
   sendMessageToAgent,
   startAgent,
   type TransitionDecision,
-} from "../../utils/agent";
+} from "../agent";
 import type { SessionRepository } from "./session-repository";
 
 export type SessionStatus =

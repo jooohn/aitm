@@ -1,4 +1,4 @@
-import { getConfigRepositories } from "../../infra/config";
+import { getConfigRepositories } from "@/backend/infra/config";
 import type { SessionService } from "../sessions";
 import type { WorktreeService } from "../worktrees";
 

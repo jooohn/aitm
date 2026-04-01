@@ -10,14 +10,14 @@ vi.mock("@/lib/utils/agent", () => ({
   startAgent: vi.fn(async () => {}),
 }));
 
-import { workflowRunService } from "@/lib/container";
+import { workflowRunService } from "@/backend/container";
 
 const createWorkflowRun =
   workflowRunService.createWorkflowRun.bind(workflowRunService);
 const completeStateExecution =
   workflowRunService.completeStateExecution.bind(workflowRunService);
 
-import { db } from "@/lib/infra/db";
+import { db } from "@/backend/infra/db";
 import { POST } from "./route";
 
 function makeFakeGitRepo(): string {

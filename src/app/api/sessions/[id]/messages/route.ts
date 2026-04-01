@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { pendingQuestionService, sessionService } from "@/lib/container";
+import { pendingQuestionService, sessionService } from "@/backend/container";
 
 type Params = Promise<{ id: string }>;
 

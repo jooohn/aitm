@@ -1,7 +1,7 @@
 import { execFileSync } from "child_process";
 import { existsSync } from "fs";
 import { basename, join } from "path";
-import { getConfigRepositories } from "../../infra/config";
+import { getConfigRepositories } from "@/backend/infra/config";
 
 export interface Repository {
   path: string;

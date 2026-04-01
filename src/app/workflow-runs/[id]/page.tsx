@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { workflowRunService } from "@/lib/container";
-import { inferAlias } from "@/lib/domain/repositories";
+import { workflowRunService } from "@/backend/container";
+import { inferAlias } from "@/backend/domain/repositories";
 import styles from "./page.module.css";
 import WorkflowRunDetail from "./WorkflowRunDetail";
 

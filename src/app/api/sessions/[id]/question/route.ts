@@ -1,7 +1,7 @@
 import { appendFileSync } from "fs";
 import { NextRequest, NextResponse } from "next/server";
-import { pendingQuestionService, sessionService } from "@/lib/container";
-import { db } from "@/lib/infra/db";
+import { pendingQuestionService, sessionService } from "@/backend/container";
+import { db } from "@/backend/infra/db";
 
 type Params = Promise<{ id: string }>;
 

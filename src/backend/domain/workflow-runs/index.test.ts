@@ -6,8 +6,8 @@ import {
   sessionService,
   workflowRunService,
   worktreeService,
-} from "@/lib/container";
-import { db } from "../../infra/db";
+} from "@/backend/container";
+import { db } from "@/backend/infra/db";
 
 const failSession = sessionService.failSession.bind(sessionService);
 

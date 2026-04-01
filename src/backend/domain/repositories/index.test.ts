@@ -3,7 +3,7 @@ import { mkdirSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { repositoryService } from "@/lib/container";
+import { repositoryService } from "@/backend/container";
 import { inferAlias } from "./index";
 
 const listRepositories =

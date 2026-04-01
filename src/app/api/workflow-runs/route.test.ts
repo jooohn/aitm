@@ -3,7 +3,7 @@ import { NextRequest } from "next/server";
 import { tmpdir } from "os";
 import { join } from "path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { db } from "@/lib/infra/db";
+import { db } from "@/backend/infra/db";
 import { GET, POST } from "./route";
 
 function makeFakeGitRepo(): string {

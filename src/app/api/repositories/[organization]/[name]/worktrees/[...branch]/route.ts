@@ -3,7 +3,7 @@ import {
   repositoryService,
   sessionService,
   worktreeService,
-} from "@/lib/container";
+} from "@/backend/container";
 
 type Params = Promise<{ organization: string; name: string; branch: string[] }>;
 

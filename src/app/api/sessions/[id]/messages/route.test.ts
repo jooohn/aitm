@@ -3,12 +3,12 @@ import { NextRequest } from "next/server";
 import { tmpdir } from "os";
 import { join } from "path";
 import { beforeEach, describe, expect, it } from "vitest";
-import { sessionService } from "@/lib/container";
+import { sessionService } from "@/backend/container";
 
 const createSession = sessionService.createSession.bind(sessionService);
 const saveMessage = sessionService.saveMessage.bind(sessionService);
 
-import { db } from "@/lib/infra/db";
+import { db } from "@/backend/infra/db";
 import { GET } from "./route";
 
 function makeFakeGitRepo(): string {

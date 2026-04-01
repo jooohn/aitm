@@ -1,10 +1,10 @@
 import { AbortError, type CanUseTool } from "@anthropic-ai/claude-agent-sdk";
 import type { AskUserQuestionInput } from "@anthropic-ai/claude-agent-sdk/sdk-tools";
 import { appendFileSync, writeFileSync } from "fs";
+import type { SessionStatus } from "@/backend/domain/sessions";
+import type { AgentConfig, WorkflowTransition } from "@/backend/infra/config";
+import { db } from "@/backend/infra/db";
 import { sessionService, worktreeService } from "../../container";
-import type { SessionStatus } from "../../domain/sessions";
-import type { AgentConfig, WorkflowTransition } from "../../infra/config";
-import { db } from "../../infra/db";
 import { claudeCLI } from "./claude-cli";
 import { codexCLI } from "./codex-cli";
 import type { AgentRuntime } from "./runtime";

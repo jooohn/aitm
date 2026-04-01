@@ -1,5 +1,5 @@
-import { WorkflowTransition } from "@/lib/infra/config";
-import { OutputFormat } from "@/lib/utils/agent/runtime";
+import { OutputFormat } from "@/backend/domain/agent/runtime";
+import { WorkflowTransition } from "@/backend/infra/config";
 
 const TRANSITION_OUTPUT_FORMAT = {
   type: "json_schema" as const,

@@ -2,7 +2,7 @@ import type {
   CanUseTool,
   PermissionMode,
 } from "@anthropic-ai/claude-agent-sdk";
-import { WorkflowTransition } from "@/lib/infra/config";
+import { WorkflowTransition } from "@/backend/infra/config";
 
 type AssistantContentBlock =
   | { type: "text"; text: string }

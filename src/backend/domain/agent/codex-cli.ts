@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
-import { WorkflowTransition } from "@/lib/infra/config";
+import { WorkflowTransition } from "@/backend/infra/config";
 import type {
   AgentMessage,
   AgentQueryParams,

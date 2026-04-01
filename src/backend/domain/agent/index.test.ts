@@ -2,7 +2,7 @@ import { mkdirSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { db } from "../../infra/db";
+import { db } from "@/backend/infra/db";
 
 const queryMock = vi.fn();
 const agentConfig = {
@@ -14,7 +14,7 @@ const listWorktreesMock = vi.fn();
 
 vi.mock("../../domain/worktrees", async (importOriginal) => {
   const actual =
-    await importOriginal<typeof import("../../domain/worktrees")>();
+    await importOriginal<typeof import("@/backend/domain/worktrees")>();
   return {
     ...actual,
     WorktreeService: class {
