@@ -13,6 +13,7 @@ export class SessionRepository {
         goal                    TEXT    NOT NULL,
         transitions             TEXT    NOT NULL DEFAULT '[]',
         transition_decision     TEXT,
+        agent_config            TEXT    NOT NULL DEFAULT '{"provider":"claude"}',
         status                  TEXT    NOT NULL DEFAULT 'RUNNING',
         terminal_attach_command TEXT,
         log_file_path           TEXT    NOT NULL,
@@ -30,6 +31,7 @@ export class SessionRepository {
     worktree_branch: string;
     goal: string;
     transitions: string;
+    agent_config: string;
     log_file_path: string;
     state_execution_id: string | null;
     now: string;
@@ -38,9 +40,9 @@ export class SessionRepository {
       .prepare(
         `INSERT INTO sessions
          (id, repository_path, worktree_branch, goal, transitions,
-          transition_decision, status, terminal_attach_command, log_file_path,
+          transition_decision, agent_config, status, terminal_attach_command, log_file_path,
           claude_session_id, state_execution_id, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, NULL, 'RUNNING', NULL, ?, NULL, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, NULL, ?, 'RUNNING', NULL, ?, NULL, ?, ?, ?)`,
       )
       .run(
         params.id,
@@ -48,6 +50,7 @@ export class SessionRepository {
         params.worktree_branch,
         params.goal,
         params.transitions,
+        params.agent_config,
         params.log_file_path,
         params.state_execution_id,
         params.now,

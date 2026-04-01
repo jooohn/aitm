@@ -25,6 +25,7 @@ export interface Session {
   goal: string;
   transitions: string; // JSON-serialized WorkflowTransition[]
   transition_decision: string | null; // JSON-serialized TransitionDecision
+  agent_config: string; // JSON-serialized AgentConfig
   status: SessionStatus;
   terminal_attach_command: string | null;
   log_file_path: string;
@@ -98,6 +99,7 @@ export class SessionService {
       worktree_branch: input.worktree_branch,
       goal: input.goal,
       transitions: JSON.stringify(input.transitions),
+      agent_config: JSON.stringify(agentConfig),
       log_file_path,
       state_execution_id: input.state_execution_id ?? null,
       now,
@@ -180,7 +182,7 @@ export class SessionService {
     }
 
     const transitions: WorkflowTransition[] = JSON.parse(session.transitions);
-    const agentConfig = getAgentConfig();
+    const agentConfig: AgentConfig = JSON.parse(session.agent_config);
 
     let cwd: string;
     try {

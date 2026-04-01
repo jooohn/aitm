@@ -368,4 +368,36 @@ describe("replyToSession", () => {
       "not awaiting input",
     );
   });
+
+  it("uses the agent config from session creation, not the current default", () => {
+    const repoPath = makeFakeGitRepo();
+    const agentConfig = {
+      provider: "codex" as const,
+      model: "gpt-5.4",
+      command: "/opt/homebrew/bin/codex",
+    };
+
+    const session = createSession({
+      repository_path: repoPath,
+      worktree_branch: "feat/a",
+      goal: "A",
+      transitions: DEFAULT_TRANSITIONS,
+      agent_config: agentConfig,
+    });
+    db.prepare(
+      "UPDATE sessions SET status = 'AWAITING_INPUT' WHERE id = ?",
+    ).run(session.id);
+
+    replyToSession(session.id, "Continue");
+
+    expect(agentService.resumeAgent).toHaveBeenCalledWith(
+      session.id,
+      "Continue",
+      repoPath,
+      DEFAULT_TRANSITIONS,
+      agentConfig,
+      session.log_file_path,
+      expect.any(Function),
+    );
+  });
 });
