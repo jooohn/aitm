@@ -1,11 +1,11 @@
 import { execFileSync, spawnSync } from "child_process";
 import { randomUUID } from "crypto";
+import { workflowRunRepository } from "@/lib/container";
 import {
   getConfigWorkflows,
   resolveAgentConfig,
   type WorkflowTransition,
 } from "../../infra/config";
-import { workflowRunRepository } from "../../infra/db";
 import { type TransitionDecision } from "../../utils/agent";
 import { createSession, failSession, type SessionStatus } from "../sessions";
 import { listWorktrees } from "../worktrees";

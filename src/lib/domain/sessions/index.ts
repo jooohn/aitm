@@ -2,12 +2,12 @@ import { randomUUID } from "crypto";
 import { accessSync, constants, mkdirSync, unlinkSync } from "fs";
 import { homedir, tmpdir } from "os";
 import { join } from "path";
+import { sessionRepository } from "@/lib/container";
 import {
   type AgentConfig,
   getAgentConfig,
   type WorkflowTransition,
 } from "../../infra/config";
-import { sessionRepository } from "../../infra/db";
 import {
   cancelAgent,
   sendMessageToAgent,
