@@ -1,10 +1,35 @@
 import type { SandboxMode, ThreadEvent } from "@openai/codex-sdk";
 import { Codex } from "@openai/codex-sdk";
 import { buildTransitionOutputFormatForCodex } from "./codex-cli";
-import type { AgentMessage, AgentQueryParams, AgentRuntime } from "./runtime";
+import type {
+  AgentMessage,
+  AgentQueryParams,
+  AgentResumeParams,
+  AgentRuntime,
+} from "./runtime";
 
 function sandboxModeFor(permissionMode: string): SandboxMode {
   return permissionMode === "acceptEdits" ? "workspace-write" : "read-only";
+}
+
+async function* streamEvents(
+  events: AsyncIterable<ThreadEvent>,
+  hasOutputFormat: boolean,
+): AsyncIterable<AgentMessage> {
+  let lastAgentMessageText: string | undefined;
+
+  for await (const event of events) {
+    const mapped = mapEvent(event, hasOutputFormat, () => lastAgentMessageText);
+
+    if (
+      event.type === "item.completed" &&
+      event.item.type === "agent_message"
+    ) {
+      lastAgentMessageText = event.item.text;
+    }
+
+    if (mapped) yield mapped;
+  }
 }
 
 async function* streamQuery(
@@ -35,25 +60,39 @@ async function* streamQuery(
     signal: abortController.signal,
   });
 
-  let lastAgentMessageText: string | undefined;
+  yield* streamEvents(events, outputFormat !== undefined);
+}
 
-  for await (const event of events) {
-    const mapped = mapEvent(
-      event,
-      outputFormat !== undefined,
-      () => lastAgentMessageText,
-    );
+async function* streamResume(
+  params: AgentResumeParams,
+): AsyncIterable<AgentMessage> {
+  const {
+    agentSessionId,
+    prompt,
+    cwd,
+    command,
+    model,
+    permissionMode,
+    abortController,
+    outputFormat,
+  } = params;
 
-    // Track the latest agent_message text for the final result.
-    if (
-      event.type === "item.completed" &&
-      event.item.type === "agent_message"
-    ) {
-      lastAgentMessageText = event.item.text;
-    }
+  const codex = new Codex(command ? { codexPathOverride: command } : undefined);
 
-    if (mapped) yield mapped;
-  }
+  const thread = codex.resumeThread(agentSessionId, {
+    model,
+    workingDirectory: cwd,
+    sandboxMode: sandboxModeFor(permissionMode),
+    skipGitRepoCheck: true,
+  });
+
+  const { events } = await thread.runStreamed(prompt, {
+    outputSchema:
+      outputFormat?.type === "json_schema" ? outputFormat.schema : undefined,
+    signal: abortController.signal,
+  });
+
+  yield* streamEvents(events, outputFormat !== undefined);
 }
 
 function mapEvent(
@@ -123,5 +162,6 @@ function mapEvent(
 
 export const codexSDK: AgentRuntime = {
   query: streamQuery,
+  resume: streamResume,
   buildTransitionOutputFormat: buildTransitionOutputFormatForCodex,
 };

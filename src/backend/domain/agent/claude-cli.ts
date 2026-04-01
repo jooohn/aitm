@@ -2,10 +2,26 @@ import { spawn } from "node:child_process";
 import { createInterface } from "node:readline";
 import type { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import { buildTransitionOutputFormatForClaude } from "@/backend/domain/agent/claude-common";
-import type { AgentMessage, AgentQueryParams, AgentRuntime } from "./runtime";
+import type {
+  AgentMessage,
+  AgentQueryParams,
+  AgentResumeParams,
+  AgentRuntime,
+} from "./runtime";
 
-async function* spawnClaudeQuery(
-  params: AgentQueryParams,
+interface SpawnClaudeParams {
+  prompt: string;
+  cwd: string;
+  command?: string;
+  model?: string;
+  permissionMode: string;
+  abortController: AbortController;
+  outputFormat?: { type: string; schema: Record<string, unknown> };
+  resumeSessionId?: string;
+}
+
+async function* spawnClaude(
+  params: SpawnClaudeParams,
 ): AsyncIterable<AgentMessage> {
   const {
     prompt,
@@ -15,6 +31,7 @@ async function* spawnClaudeQuery(
     permissionMode,
     abortController,
     outputFormat,
+    resumeSessionId,
   } = params;
 
   const args = [
@@ -25,6 +42,10 @@ async function* spawnClaudeQuery(
     "--permission-mode",
     permissionMode,
   ];
+
+  if (resumeSessionId) {
+    args.push("--resume", resumeSessionId);
+  }
 
   if (outputFormat?.type === "json_schema") {
     args.push("--json-schema", JSON.stringify(outputFormat.schema));
@@ -110,7 +131,14 @@ async function* spawnClaudeQuery(
 }
 
 export const claudeCLI: AgentRuntime = {
-  query: spawnClaudeQuery,
+  query: (params) => spawnClaude(params),
+
+  resume: (params) =>
+    spawnClaude({
+      ...params,
+      permissionMode: params.permissionMode,
+      resumeSessionId: params.agentSessionId,
+    }),
 
   buildTransitionOutputFormat: buildTransitionOutputFormatForClaude,
 };

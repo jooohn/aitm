@@ -11,11 +11,13 @@ import { db } from "@/backend/infra/db";
 
 const createSession = sessionService.createSession.bind(sessionService);
 const failSession = sessionService.failSession.bind(sessionService);
+const replyToSession = sessionService.replyToSession.bind(sessionService);
 const getSession = sessionService.getSession.bind(sessionService);
 const listSessions = sessionService.listSessions.bind(sessionService);
 
 vi.spyOn(agentService, "startAgent").mockResolvedValue();
 vi.spyOn(agentService, "cancelAgent").mockImplementation(() => {});
+vi.spyOn(agentService, "provideInput").mockImplementation(() => {});
 vi.spyOn(worktreeService, "listWorktrees").mockImplementation((repoPath) => [
   {
     branch: "feat/test",
@@ -286,5 +288,79 @@ describe("failSession", () => {
     failSession(session.id);
 
     expect(() => failSession(session.id)).toThrow("terminal state");
+  });
+
+  it("marks an AWAITING_INPUT session as FAILED", () => {
+    const repoPath = makeFakeGitRepo();
+    const session = createSession({
+      repository_path: repoPath,
+      worktree_branch: "feat/a",
+      goal: "A",
+      transitions: DEFAULT_TRANSITIONS,
+    });
+    // Manually set status to AWAITING_INPUT
+    db.prepare(
+      "UPDATE sessions SET status = 'AWAITING_INPUT' WHERE id = ?",
+    ).run(session.id);
+
+    const failed = failSession(session.id);
+    expect(failed.status).toBe("FAILED");
+  });
+});
+
+describe("replyToSession", () => {
+  it("calls provideInput when session is AWAITING_INPUT", () => {
+    const repoPath = makeFakeGitRepo();
+    const session = createSession({
+      repository_path: repoPath,
+      worktree_branch: "feat/a",
+      goal: "A",
+      transitions: DEFAULT_TRANSITIONS,
+    });
+    db.prepare(
+      "UPDATE sessions SET status = 'AWAITING_INPUT' WHERE id = ?",
+    ).run(session.id);
+
+    replyToSession(session.id, "Use PostgreSQL");
+
+    expect(agentService.provideInput).toHaveBeenCalledWith(
+      session.id,
+      "Use PostgreSQL",
+    );
+  });
+
+  it("throws when session is not found", () => {
+    expect(() => replyToSession("nonexistent", "hello")).toThrow(
+      "Session not found",
+    );
+  });
+
+  it("throws when session is RUNNING", () => {
+    const repoPath = makeFakeGitRepo();
+    const session = createSession({
+      repository_path: repoPath,
+      worktree_branch: "feat/a",
+      goal: "A",
+      transitions: DEFAULT_TRANSITIONS,
+    });
+
+    expect(() => replyToSession(session.id, "hello")).toThrow(
+      "not awaiting input",
+    );
+  });
+
+  it("throws when session is in a terminal state", () => {
+    const repoPath = makeFakeGitRepo();
+    const session = createSession({
+      repository_path: repoPath,
+      worktree_branch: "feat/a",
+      goal: "A",
+      transitions: DEFAULT_TRANSITIONS,
+    });
+    failSession(session.id);
+
+    expect(() => replyToSession(session.id, "hello")).toThrow(
+      "not awaiting input",
+    );
   });
 });

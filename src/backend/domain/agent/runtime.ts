@@ -29,8 +29,31 @@ export type AgentMessage =
       structured_output?: unknown;
     };
 
+export type SessionTransition =
+  | WorkflowTransition
+  | { user_input: true; when: string };
+
+export const USER_INPUT_TRANSITION: SessionTransition = {
+  user_input: true,
+  when: "You need clarification or input from the user before proceeding",
+};
+
+export const USER_INPUT_TRANSITION_NAME = "__REQUIRE_USER_INPUT__";
+
 export interface AgentQueryParams {
   sessionId: string;
+  prompt: string;
+  cwd: string;
+  command?: string;
+  model?: string;
+  permissionMode: PermissionMode;
+  abortController: AbortController;
+  outputFormat?: OutputFormat;
+}
+
+export interface AgentResumeParams {
+  sessionId: string;
+  agentSessionId: string;
   prompt: string;
   cwd: string;
   command?: string;
@@ -48,5 +71,7 @@ export interface OutputFormat {
 export interface AgentRuntime {
   query(params: AgentQueryParams): AsyncIterable<AgentMessage>;
 
-  buildTransitionOutputFormat(transitions: WorkflowTransition[]): OutputFormat;
+  resume(params: AgentResumeParams): AsyncIterable<AgentMessage>;
+
+  buildTransitionOutputFormat(transitions: SessionTransition[]): OutputFormat;
 }

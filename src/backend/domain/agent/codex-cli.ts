@@ -3,13 +3,14 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
-import { WorkflowTransition } from "@/backend/infra/config";
 import type {
   AgentMessage,
   AgentQueryParams,
   AgentRuntime,
   OutputFormat,
+  SessionTransition,
 } from "./runtime";
+import { USER_INPUT_TRANSITION_NAME } from "./runtime";
 
 function extractTextBlocks(event: unknown): string[] {
   if (!event || typeof event !== "object") return [];
@@ -199,11 +200,13 @@ async function* spawnCodexQuery(
 }
 
 export function buildTransitionOutputFormatForCodex(
-  transitions: WorkflowTransition[],
+  transitions: SessionTransition[],
 ): OutputFormat {
-  const transitionNames = transitions.map((t) =>
-    "state" in t ? t.state : t.terminal,
-  );
+  const transitionNames = transitions.map((t) => {
+    if ("user_input" in t) return USER_INPUT_TRANSITION_NAME;
+    if ("state" in t) return t.state;
+    return t.terminal;
+  });
 
   return {
     type: "json_schema" as const,
@@ -225,5 +228,8 @@ export function buildTransitionOutputFormatForCodex(
 
 export const codexCLI: AgentRuntime = {
   query: spawnCodexQuery,
+  resume: () => {
+    throw new Error("codex CLI resume not supported; use codex SDK");
+  },
   buildTransitionOutputFormat: buildTransitionOutputFormatForCodex,
 };

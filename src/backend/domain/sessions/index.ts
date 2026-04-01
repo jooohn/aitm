@@ -11,7 +11,11 @@ import type { AgentService, TransitionDecision } from "../agent";
 import type { WorktreeService } from "../worktrees";
 import type { SessionRepository } from "./session-repository";
 
-export type SessionStatus = "RUNNING" | "SUCCEEDED" | "FAILED";
+export type SessionStatus =
+  | "RUNNING"
+  | "AWAITING_INPUT"
+  | "SUCCEEDED"
+  | "FAILED";
 
 export interface Session {
   id: string;
@@ -155,6 +159,18 @@ export class SessionService {
     this.sessionRepository.setSessionFailed(id, now);
 
     return this.getSession(id) as Session;
+  }
+
+  replyToSession(id: string, message: string): void {
+    const session = this.getSession(id);
+    if (!session) {
+      throw new Error(`Session not found: ${id}`);
+    }
+    if (session.status !== "AWAITING_INPUT") {
+      throw new Error(`Session ${id} is not awaiting input`);
+    }
+
+    this.agentService.provideInput(id, message);
   }
 
   deleteWorktreeData(repositoryPath: string, branches: string[]): void {

@@ -1,5 +1,7 @@
-import { OutputFormat } from "@/backend/domain/agent/runtime";
-import { WorkflowTransition } from "@/backend/infra/config";
+import {
+  OutputFormat,
+  SessionTransition,
+} from "@/backend/domain/agent/runtime";
 
 const TRANSITION_OUTPUT_FORMAT = {
   type: "json_schema" as const,
@@ -16,7 +18,7 @@ const TRANSITION_OUTPUT_FORMAT = {
 };
 
 export function buildTransitionOutputFormatForClaude(
-  transitions: WorkflowTransition[],
+  _transitions: SessionTransition[],
 ): OutputFormat {
   // claude doesn't support enum, so just use general output format.
   return TRANSITION_OUTPUT_FORMAT;

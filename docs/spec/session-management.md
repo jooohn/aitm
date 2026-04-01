@@ -1,15 +1,15 @@
 # Spec: Session Management
 
 **Status:** implemented
-**Last updated:** 2026-03-29
+**Last updated:** 2026-04-01
 
 ## Summary
 
-A session is a cohesive, purpose-bound unit of coding-agent work attached to a specific worktree. It encapsulates a goal, tracks execution state, captures agent output, and mediates interaction between the user and the running agent. Sessions are created exclusively by the workflow engine — not directly by the user.
+A session is a cohesive, purpose-bound unit of coding-agent work attached to a specific worktree. It encapsulates a goal, tracks execution state, captures agent output, and supports user interaction via a resume-based input mechanism. Sessions are created exclusively by the workflow engine — not directly by the user.
 
 ## Background
 
-Each session runs a Claude Code agent via the **Claude Code SDK** inside a worktree directory. The agent pursues the goal described at session creation and emits a structured transition decision (JSON) as its final output. Users can observe the agent's output stream in real time and exchange messages with it when the agent requires clarification.
+Each session runs a coding agent (Claude CLI, Claude SDK, or Codex) inside a worktree directory. The agent pursues the goal described at session creation and emits a structured transition decision (JSON) as its final output. Users can observe the agent's output stream in real time. When the agent needs clarification, it selects a special `__REQUIRE_USER_INPUT__` transition, which pauses the session until the user provides input, then resumes the same agent session to preserve conversation context.
 
 ## Data model
 
@@ -21,26 +21,15 @@ Sessions are persisted in SQLite.
 | `repository_path` | string | no | Absolute path to the repository |
 | `worktree_branch` | string | no | The worktree branch in which the agent runs |
 | `goal` | string | no | Free-text description of what the agent should accomplish (may include handoff context from prior states) |
-| `transitions` | string (JSON) | no | Serialised `WorkflowTransition[]` — the set of transitions Claude evaluates at session end |
-| `transition_decision` | string (JSON) | yes | Serialised `TransitionDecision` emitted by Claude: `{transition, reason, handoff_summary}` |
-| `status` | enum | no | `RUNNING` \| `WAITING_FOR_INPUT` \| `SUCCEEDED` \| `FAILED` |
+| `transitions` | string (JSON) | no | Serialised `WorkflowTransition[]` — the workflow-defined transitions (does not include the injected `__REQUIRE_USER_INPUT__`) |
+| `transition_decision` | string (JSON) | yes | Serialised `TransitionDecision` emitted by the agent: `{transition, reason, handoff_summary}` |
+| `status` | enum | no | `RUNNING` \| `AWAITING_INPUT` \| `SUCCEEDED` \| `FAILED` |
 | `terminal_attach_command` | string | yes | Shell command to attach to the live agent (e.g. `claude --resume <claude-session-id>`) |
 | `log_file_path` | string | no | Absolute path to the append-only stdout/stderr log file (e.g. `~/.aitm/sessions/<id>.log`) |
-| `claude_session_id` | string | yes | The internal Claude session ID, set once the agent starts |
+| `claude_session_id` | string | yes | The internal agent session ID (Claude or Codex), set once the agent starts |
+| `state_execution_id` | string (FK → state_executions) | yes | The workflow state execution that owns this session |
 | `created_at` | timestamp | no | When the session was created |
 | `updated_at` | timestamp | no | Last status change |
-
-### Message thread
-
-Each session has an ordered message thread stored in a `session_messages` table.
-
-| Field | Type | Nullable | Description |
-|---|---|---|---|
-| `id` | string (UUID) | no | Primary key |
-| `session_id` | string (FK → sessions) | no | Owning session |
-| `role` | enum | no | `agent` \| `user` |
-| `content` | string | no | Message text |
-| `created_at` | timestamp | no | When the message was created |
 
 ## Session lifecycle
 
@@ -51,12 +40,13 @@ Each session has an ordered message thread stored in a `session_messages` table.
             │              │                   │
             └──────┬───────┘                   │
                    │                           │
-      agent needs  │                 user sends │ input
-          input    │                           │
+     agent selects │                user sends │ reply
+  __REQUIRE_USER_  │                           │
+       INPUT__     │                           │
                    ▼                           │
             ┌──────────────┐                   │
-            │   WAITING_   │───────────────────┘
-            │   FOR_INPUT  │
+            │  AWAITING_   │───────────────────┘
+            │    INPUT     │
             └──────┬───────┘
                    │
            (also reachable from RUNNING)
@@ -74,14 +64,93 @@ Each session has an ordered message thread stored in a `session_messages` table.
 | From | To | Trigger |
 |---|---|---|
 | _(none)_ | `RUNNING` | Session created; agent process started |
-| `RUNNING` | `WAITING_FOR_INPUT` | Agent emits an input-request message |
-| `WAITING_FOR_INPUT` | `RUNNING` | User sends a message in reply |
-| `RUNNING` | `SUCCEEDED` | Agent emits a valid `transition_decision` |
-| `WAITING_FOR_INPUT` | `SUCCEEDED` | Agent emits a valid `transition_decision` after receiving input |
+| `RUNNING` | `AWAITING_INPUT` | Agent selects `__REQUIRE_USER_INPUT__` transition |
+| `AWAITING_INPUT` | `RUNNING` | User sends a reply; agent session is resumed |
+| `RUNNING` | `SUCCEEDED` | Agent emits a valid `transition_decision` (not `__REQUIRE_USER_INPUT__`) |
 | `RUNNING` | `FAILED` | User explicitly marks the session as failed; or agent exits without valid output |
-| `WAITING_FOR_INPUT` | `FAILED` | User explicitly marks the session as failed |
+| `AWAITING_INPUT` | `FAILED` | User explicitly marks the session as failed |
 
 `SUCCEEDED` and `FAILED` are terminal states. No transitions out of them.
+
+## User input mechanism
+
+### Design
+
+User input is handled entirely at the session level, transparent to the workflow engine. The mechanism works by injecting a special transition into the agent's available options and using the agent runtime's session resume capability to continue the conversation.
+
+### Internal transition type
+
+`WorkflowTransition` (defined in config) remains unchanged. Internally, the session layer works with an extended type:
+
+```typescript
+// config.ts — unchanged
+type WorkflowTransition =
+  | { state: string; when: string }
+  | { terminal: "success" | "failure"; when: string }
+
+// Used internally by agent/session layer
+type SessionTransition = WorkflowTransition | { user_input: true; when: string }
+```
+
+The system always injects one `SessionTransition` of type `{ user_input: true, when: "You need clarification or input from the user before proceeding" }` alongside the workflow-defined transitions. The agent sees this as `__REQUIRE_USER_INPUT__` in its available transition list.
+
+### Flow
+
+1. **Agent selects `__REQUIRE_USER_INPUT__`:** The agent's `TransitionDecision` has `transition: "__REQUIRE_USER_INPUT__"` and `handoff_summary` contains the question for the user.
+2. **Session pauses:** `AgentService.startAgent` detects the special transition, sets status to `AWAITING_INPUT`, and suspends (awaits a Promise).
+3. **User replies:** The reply API endpoint (`POST /api/sessions/:id/reply`) resolves the pending Promise with the user's input.
+4. **Agent resumes:** `startAgent` calls `AgentRuntime.resume()` with the stored `claude_session_id` and the user's message. The agent continues in the same conversation context with the same output format and transitions.
+5. **Repeat or complete:** The agent may select `__REQUIRE_USER_INPUT__` again (multiple rounds) or select a real workflow transition, completing the session normally.
+
+### AgentRuntime resume
+
+The `AgentRuntime` interface is extended with a `resume` method:
+
+```typescript
+interface AgentRuntime {
+  query(params: AgentQueryParams): AsyncIterable<AgentMessage>;
+  resume(params: AgentResumeParams): AsyncIterable<AgentMessage>;
+  buildTransitionOutputFormat(transitions: WorkflowTransition[]): OutputFormat;
+}
+
+interface AgentResumeParams {
+  sessionId: string;
+  agentSessionId: string;         // claude_session_id from the init message
+  prompt: string;                 // the user's reply
+  cwd: string;
+  command?: string;
+  model?: string;
+  permissionMode: PermissionMode;
+  abortController: AbortController;
+  outputFormat?: OutputFormat;
+}
+```
+
+Runtime-specific resume behaviour:
+- **Claude CLI:** `claude --resume <agentSessionId> --print --output-format stream-json ...` with user's message on stdin.
+- **Claude SDK:** Call `query()` with `resume: agentSessionId` option.
+- **Codex SDK:** Call `thread.runStreamed(userMessage)` on a thread resumed by ID.
+
+### Pending input coordination
+
+`AgentService` uses an in-memory `Map<sessionId, resolve>` to coordinate between the `startAgent` loop and the reply API:
+
+```typescript
+private pendingInputs = new Map<string, (input: string) => void>();
+
+// Inside startAgent, after detecting __REQUIRE_USER_INPUT__:
+setStatus(sessionId, "AWAITING_INPUT");
+const userInput = await new Promise<string>(resolve => {
+  this.pendingInputs.set(sessionId, resolve);
+});
+this.pendingInputs.delete(sessionId);
+// resume agent with userInput...
+
+// Called by reply API:
+provideInput(sessionId: string, input: string): void {
+  this.pendingInputs.get(sessionId)?.(input);
+}
+```
 
 ## Operations
 
@@ -91,9 +160,10 @@ Sessions are created internally by the workflow engine, not directly by users.
 
 - Accepts: `repository_path`, `worktree_branch`, `goal`, `transitions`, and an optional `onComplete` callback.
 - Persists the session record with `status: RUNNING`.
-- Spawns the Claude Code agent in the worktree directory.
+- Spawns the agent in the worktree directory.
 - Stores `terminal_attach_command` and `claude_session_id` once the agent initialises.
-- Calls `onComplete(decision)` when the agent finishes, where `decision` is the structured output or `null` on failure.
+- If the agent selects `__REQUIRE_USER_INPUT__`, the session pauses (status: `AWAITING_INPUT`) and waits for user reply before resuming.
+- Calls `onComplete(decision)` only when the agent selects a real workflow transition (not `__REQUIRE_USER_INPUT__`), or `null` on failure.
 
 ### Get session
 
@@ -107,16 +177,15 @@ Sessions are created internally by the workflow engine, not directly by users.
 ### Mark session as failed
 
 - Accepts a session ID.
-- Allowed from `RUNNING` or `WAITING_FOR_INPUT` only.
-- Terminates the agent process.
+- Allowed from `RUNNING` or `AWAITING_INPUT` only.
+- Terminates the agent process (or cleans up the pending input Promise).
 - Sets `status: FAILED`.
 
-### Send message
+### Reply to session
 
-- Accepts a session ID and message content from the user.
-- Allowed when `status` is `WAITING_FOR_INPUT`.
-- Persists the message with `role: user`.
-- Forwards the message to the running agent process.
+- Accepts a session ID and the user's reply text.
+- Allowed only when `status` is `AWAITING_INPUT`.
+- Resolves the pending input Promise in `AgentService`, which resumes the agent session.
 - Transitions status to `RUNNING`.
 
 ### Stream output
@@ -124,6 +193,7 @@ Sessions are created internally by the workflow engine, not directly by users.
 - Provides a real-time stream of the agent's stdout/stderr for a given session.
 - Delivered over SSE.
 - Historical output since session start is replayed on connection so the UI can render the full buffer.
+- Continues streaming through `AWAITING_INPUT` pauses — the stream stays open until a terminal state.
 
 ## API surface
 
@@ -132,30 +202,13 @@ Sessions are created internally by the workflow engine, not directly by users.
 | `GET` | `/api/sessions` | List |
 | `GET` | `/api/sessions/:id` | Get |
 | `POST` | `/api/sessions/:id/fail` | Mark as failed |
-| `POST` | `/api/sessions/:id/messages` | Send user message |
+| `POST` | `/api/sessions/:id/reply` | Reply with user input |
 | `GET` | `/api/sessions/:id/stream` | Stream agent output (SSE) |
-| `GET` | `/api/sessions/:id/messages` | List message thread |
-
-## UI
-
-### Session list
-
-- Accessible from the worktree detail page (`/repositories/:organization/:name/worktrees/:branch`).
-- Shows all sessions for the worktree with status badges, goal summary, and timestamps.
-- Sessions are created by workflow runs, not directly from this page.
-
-### Session detail page (`/sessions/:id`)
-
-- **Output pane** — live terminal output stream rendered in a scrollable, monospace block. Replays history on load.
-- **Terminal attach** — a copyable code snippet showing `terminal_attach_command` so the user can attach from their terminal.
-- **Message thread** — ordered chat-like list of `agent` and `user` messages below the output pane.
-- **Input box** — visible and enabled when `status` is `WAITING_FOR_INPUT`. Submits a user message.
-- **Status indicator** — shows current status; includes a "Mark as failed" button when the session is not in a terminal state.
 
 ## Out of scope
 
 - Direct session creation from the UI (sessions are only started via workflow runs).
-- Pausing and resuming sessions.
+- Frontend UI for the reply flow (backend API only for now).
 - Automated failure detection (e.g. exit codes, timeouts) — failure is user-initiated for now.
 - Multi-worktree sessions or sessions that span repositories.
 - Session re-runs or retries from the UI.
@@ -163,13 +216,13 @@ Sessions are created internally by the workflow engine, not directly by users.
 ## Decisions
 
 ### Process management
-Server restarts mark any `RUNNING` or `WAITING_FOR_INPUT` session as `FAILED`. On startup, aitm scans for non-terminal sessions and transitions them to `FAILED`.
+Server restarts mark any `RUNNING` session as `FAILED`. `AWAITING_INPUT` sessions are also marked `FAILED` on restart because the in-memory pending-input Promise is lost. On startup, aitm scans for non-terminal sessions and transitions them to `FAILED`.
 
 ### Output storage
-Agent stdout/stderr is written to an append-only log file at `~/.aitm/sessions/<id>.log`. The path is stored in `log_file_path`. The stream endpoint tails this file and replays it from the beginning on each new connection.
+Agent stdout/stderr is written to an append-only log file at `~/.aitm/sessions/<id>.log`. The path is stored in `log_file_path`. The stream endpoint tails this file and replays it from the beginning on each new connection. Log output from resumed sessions is appended to the same file.
 
 ### Structured output
-Sessions always use the Agent SDK's `outputFormat` with a `json_schema` type. Claude's final output is constrained to `{transition, reason, handoff_summary}`. This output is stored in `transition_decision` and consumed by the workflow engine.
+Sessions use the agent runtime's `outputFormat` with a `json_schema` type. The agent's final output is constrained to `{transition, reason, handoff_summary}`. The `__REQUIRE_USER_INPUT__` transition is included in the schema's enum so the agent can select it. This output is stored in `transition_decision` and consumed by the workflow engine (which never sees `__REQUIRE_USER_INPUT__` because the session resolves it internally).
 
-### Agent execution
-Sessions use the **Claude Code SDK** (not the CLI). The SDK runs in-process within the aitm server.
+### Workflow transparency
+The `AWAITING_INPUT` state and `__REQUIRE_USER_INPUT__` transition are fully encapsulated within the session layer. The workflow engine's `onComplete` callback is only invoked when the session reaches a real workflow transition. From the workflow's perspective, the session is simply `RUNNING` for longer.
