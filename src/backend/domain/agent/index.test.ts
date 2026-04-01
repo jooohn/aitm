@@ -15,8 +15,8 @@ const agentConfig = {
   model: "test-model",
 };
 
-vi.mock("./codex-cli", () => ({
-  codexCLI: {
+vi.mock("./codex-sdk", () => ({
+  codexSDK: {
     query: queryMock,
   },
 }));
