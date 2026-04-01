@@ -35,6 +35,9 @@ export function parseLogEntry(
       if (entry.subtype === "success") return text("✓ Goal completed");
       return text(`✗ Session ended: ${entry.subtype}`);
 
+    case "awaiting_input":
+      return text(`⏳ Awaiting input: ${entry.message ?? ""}`);
+
     case "error":
       return text(`! Error: ${entry.message}`);
 

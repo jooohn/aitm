@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   failSession,
   fetchSession,
+  replyToSession,
   type Session,
   type SessionStatus,
 } from "@/lib/utils/api";
@@ -53,6 +54,7 @@ interface Props {
 
 const STATUS_LABELS: Record<SessionStatus, string> = {
   RUNNING: "Running",
+  AWAITING_INPUT: "Awaiting input",
   SUCCEEDED: "Succeeded",
   FAILED: "Failed",
 };
@@ -64,6 +66,9 @@ export default function SessionDetail({ session: initial }: Props) {
   const [outputItems, setOutputItems] = useState<OutputItem[]>([]);
   const [failing, setFailing] = useState(false);
   const [failError, setFailError] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState("");
+  const [replying, setReplying] = useState(false);
+  const [replyError, setReplyError] = useState<string | null>(null);
   const [isGoalExpanded, setIsGoalExpanded] = useState(false);
   const [canExpandGoal, setCanExpandGoal] = useState(false);
 
@@ -188,6 +193,24 @@ export default function SessionDetail({ session: initial }: Props) {
     }
   }
 
+  async function handleReply(e: React.FormEvent) {
+    e.preventDefault();
+    if (!replyText.trim()) return;
+    setReplying(true);
+    setReplyError(null);
+    try {
+      const updated = await replyToSession(session.id, replyText.trim());
+      setSession(updated);
+      setReplyText("");
+    } catch (err) {
+      setReplyError(
+        err instanceof Error ? err.message : "Failed to send reply",
+      );
+    } finally {
+      setReplying(false);
+    }
+  }
+
   return (
     <div className={styles.container}>
       {/* Header */}
@@ -301,6 +324,31 @@ export default function SessionDetail({ session: initial }: Props) {
           )}
         </div>
       </section>
+
+      {/* Reply form */}
+      {session.status === "AWAITING_INPUT" && (
+        <section>
+          <h2 className={styles.sectionHeading}>Reply</h2>
+          <form onSubmit={handleReply} className={styles.replyForm}>
+            <textarea
+              className={styles.replyInput}
+              value={replyText}
+              onChange={(e) => setReplyText(e.target.value)}
+              placeholder="Type your reply…"
+              disabled={replying}
+              rows={3}
+            />
+            <button
+              type="submit"
+              className={styles.replyButton}
+              disabled={replying || !replyText.trim()}
+            >
+              {replying ? "Sending…" : "Send reply"}
+            </button>
+            {replyError && <p className={styles.error}>{replyError}</p>}
+          </form>
+        </section>
+      )}
     </div>
   );
 }

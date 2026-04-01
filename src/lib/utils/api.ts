@@ -89,7 +89,11 @@ export async function cleanMergedWorktrees(
   );
 }
 
-export type SessionStatus = "RUNNING" | "SUCCEEDED" | "FAILED";
+export type SessionStatus =
+  | "RUNNING"
+  | "AWAITING_INPUT"
+  | "SUCCEEDED"
+  | "FAILED";
 
 export interface Session {
   id: string;
@@ -124,6 +128,17 @@ export function fetchSessions(
 
 export async function failSession(id: string): Promise<Session> {
   return apiFetch(`/api/sessions/${id}/fail`, { method: "POST" });
+}
+
+export async function replyToSession(
+  id: string,
+  message: string,
+): Promise<Session> {
+  return apiFetch(`/api/sessions/${id}/reply`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message }),
+  });
 }
 
 export type WorkflowRunStatus = "running" | "success" | "failure";

@@ -17,6 +17,7 @@ interface Props {
 
 const STATUS_LABELS: Record<SessionStatus, string> = {
   RUNNING: "Running",
+  AWAITING_INPUT: "Awaiting input",
   SUCCEEDED: "Succeeded",
   FAILED: "Failed",
 };
