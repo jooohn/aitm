@@ -76,11 +76,18 @@ export default function SessionDetail({
   const [sendError, setSendError] = useState<string | null>(null);
   const [failing, setFailing] = useState(false);
   const [failError, setFailError] = useState<string | null>(null);
+  const [isGoalExpanded, setIsGoalExpanded] = useState(false);
+  const [canExpandGoal, setCanExpandGoal] = useState(false);
 
   const outputRef = useRef<HTMLDivElement>(null);
+  const goalSubtitleMeasureRef = useRef<HTMLParagraphElement>(null);
+  const goalH1MeasureRef = useRef<HTMLHeadingElement>(null);
   const autoScrollRef = useRef(true);
 
   const isTerminal = TERMINAL_STATUSES.includes(session.status);
+  const goalText = session.goal;
+  const stateName = session.state_name;
+  const goalSubtitleId = `session-goal-subtitle-${session.id}`;
 
   // SSE stream for live output
   useEffect(() => {
@@ -124,6 +131,34 @@ export default function SessionDetail({
       outputRef.current.scrollTop = outputRef.current.scrollHeight;
     }
   }, [outputItems]);
+
+  useEffect(() => {
+    const node = stateName
+      ? goalSubtitleMeasureRef.current
+      : goalH1MeasureRef.current;
+    if (!node) return;
+
+    const measureOverflow = () => {
+      const nextCanExpand =
+        node.scrollHeight > node.clientHeight + 1 ||
+        node.scrollWidth > node.clientWidth + 1;
+      setCanExpandGoal(nextCanExpand);
+      if (!nextCanExpand) {
+        setIsGoalExpanded(false);
+      }
+    };
+
+    measureOverflow();
+
+    if (typeof ResizeObserver === "undefined") {
+      return;
+    }
+
+    const observer = new ResizeObserver(measureOverflow);
+    observer.observe(node);
+
+    return () => observer.disconnect();
+  }, [stateName]);
 
   // Poll for session status + messages updates
   useEffect(() => {
@@ -203,9 +238,65 @@ export default function SessionDetail({
           >
             {STATUS_LABELS[session.status]}
           </span>
-          <h1 className={styles.goal}>{session.state_name ?? session.goal}</h1>
-          {session.state_name && (
-            <p className={styles.goalSubtitle}>{session.goal}</p>
+          {stateName ? (
+            <>
+              <h1 className={styles.goal}>{stateName}</h1>
+              <div className={styles.goalSubtitleBlock}>
+                <p
+                  id={goalSubtitleId}
+                  className={`${styles.goalSubtitle} ${
+                    isGoalExpanded ? "" : styles.goalSubtitleCollapsed
+                  }`}
+                >
+                  {goalText}
+                </p>
+                <p
+                  ref={goalSubtitleMeasureRef}
+                  aria-hidden="true"
+                  className={`${styles.goalSubtitle} ${styles.goalSubtitleCollapsed} ${styles.goalSubtitleMeasure}`}
+                >
+                  {goalText}
+                </p>
+                {canExpandGoal && (
+                  <button
+                    type="button"
+                    aria-controls={goalSubtitleId}
+                    aria-expanded={isGoalExpanded}
+                    className={styles.goalSubtitleToggle}
+                    onClick={() => setIsGoalExpanded((current) => !current)}
+                  >
+                    {isGoalExpanded ? "Show less" : "Show more"}
+                  </button>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className={styles.goalSubtitleBlock}>
+              <h1
+                id={goalSubtitleId}
+                className={`${styles.goal} ${isGoalExpanded ? "" : styles.goalCollapsed}`}
+              >
+                {goalText}
+              </h1>
+              <h1
+                ref={goalH1MeasureRef}
+                aria-hidden="true"
+                className={`${styles.goal} ${styles.goalCollapsed} ${styles.goalSubtitleMeasure}`}
+              >
+                {goalText}
+              </h1>
+              {canExpandGoal && (
+                <button
+                  type="button"
+                  aria-controls={goalSubtitleId}
+                  aria-expanded={isGoalExpanded}
+                  className={styles.goalSubtitleToggle}
+                  onClick={() => setIsGoalExpanded((current) => !current)}
+                >
+                  {isGoalExpanded ? "Show less" : "Show more"}
+                </button>
+              )}
+            </div>
           )}
         </div>
         {!isTerminal && (
@@ -246,10 +337,7 @@ export default function SessionDetail({
           {outputItems.length === 0 ? (
             <span className={styles.outputEmpty}>No output yet…</span>
           ) : (
-            outputItems.map((item, i) => (
-              // biome-ignore lint/suspicious/noArrayIndexKey: stable ordering for output stream
-              <OutputItemView key={i} item={item} />
-            ))
+            outputItems.map((item, i) => <OutputItemView key={i} item={item} />)
           )}
         </div>
       </section>
