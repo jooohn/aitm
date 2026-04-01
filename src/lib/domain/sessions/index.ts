@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
-import { mkdirSync, unlinkSync } from "fs";
-import { homedir } from "os";
+import { accessSync, constants, mkdirSync, unlinkSync } from "fs";
+import { homedir, tmpdir } from "os";
 import { join } from "path";
 import type { WorkflowTransition } from "../../infra/config";
 import { db } from "../../infra/db";
@@ -49,9 +49,25 @@ export interface ListSessionsFilter {
 }
 
 function sessionsLogDir(): string {
-  const dir = join(homedir(), ".aitm", "sessions");
-  mkdirSync(dir, { recursive: true });
-  return dir;
+  const configuredDir = process.env.AITM_SESSION_LOG_DIR;
+  const candidates = configuredDir
+    ? [configuredDir]
+    : [
+        join(homedir(), ".aitm", "sessions"),
+        join(tmpdir(), "aitm", "sessions"),
+      ];
+
+  for (const dir of candidates) {
+    try {
+      mkdirSync(dir, { recursive: true });
+      accessSync(dir, constants.W_OK);
+      return dir;
+    } catch {
+      // Try the next candidate.
+    }
+  }
+
+  throw new Error("Unable to create a writable session log directory");
 }
 
 export function createSession(

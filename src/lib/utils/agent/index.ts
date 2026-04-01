@@ -51,6 +51,26 @@ function setAgentSession(
   ).run(agentSessionId, attachCommand, sessionId);
 }
 
+function getSessionStatus(sessionId: string): SessionStatus | null {
+  const row = db
+    .prepare("SELECT status FROM sessions WHERE id = ?")
+    .get(sessionId) as { status: SessionStatus } | undefined;
+  return row?.status ?? null;
+}
+
+function isTerminalSessionStatus(status: SessionStatus | null): boolean {
+  return status === "FAILED" || status === "SUCCEEDED";
+}
+
+function finishEarly(
+  sessionId: string,
+  onComplete?: (decision: TransitionDecision | null) => void,
+): void {
+  activeAbortControllers.delete(sessionId);
+  pendingInputs.delete(sessionId);
+  onComplete?.(null);
+}
+
 function createToolPermissionHandler(
   sessionId: string,
   logFilePath: string,
@@ -158,9 +178,20 @@ export async function startAgent(
   logFilePath: string,
   onComplete?: (decision: TransitionDecision | null) => void,
 ): Promise<void> {
+  const abortController = new AbortController();
+  activeAbortControllers.set(sessionId, abortController);
+
   // Yield to the event loop so createSession can return the RUNNING record
   // before any synchronous work here (like worktree lookup) can change status.
   await Promise.resolve();
+
+  if (
+    abortController.signal.aborted ||
+    isTerminalSessionStatus(getSessionStatus(sessionId))
+  ) {
+    finishEarly(sessionId, onComplete);
+    return;
+  }
 
   writeFileSync(logFilePath, "", "utf8");
 
@@ -176,12 +207,9 @@ export async function startAgent(
       message: err instanceof Error ? err.message : String(err),
     });
     setStatus(sessionId, "FAILED");
-    onComplete?.(null);
+    finishEarly(sessionId, onComplete);
     return;
   }
-
-  const abortController = new AbortController();
-  activeAbortControllers.set(sessionId, abortController);
   const agentConfig = getAgentConfig();
   const agentRuntime: AgentRuntime =
     agentConfig.provider === "codex" ? codexCLI : claudeCLI;
@@ -198,6 +226,14 @@ export async function startAgent(
 
   let decision: TransitionDecision | null = null;
   try {
+    if (
+      abortController.signal.aborted ||
+      isTerminalSessionStatus(getSessionStatus(sessionId))
+    ) {
+      finishEarly(sessionId, onComplete);
+      return;
+    }
+
     for await (const message of agentRuntime.query({
       sessionId,
       prompt,
