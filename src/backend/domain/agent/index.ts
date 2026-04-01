@@ -5,7 +5,7 @@ import type { SessionStatus } from "@/backend/domain/sessions";
 import type { AgentConfig, WorkflowTransition } from "@/backend/infra/config";
 import { db } from "@/backend/infra/db";
 import { claudeCLI } from "./claude-cli";
-import { codexCLI } from "./codex-cli";
+import { codexSDK } from "./codex-sdk";
 import type { AgentRuntime } from "./runtime";
 
 export interface TransitionDecision {
@@ -214,7 +214,7 @@ export class AgentService {
     }
 
     const agentRuntime: AgentRuntime =
-      agentConfig.provider === "codex" ? codexCLI : claudeCLI;
+      agentConfig.provider === "codex" ? codexSDK : claudeCLI;
 
     const prompt = [
       goal,
