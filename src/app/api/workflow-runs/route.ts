@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import {
-  createWorkflowRun,
-  listWorkflowRuns,
-  type WorkflowRunStatus,
-} from "@/lib/domain/workflow-runs";
+import { workflowRunService } from "@/lib/container";
+import type { WorkflowRunStatus } from "@/lib/domain/workflow-runs";
 
 function errorResponse(err: unknown): NextResponse {
   const message = err instanceof Error ? err.message : "Internal server error";
@@ -29,7 +26,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    const run = createWorkflowRun({
+    const run = workflowRunService.createWorkflowRun({
       repository_path,
       worktree_branch,
       workflow_name,
@@ -50,7 +47,11 @@ export function GET(request: NextRequest): NextResponse {
     const status = statusParam as WorkflowRunStatus | undefined;
 
     return NextResponse.json(
-      listWorkflowRuns({ repository_path, worktree_branch, status }),
+      workflowRunService.listWorkflowRuns({
+        repository_path,
+        worktree_branch,
+        status,
+      }),
     );
   } catch (err) {
     return errorResponse(err);

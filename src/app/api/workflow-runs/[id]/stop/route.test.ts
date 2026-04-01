@@ -10,10 +10,13 @@ vi.mock("@/lib/utils/agent", () => ({
   startAgent: vi.fn(async () => {}),
 }));
 
-import {
-  completeStateExecution,
-  createWorkflowRun,
-} from "@/lib/domain/workflow-runs";
+import { workflowRunService } from "@/lib/container";
+
+const createWorkflowRun =
+  workflowRunService.createWorkflowRun.bind(workflowRunService);
+const completeStateExecution =
+  workflowRunService.completeStateExecution.bind(workflowRunService);
+
 import { db } from "@/lib/infra/db";
 import { POST } from "./route";
 

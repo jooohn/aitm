@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { workflowRunService } from "@/lib/container";
 import { inferAlias } from "@/lib/domain/repositories";
-import { getWorkflowRun } from "@/lib/domain/workflow-runs";
 import styles from "./page.module.css";
 import WorkflowRunDetail from "./WorkflowRunDetail";
 
@@ -11,7 +11,7 @@ interface Props {
 
 export default async function WorkflowRunPage({ params }: Props) {
   const { id } = await params;
-  const run = getWorkflowRun(id);
+  const run = workflowRunService.getWorkflowRun(id);
   if (!run) notFound();
 
   const repoAlias = inferAlias(run.repository_path);

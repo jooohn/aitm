@@ -3,7 +3,11 @@ import { NextRequest } from "next/server";
 import { tmpdir } from "os";
 import { join } from "path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { createWorkflowRun } from "@/lib/domain/workflow-runs";
+import { workflowRunService } from "@/lib/container";
+
+const createWorkflowRun =
+  workflowRunService.createWorkflowRun.bind(workflowRunService);
+
 import { db } from "@/lib/infra/db";
 import { GET } from "./route";
 

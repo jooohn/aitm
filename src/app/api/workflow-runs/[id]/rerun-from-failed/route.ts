@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { rerunWorkflowRunFromFailedState } from "@/lib/domain/workflow-runs";
+import { workflowRunService } from "@/lib/container";
 
 function errorResponse(err: unknown): NextResponse {
   const message = err instanceof Error ? err.message : "Internal server error";
@@ -16,7 +16,7 @@ export async function POST(
 ): Promise<NextResponse> {
   try {
     const { id } = await params;
-    const run = rerunWorkflowRunFromFailedState(id);
+    const run = workflowRunService.rerunWorkflowRunFromFailedState(id);
     return NextResponse.json(run, { status: 200 });
   } catch (err) {
     return errorResponse(err);

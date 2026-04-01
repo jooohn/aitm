@@ -2,19 +2,32 @@ import { mkdirSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { workflowRunService } from "@/lib/container";
 import { db } from "../../infra/db";
 import * as sessionsDomain from "../sessions";
 import * as sessionsModule from "../sessions";
 import { failSession } from "../sessions";
 import { listWorktrees } from "../worktrees";
-import {
+
+const {
   completeStateExecution,
   createWorkflowRun,
   getWorkflowRun,
   listWorkflowRuns,
   rerunWorkflowRunFromFailedState,
   stopWorkflowRun,
-} from "./index";
+} = {
+  completeStateExecution:
+    workflowRunService.completeStateExecution.bind(workflowRunService),
+  createWorkflowRun:
+    workflowRunService.createWorkflowRun.bind(workflowRunService),
+  getWorkflowRun: workflowRunService.getWorkflowRun.bind(workflowRunService),
+  listWorkflowRuns:
+    workflowRunService.listWorkflowRuns.bind(workflowRunService),
+  rerunWorkflowRunFromFailedState:
+    workflowRunService.rerunWorkflowRunFromFailedState.bind(workflowRunService),
+  stopWorkflowRun: workflowRunService.stopWorkflowRun.bind(workflowRunService),
+};
 
 vi.mock("../worktrees");
 
