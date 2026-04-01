@@ -5,11 +5,11 @@ import {
   resolveAgentConfig,
   type WorkflowTransition,
 } from "../../infra/config";
+import { workflowRunRepository } from "../../infra/db";
 import { type TransitionDecision } from "../../utils/agent";
 import { createSession, failSession, type SessionStatus } from "../sessions";
 import { listWorktrees } from "../worktrees";
 import type { PreviousExecutionHandoff } from "./workflow-run-repository";
-import * as workflowRunRepository from "./workflow-run-repository";
 
 export type WorkflowRunStatus = "running" | "success" | "failure";
 

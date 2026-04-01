@@ -7,13 +7,13 @@ import {
   getAgentConfig,
   type WorkflowTransition,
 } from "../../infra/config";
+import { sessionRepository } from "../../infra/db";
 import {
   cancelAgent,
   sendMessageToAgent,
   startAgent,
   type TransitionDecision,
 } from "../../utils/agent";
-import * as sessionRepository from "./session-repository";
 
 export type SessionStatus =
   | "RUNNING"
