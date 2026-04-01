@@ -1,7 +1,6 @@
 import { appendFileSync } from "fs";
 import { NextRequest, NextResponse } from "next/server";
-import { sessionService } from "@/lib/container";
-import { waitForAnswer } from "@/lib/domain/pending-questions";
+import { pendingQuestionService, sessionService } from "@/lib/container";
 import { db } from "@/lib/infra/db";
 
 type Params = Promise<{ id: string }>;
@@ -49,7 +48,7 @@ export async function POST(
 
   let answer: string;
   try {
-    answer = await waitForAnswer(id);
+    answer = await pendingQuestionService.waitForAnswer(id);
   } catch {
     return NextResponse.json(
       { error: "Timed out waiting for answer" },

@@ -2,8 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import SessionSection from "@/app/components/SessionSection";
 import WorkflowSection from "@/app/components/WorkflowSection";
-import { worktreeService } from "@/lib/container";
-import { getRepositoryByAlias } from "@/lib/domain/repositories";
+import { repositoryService, worktreeService } from "@/lib/container";
 import styles from "./page.module.css";
 
 interface Props {
@@ -21,7 +20,7 @@ export default async function WorktreePage({ params }: Props) {
     "worktree-name": worktreeNameSegments,
   } = await params;
   const alias = `${organization}/${name}`;
-  const repo = getRepositoryByAlias(alias);
+  const repo = repositoryService.getRepositoryByAlias(alias);
   if (!repo) notFound();
 
   const branch = worktreeNameSegments.join("/");

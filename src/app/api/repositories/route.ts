@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { listRepositories } from "@/lib/domain/repositories";
+import { repositoryService } from "@/lib/container";
 
 export async function GET(): Promise<NextResponse> {
   try {
-    return NextResponse.json(listRepositories());
+    return NextResponse.json(repositoryService.listRepositories());
   } catch (err) {
     const message =
       err instanceof Error ? err.message : "Internal server error";

@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { sessionService, worktreeService } from "@/lib/container";
-import { getRepositoryByAlias } from "@/lib/domain/repositories";
+import {
+  repositoryService,
+  sessionService,
+  worktreeService,
+} from "@/lib/container";
 
 type Params = Promise<{ organization: string; name: string; branch: string[] }>;
 
@@ -21,7 +24,9 @@ export async function DELETE(
 ): Promise<NextResponse> {
   try {
     const { organization, name, branch } = await params;
-    const repo = getRepositoryByAlias(`${organization}/${name}`);
+    const repo = repositoryService.getRepositoryByAlias(
+      `${organization}/${name}`,
+    );
     if (!repo) {
       return NextResponse.json(
         { error: "Repository not found" },

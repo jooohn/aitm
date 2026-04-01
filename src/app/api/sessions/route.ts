@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { sessionService } from "@/lib/container";
-import { getRepositoryByAlias } from "@/lib/domain/repositories";
+import { repositoryService, sessionService } from "@/lib/container";
 import type { SessionStatus } from "@/lib/domain/sessions";
 
 function errorResponse(err: unknown): NextResponse {
@@ -48,7 +47,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    const repo = getRepositoryByAlias(`${organization}/${name}`);
+    const repo = repositoryService.getRepositoryByAlias(
+      `${organization}/${name}`,
+    );
     if (!repo) {
       return NextResponse.json(
         { error: "Repository not found" },

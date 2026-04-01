@@ -1,9 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { sessionService } from "@/lib/container";
-import {
-  deliverAnswer,
-  hasPendingQuestion,
-} from "@/lib/domain/pending-questions";
+import { pendingQuestionService, sessionService } from "@/lib/container";
 
 type Params = Promise<{ id: string }>;
 
@@ -46,9 +42,9 @@ export async function POST(
       );
     }
     // MCP path: deliver answer to the waiting question handler.
-    if (hasPendingQuestion(id)) {
+    if (pendingQuestionService.hasPendingQuestion(id)) {
       sessionService.saveMessage(id, "user", body.content);
-      deliverAnswer(id, body.content);
+      pendingQuestionService.deliverAnswer(id, body.content);
       return new NextResponse(null, { status: 204 });
     }
 

@@ -3,13 +3,16 @@ import { mkdirSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import {
-  getGitHubUrl,
-  getRepositoryByAlias,
-  inferAlias,
-  listRepositories,
-  validateRepository,
-} from "./repositories";
+import { repositoryService } from "@/lib/container";
+import { inferAlias } from "./index";
+
+const listRepositories =
+  repositoryService.listRepositories.bind(repositoryService);
+const getRepositoryByAlias =
+  repositoryService.getRepositoryByAlias.bind(repositoryService);
+const getGitHubUrl = repositoryService.getGitHubUrl.bind(repositoryService);
+const validateRepository =
+  repositoryService.validateRepository.bind(repositoryService);
 
 let configFile: string;
 

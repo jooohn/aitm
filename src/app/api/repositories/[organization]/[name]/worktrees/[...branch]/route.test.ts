@@ -1,10 +1,11 @@
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { sessionService, worktreeService } from "@/lib/container";
-import { getRepositoryByAlias } from "@/lib/domain/repositories";
+import {
+  repositoryService,
+  sessionService,
+  worktreeService,
+} from "@/lib/container";
 import { DELETE } from "./route";
-
-vi.mock("@/lib/domain/repositories");
 
 function makeParams(
   organization: string,
@@ -18,6 +19,7 @@ function makeParams(
 
 let deleteWorktreeDataSpy: ReturnType<typeof vi.spyOn>;
 let removeWorktreeSpy: ReturnType<typeof vi.spyOn>;
+let getRepositoryByAliasSpy: ReturnType<typeof vi.spyOn>;
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -27,11 +29,12 @@ beforeEach(() => {
   removeWorktreeSpy = vi
     .spyOn(worktreeService, "removeWorktree")
     .mockImplementation(() => {});
+  getRepositoryByAliasSpy = vi.spyOn(repositoryService, "getRepositoryByAlias");
 });
 
 describe("DELETE /api/repositories/:organization/:name/worktrees/[...branch]", () => {
   it("returns 404 when repository is not found", async () => {
-    vi.mocked(getRepositoryByAlias).mockReturnValue(undefined);
+    getRepositoryByAliasSpy.mockReturnValue(undefined);
 
     const res = await DELETE(
       new NextRequest(
@@ -49,7 +52,7 @@ describe("DELETE /api/repositories/:organization/:name/worktrees/[...branch]", (
   });
 
   it("removes worktree and deletes worktree data", async () => {
-    vi.mocked(getRepositoryByAlias).mockReturnValue({
+    getRepositoryByAliasSpy.mockReturnValue({
       path: "/repo/path",
       name: "repo",
       alias: "org/repo",
@@ -73,7 +76,7 @@ describe("DELETE /api/repositories/:organization/:name/worktrees/[...branch]", (
   });
 
   it("returns 422 when trying to remove the main worktree", async () => {
-    vi.mocked(getRepositoryByAlias).mockReturnValue({
+    getRepositoryByAliasSpy.mockReturnValue({
       path: "/repo/path",
       name: "repo",
       alias: "org/repo",
@@ -97,7 +100,7 @@ describe("DELETE /api/repositories/:organization/:name/worktrees/[...branch]", (
   });
 
   it("returns 404 when worktree branch is not found", async () => {
-    vi.mocked(getRepositoryByAlias).mockReturnValue({
+    getRepositoryByAliasSpy.mockReturnValue({
       path: "/repo/path",
       name: "repo",
       alias: "org/repo",

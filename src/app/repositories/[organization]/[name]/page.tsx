@@ -3,8 +3,7 @@ import { notFound } from "next/navigation";
 import QuickLaunchSection from "@/app/components/QuickLaunchSection";
 import RepositoryWorkflowsSection from "@/app/components/RepositoryWorkflowsSection";
 import WorktreeSection from "@/app/components/WorktreeSection";
-import { worktreeService } from "@/lib/container";
-import { getGitHubUrl, getRepositoryByAlias } from "@/lib/domain/repositories";
+import { repositoryService, worktreeService } from "@/lib/container";
 import styles from "./page.module.css";
 
 interface Props {
@@ -14,11 +13,11 @@ interface Props {
 export default async function RepositoryPage({ params }: Props) {
   const { organization, name } = await params;
   const alias = `${organization}/${name}`;
-  const repo = getRepositoryByAlias(alias);
+  const repo = repositoryService.getRepositoryByAlias(alias);
 
   if (!repo) notFound();
 
-  const githubUrl = getGitHubUrl(repo.path);
+  const githubUrl = repositoryService.getGitHubUrl(repo.path);
 
   let activeWorktreeBranches: string[] | null = null;
   try {

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { worktreeService } from "@/lib/container";
-import { getRepositoryByAlias } from "@/lib/domain/repositories";
+import { repositoryService, worktreeService } from "@/lib/container";
 
 type Params = Promise<{ organization: string; name: string }>;
 
@@ -21,7 +20,9 @@ export async function GET(
 ): Promise<NextResponse> {
   try {
     const { organization, name } = await params;
-    const repo = getRepositoryByAlias(`${organization}/${name}`);
+    const repo = repositoryService.getRepositoryByAlias(
+      `${organization}/${name}`,
+    );
     if (!repo) {
       return NextResponse.json(
         { error: "Repository not found" },
@@ -40,7 +41,9 @@ export async function POST(
 ): Promise<NextResponse> {
   try {
     const { organization, name } = await params;
-    const repo = getRepositoryByAlias(`${organization}/${name}`);
+    const repo = repositoryService.getRepositoryByAlias(
+      `${organization}/${name}`,
+    );
     if (!repo) {
       return NextResponse.json(
         { error: "Repository not found" },
