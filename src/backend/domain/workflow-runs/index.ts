@@ -1,4 +1,4 @@
-import { execFileSync, spawnSync } from "child_process";
+import { execFileSync } from "child_process";
 import { randomUUID } from "crypto";
 import {
   AgentWorkflowState,
@@ -11,6 +11,7 @@ import type { EventBus } from "@/backend/infra/event-bus";
 import { type TransitionDecision } from "../agent";
 import type { SessionService, SessionStatus } from "../sessions";
 import type { Worktree, WorktreeService } from "../worktrees";
+import type { CommandStateExecutor } from "./command-state-executor";
 import type {
   PreviousExecutionHandoff,
   WorkflowRunRepository,
@@ -59,17 +60,6 @@ export interface ListWorkflowRunsFilter {
   worktree_branch?: string;
   status?: WorkflowRunStatus;
 }
-
-// interface CommandStateExecutionResult {
-//   type: "command";
-//   decision: TransitionDecision | null;
-//   commandOutput: string | null
-// }
-// interface AgentStateExecutionResult {
-//   type: "agent";
-//   decision: TransitionDecision | null;
-// }
-// type StateExecutionResult = CommandStateExecutionResult | AgentStateExecutionResult
 
 function buildGoal(
   stateGoal: string,
@@ -122,6 +112,7 @@ export class WorkflowRunService {
     private workflowRunRepository: WorkflowRunRepository,
     private sessionService: SessionService,
     private worktreeService: WorktreeService,
+    private commandStateExecutor: CommandStateExecutor,
     eventBus: EventBus,
   ) {
     eventBus.on("session.completed", ({ sessionId, decision }) => {
@@ -209,13 +200,10 @@ export class WorkflowRunService {
     executionId: string;
     worktree: Worktree;
   }) {
-    const result = spawnSync("sh", ["-c", stateDef.command], {
-      cwd: worktree.path,
-      encoding: "utf8",
-    });
-    const commandOutput =
-      [result.stdout, result.stderr].filter(Boolean).join("\n") || null;
-    const outcome = result.status === 0 ? "succeeded" : "failed";
+    const { outcome, commandOutput } = this.commandStateExecutor.execute(
+      stateDef.command,
+      { cwd: worktree.path },
+    );
 
     this.workflowRunRepository.setStateExecutionCommandOutput(
       executionId,
@@ -236,7 +224,7 @@ export class WorkflowRunService {
           : matchedTransition.terminal;
       decision = {
         transition: transitionName,
-        reason: `exit code ${result.status ?? "unknown"}`,
+        reason: `Command ${outcome}`,
         handoff_summary: commandOutput ?? "",
       };
     }

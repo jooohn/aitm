@@ -4,6 +4,7 @@ import { RepositoryService } from "@/backend/domain/repositories";
 import { SessionService } from "@/backend/domain/sessions";
 import { SessionRepository } from "@/backend/domain/sessions/session-repository";
 import { WorkflowRunService } from "@/backend/domain/workflow-runs";
+import { CommandStateExecutor } from "@/backend/domain/workflow-runs/command-state-executor";
 import { WorkflowRunRepository } from "@/backend/domain/workflow-runs/workflow-run-repository";
 import { WorktreeService } from "@/backend/domain/worktrees";
 import { db } from "@/backend/infra/db";
@@ -20,10 +21,12 @@ export const sessionService = new SessionService(
   worktreeService,
   eventBus,
 );
+export const commandStateExecutor = new CommandStateExecutor();
 export const workflowRunService = new WorkflowRunService(
   workflowRunRepository,
   sessionService,
   worktreeService,
+  commandStateExecutor,
   eventBus,
 );
 export const houseKeepingService = new HouseKeepingService(
