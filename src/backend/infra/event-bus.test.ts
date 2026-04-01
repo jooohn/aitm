@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import type { EventMap } from "./event-handler";
-import { EventHandler } from "./event-handler";
+import type { EventMap } from "./event-bus";
+import { EventBus } from "./event-bus";
 
-describe("EventHandler", () => {
+describe("EventBus", () => {
   it("calls a registered listener when an event is emitted", () => {
-    const handler = new EventHandler();
+    const handler = new EventBus();
     const listener = vi.fn();
 
     handler.on("session.completed", listener);
@@ -20,7 +20,7 @@ describe("EventHandler", () => {
   });
 
   it("calls multiple listeners for the same event", () => {
-    const handler = new EventHandler();
+    const handler = new EventBus();
     const listener1 = vi.fn();
     const listener2 = vi.fn();
 
@@ -33,7 +33,7 @@ describe("EventHandler", () => {
   });
 
   it("does not call listeners for other events", () => {
-    const handler = new EventHandler();
+    const handler = new EventBus();
     const listener = vi.fn();
 
     handler.on("session.completed", listener);
@@ -43,7 +43,7 @@ describe("EventHandler", () => {
   });
 
   it("catches and logs errors thrown by listeners without affecting other listeners", () => {
-    const handler = new EventHandler();
+    const handler = new EventBus();
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const badListener = vi.fn(() => {
       throw new Error("listener error");
@@ -65,7 +65,7 @@ describe("EventHandler", () => {
   });
 
   it("does nothing when emitting an event with no listeners", () => {
-    const handler = new EventHandler();
+    const handler = new EventBus();
     // Should not throw
     expect(() =>
       handler.emit("session.completed", { sessionId: "s1", decision: null }),

@@ -5,7 +5,7 @@ import {
   resolveAgentConfig,
   type WorkflowTransition,
 } from "@/backend/infra/config";
-import { eventHandler } from "@/backend/infra/event-handler";
+import { eventHandler } from "@/backend/infra/event-bus";
 import { type TransitionDecision } from "../agent";
 import type { SessionService, SessionStatus } from "../sessions";
 import type { WorktreeService } from "../worktrees";

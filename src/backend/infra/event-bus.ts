@@ -9,7 +9,7 @@ export interface EventMap {
 
 type Listener<K extends keyof EventMap> = (payload: EventMap[K]) => void;
 
-export class EventHandler {
+export class EventBus {
   private listeners = new Map<keyof EventMap, Listener<never>[]>();
 
   on<K extends keyof EventMap>(eventName: K, listener: Listener<K>): void {
@@ -31,4 +31,4 @@ export class EventHandler {
   }
 }
 
-export const eventHandler = new EventHandler();
+export const eventHandler = new EventBus();
