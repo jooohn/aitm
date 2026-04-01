@@ -198,6 +198,14 @@ export interface WorkflowRunDetail extends WorkflowRun {
   state_executions: StateExecution[];
 }
 
+export function canStopWorkflowRun(run: WorkflowRunDetail): boolean {
+  if (run.status !== "running") return false;
+  return run.state_executions.some(
+    (execution) =>
+      execution.completed_at === null && execution.session_id !== null,
+  );
+}
+
 export function fetchWorkflows(): Promise<Record<string, WorkflowDefinition>> {
   return apiFetch("/api/workflows");
 }
@@ -234,6 +242,10 @@ export function createWorkflowRun(input: {
 
 export function fetchWorkflowRun(id: string): Promise<WorkflowRunDetail> {
   return apiFetch(`/api/workflow-runs/${id}`);
+}
+
+export function stopWorkflowRun(id: string): Promise<WorkflowRunDetail> {
+  return apiFetch(`/api/workflow-runs/${id}/stop`, { method: "POST" });
 }
 
 export function rerunWorkflowRun(id: string): Promise<WorkflowRun> {

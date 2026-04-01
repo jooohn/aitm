@@ -3,6 +3,8 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { db } from "../../infra/db";
+import * as sessionsDomain from "../sessions";
+import { failSession } from "../sessions";
 import { listWorktrees } from "../worktrees";
 import {
   completeStateExecution,
@@ -10,6 +12,7 @@ import {
   getWorkflowRun,
   listWorkflowRuns,
   rerunWorkflowRunFromFailedState,
+  stopWorkflowRun,
 } from "./index";
 
 vi.mock("../worktrees");
@@ -473,6 +476,179 @@ describe("completeStateExecution", () => {
     // Second implement session should contain BOTH prior handoffs
     expect(implement2Session.goal).toContain("Created PLAN.md with approach");
     expect(implement2Session.goal).toContain("Wrote src/index.ts");
+  });
+});
+
+describe("stopWorkflowRun", () => {
+  function setupRunningRun() {
+    process.env.AITM_CONFIG_PATH = writeTempConfig(SIMPLE_WORKFLOW_CONFIG);
+    const repoPath = makeFakeGitRepo();
+    const run = createWorkflowRun({
+      repository_path: repoPath,
+      worktree_branch: "feat/test",
+      workflow_name: "my-flow",
+    });
+
+    const execution = db
+      .prepare("SELECT * FROM state_executions WHERE workflow_run_id = ?")
+      .get(run.id) as { id: string };
+    const session = db
+      .prepare("SELECT * FROM sessions WHERE state_execution_id = ?")
+      .get(execution.id) as { id: string; status: string };
+
+    return { run, execution, session };
+  }
+
+  it("fails the active session and marks the running workflow run as failure", () => {
+    const { run, execution, session } = setupRunningRun();
+
+    const stopped = stopWorkflowRun(run.id);
+
+    expect(stopped.status).toBe("failure");
+    expect(stopped.current_state).toBeNull();
+
+    const updatedExecution = db
+      .prepare("SELECT * FROM state_executions WHERE id = ?")
+      .get(execution.id) as { completed_at: string | null };
+    expect(updatedExecution.completed_at).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+
+    const updatedSession = db
+      .prepare("SELECT * FROM sessions WHERE id = ?")
+      .get(session.id) as { status: string };
+    expect(updatedSession.status).toBe("FAILED");
+  });
+
+  it("throws when the workflow run is already terminal", () => {
+    const { run, execution } = setupRunningRun();
+    completeStateExecution(execution.id, {
+      transition: "failure",
+      reason: "Blocked",
+      handoff_summary: "Could not proceed",
+    });
+
+    expect(() => stopWorkflowRun(run.id)).toThrow(
+      "Workflow run is already in a terminal state",
+    );
+  });
+
+  it("throws when the active state execution has no linked session", () => {
+    process.env.AITM_CONFIG_PATH = writeTempConfig(`
+workflows:
+  my-flow:
+    initial_state: run-command
+    states:
+      run-command:
+        command: "exit 1"
+        transitions:
+          - terminal: failure
+            when: "failed"
+`);
+    const repoPath = makeFakeGitRepo();
+    vi.mocked(listWorktrees).mockReturnValue([
+      {
+        branch: "feat/test",
+        path: repoPath,
+        is_main: false,
+        is_bare: false,
+        head: "HEAD",
+      },
+    ]);
+
+    const now = new Date().toISOString();
+    const runId = "running-command-run";
+    const executionId = "running-command-execution";
+    db.prepare(
+      `INSERT INTO workflow_runs
+         (id, repository_path, worktree_branch, workflow_name, current_state, status, inputs, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, 'running', NULL, ?, ?)`,
+    ).run(runId, repoPath, "feat/test", "my-flow", "run-command", now, now);
+    db.prepare(
+      `INSERT INTO state_executions
+         (id, workflow_run_id, state, command_output, transition_decision, handoff_summary, created_at, completed_at)
+       VALUES (?, ?, ?, NULL, NULL, NULL, ?, NULL)`,
+    ).run(executionId, runId, "run-command", now);
+
+    expect(() => stopWorkflowRun(runId)).toThrow(
+      "No active session to stop for this workflow run",
+    );
+  });
+
+  it("still fails the workflow run when the active session already reached SUCCEEDED", () => {
+    const { run, execution, session } = setupRunningRun();
+
+    db.prepare("UPDATE sessions SET status = 'SUCCEEDED' WHERE id = ?").run(
+      session.id,
+    );
+
+    const stopped = stopWorkflowRun(run.id);
+
+    expect(stopped.status).toBe("failure");
+    expect(stopped.current_state).toBeNull();
+
+    const updatedExecution = db
+      .prepare("SELECT completed_at FROM state_executions WHERE id = ?")
+      .get(execution.id) as { completed_at: string | null };
+    expect(updatedExecution.completed_at).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+  });
+
+  it("still fails the workflow run when failSession loses a race to a terminal session update", () => {
+    const { run, execution, session } = setupRunningRun();
+
+    vi.spyOn(sessionsDomain, "failSession").mockImplementationOnce((id) => {
+      db.prepare("UPDATE sessions SET status = 'SUCCEEDED' WHERE id = ?").run(
+        id,
+      );
+      throw new Error(
+        `Session ${id} is already in a terminal state: SUCCEEDED`,
+      );
+    });
+
+    const stopped = stopWorkflowRun(run.id);
+
+    expect(stopped.status).toBe("failure");
+    expect(stopped.current_state).toBeNull();
+
+    const updatedExecution = db
+      .prepare("SELECT completed_at FROM state_executions WHERE id = ?")
+      .get(execution.id) as { completed_at: string | null };
+    expect(updatedExecution.completed_at).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+
+    const updatedSession = db
+      .prepare("SELECT status FROM sessions WHERE id = ?")
+      .get(session.id) as { status: string };
+    expect(updatedSession.status).toBe("SUCCEEDED");
+  });
+});
+
+describe("workflow run lifecycle around session startup races", () => {
+  it("marks the workflow run as failure when the session is failed before agent startup continues", async () => {
+    process.env.AITM_CONFIG_PATH = writeTempConfig(SIMPLE_WORKFLOW_CONFIG);
+    const repoPath = makeFakeGitRepo();
+
+    const run = createWorkflowRun({
+      repository_path: repoPath,
+      worktree_branch: "feat/test",
+      workflow_name: "my-flow",
+    });
+
+    const execution = db
+      .prepare("SELECT * FROM state_executions WHERE workflow_run_id = ?")
+      .get(run.id) as { id: string };
+    const session = db
+      .prepare("SELECT * FROM sessions WHERE state_execution_id = ?")
+      .get(execution.id) as { id: string };
+
+    failSession(session.id);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const updatedRun = getWorkflowRun(run.id);
+    expect(updatedRun?.status).toBe("failure");
+    expect(updatedRun?.current_state).toBeNull();
+
+    const updatedExecution = db
+      .prepare("SELECT completed_at FROM state_executions WHERE id = ?")
+      .get(execution.id) as { completed_at: string | null };
+    expect(updatedExecution.completed_at).toMatch(/^\d{4}-\d{2}-\d{2}T/);
   });
 });
 

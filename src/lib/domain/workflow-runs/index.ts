@@ -6,7 +6,7 @@ import {
 } from "../../infra/config";
 import { db } from "../../infra/db";
 import { type TransitionDecision } from "../../utils/agent";
-import { createSession, type SessionStatus } from "../sessions";
+import { createSession, failSession, type SessionStatus } from "../sessions";
 import { listWorktrees } from "../worktrees";
 
 export type WorkflowRunStatus = "running" | "success" | "failure";
@@ -340,6 +340,68 @@ function terminateRun(
   db.prepare(
     "UPDATE workflow_runs SET status = ?, current_state = NULL, updated_at = ? WHERE id = ?",
   ).run(terminal, now, runId);
+}
+
+function isAlreadyTerminalSessionError(
+  err: unknown,
+  sessionId: string,
+): boolean {
+  return (
+    err instanceof Error &&
+    err.message.startsWith(
+      `Session ${sessionId} is already in a terminal state:`,
+    )
+  );
+}
+
+export function stopWorkflowRun(id: string): WorkflowRunWithExecutions {
+  const run = db.prepare("SELECT * FROM workflow_runs WHERE id = ?").get(id) as
+    | WorkflowRun
+    | undefined;
+  if (!run) throw new Error("Workflow run not found");
+  if (run.status !== "running") {
+    throw new Error("Workflow run is already in a terminal state");
+  }
+
+  const activeExecution = db
+    .prepare(
+      `SELECT se.*, s.id AS session_id, s.status AS session_status
+       FROM state_executions se
+       LEFT JOIN sessions s ON s.state_execution_id = se.id
+       WHERE se.workflow_run_id = ? AND se.completed_at IS NULL
+       ORDER BY se.created_at DESC
+       LIMIT 1`,
+    )
+    .get(id) as
+    | (StateExecution & {
+        session_status: SessionStatus | null;
+      })
+    | undefined;
+
+  if (!activeExecution?.session_id) {
+    throw new Error("No active session to stop for this workflow run");
+  }
+
+  if (
+    activeExecution.session_status === "RUNNING" ||
+    activeExecution.session_status === "WAITING_FOR_INPUT"
+  ) {
+    try {
+      failSession(activeExecution.session_id);
+    } catch (err) {
+      if (!isAlreadyTerminalSessionError(err, activeExecution.session_id)) {
+        throw err;
+      }
+    }
+  }
+
+  completeStateExecution(activeExecution.id, {
+    transition: "failure",
+    reason: "Emergency stop requested",
+    handoff_summary: "Workflow run stopped manually.",
+  });
+
+  return getWorkflowRun(id)!;
 }
 
 // Mark state_executions as completed where the session has reached a terminal

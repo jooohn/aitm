@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
+  canStopWorkflowRun,
   fetchSessionMessages,
   fetchWorkflowRun,
   rerunWorkflowRun,
@@ -11,6 +12,7 @@ import {
   type SessionMessage,
   type StateExecution,
   sendMessage,
+  stopWorkflowRun,
   type WorkflowRunDetail,
   type WorkflowRunStatus,
 } from "@/lib/utils/api";
@@ -182,6 +184,8 @@ export default function WorkflowRunDetail({ run: initial }: Props) {
   const [run, setRun] = useState<WorkflowRunDetail>(initial);
   const [rerunning, setRerunning] = useState(false);
   const [rerunError, setRerunError] = useState<string | null>(null);
+  const [stopping, setStopping] = useState(false);
+  const [stopError, setStopError] = useState<string | null>(null);
   const [rerunningFromFailed, setRerunningFromFailed] = useState(false);
   const [rerunFromFailedError, setRerunFromFailedError] = useState<
     string | null
@@ -193,6 +197,7 @@ export default function WorkflowRunDetail({ run: initial }: Props) {
 
   const isTerminal = TERMINAL_STATUSES.includes(run.status);
   const inputEntries = parseWorkflowRunInputs(run.inputs);
+  const canStop = canStopWorkflowRun(run);
 
   async function handleRerun() {
     setRerunning(true);
@@ -204,6 +209,21 @@ export default function WorkflowRunDetail({ run: initial }: Props) {
       setRerunError(err instanceof Error ? err.message : "Re-run failed");
     } finally {
       setRerunning(false);
+    }
+  }
+
+  async function handleStop() {
+    setStopping(true);
+    setStopError(null);
+    try {
+      const updated = await stopWorkflowRun(run.id);
+      setRun(updated);
+    } catch (err) {
+      setStopError(
+        err instanceof Error ? err.message : "Emergency stop failed",
+      );
+    } finally {
+      setStopping(false);
     }
   }
 
@@ -290,6 +310,18 @@ export default function WorkflowRunDetail({ run: initial }: Props) {
           </span>
           <h1 className={styles.title}>{run.workflow_name}</h1>
         </div>
+        {canStop && (
+          <div className={styles.headerActions}>
+            <button
+              className={styles.stopButton}
+              onClick={handleStop}
+              disabled={stopping}
+            >
+              {stopping ? "Stopping…" : "Emergency stop"}
+            </button>
+            {stopError && <p className={styles.rerunError}>{stopError}</p>}
+          </div>
+        )}
         {run.status === "failure" && (
           <div className={styles.headerActions}>
             <button
