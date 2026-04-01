@@ -1,7 +1,7 @@
 # Spec: aitm config.yaml
 
 **Status:** implemented
-**Last updated:** 2026-03-29
+**Last updated:** 2026-03-31
 
 ## Summary
 
@@ -120,12 +120,56 @@ workflows:
 
 ### State definition
 
-Each state under `states` has:
+Each state under `states` is one of:
+
+1. A goal-based state with `goal` and `transitions`
+2. A command-based state with `command` and `transitions`
+
+Goal-based states have:
 
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `goal` | string | yes | Fixed instruction string passed to the configured agent session as its objective |
 | `transitions` | list | yes | Ordered list of transition candidates; the configured agent selects the first matching one |
+
+Goal-based states may also define an optional `agent` block that overrides the top-level runtime for that state only:
+
+```yaml
+agent:
+  provider: claude
+  model: sonnet
+
+workflows:
+  development-flow:
+    initial_state: plan
+    states:
+      plan:
+        goal: Write a plan
+        agent:
+          provider: codex
+          model: gpt-5.4
+        transitions:
+          - state: implement
+            when: plan is ready
+
+      implement:
+        goal: Implement the plan
+        agent:
+          model: sonnet-4.5
+        transitions:
+          - terminal: success
+            when: done
+```
+
+State-level `agent` fields use shallow inheritance from the top-level `agent` config:
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `provider` | `claude` \| `codex` | no | Optional. If omitted, the state inherits the top-level provider. |
+| `model` | string | no | Optional. Overrides the model for that state only. |
+| `command` | string | no | Optional. Overrides the CLI executable path or command name for that state only. |
+
+Command-based states do not use `agent` config. If `provider` is omitted in a goal-state override, only the supplied fields are replaced and the remaining fields continue to inherit from the top-level `agent` block.
 
 ### Transition definition
 

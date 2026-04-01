@@ -2,7 +2,11 @@ import { randomUUID } from "crypto";
 import { accessSync, constants, mkdirSync, unlinkSync } from "fs";
 import { homedir, tmpdir } from "os";
 import { join } from "path";
-import type { WorkflowTransition } from "../../infra/config";
+import {
+  type AgentConfig,
+  getAgentConfig,
+  type WorkflowTransition,
+} from "../../infra/config";
 import { db } from "../../infra/db";
 import {
   cancelAgent,
@@ -39,6 +43,7 @@ export interface CreateSessionInput {
   worktree_branch: string;
   goal: string;
   transitions: WorkflowTransition[];
+  agent_config?: AgentConfig;
   state_execution_id?: string;
 }
 
@@ -49,13 +54,12 @@ export interface ListSessionsFilter {
 }
 
 function sessionsLogDir(): string {
-  const configuredDir = process.env.AITM_SESSION_LOG_DIR;
-  const candidates = configuredDir
-    ? [configuredDir]
-    : [
-        join(homedir(), ".aitm", "sessions"),
-        join(tmpdir(), "aitm", "sessions"),
-      ];
+  const candidates = [
+    process.env.AITM_SESSION_LOG_DIR,
+    process.env.AITM_SESSIONS_DIR,
+    join(homedir(), ".aitm", "sessions"),
+    join(tmpdir(), "aitm", "sessions"),
+  ].filter((candidate): candidate is string => Boolean(candidate));
 
   for (const dir of candidates) {
     try {
@@ -63,7 +67,7 @@ function sessionsLogDir(): string {
       accessSync(dir, constants.W_OK);
       return dir;
     } catch {
-      // Try the next candidate.
+      // Try the next writable location.
     }
   }
 
@@ -77,6 +81,7 @@ export function createSession(
   const id = randomUUID();
   const now = new Date().toISOString();
   const log_file_path = join(sessionsLogDir(), `${id}.log`);
+  const agentConfig = input.agent_config ?? getAgentConfig();
 
   db.prepare(
     `INSERT INTO sessions
@@ -102,6 +107,7 @@ export function createSession(
     input.worktree_branch,
     input.goal,
     input.transitions,
+    agentConfig,
     log_file_path,
     onComplete,
   ).catch(console.error);

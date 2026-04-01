@@ -5,23 +5,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { db } from "../../infra/db";
 
 const queryMock = vi.fn();
-const getAgentConfigMock = vi.fn(() => ({
+const agentConfig = {
   provider: "codex" as const,
   command: "codex",
   model: "test-model",
-}));
+};
 const listWorktreesMock = vi.fn();
-
-vi.mock("../../infra/config", async () => {
-  const actual =
-    await vi.importActual<typeof import("../../infra/config")>(
-      "../../infra/config",
-    );
-  return {
-    ...actual,
-    getAgentConfig: getAgentConfigMock,
-  };
-});
 
 vi.mock("../../domain/worktrees", () => ({
   listWorktrees: listWorktreesMock,
@@ -50,7 +39,6 @@ function makeFakeGitRepo(): string {
 
 beforeEach(() => {
   queryMock.mockReset();
-  getAgentConfigMock.mockClear();
   listWorktreesMock.mockReset();
   db.prepare("DELETE FROM session_messages").run();
   db.prepare("DELETE FROM sessions").run();
@@ -111,6 +99,7 @@ describe("startAgent", () => {
       "feat/test",
       "Goal",
       [{ terminal: "success", when: "done" }],
+      agentConfig,
       logFilePath,
       onComplete,
     );
@@ -173,6 +162,7 @@ describe("startAgent", () => {
       "feat/test",
       "Goal",
       [{ terminal: "success", when: "done" }],
+      agentConfig,
       logFilePath,
       onComplete,
     );

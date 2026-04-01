@@ -2,6 +2,7 @@ import { execFileSync, spawnSync } from "child_process";
 import { randomUUID } from "crypto";
 import {
   getConfigWorkflows,
+  resolveAgentConfig,
   type WorkflowTransition,
 } from "../../infra/config";
 import { db } from "../../infra/db";
@@ -174,6 +175,7 @@ function startStateExecution(
 
   // Goal state path.
   const goal = buildGoal(stateDef.goal, previousExecutions, inputs);
+  const agentConfig = resolveAgentConfig(stateDef.agent);
 
   db.prepare(
     `INSERT INTO state_executions
@@ -187,6 +189,7 @@ function startStateExecution(
       worktree_branch: worktreeBranch,
       goal,
       transitions: stateDef.transitions as WorkflowTransition[],
+      agent_config: agentConfig,
       state_execution_id: executionId,
     },
     (decision) => {

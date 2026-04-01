@@ -4,6 +4,7 @@ import { join } from "path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { db } from "../../infra/db";
 import * as sessionsDomain from "../sessions";
+import * as sessionsModule from "../sessions";
 import { failSession } from "../sessions";
 import { listWorktrees } from "../worktrees";
 import {
@@ -212,6 +213,47 @@ workflows:
       "feature-description: Implement login page",
     );
     expect(planSession.goal).toContain("</inputs>");
+  });
+
+  it("resolves and passes the effective agent config for a goal state", () => {
+    process.env.AITM_CONFIG_PATH = writeTempConfig(`
+agent:
+  provider: claude
+  model: sonnet
+  command: /opt/homebrew/bin/claude
+workflows:
+  my-flow:
+    initial_state: plan
+    states:
+      plan:
+        goal: "Write a plan"
+        agent:
+          model: sonnet-4.5
+        transitions:
+          - terminal: success
+            when: "done"
+`);
+    const repoPath = makeFakeGitRepo();
+    const createSessionSpy = vi.spyOn(sessionsModule, "createSession");
+
+    createWorkflowRun({
+      repository_path: repoPath,
+      worktree_branch: "feat/test",
+      workflow_name: "my-flow",
+    });
+
+    expect(createSessionSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        repository_path: repoPath,
+        worktree_branch: "feat/test",
+        agent_config: {
+          provider: "claude",
+          model: "sonnet-4.5",
+          command: "/opt/homebrew/bin/claude",
+        },
+      }),
+      expect.any(Function),
+    );
   });
 
   it("does not inject inputs block into subsequent state session goals", () => {

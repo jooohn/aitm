@@ -3,7 +3,7 @@ import type { AskUserQuestionInput } from "@anthropic-ai/claude-agent-sdk/sdk-to
 import { appendFileSync, writeFileSync } from "fs";
 import { type SessionStatus, saveMessage } from "../../domain/sessions";
 import { listWorktrees } from "../../domain/worktrees";
-import { getAgentConfig, type WorkflowTransition } from "../../infra/config";
+import type { AgentConfig, WorkflowTransition } from "../../infra/config";
 import { db } from "../../infra/db";
 import { claudeCLI } from "./claude-cli";
 import { codexCLI } from "./codex-cli";
@@ -175,6 +175,7 @@ export async function startAgent(
   worktreeBranch: string,
   goal: string,
   transitions: WorkflowTransition[],
+  agentConfig: AgentConfig,
   logFilePath: string,
   onComplete?: (decision: TransitionDecision | null) => void,
 ): Promise<void> {
@@ -193,7 +194,11 @@ export async function startAgent(
     return;
   }
 
-  writeFileSync(logFilePath, "", "utf8");
+  try {
+    writeFileSync(logFilePath, "", "utf8");
+  } catch {
+    // Non-critical — subsequent append attempts are already best-effort.
+  }
 
   let worktreePath: string;
   try {
@@ -210,7 +215,6 @@ export async function startAgent(
     finishEarly(sessionId, onComplete);
     return;
   }
-  const agentConfig = getAgentConfig();
   const agentRuntime: AgentRuntime =
     agentConfig.provider === "codex" ? codexCLI : claudeCLI;
 
