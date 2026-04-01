@@ -49,9 +49,14 @@ export function getGitHubUrl(repoPath: string): string | null {
     if (sshMatch) return `https://github.com/${sshMatch[1]}`;
 
     const httpsMatch = remoteUrl.match(
-      /^https?:\/\/github\.com\/(.+?)(?:\.git)?$/,
+      /^https?:\/\/(?:[^@]+@)?github\.com\/(.+?)(?:\.git)?$/,
     );
     if (httpsMatch) return `https://github.com/${httpsMatch[1]}`;
+
+    const sshUrlMatch = remoteUrl.match(
+      /^ssh:\/\/(?:[^@]+@)?github\.com\/(.+?)(?:\.git)?$/,
+    );
+    if (sshUrlMatch) return `https://github.com/${sshUrlMatch[1]}`;
 
     return null;
   } catch {
