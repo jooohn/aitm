@@ -2,8 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import SessionSection from "@/app/components/SessionSection";
 import WorkflowSection from "@/app/components/WorkflowSection";
+import { worktreeService } from "@/lib/container";
 import { getRepositoryByAlias } from "@/lib/domain/repositories";
-import { listWorktrees } from "@/lib/domain/worktrees";
 import styles from "./page.module.css";
 
 interface Props {
@@ -27,7 +27,7 @@ export default async function WorktreePage({ params }: Props) {
   const branch = worktreeNameSegments.join("/");
   let worktree;
   try {
-    const worktrees = listWorktrees(repo.path);
+    const worktrees = worktreeService.listWorktrees(repo.path);
     worktree = worktrees.find((w) => w.branch === branch);
   } catch {
     notFound();

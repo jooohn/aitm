@@ -7,7 +7,7 @@ import {
 } from "../../infra/config";
 import { type TransitionDecision } from "../../utils/agent";
 import type { SessionService, SessionStatus } from "../sessions";
-import { listWorktrees } from "../worktrees";
+import type { WorktreeService } from "../worktrees";
 import type {
   PreviousExecutionHandoff,
   WorkflowRunRepository,
@@ -107,6 +107,7 @@ export class WorkflowRunService {
   constructor(
     private workflowRunRepository: WorkflowRunRepository,
     private sessionService: SessionService,
+    private worktreeService: WorktreeService,
   ) {}
 
   private startStateExecution(
@@ -138,9 +139,9 @@ export class WorkflowRunService {
 
       let worktreePath: string | undefined;
       try {
-        worktreePath = listWorktrees(repositoryPath).find(
-          (w) => w.branch === worktreeBranch,
-        )?.path;
+        worktreePath = this.worktreeService
+          .listWorktrees(repositoryPath)
+          .find((w) => w.branch === worktreeBranch)?.path;
       } catch {
         // Worktree lookup failed — will be treated as no-path below.
       }
@@ -460,7 +461,7 @@ export class WorkflowRunService {
       throw new Error("Only failed workflow runs can be re-run");
     }
 
-    const worktrees = listWorktrees(run.repository_path);
+    const worktrees = this.worktreeService.listWorktrees(run.repository_path);
     const worktree = worktrees.find((w) => w.branch === run.worktree_branch);
     if (!worktree) {
       throw new Error(`Worktree not found for branch: ${run.worktree_branch}`);

@@ -3,8 +3,8 @@ import { notFound } from "next/navigation";
 import QuickLaunchSection from "@/app/components/QuickLaunchSection";
 import RepositoryWorkflowsSection from "@/app/components/RepositoryWorkflowsSection";
 import WorktreeSection from "@/app/components/WorktreeSection";
+import { worktreeService } from "@/lib/container";
 import { getGitHubUrl, getRepositoryByAlias } from "@/lib/domain/repositories";
-import { listWorktrees } from "@/lib/domain/worktrees";
 import styles from "./page.module.css";
 
 interface Props {
@@ -22,7 +22,7 @@ export default async function RepositoryPage({ params }: Props) {
 
   let activeWorktreeBranches: string[] | null = null;
   try {
-    const worktrees = listWorktrees(repo.path);
+    const worktrees = worktreeService.listWorktrees(repo.path);
     activeWorktreeBranches = worktrees.map((w) => w.branch).filter(Boolean);
   } catch {
     // fallback: show all workflow runs

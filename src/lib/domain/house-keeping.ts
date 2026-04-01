@@ -1,10 +1,9 @@
-import { sessionService } from "../container";
-import { cleanMergedWorktrees, pullMainBranchIfOutdated } from "./worktrees";
+import { sessionService, worktreeService } from "../container";
 
 export async function runHouseKeeping(repoPath: string): Promise<void> {
   let removedBranches: string[] = [];
   try {
-    removedBranches = cleanMergedWorktrees(repoPath);
+    removedBranches = worktreeService.cleanMergedWorktrees(repoPath);
     if (removedBranches.length > 0) {
       console.log(
         `[house-keeping] Cleaned merged worktrees in ${repoPath}: ${removedBranches.join(", ")}`,
@@ -29,7 +28,7 @@ export async function runHouseKeeping(repoPath: string): Promise<void> {
   }
 
   try {
-    const result = pullMainBranchIfOutdated(repoPath);
+    const result = worktreeService.pullMainBranchIfOutdated(repoPath);
     if (result === "pulled") {
       console.log(`[house-keeping] Pulled main branch in ${repoPath}`);
     }

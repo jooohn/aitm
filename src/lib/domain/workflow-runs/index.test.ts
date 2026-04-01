@@ -2,9 +2,12 @@ import { mkdirSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { sessionService, workflowRunService } from "@/lib/container";
+import {
+  sessionService,
+  workflowRunService,
+  worktreeService,
+} from "@/lib/container";
 import { db } from "../../infra/db";
-import { listWorktrees } from "../worktrees";
 
 const failSession = sessionService.failSession.bind(sessionService);
 
@@ -27,8 +30,6 @@ const {
     workflowRunService.rerunWorkflowRunFromFailedState.bind(workflowRunService),
   stopWorkflowRun: workflowRunService.stopWorkflowRun.bind(workflowRunService),
 };
-
-vi.mock("../worktrees");
 
 function makeFakeGitRepo(): string {
   const dir = join(
@@ -598,7 +599,7 @@ workflows:
             when: "failed"
 `);
     const repoPath = makeFakeGitRepo();
-    vi.mocked(listWorktrees).mockReturnValue([
+    vi.spyOn(worktreeService, "listWorktrees").mockReturnValue([
       {
         branch: "feat/test",
         path: repoPath,
@@ -890,7 +891,7 @@ workflows:
     process.env.AITM_CONFIG_PATH = writeTempConfig(config);
     const repoPath = makeFakeGitRepo();
     const worktreePath = makeFakeGitRepo();
-    vi.mocked(listWorktrees).mockReturnValue([
+    vi.spyOn(worktreeService, "listWorktrees").mockReturnValue([
       {
         branch: "feat/test",
         path: worktreePath,

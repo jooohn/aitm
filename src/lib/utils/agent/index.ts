@@ -1,9 +1,8 @@
 import { AbortError, type CanUseTool } from "@anthropic-ai/claude-agent-sdk";
 import type { AskUserQuestionInput } from "@anthropic-ai/claude-agent-sdk/sdk-tools";
 import { appendFileSync, writeFileSync } from "fs";
-import { sessionService } from "../../container";
+import { sessionService, worktreeService } from "../../container";
 import type { SessionStatus } from "../../domain/sessions";
-import { listWorktrees } from "../../domain/worktrees";
 import type { AgentConfig, WorkflowTransition } from "../../infra/config";
 import { db } from "../../infra/db";
 import { claudeCLI } from "./claude-cli";
@@ -203,7 +202,7 @@ export async function startAgent(
 
   let worktreePath: string;
   try {
-    const worktrees = listWorktrees(repoPath);
+    const worktrees = worktreeService.listWorktrees(repoPath);
     const worktree = worktrees.find((w) => w.branch === worktreeBranch);
     if (!worktree) throw new Error(`Worktree not found: ${worktreeBranch}`);
     worktreePath = worktree.path;

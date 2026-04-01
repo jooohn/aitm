@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { worktreeService } from "@/lib/container";
 import { getRepositoryByAlias } from "@/lib/domain/repositories";
-import { createWorktree, listWorktrees } from "@/lib/domain/worktrees";
 
 type Params = Promise<{ organization: string; name: string }>;
 
@@ -28,7 +28,7 @@ export async function GET(
         { status: 404 },
       );
     }
-    return NextResponse.json(listWorktrees(repo.path));
+    return NextResponse.json(worktreeService.listWorktrees(repo.path));
   } catch (err) {
     return errorResponse(err);
   }
@@ -48,7 +48,7 @@ export async function POST(
       );
     }
     const body = await request.json();
-    const worktree = createWorktree(repo.path, body.branch, {
+    const worktree = worktreeService.createWorktree(repo.path, body.branch, {
       name: body.name,
       no_fetch: body.no_fetch,
     });

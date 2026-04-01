@@ -1,12 +1,10 @@
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { sessionService } from "@/lib/container";
+import { sessionService, worktreeService } from "@/lib/container";
 import { getRepositoryByAlias } from "@/lib/domain/repositories";
-import { removeWorktree } from "@/lib/domain/worktrees";
 import { DELETE } from "./route";
 
 vi.mock("@/lib/domain/repositories");
-vi.mock("@/lib/domain/worktrees");
 
 function makeParams(
   organization: string,
@@ -19,11 +17,15 @@ function makeParams(
 }
 
 let deleteWorktreeDataSpy: ReturnType<typeof vi.spyOn>;
+let removeWorktreeSpy: ReturnType<typeof vi.spyOn>;
 
 beforeEach(() => {
   vi.resetAllMocks();
   deleteWorktreeDataSpy = vi
     .spyOn(sessionService, "deleteWorktreeData")
+    .mockImplementation(() => {});
+  removeWorktreeSpy = vi
+    .spyOn(worktreeService, "removeWorktree")
     .mockImplementation(() => {});
 });
 
@@ -42,7 +44,7 @@ describe("DELETE /api/repositories/:organization/:name/worktrees/[...branch]", (
     );
 
     expect(res.status).toBe(404);
-    expect(vi.mocked(removeWorktree)).not.toHaveBeenCalled();
+    expect(removeWorktreeSpy).not.toHaveBeenCalled();
     expect(deleteWorktreeDataSpy).not.toHaveBeenCalled();
   });
 
@@ -64,10 +66,7 @@ describe("DELETE /api/repositories/:organization/:name/worktrees/[...branch]", (
     );
 
     expect(res.status).toBe(200);
-    expect(vi.mocked(removeWorktree)).toHaveBeenCalledWith(
-      "/repo/path",
-      "feat/test",
-    );
+    expect(removeWorktreeSpy).toHaveBeenCalledWith("/repo/path", "feat/test");
     expect(deleteWorktreeDataSpy).toHaveBeenCalledWith("/repo/path", [
       "feat/test",
     ]);
@@ -79,7 +78,7 @@ describe("DELETE /api/repositories/:organization/:name/worktrees/[...branch]", (
       name: "repo",
       alias: "org/repo",
     });
-    vi.mocked(removeWorktree).mockImplementation(() => {
+    removeWorktreeSpy.mockImplementation(() => {
       throw new Error("main is the main worktree");
     });
 
@@ -103,7 +102,7 @@ describe("DELETE /api/repositories/:organization/:name/worktrees/[...branch]", (
       name: "repo",
       alias: "org/repo",
     });
-    vi.mocked(removeWorktree).mockImplementation(() => {
+    removeWorktreeSpy.mockImplementation(() => {
       throw new Error("Worktree not found for branch");
     });
 

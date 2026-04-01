@@ -12,9 +12,16 @@ const agentConfig = {
 };
 const listWorktreesMock = vi.fn();
 
-vi.mock("../../domain/worktrees", () => ({
-  listWorktrees: listWorktreesMock,
-}));
+vi.mock("../../domain/worktrees", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("../../domain/worktrees")>();
+  return {
+    ...actual,
+    WorktreeService: class {
+      listWorktrees = listWorktreesMock;
+    },
+  };
+});
 
 vi.mock("./codex-cli", () => ({
   codexCLI: {

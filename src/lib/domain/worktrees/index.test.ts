@@ -3,7 +3,11 @@ import { mkdirSync, realpathSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { describe, expect, it } from "vitest";
-import { listWorktrees, parseWorktreeList, removeWorktree } from "./worktrees";
+import { worktreeService } from "@/lib/container";
+import { parseWorktreeList } from "./index";
+
+const listWorktrees = worktreeService.listWorktrees.bind(worktreeService);
+const removeWorktree = worktreeService.removeWorktree.bind(worktreeService);
 
 function makeGitRepo(): string {
   const dir = realpathSync(
