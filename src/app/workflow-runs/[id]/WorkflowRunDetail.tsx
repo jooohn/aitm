@@ -14,6 +14,7 @@ import {
   type WorkflowRunDetail,
   type WorkflowRunStatus,
 } from "@/lib/utils/api";
+import { parseWorkflowRunInputs } from "./parseWorkflowRunInputs";
 import styles from "./WorkflowRunDetail.module.css";
 
 interface Props {
@@ -191,6 +192,7 @@ export default function WorkflowRunDetail({ run: initial }: Props) {
   >({});
 
   const isTerminal = TERMINAL_STATUSES.includes(run.status);
+  const inputEntries = parseWorkflowRunInputs(run.inputs);
 
   async function handleRerun() {
     setRerunning(true);
@@ -333,6 +335,21 @@ export default function WorkflowRunDetail({ run: initial }: Props) {
             {new Date(run.created_at).toLocaleString()}
           </dd>
         </div>
+        {inputEntries.length > 0 && (
+          <div className={styles.detailRow}>
+            <dt className={styles.detailLabel}>Inputs</dt>
+            <dd className={styles.detailValue}>
+              <dl className={styles.inputsList}>
+                {inputEntries.map((entry) => (
+                  <div key={entry.key} className={styles.inputItem}>
+                    <dt className={styles.inputKey}>{entry.key}</dt>
+                    <dd className={styles.inputValue}>{entry.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </dd>
+          </div>
+        )}
       </dl>
 
       <section>
