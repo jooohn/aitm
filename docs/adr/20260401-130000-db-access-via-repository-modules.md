@@ -1,7 +1,7 @@
 # DB access via repository modules
 
 **Date:** 2026-04-01
-**Status:** accepted
+**Status:** accepted (see also: `20260401-160000-constructor-injected-service-classes.md` for how repositories are wired into services)
 
 ## Context
 
