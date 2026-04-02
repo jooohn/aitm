@@ -8,7 +8,7 @@ export async function GET(
   { params }: { params: Params },
 ): Promise<NextResponse> {
   const { organization, name } = await params;
-  const repo = repositoryService.getRepositoryByAlias(
+  const repo = await repositoryService.getRepositoryByAlias(
     `${organization}/${name}`,
   );
   if (!repo) {
@@ -17,6 +17,6 @@ export async function GET(
       { status: 404 },
     );
   }
-  const github_url = repositoryService.getGitHubUrl(repo.path);
+  const github_url = await repositoryService.getGitHubUrl(repo.path);
   return NextResponse.json({ ...repo, github_url });
 }

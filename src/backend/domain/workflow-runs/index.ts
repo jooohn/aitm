@@ -1,4 +1,3 @@
-import { execFileSync } from "child_process";
 import { randomUUID } from "crypto";
 import {
   AgentWorkflowState,
@@ -9,6 +8,7 @@ import {
 } from "@/backend/infra/config";
 import type { EventBus } from "@/backend/infra/event-bus";
 import { logger } from "@/backend/infra/logger";
+import { spawnAsync } from "@/backend/utils/process";
 import { type TransitionDecision } from "../agent";
 import type { SessionService, SessionStatus } from "../sessions";
 import type { Worktree, WorktreeService } from "../worktrees";
@@ -121,16 +121,16 @@ export class WorkflowRunService {
     });
   }
 
-  private handleSessionComplete(
+  private async handleSessionComplete(
     sessionId: string,
     decision: TransitionDecision | null,
-  ): void {
+  ): Promise<void> {
     const session = this.sessionService.getSession(sessionId);
     if (!session?.state_execution_id) return;
-    this.completeStateExecution(session.state_execution_id, decision);
+    await this.completeStateExecution(session.state_execution_id, decision);
   }
 
-  private startStateExecution(
+  private async startStateExecution(
     workflowRunId: string,
     stateName: string,
     repositoryPath: string,
@@ -138,8 +138,8 @@ export class WorkflowRunService {
     workflowName: string,
     previousExecutions: PreviousExecutionHandoff[],
     inputs?: Record<string, string>,
-  ): StateExecution {
-    const workflows = getConfigWorkflows();
+  ): Promise<StateExecution> {
+    const workflows = await getConfigWorkflows();
     const workflow = workflows[workflowName];
     if (!workflow) throw new Error(`Workflow not found: ${workflowName}`);
 
@@ -156,15 +156,15 @@ export class WorkflowRunService {
       now,
     });
 
-    const worktree = this.worktreeService.findWorktree(
+    const worktree = await this.worktreeService.findWorktree(
       repositoryPath,
       worktreeBranch,
     );
     if (!worktree) {
-      this.completeStateExecution(executionId, null);
+      await this.completeStateExecution(executionId, null);
       return this.workflowRunRepository.getStateExecution(executionId)!;
     }
-    this.executeState({
+    await this.executeState({
       stateDef,
       executionId,
       repositoryPath,
@@ -233,7 +233,7 @@ export class WorkflowRunService {
     this.completeStateExecution(executionId, decision);
   }
 
-  private startAgentStateExecution({
+  private async startAgentStateExecution({
     stateDef,
     executionId,
     repositoryPath,
@@ -249,8 +249,8 @@ export class WorkflowRunService {
     previousExecutions: PreviousExecutionHandoff[];
   }) {
     const goal = buildGoal(stateDef.goal, previousExecutions, inputs);
-    const agentConfig = resolveAgentConfig(stateDef.agent);
-    this.sessionService.createSession({
+    const agentConfig = await resolveAgentConfig(stateDef.agent);
+    await this.sessionService.createSession({
       repository_path: repositoryPath,
       worktree_branch: worktree.branch,
       goal,
@@ -260,8 +260,8 @@ export class WorkflowRunService {
     });
   }
 
-  createWorkflowRun(input: CreateWorkflowRunInput): WorkflowRun {
-    const workflows = getConfigWorkflows();
+  async createWorkflowRun(input: CreateWorkflowRunInput): Promise<WorkflowRun> {
+    const workflows = await getConfigWorkflows();
     const workflow = workflows[input.workflow_name];
     if (!workflow)
       throw new Error(`Workflow not found: ${input.workflow_name}`);
@@ -295,7 +295,7 @@ export class WorkflowRunService {
       now,
     });
 
-    this.startStateExecution(
+    await this.startStateExecution(
       id,
       workflow.initial_state,
       input.repository_path,
@@ -308,10 +308,10 @@ export class WorkflowRunService {
     return this.workflowRunRepository.getWorkflowRunById(id) as WorkflowRun;
   }
 
-  completeStateExecution(
+  async completeStateExecution(
     stateExecutionId: string,
     decision: TransitionDecision | null,
-  ): void {
+  ): Promise<void> {
     const execution =
       this.workflowRunRepository.getStateExecution(stateExecutionId);
     if (!execution) return;
@@ -344,7 +344,7 @@ export class WorkflowRunService {
     }
 
     // Look up the workflow definition to validate the next state exists.
-    const workflows = getConfigWorkflows();
+    const workflows = await getConfigWorkflows();
     const workflow = workflows[run.workflow_name];
     if (!workflow || !workflow.states?.[transition]) {
       this.workflowRunRepository.terminateWorkflowRun(run.id, "failure", now);
@@ -363,7 +363,7 @@ export class WorkflowRunService {
       .listCompletedExecutionsHandoff(run.id)
       .filter((e): e is PreviousExecutionHandoff => e.handoff_summary !== null);
 
-    this.startStateExecution(
+    await this.startStateExecution(
       run.id,
       transition,
       run.repository_path,
@@ -373,7 +373,7 @@ export class WorkflowRunService {
     );
   }
 
-  stopWorkflowRun(id: string): WorkflowRunWithExecutions {
+  async stopWorkflowRun(id: string): Promise<WorkflowRunWithExecutions> {
     const run = this.workflowRunRepository.getWorkflowRunById(id);
     if (!run) throw new Error("Workflow run not found");
     if (run.status !== "running") {
@@ -397,7 +397,7 @@ export class WorkflowRunService {
       }
     }
 
-    this.completeStateExecution(activeExecution.id, {
+    await this.completeStateExecution(activeExecution.id, {
       transition: "failure",
       reason: "Emergency stop requested",
       handoff_summary: "Workflow run stopped manually.",
@@ -409,7 +409,7 @@ export class WorkflowRunService {
   // Mark state_executions as completed where the session has reached a terminal
   // state but the execution was never closed (e.g., due to a server crash).
   // Then fail any workflow runs that have no remaining active state execution.
-  recoverCrashedWorkflowRuns(): void {
+  async recoverCrashedWorkflowRuns(): Promise<void> {
     const now = new Date().toISOString();
 
     // For uncompleted state executions whose session SUCCEEDED: replay completeStateExecution()
@@ -428,7 +428,7 @@ export class WorkflowRunService {
           // malformed JSON — treat as no decision, will terminate as failure
         }
       }
-      this.completeStateExecution(execution_id, decision);
+      await this.completeStateExecution(execution_id, decision);
     }
 
     // For uncompleted state executions whose session FAILED while the workflow is still running:
@@ -453,7 +453,7 @@ export class WorkflowRunService {
         ? (JSON.parse(run.inputs) as Record<string, string>)
         : undefined;
 
-      this.startStateExecution(
+      await this.startStateExecution(
         workflow_run_id,
         state,
         run.repository_path,
@@ -489,7 +489,7 @@ export class WorkflowRunService {
     return this.workflowRunRepository.listWorkflowRuns(filter);
   }
 
-  rerunWorkflowRun(id: string): WorkflowRun {
+  async rerunWorkflowRun(id: string): Promise<WorkflowRun> {
     const run = this.workflowRunRepository.getWorkflowRunById(id);
     if (!run) throw new Error("Workflow run not found");
 
@@ -497,16 +497,17 @@ export class WorkflowRunService {
       throw new Error("Only failed workflow runs can be re-run");
     }
 
-    const worktrees = this.worktreeService.listWorktrees(run.repository_path);
+    const worktrees = await this.worktreeService.listWorktrees(
+      run.repository_path,
+    );
     const worktree = worktrees.find((w) => w.branch === run.worktree_branch);
     if (!worktree) {
       throw new Error(`Worktree not found for branch: ${run.worktree_branch}`);
     }
 
     try {
-      execFileSync("git", ["stash", "--include-untracked"], {
+      await spawnAsync("git", ["stash", "--include-untracked"], {
         cwd: worktree.path,
-        encoding: "utf8",
       });
     } catch (err) {
       // Non-zero exit from git stash is non-blocking — log a warning and continue.
@@ -517,7 +518,7 @@ export class WorkflowRunService {
       ? (JSON.parse(run.inputs) as Record<string, string>)
       : undefined;
 
-    return this.createWorkflowRun({
+    return await this.createWorkflowRun({
       repository_path: run.repository_path,
       worktree_branch: run.worktree_branch,
       workflow_name: run.workflow_name,
@@ -525,7 +526,9 @@ export class WorkflowRunService {
     });
   }
 
-  rerunWorkflowRunFromFailedState(id: string): WorkflowRunWithExecutions {
+  async rerunWorkflowRunFromFailedState(
+    id: string,
+  ): Promise<WorkflowRunWithExecutions> {
     const run = this.workflowRunRepository.getWorkflowRunById(id);
     if (!run) throw new Error("Workflow run not found");
 
@@ -551,7 +554,7 @@ export class WorkflowRunService {
       ? (JSON.parse(run.inputs) as Record<string, string>)
       : undefined;
 
-    this.startStateExecution(
+    await this.startStateExecution(
       id,
       failedState,
       run.repository_path,

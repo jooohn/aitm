@@ -1,4 +1,4 @@
-import { mkdirSync, rmSync, writeFileSync } from "fs";
+import { mkdir, rm, writeFile } from "fs/promises";
 import { tmpdir } from "os";
 import { join } from "path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -11,33 +11,33 @@ import {
 
 let configFile: string;
 
-beforeEach(() => {
+beforeEach(async () => {
   const dir = join(
     tmpdir(),
     `aitm-config-test-${Math.random().toString(36).slice(2)}`,
   );
-  mkdirSync(dir, { recursive: true });
+  await mkdir(dir, { recursive: true });
   configFile = join(dir, "config.yaml");
   process.env.AITM_CONFIG_PATH = configFile;
 });
 
-afterEach(() => {
-  rmSync(configFile, { force: true });
+afterEach(async () => {
+  await rm(configFile, { force: true });
   delete process.env.AITM_CONFIG_PATH;
 });
 
 describe("getConfigRepositories", () => {
-  it("returns empty array when config file does not exist", () => {
-    expect(getConfigRepositories()).toEqual([]);
+  it("returns empty array when config file does not exist", async () => {
+    expect(await getConfigRepositories()).toEqual([]);
   });
 
-  it("returns empty array when repositories key is absent", () => {
-    writeFileSync(configFile, "workflows: {}");
-    expect(getConfigRepositories()).toEqual([]);
+  it("returns empty array when repositories key is absent", async () => {
+    await writeFile(configFile, "workflows: {}");
+    expect(await getConfigRepositories()).toEqual([]);
   });
 
-  it("returns repositories from config", () => {
-    writeFileSync(
+  it("returns repositories from config", async () => {
+    await writeFile(
       configFile,
       `
 repositories:
@@ -45,7 +45,7 @@ repositories:
   - path: /projects/org/repo2
 `,
     );
-    expect(getConfigRepositories()).toEqual([
+    expect(await getConfigRepositories()).toEqual([
       { path: "/projects/org/repo1" },
       { path: "/projects/org/repo2" },
     ]);
@@ -53,17 +53,17 @@ repositories:
 });
 
 describe("getConfigWorkflows", () => {
-  it("returns empty object when config file does not exist", () => {
-    expect(getConfigWorkflows()).toEqual({});
+  it("returns empty object when config file does not exist", async () => {
+    expect(await getConfigWorkflows()).toEqual({});
   });
 
-  it("returns empty object when workflows key is absent", () => {
-    writeFileSync(configFile, "repositories: []\n");
-    expect(getConfigWorkflows()).toEqual({});
+  it("returns empty object when workflows key is absent", async () => {
+    await writeFile(configFile, "repositories: []\n");
+    expect(await getConfigWorkflows()).toEqual({});
   });
 
-  it("parses a workflow with states and next-state transitions", () => {
-    writeFileSync(
+  it("parses a workflow with states and next-state transitions", async () => {
+    await writeFile(
       configFile,
       `
 workflows:
@@ -85,7 +85,7 @@ workflows:
 `,
     );
 
-    const workflows = getConfigWorkflows();
+    const workflows = await getConfigWorkflows();
 
     expect(workflows).toHaveProperty("my-flow");
     const flow = workflows["my-flow"];
@@ -120,8 +120,8 @@ workflows:
     });
   });
 
-  it("parses an agent override on a goal state", () => {
-    writeFileSync(
+  it("parses an agent override on a goal state", async () => {
+    await writeFile(
       configFile,
       `
 agent:
@@ -142,7 +142,7 @@ workflows:
 `,
     );
 
-    const workflows = getConfigWorkflows();
+    const workflows = await getConfigWorkflows();
     const planState = workflows["my-flow"].states.plan;
 
     expect("goal" in planState).toBe(true);
@@ -157,8 +157,8 @@ workflows:
     });
   });
 
-  it("parses workflow inputs with type field", () => {
-    writeFileSync(
+  it("parses workflow inputs with type field", async () => {
+    await writeFile(
       configFile,
       `
 workflows:
@@ -182,7 +182,7 @@ workflows:
 `,
     );
 
-    const workflows = getConfigWorkflows();
+    const workflows = await getConfigWorkflows();
     const flow = workflows["my-flow"];
     expect(flow.inputs).toHaveLength(3);
     expect(flow.inputs![0]).toMatchObject({ name: "title", type: "text" });
@@ -193,8 +193,8 @@ workflows:
     expect(flow.inputs![2].type).toBeUndefined();
   });
 
-  it("parses a workflow with a command state", () => {
-    writeFileSync(
+  it("parses a workflow with a command state", async () => {
+    await writeFile(
       configFile,
       `
 workflows:
@@ -216,7 +216,7 @@ workflows:
 `,
     );
 
-    const workflows = getConfigWorkflows();
+    const workflows = await getConfigWorkflows();
     const flow = workflows["my-flow"];
     expect(flow.initial_state).toBe("cleanup");
 
@@ -239,8 +239,8 @@ workflows:
     expect("goal" in commitState).toBe(true);
   });
 
-  it("does not retain agent config on command states", () => {
-    writeFileSync(
+  it("does not retain agent config on command states", async () => {
+    await writeFile(
       configFile,
       `
 workflows:
@@ -258,15 +258,15 @@ workflows:
 `,
     );
 
-    const workflows = getConfigWorkflows();
+    const workflows = await getConfigWorkflows();
     const cleanupState = workflows["my-flow"].states.cleanup;
 
     expect("command" in cleanupState).toBe(true);
     expect(cleanupState).not.toHaveProperty("agent");
   });
 
-  it("parses multiple workflows", () => {
-    writeFileSync(
+  it("parses multiple workflows", async () => {
+    await writeFile(
       configFile,
       `
 workflows:
@@ -289,20 +289,20 @@ workflows:
 `,
     );
 
-    const workflows = getConfigWorkflows();
+    const workflows = await getConfigWorkflows();
     expect(Object.keys(workflows)).toContain("flow-a");
     expect(Object.keys(workflows)).toContain("flow-b");
   });
 });
 
 describe("getAgentConfig", () => {
-  it("defaults to claude when agent config is absent", () => {
-    writeFileSync(configFile, "workflows: {}\n");
-    expect(getAgentConfig()).toEqual({ provider: "claude" });
+  it("defaults to claude when agent config is absent", async () => {
+    await writeFile(configFile, "workflows: {}\n");
+    expect(await getAgentConfig()).toEqual({ provider: "claude" });
   });
 
-  it("parses codex agent settings", () => {
-    writeFileSync(
+  it("parses codex agent settings", async () => {
+    await writeFile(
       configFile,
       `
 agent:
@@ -313,7 +313,7 @@ workflows: {}
 `,
     );
 
-    expect(getAgentConfig()).toEqual({
+    expect(await getAgentConfig()).toEqual({
       provider: "codex",
       model: "gpt-5.4",
       command: "/opt/homebrew/bin/codex",
@@ -322,8 +322,8 @@ workflows: {}
 });
 
 describe("resolveAgentConfig", () => {
-  it("inherits provider from the top-level agent config when omitted in the override", () => {
-    writeFileSync(
+  it("inherits provider from the top-level agent config when omitted in the override", async () => {
+    await writeFile(
       configFile,
       `
 agent:
@@ -335,7 +335,7 @@ workflows: {}
     );
 
     expect(
-      resolveAgentConfig({
+      await resolveAgentConfig({
         model: "gpt-5.4-mini",
       }),
     ).toEqual({
@@ -345,8 +345,8 @@ workflows: {}
     });
   });
 
-  it("lets a state override replace the top-level provider", () => {
-    writeFileSync(
+  it("lets a state override replace the top-level provider", async () => {
+    await writeFile(
       configFile,
       `
 agent:
@@ -358,7 +358,7 @@ workflows: {}
     );
 
     expect(
-      resolveAgentConfig({
+      await resolveAgentConfig({
         provider: "codex",
         model: "gpt-5.4",
       }),
@@ -369,8 +369,8 @@ workflows: {}
     });
   });
 
-  it("keeps an explicit override command when switching providers", () => {
-    writeFileSync(
+  it("keeps an explicit override command when switching providers", async () => {
+    await writeFile(
       configFile,
       `
 agent:
@@ -382,7 +382,7 @@ workflows: {}
     );
 
     expect(
-      resolveAgentConfig({
+      await resolveAgentConfig({
         provider: "codex",
         model: "gpt-5.4",
         command: "/opt/homebrew/bin/codex",
@@ -394,8 +394,8 @@ workflows: {}
     });
   });
 
-  it("does not inherit model or command when switching providers without restating them", () => {
-    writeFileSync(
+  it("does not inherit model or command when switching providers without restating them", async () => {
+    await writeFile(
       configFile,
       `
 agent:
@@ -407,7 +407,7 @@ workflows: {}
     );
 
     expect(
-      resolveAgentConfig({
+      await resolveAgentConfig({
         provider: "codex",
       }),
     ).toEqual({

@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from "fs";
+import { mkdir, writeFile } from "fs/promises";
 import { tmpdir } from "os";
 import { join } from "path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -31,23 +31,23 @@ const {
   stopWorkflowRun: workflowRunService.stopWorkflowRun.bind(workflowRunService),
 };
 
-function makeFakeGitRepo(): string {
+async function makeFakeGitRepo(): Promise<string> {
   const dir = join(
     tmpdir(),
     `aitm-test-${Math.random().toString(36).slice(2)}`,
   );
-  mkdirSync(join(dir, ".git"), { recursive: true });
+  await mkdir(join(dir, ".git"), { recursive: true });
   return dir;
 }
 
-function writeTempConfig(content: string): string {
+async function writeTempConfig(content: string): Promise<string> {
   const dir = join(
     tmpdir(),
     `aitm-config-test-${Math.random().toString(36).slice(2)}`,
   );
-  mkdirSync(dir, { recursive: true });
+  await mkdir(dir, { recursive: true });
   const configPath = join(dir, "config.yaml");
-  writeFileSync(configPath, content, "utf8");
+  await writeFile(configPath, content, "utf8");
   return configPath;
 }
 
@@ -82,29 +82,31 @@ beforeEach(() => {
 
   // Default mock: return a worktree matching any branch so SessionService
   // can resolve cwd when creating sessions.
-  vi.spyOn(worktreeService, "listWorktrees").mockImplementation((repoPath) => [
-    {
-      branch: "feat/test",
-      path: repoPath,
-      is_main: false,
-      is_bare: false,
-      head: "HEAD",
-    },
-    {
-      branch: "feat/a",
-      path: repoPath,
-      is_main: false,
-      is_bare: false,
-      head: "HEAD",
-    },
-    {
-      branch: "feat/b",
-      path: repoPath,
-      is_main: false,
-      is_bare: false,
-      head: "HEAD",
-    },
-  ]);
+  vi.spyOn(worktreeService, "listWorktrees").mockImplementation(
+    async (repoPath) => [
+      {
+        branch: "feat/test",
+        path: repoPath,
+        is_main: false,
+        is_bare: false,
+        head: "HEAD",
+      },
+      {
+        branch: "feat/a",
+        path: repoPath,
+        is_main: false,
+        is_bare: false,
+        head: "HEAD",
+      },
+      {
+        branch: "feat/b",
+        path: repoPath,
+        is_main: false,
+        is_bare: false,
+        head: "HEAD",
+      },
+    ],
+  );
 });
 
 afterEach(() => {
@@ -117,11 +119,13 @@ afterEach(() => {
 });
 
 describe("createWorkflowRun", () => {
-  it("creates a workflow_run record in running status at initial_state", () => {
-    process.env.AITM_CONFIG_PATH = writeTempConfig(SIMPLE_WORKFLOW_CONFIG);
-    const repoPath = makeFakeGitRepo();
+  it("creates a workflow_run record in running status at initial_state", async () => {
+    process.env.AITM_CONFIG_PATH = await writeTempConfig(
+      SIMPLE_WORKFLOW_CONFIG,
+    );
+    const repoPath = await makeFakeGitRepo();
 
-    const run = createWorkflowRun({
+    const run = await createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       workflow_name: "my-flow",
@@ -136,11 +140,13 @@ describe("createWorkflowRun", () => {
     expect(run.created_at).toMatch(/^\d{4}-\d{2}-\d{2}T/);
   });
 
-  it("creates a session for the initial state", () => {
-    process.env.AITM_CONFIG_PATH = writeTempConfig(SIMPLE_WORKFLOW_CONFIG);
-    const repoPath = makeFakeGitRepo();
+  it("creates a session for the initial state", async () => {
+    process.env.AITM_CONFIG_PATH = await writeTempConfig(
+      SIMPLE_WORKFLOW_CONFIG,
+    );
+    const repoPath = await makeFakeGitRepo();
 
-    const run = createWorkflowRun({
+    const run = await createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       workflow_name: "my-flow",
@@ -160,20 +166,22 @@ describe("createWorkflowRun", () => {
     expect(executions[0].state).toBe("plan");
   });
 
-  it("throws when workflow is not found in config", () => {
-    process.env.AITM_CONFIG_PATH = writeTempConfig(SIMPLE_WORKFLOW_CONFIG);
-    const repoPath = makeFakeGitRepo();
+  it("throws when workflow is not found in config", async () => {
+    process.env.AITM_CONFIG_PATH = await writeTempConfig(
+      SIMPLE_WORKFLOW_CONFIG,
+    );
+    const repoPath = await makeFakeGitRepo();
 
-    expect(() =>
+    await expect(() =>
       createWorkflowRun({
         repository_path: repoPath,
         worktree_branch: "feat/test",
         workflow_name: "nonexistent-flow",
       }),
-    ).toThrow("Workflow not found");
+    ).rejects.toThrow("Workflow not found");
   });
 
-  it("stores inputs as JSON on the workflow run record", () => {
+  it("stores inputs as JSON on the workflow run record", async () => {
     const configWithInputs = `
 workflows:
   my-flow:
@@ -189,10 +197,10 @@ workflows:
           - terminal: success
             when: "done"
 `;
-    process.env.AITM_CONFIG_PATH = writeTempConfig(configWithInputs);
-    const repoPath = makeFakeGitRepo();
+    process.env.AITM_CONFIG_PATH = await writeTempConfig(configWithInputs);
+    const repoPath = await makeFakeGitRepo();
 
-    const run = createWorkflowRun({
+    const run = await createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       workflow_name: "my-flow",
@@ -204,7 +212,7 @@ workflows:
     );
   });
 
-  it("injects inputs into the initial session goal as an <inputs> block", () => {
+  it("injects inputs into the initial session goal as an <inputs> block", async () => {
     const configWithInputs = `
 workflows:
   my-flow:
@@ -229,10 +237,10 @@ workflows:
           - terminal: failure
             when: "blocked"
 `;
-    process.env.AITM_CONFIG_PATH = writeTempConfig(configWithInputs);
-    const repoPath = makeFakeGitRepo();
+    process.env.AITM_CONFIG_PATH = await writeTempConfig(configWithInputs);
+    const repoPath = await makeFakeGitRepo();
 
-    const run = createWorkflowRun({
+    const run = await createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       workflow_name: "my-flow",
@@ -253,8 +261,8 @@ workflows:
     expect(planSession.goal).toContain("</inputs>");
   });
 
-  it("resolves and passes the effective agent config for a goal state", () => {
-    process.env.AITM_CONFIG_PATH = writeTempConfig(`
+  it("resolves and passes the effective agent config for a goal state", async () => {
+    process.env.AITM_CONFIG_PATH = await writeTempConfig(`
 agent:
   provider: claude
   model: sonnet
@@ -271,10 +279,10 @@ workflows:
           - terminal: success
             when: "done"
 `);
-    const repoPath = makeFakeGitRepo();
+    const repoPath = await makeFakeGitRepo();
     const createSessionSpy = vi.spyOn(sessionService, "createSession");
 
-    createWorkflowRun({
+    await createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       workflow_name: "my-flow",
@@ -293,7 +301,7 @@ workflows:
     );
   });
 
-  it("does not inject inputs block into subsequent state session goals", () => {
+  it("does not inject inputs block into subsequent state session goals", async () => {
     const configWithInputs = `
 workflows:
   my-flow:
@@ -318,10 +326,10 @@ workflows:
           - terminal: failure
             when: "blocked"
 `;
-    process.env.AITM_CONFIG_PATH = writeTempConfig(configWithInputs);
-    const repoPath = makeFakeGitRepo();
+    process.env.AITM_CONFIG_PATH = await writeTempConfig(configWithInputs);
+    const repoPath = await makeFakeGitRepo();
 
-    const run = createWorkflowRun({
+    const run = await createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       workflow_name: "my-flow",
@@ -334,7 +342,7 @@ workflows:
       )
       .all(run.id) as { id: string; state: string }[];
 
-    completeStateExecution(planExec.id, {
+    await completeStateExecution(planExec.id, {
       transition: "implement",
       reason: "Plan done",
       handoff_summary: "Wrote PLAN.md",
@@ -357,7 +365,7 @@ workflows:
     expect(implementSession.goal).toContain("Wrote PLAN.md");
   });
 
-  it("throws when a required input is missing", () => {
+  it("throws when a required input is missing", async () => {
     const configWithInputs = `
 workflows:
   my-flow:
@@ -373,25 +381,27 @@ workflows:
           - terminal: success
             when: "done"
 `;
-    process.env.AITM_CONFIG_PATH = writeTempConfig(configWithInputs);
-    const repoPath = makeFakeGitRepo();
+    process.env.AITM_CONFIG_PATH = await writeTempConfig(configWithInputs);
+    const repoPath = await makeFakeGitRepo();
 
-    expect(() =>
+    await expect(() =>
       createWorkflowRun({
         repository_path: repoPath,
         worktree_branch: "feat/test",
         workflow_name: "my-flow",
         inputs: {},
       }),
-    ).toThrow("Missing required input: Feature Description");
+    ).rejects.toThrow("Missing required input: Feature Description");
   });
 });
 
 describe("completeStateExecution", () => {
-  function setupRunAtPlan() {
-    process.env.AITM_CONFIG_PATH = writeTempConfig(SIMPLE_WORKFLOW_CONFIG);
-    const repoPath = makeFakeGitRepo();
-    const run = createWorkflowRun({
+  async function setupRunAtPlan() {
+    process.env.AITM_CONFIG_PATH = await writeTempConfig(
+      SIMPLE_WORKFLOW_CONFIG,
+    );
+    const repoPath = await makeFakeGitRepo();
+    const run = await createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       workflow_name: "my-flow",
@@ -402,10 +412,10 @@ describe("completeStateExecution", () => {
     return { run, execution, repoPath };
   }
 
-  it("transitions to next state and creates a new state execution", () => {
-    const { run, execution } = setupRunAtPlan();
+  it("transitions to next state and creates a new state execution", async () => {
+    const { run, execution } = await setupRunAtPlan();
 
-    completeStateExecution(execution.id, {
+    await completeStateExecution(execution.id, {
       transition: "implement",
       reason: "Plan is done",
       handoff_summary: "Wrote PLAN.md",
@@ -424,10 +434,10 @@ describe("completeStateExecution", () => {
     expect(states).toContain("implement");
   });
 
-  it("records transition_decision and handoff_summary on the completed execution", () => {
-    const { execution } = setupRunAtPlan();
+  it("records transition_decision and handoff_summary on the completed execution", async () => {
+    const { execution } = await setupRunAtPlan();
 
-    completeStateExecution(execution.id, {
+    await completeStateExecution(execution.id, {
       transition: "implement",
       reason: "Plan is done",
       handoff_summary: "Wrote PLAN.md",
@@ -447,10 +457,12 @@ describe("completeStateExecution", () => {
     expect(completedExecution.completed_at).toMatch(/^\d{4}-\d{2}-\d{2}T/);
   });
 
-  it("marks workflow run as success on terminal success transition", () => {
-    process.env.AITM_CONFIG_PATH = writeTempConfig(SIMPLE_WORKFLOW_CONFIG);
-    const repoPath = makeFakeGitRepo();
-    const run = createWorkflowRun({
+  it("marks workflow run as success on terminal success transition", async () => {
+    process.env.AITM_CONFIG_PATH = await writeTempConfig(
+      SIMPLE_WORKFLOW_CONFIG,
+    );
+    const repoPath = await makeFakeGitRepo();
+    const run = await createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       workflow_name: "my-flow",
@@ -460,7 +472,7 @@ describe("completeStateExecution", () => {
     const [planExec] = db
       .prepare("SELECT * FROM state_executions WHERE workflow_run_id = ?")
       .all(run.id) as { id: string }[];
-    completeStateExecution(planExec.id, {
+    await completeStateExecution(planExec.id, {
       transition: "implement",
       reason: "Ready",
       handoff_summary: "Plan done",
@@ -472,7 +484,7 @@ describe("completeStateExecution", () => {
         "SELECT * FROM state_executions WHERE workflow_run_id = ? ORDER BY created_at ASC",
       )
       .all(run.id) as { id: string; state: string }[];
-    completeStateExecution(implementExec.id, {
+    await completeStateExecution(implementExec.id, {
       transition: "success",
       reason: "Code is done",
       handoff_summary: "All done",
@@ -483,10 +495,10 @@ describe("completeStateExecution", () => {
     expect(updatedRun?.current_state).toBeNull();
   });
 
-  it("marks workflow run as failure on terminal failure transition", () => {
-    const { run, execution } = setupRunAtPlan();
+  it("marks workflow run as failure on terminal failure transition", async () => {
+    const { run, execution } = await setupRunAtPlan();
 
-    completeStateExecution(execution.id, {
+    await completeStateExecution(execution.id, {
       transition: "failure",
       reason: "Blocked",
       handoff_summary: "Could not proceed",
@@ -497,10 +509,10 @@ describe("completeStateExecution", () => {
     expect(updatedRun?.current_state).toBeNull();
   });
 
-  it("marks workflow run as failure when transition name is not valid", () => {
-    const { run, execution } = setupRunAtPlan();
+  it("marks workflow run as failure when transition name is not valid", async () => {
+    const { run, execution } = await setupRunAtPlan();
 
-    completeStateExecution(execution.id, {
+    await completeStateExecution(execution.id, {
       transition: "nonexistent-state",
       reason: "??",
       handoff_summary: "",
@@ -511,10 +523,10 @@ describe("completeStateExecution", () => {
     expect(updatedRun?.current_state).toBeNull();
   });
 
-  it("passes all previous executions as handoff context to the new session goal", () => {
-    const { run, execution } = setupRunAtPlan();
+  it("passes all previous executions as handoff context to the new session goal", async () => {
+    const { run, execution } = await setupRunAtPlan();
 
-    completeStateExecution(execution.id, {
+    await completeStateExecution(execution.id, {
       transition: "implement",
       reason: "Plan is done",
       handoff_summary: "Created PLAN.md with approach",
@@ -535,7 +547,7 @@ describe("completeStateExecution", () => {
     expect(implementSession.goal).toContain("plan");
 
     // Now complete implement and check the next session sees BOTH prior executions
-    completeStateExecution(implementExec.id, {
+    await completeStateExecution(implementExec.id, {
       transition: "implement",
       reason: "Still working",
       handoff_summary: "Wrote src/index.ts",
@@ -559,10 +571,12 @@ describe("completeStateExecution", () => {
 });
 
 describe("stopWorkflowRun", () => {
-  function setupRunningRun() {
-    process.env.AITM_CONFIG_PATH = writeTempConfig(SIMPLE_WORKFLOW_CONFIG);
-    const repoPath = makeFakeGitRepo();
-    const run = createWorkflowRun({
+  async function setupRunningRun() {
+    process.env.AITM_CONFIG_PATH = await writeTempConfig(
+      SIMPLE_WORKFLOW_CONFIG,
+    );
+    const repoPath = await makeFakeGitRepo();
+    const run = await createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       workflow_name: "my-flow",
@@ -578,10 +592,10 @@ describe("stopWorkflowRun", () => {
     return { run, execution, session };
   }
 
-  it("fails the active session and marks the running workflow run as failure", () => {
-    const { run, execution, session } = setupRunningRun();
+  it("fails the active session and marks the running workflow run as failure", async () => {
+    const { run, execution, session } = await setupRunningRun();
 
-    const stopped = stopWorkflowRun(run.id);
+    const stopped = await stopWorkflowRun(run.id);
 
     expect(stopped.status).toBe("failure");
     expect(stopped.current_state).toBeNull();
@@ -597,21 +611,21 @@ describe("stopWorkflowRun", () => {
     expect(updatedSession.status).toBe("FAILED");
   });
 
-  it("throws when the workflow run is already terminal", () => {
-    const { run, execution } = setupRunningRun();
-    completeStateExecution(execution.id, {
+  it("throws when the workflow run is already terminal", async () => {
+    const { run, execution } = await setupRunningRun();
+    await completeStateExecution(execution.id, {
       transition: "failure",
       reason: "Blocked",
       handoff_summary: "Could not proceed",
     });
 
-    expect(() => stopWorkflowRun(run.id)).toThrow(
+    await expect(() => stopWorkflowRun(run.id)).rejects.toThrow(
       "Workflow run is already in a terminal state",
     );
   });
 
-  it("throws when the active state execution has no linked session", () => {
-    process.env.AITM_CONFIG_PATH = writeTempConfig(`
+  it("throws when the active state execution has no linked session", async () => {
+    process.env.AITM_CONFIG_PATH = await writeTempConfig(`
 workflows:
   my-flow:
     initial_state: run-command
@@ -622,8 +636,8 @@ workflows:
           - terminal: failure
             when: "failed"
 `);
-    const repoPath = makeFakeGitRepo();
-    vi.spyOn(worktreeService, "listWorktrees").mockReturnValue([
+    const repoPath = await makeFakeGitRepo();
+    vi.spyOn(worktreeService, "listWorktrees").mockResolvedValue([
       {
         branch: "feat/test",
         path: repoPath,
@@ -647,19 +661,19 @@ workflows:
        VALUES (?, ?, ?, NULL, NULL, NULL, ?, NULL)`,
     ).run(executionId, runId, "run-command", now);
 
-    expect(() => stopWorkflowRun(runId)).toThrow(
+    await expect(() => stopWorkflowRun(runId)).rejects.toThrow(
       "No active session to stop for this workflow run",
     );
   });
 
-  it("still fails the workflow run when the active session already reached SUCCEEDED", () => {
-    const { run, execution, session } = setupRunningRun();
+  it("still fails the workflow run when the active session already reached SUCCEEDED", async () => {
+    const { run, execution, session } = await setupRunningRun();
 
     db.prepare("UPDATE sessions SET status = 'SUCCEEDED' WHERE id = ?").run(
       session.id,
     );
 
-    const stopped = stopWorkflowRun(run.id);
+    const stopped = await stopWorkflowRun(run.id);
 
     expect(stopped.status).toBe("failure");
     expect(stopped.current_state).toBeNull();
@@ -670,8 +684,8 @@ workflows:
     expect(updatedExecution.completed_at).toMatch(/^\d{4}-\d{2}-\d{2}T/);
   });
 
-  it("still fails the workflow run when failSession loses a race to a terminal session update", () => {
-    const { run, execution, session } = setupRunningRun();
+  it("still fails the workflow run when failSession loses a race to a terminal session update", async () => {
+    const { run, execution, session } = await setupRunningRun();
 
     vi.spyOn(sessionService, "failSession").mockImplementationOnce((id) => {
       db.prepare("UPDATE sessions SET status = 'SUCCEEDED' WHERE id = ?").run(
@@ -682,7 +696,7 @@ workflows:
       );
     });
 
-    const stopped = stopWorkflowRun(run.id);
+    const stopped = await stopWorkflowRun(run.id);
 
     expect(stopped.status).toBe("failure");
     expect(stopped.current_state).toBeNull();
@@ -701,10 +715,12 @@ workflows:
 
 describe("workflow run lifecycle around session startup races", () => {
   it("marks the workflow run as failure when the session is failed before agent startup continues", async () => {
-    process.env.AITM_CONFIG_PATH = writeTempConfig(SIMPLE_WORKFLOW_CONFIG);
-    const repoPath = makeFakeGitRepo();
+    process.env.AITM_CONFIG_PATH = await writeTempConfig(
+      SIMPLE_WORKFLOW_CONFIG,
+    );
+    const repoPath = await makeFakeGitRepo();
 
-    const run = createWorkflowRun({
+    const run = await createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       workflow_name: "my-flow",
@@ -746,11 +762,13 @@ workflows:
             when: "blocked"
 `;
 
-  it("happy path: run reaches success after completing the only state", () => {
-    process.env.AITM_CONFIG_PATH = writeTempConfig(MINIMAL_WORKFLOW_CONFIG);
-    const repoPath = makeFakeGitRepo();
+  it("happy path: run reaches success after completing the only state", async () => {
+    process.env.AITM_CONFIG_PATH = await writeTempConfig(
+      MINIMAL_WORKFLOW_CONFIG,
+    );
+    const repoPath = await makeFakeGitRepo();
 
-    const run = createWorkflowRun({
+    const run = await createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       workflow_name: "minimal-flow",
@@ -763,7 +781,7 @@ workflows:
       .prepare("SELECT * FROM state_executions WHERE workflow_run_id = ?")
       .all(run.id) as { id: string }[];
 
-    completeStateExecution(exec.id, {
+    await completeStateExecution(exec.id, {
       transition: "success",
       reason: "All done",
       handoff_summary: "Finished",
@@ -782,24 +800,26 @@ workflows:
     initial_state: goal
 `;
 
-  it("createWorkflowRun throws a descriptive error instead of TypeError", () => {
-    process.env.AITM_CONFIG_PATH = writeTempConfig(NO_STATES_CONFIG);
-    const repoPath = makeFakeGitRepo();
+  it("createWorkflowRun throws a descriptive error instead of TypeError", async () => {
+    process.env.AITM_CONFIG_PATH = await writeTempConfig(NO_STATES_CONFIG);
+    const repoPath = await makeFakeGitRepo();
 
-    expect(() =>
+    await expect(() =>
       createWorkflowRun({
         repository_path: repoPath,
         worktree_branch: "feat/test",
         workflow_name: "no-states-flow",
       }),
-    ).toThrow("State not found: goal");
+    ).rejects.toThrow("State not found: goal");
   });
 
-  it("completeStateExecution terminates run as failure when workflow.states is undefined at transition time", () => {
+  it("completeStateExecution terminates run as failure when workflow.states is undefined at transition time", async () => {
     // Create the run with a valid config first
-    process.env.AITM_CONFIG_PATH = writeTempConfig(SIMPLE_WORKFLOW_CONFIG);
-    const repoPath = makeFakeGitRepo();
-    const run = createWorkflowRun({
+    process.env.AITM_CONFIG_PATH = await writeTempConfig(
+      SIMPLE_WORKFLOW_CONFIG,
+    );
+    const repoPath = await makeFakeGitRepo();
+    const run = await createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       workflow_name: "my-flow",
@@ -810,14 +830,14 @@ workflows:
       .all(run.id) as { id: string }[];
 
     // Swap to a config where my-flow exists but has no states key
-    process.env.AITM_CONFIG_PATH = writeTempConfig(`
+    process.env.AITM_CONFIG_PATH = await writeTempConfig(`
 workflows:
   my-flow:
     initial_state: plan
 `);
 
     // Should not throw — should terminate as failure
-    completeStateExecution(exec.id, {
+    await completeStateExecution(exec.id, {
       transition: "implement",
       reason: "Ready",
       handoff_summary: "Plan done",
@@ -830,16 +850,18 @@ workflows:
 });
 
 describe("listWorkflowRuns", () => {
-  it("returns all runs ordered by created_at descending", () => {
-    process.env.AITM_CONFIG_PATH = writeTempConfig(SIMPLE_WORKFLOW_CONFIG);
-    const repoPath = makeFakeGitRepo();
+  it("returns all runs ordered by created_at descending", async () => {
+    process.env.AITM_CONFIG_PATH = await writeTempConfig(
+      SIMPLE_WORKFLOW_CONFIG,
+    );
+    const repoPath = await makeFakeGitRepo();
 
-    createWorkflowRun({
+    await createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/a",
       workflow_name: "my-flow",
     });
-    createWorkflowRun({
+    await createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/b",
       workflow_name: "my-flow",
@@ -849,17 +871,19 @@ describe("listWorkflowRuns", () => {
     expect(runs).toHaveLength(2);
   });
 
-  it("filters by repository_path", () => {
-    process.env.AITM_CONFIG_PATH = writeTempConfig(SIMPLE_WORKFLOW_CONFIG);
-    const repoA = makeFakeGitRepo();
-    const repoB = makeFakeGitRepo();
+  it("filters by repository_path", async () => {
+    process.env.AITM_CONFIG_PATH = await writeTempConfig(
+      SIMPLE_WORKFLOW_CONFIG,
+    );
+    const repoA = await makeFakeGitRepo();
+    const repoB = await makeFakeGitRepo();
 
-    createWorkflowRun({
+    await createWorkflowRun({
       repository_path: repoA,
       worktree_branch: "feat/a",
       workflow_name: "my-flow",
     });
-    createWorkflowRun({
+    await createWorkflowRun({
       repository_path: repoB,
       worktree_branch: "feat/b",
       workflow_name: "my-flow",
@@ -870,16 +894,18 @@ describe("listWorkflowRuns", () => {
     expect(runs[0].repository_path).toBe(repoA);
   });
 
-  it("filters by worktree_branch", () => {
-    process.env.AITM_CONFIG_PATH = writeTempConfig(SIMPLE_WORKFLOW_CONFIG);
-    const repoPath = makeFakeGitRepo();
+  it("filters by worktree_branch", async () => {
+    process.env.AITM_CONFIG_PATH = await writeTempConfig(
+      SIMPLE_WORKFLOW_CONFIG,
+    );
+    const repoPath = await makeFakeGitRepo();
 
-    createWorkflowRun({
+    await createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/a",
       workflow_name: "my-flow",
     });
-    createWorkflowRun({
+    await createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/b",
       workflow_name: "my-flow",
@@ -911,11 +937,11 @@ workflows:
             when: done
 `;
 
-  function setupCommandRun(config = COMMAND_WORKFLOW_CONFIG) {
-    process.env.AITM_CONFIG_PATH = writeTempConfig(config);
-    const repoPath = makeFakeGitRepo();
-    const worktreePath = makeFakeGitRepo();
-    vi.spyOn(worktreeService, "listWorktrees").mockReturnValue([
+  async function setupCommandRun(config = COMMAND_WORKFLOW_CONFIG) {
+    process.env.AITM_CONFIG_PATH = await writeTempConfig(config);
+    const repoPath = await makeFakeGitRepo();
+    const worktreePath = await makeFakeGitRepo();
+    vi.spyOn(worktreeService, "listWorktrees").mockResolvedValue([
       {
         branch: "feat/test",
         path: worktreePath,
@@ -928,9 +954,9 @@ workflows:
   }
 
   it("executes the command and advances to the next state on succeeded", async () => {
-    const { repoPath } = setupCommandRun();
+    const { repoPath } = await setupCommandRun();
 
-    const run = createWorkflowRun({
+    const run = await createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       workflow_name: "cmd-flow",
@@ -957,7 +983,7 @@ workflows:
   });
 
   it("stores command output in command_output column", async () => {
-    const { repoPath } = setupCommandRun(`
+    const { repoPath } = await setupCommandRun(`
 workflows:
   cmd-flow:
     initial_state: greet
@@ -969,7 +995,7 @@ workflows:
             when: succeeded
 `);
 
-    const run = createWorkflowRun({
+    const run = await createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       workflow_name: "cmd-flow",
@@ -984,7 +1010,7 @@ workflows:
   });
 
   it("uses the failed transition when command exits non-zero", async () => {
-    const { repoPath } = setupCommandRun(`
+    const { repoPath } = await setupCommandRun(`
 workflows:
   cmd-flow:
     initial_state: bad-cmd
@@ -998,7 +1024,7 @@ workflows:
             when: failed
 `);
 
-    const run = createWorkflowRun({
+    const run = await createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       workflow_name: "cmd-flow",
@@ -1012,7 +1038,7 @@ workflows:
   });
 
   it("marks the run as failure when no transition matches the exit code outcome", async () => {
-    const { repoPath } = setupCommandRun(`
+    const { repoPath } = await setupCommandRun(`
 workflows:
   cmd-flow:
     initial_state: bad-cmd
@@ -1024,7 +1050,7 @@ workflows:
             when: succeeded
 `);
 
-    const run = createWorkflowRun({
+    const run = await createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       workflow_name: "cmd-flow",
@@ -1039,10 +1065,12 @@ workflows:
 });
 
 describe("getWorkflowRun", () => {
-  it("returns workflow run with state executions ordered by created_at", () => {
-    process.env.AITM_CONFIG_PATH = writeTempConfig(SIMPLE_WORKFLOW_CONFIG);
-    const repoPath = makeFakeGitRepo();
-    const run = createWorkflowRun({
+  it("returns workflow run with state executions ordered by created_at", async () => {
+    process.env.AITM_CONFIG_PATH = await writeTempConfig(
+      SIMPLE_WORKFLOW_CONFIG,
+    );
+    const repoPath = await makeFakeGitRepo();
+    const run = await createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       workflow_name: "my-flow",
@@ -1052,7 +1080,7 @@ describe("getWorkflowRun", () => {
       .prepare("SELECT * FROM state_executions WHERE workflow_run_id = ?")
       .all(run.id) as { id: string }[];
 
-    completeStateExecution(planExec.id, {
+    await completeStateExecution(planExec.id, {
       transition: "implement",
       reason: "Ready",
       handoff_summary: "Plan done",
@@ -1072,10 +1100,12 @@ describe("getWorkflowRun", () => {
 });
 
 describe("rerunWorkflowRunFromFailedState", () => {
-  function setupFailedRun() {
-    process.env.AITM_CONFIG_PATH = writeTempConfig(SIMPLE_WORKFLOW_CONFIG);
-    const repoPath = makeFakeGitRepo();
-    const run = createWorkflowRun({
+  async function setupFailedRun() {
+    process.env.AITM_CONFIG_PATH = await writeTempConfig(
+      SIMPLE_WORKFLOW_CONFIG,
+    );
+    const repoPath = await makeFakeGitRepo();
+    const run = await createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       workflow_name: "my-flow",
@@ -1087,7 +1117,7 @@ describe("rerunWorkflowRunFromFailedState", () => {
         "SELECT * FROM state_executions WHERE workflow_run_id = ? ORDER BY created_at ASC",
       )
       .all(run.id) as { id: string }[];
-    completeStateExecution(planExec.id, {
+    await completeStateExecution(planExec.id, {
       transition: "implement",
       reason: "Plan done",
       handoff_summary: "Wrote PLAN.md",
@@ -1099,7 +1129,7 @@ describe("rerunWorkflowRunFromFailedState", () => {
         "SELECT * FROM state_executions WHERE workflow_run_id = ? AND state = 'implement'",
       )
       .get(run.id) as { id: string };
-    completeStateExecution(implementExec.id, {
+    await completeStateExecution(implementExec.id, {
       transition: "failure",
       reason: "Blocked",
       handoff_summary: "Could not proceed",
@@ -1108,41 +1138,45 @@ describe("rerunWorkflowRunFromFailedState", () => {
     return { run, repoPath, planExec, implementExec };
   }
 
-  it("throws for unknown run id", () => {
-    process.env.AITM_CONFIG_PATH = writeTempConfig(SIMPLE_WORKFLOW_CONFIG);
-    expect(() => rerunWorkflowRunFromFailedState("nonexistent")).toThrow(
-      "Workflow run not found",
+  it("throws for unknown run id", async () => {
+    process.env.AITM_CONFIG_PATH = await writeTempConfig(
+      SIMPLE_WORKFLOW_CONFIG,
     );
+    await expect(() =>
+      rerunWorkflowRunFromFailedState("nonexistent"),
+    ).rejects.toThrow("Workflow run not found");
   });
 
-  it("throws when run is not in failure status", () => {
-    process.env.AITM_CONFIG_PATH = writeTempConfig(SIMPLE_WORKFLOW_CONFIG);
-    const repoPath = makeFakeGitRepo();
-    const run = createWorkflowRun({
+  it("throws when run is not in failure status", async () => {
+    process.env.AITM_CONFIG_PATH = await writeTempConfig(
+      SIMPLE_WORKFLOW_CONFIG,
+    );
+    const repoPath = await makeFakeGitRepo();
+    const run = await createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       workflow_name: "my-flow",
     });
 
-    expect(() => rerunWorkflowRunFromFailedState(run.id)).toThrow(
+    await expect(() => rerunWorkflowRunFromFailedState(run.id)).rejects.toThrow(
       "Only failed workflow runs can be re-run from failed state",
     );
   });
 
-  it("sets workflow_run status to running and current_state to the failed state", () => {
-    const { run } = setupFailedRun();
+  it("sets workflow_run status to running and current_state to the failed state", async () => {
+    const { run } = await setupFailedRun();
 
-    rerunWorkflowRunFromFailedState(run.id);
+    await rerunWorkflowRunFromFailedState(run.id);
 
     const updated = getWorkflowRun(run.id);
     expect(updated?.status).toBe("running");
     expect(updated?.current_state).toBe("implement");
   });
 
-  it("creates a new state_execution for the failed state", () => {
-    const { run, implementExec } = setupFailedRun();
+  it("creates a new state_execution for the failed state", async () => {
+    const { run, implementExec } = await setupFailedRun();
 
-    rerunWorkflowRunFromFailedState(run.id);
+    await rerunWorkflowRunFromFailedState(run.id);
 
     const executions = db
       .prepare(
@@ -1153,10 +1187,10 @@ describe("rerunWorkflowRunFromFailedState", () => {
     expect(executions[1].id).not.toBe(implementExec.id);
   });
 
-  it("passes handoff context from completed executions (excluding the failed one) to the new session", () => {
-    const { run, implementExec } = setupFailedRun();
+  it("passes handoff context from completed executions (excluding the failed one) to the new session", async () => {
+    const { run, implementExec } = await setupFailedRun();
 
-    rerunWorkflowRunFromFailedState(run.id);
+    await rerunWorkflowRunFromFailedState(run.id);
 
     const newImplementExec = db
       .prepare(

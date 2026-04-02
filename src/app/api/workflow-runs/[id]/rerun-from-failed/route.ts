@@ -16,7 +16,7 @@ export async function POST(
 ): Promise<NextResponse> {
   try {
     const { id } = await params;
-    const run = workflowRunService.rerunWorkflowRunFromFailedState(id);
+    const run = await workflowRunService.rerunWorkflowRunFromFailedState(id);
     return NextResponse.json(run, { status: 200 });
   } catch (err) {
     return errorResponse(err);

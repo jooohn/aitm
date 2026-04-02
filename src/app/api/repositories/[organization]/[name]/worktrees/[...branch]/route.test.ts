@@ -25,16 +25,16 @@ beforeEach(() => {
   vi.resetAllMocks();
   deleteWorktreeDataSpy = vi
     .spyOn(sessionService, "deleteWorktreeData")
-    .mockImplementation(() => {});
+    .mockResolvedValue();
   removeWorktreeSpy = vi
     .spyOn(worktreeService, "removeWorktree")
-    .mockImplementation(() => {});
+    .mockResolvedValue();
   getRepositoryByAliasSpy = vi.spyOn(repositoryService, "getRepositoryByAlias");
 });
 
 describe("DELETE /api/repositories/:organization/:name/worktrees/[...branch]", () => {
   it("returns 404 when repository is not found", async () => {
-    getRepositoryByAliasSpy.mockReturnValue(undefined);
+    getRepositoryByAliasSpy.mockResolvedValue(undefined);
 
     const res = await DELETE(
       new NextRequest(
@@ -52,7 +52,7 @@ describe("DELETE /api/repositories/:organization/:name/worktrees/[...branch]", (
   });
 
   it("removes worktree and deletes worktree data", async () => {
-    getRepositoryByAliasSpy.mockReturnValue({
+    getRepositoryByAliasSpy.mockResolvedValue({
       path: "/repo/path",
       name: "repo",
       alias: "org/repo",
@@ -76,14 +76,12 @@ describe("DELETE /api/repositories/:organization/:name/worktrees/[...branch]", (
   });
 
   it("returns 422 when trying to remove the main worktree", async () => {
-    getRepositoryByAliasSpy.mockReturnValue({
+    getRepositoryByAliasSpy.mockResolvedValue({
       path: "/repo/path",
       name: "repo",
       alias: "org/repo",
     });
-    removeWorktreeSpy.mockImplementation(() => {
-      throw new Error("main is the main worktree");
-    });
+    removeWorktreeSpy.mockRejectedValue(new Error("main is the main worktree"));
 
     const res = await DELETE(
       new NextRequest(
@@ -100,14 +98,14 @@ describe("DELETE /api/repositories/:organization/:name/worktrees/[...branch]", (
   });
 
   it("returns 404 when worktree branch is not found", async () => {
-    getRepositoryByAliasSpy.mockReturnValue({
+    getRepositoryByAliasSpy.mockResolvedValue({
       path: "/repo/path",
       name: "repo",
       alias: "org/repo",
     });
-    removeWorktreeSpy.mockImplementation(() => {
-      throw new Error("Worktree not found for branch");
-    });
+    removeWorktreeSpy.mockRejectedValue(
+      new Error("Worktree not found for branch"),
+    );
 
     const res = await DELETE(
       new NextRequest(

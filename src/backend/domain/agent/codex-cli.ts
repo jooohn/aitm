@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
@@ -66,12 +66,12 @@ async function* spawnCodexQuery(
     outputFormat,
   } = params;
 
-  const tempDir = mkdtempSync(join(tmpdir(), "aitm-codex-"));
+  const tempDir = await mkdtemp(join(tmpdir(), "aitm-codex-"));
   const schemaPath = join(tempDir, "output-schema.json");
   const outputPath = join(tempDir, "last-message.json");
 
   if (outputFormat?.type === "json_schema") {
-    writeFileSync(schemaPath, JSON.stringify(outputFormat.schema), "utf8");
+    await writeFile(schemaPath, JSON.stringify(outputFormat.schema), "utf8");
   }
 
   const args = [
@@ -172,7 +172,7 @@ async function* spawnCodexQuery(
 
     let resultText = "";
     try {
-      resultText = readFileSync(outputPath, "utf8").trim();
+      resultText = (await readFile(outputPath, "utf8")).trim();
     } catch {
       // Leave empty if the CLI did not write a final message file.
     }
@@ -196,7 +196,7 @@ async function* spawnCodexQuery(
     abortController.signal.removeEventListener("abort", onAbort);
     rl.close();
     if (!child.killed) child.kill("SIGTERM");
-    rmSync(tempDir, { recursive: true, force: true });
+    await rm(tempDir, { recursive: true, force: true });
   }
 }
 

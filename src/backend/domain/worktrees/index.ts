@@ -1,5 +1,5 @@
-import { execFileSync } from "child_process";
 import { logger } from "@/backend/infra/logger";
+import { spawnAsync } from "@/backend/utils/process";
 
 export interface Worktree {
   branch: string;
@@ -49,41 +49,55 @@ function handleGtrCommandError(err: unknown) {
       "git-worktree-runner is not installed. Install it by following the Quick Start instruction (https://github.com/coderabbitai/git-worktree-runner?tab=readme-ov-file#quick-start).",
     );
   }
-  const stderr =
-    (err as { stderr?: string }).stderr?.trim() ??
-    (err instanceof Error ? err.message : String(err));
-  throw new Error(stderr);
+  throw err instanceof Error ? err : new Error(String(err));
+}
+
+async function runGtrCommand(args: string[], cwd: string): Promise<string> {
+  const { code, stdout, stderr } = await spawnAsync("git", args, { cwd });
+  if (code !== 0) {
+    throw new Error(stderr.trim() || `git ${args.join(" ")} failed`);
+  }
+  return stdout;
 }
 
 export class WorktreeService {
-  listWorktrees(repoPath: string): Worktree[] {
-    const output = execFileSync("git", ["worktree", "list", "--porcelain"], {
-      cwd: repoPath,
-      encoding: "utf8",
-    });
-    return parseWorktreeList(output);
+  async listWorktrees(repoPath: string): Promise<Worktree[]> {
+    const { code, stdout, stderr } = await spawnAsync(
+      "git",
+      ["worktree", "list", "--porcelain"],
+      { cwd: repoPath },
+    );
+    if (code !== 0) {
+      throw new Error(stderr.trim() || "git worktree list failed");
+    }
+    return parseWorktreeList(stdout);
   }
 
-  findWorktree(repoPath: string, branch: string): Worktree | undefined {
-    return this.listWorktrees(repoPath).find((w) => w.branch === branch);
+  async findWorktree(
+    repoPath: string,
+    branch: string,
+  ): Promise<Worktree | undefined> {
+    return (await this.listWorktrees(repoPath)).find(
+      (w) => w.branch === branch,
+    );
   }
 
-  createWorktree(
+  async createWorktree(
     repoPath: string,
     branch: string,
     options?: { name?: string; no_fetch?: boolean },
-  ): Worktree {
+  ): Promise<Worktree> {
     const args = ["gtr", "new", branch];
     if (options?.name) args.push("--name", options.name);
     if (options?.no_fetch) args.push("--no-fetch");
 
     try {
-      execFileSync("git", args, { cwd: repoPath, encoding: "utf8" });
+      await runGtrCommand(args, repoPath);
     } catch (err) {
       handleGtrCommandError(err);
     }
 
-    const worktrees = this.listWorktrees(repoPath);
+    const worktrees = await this.listWorktrees(repoPath);
     const created = worktrees.find((w) => w.branch === branch);
     if (!created) {
       throw new Error(
@@ -93,8 +107,8 @@ export class WorktreeService {
     return created;
   }
 
-  removeWorktree(repoPath: string, branch: string): void {
-    const worktrees = this.listWorktrees(repoPath);
+  async removeWorktree(repoPath: string, branch: string): Promise<void> {
+    const worktrees = await this.listWorktrees(repoPath);
     const target = worktrees.find((w) => w.branch === branch);
 
     if (!target) {
@@ -107,31 +121,29 @@ export class WorktreeService {
     }
 
     try {
-      execFileSync("git", ["gtr", "rm", branch], {
-        cwd: repoPath,
-        encoding: "utf8",
-      });
+      await runGtrCommand(["gtr", "rm", branch], repoPath);
     } catch (err) {
       handleGtrCommandError(err);
     }
   }
 
-  cleanMergedWorktrees(repoPath: string): string[] {
-    const before = this.listWorktrees(repoPath).map((w) => w.branch);
+  async cleanMergedWorktrees(repoPath: string): Promise<string[]> {
+    const before = (await this.listWorktrees(repoPath)).map((w) => w.branch);
     try {
-      execFileSync("git", ["gtr", "clean", "--merged", "--yes"], {
-        cwd: repoPath,
-        encoding: "utf8",
-      });
+      await runGtrCommand(["gtr", "clean", "--merged", "--yes"], repoPath);
     } catch (err) {
       handleGtrCommandError(err);
     }
-    const after = new Set(this.listWorktrees(repoPath).map((w) => w.branch));
+    const after = new Set(
+      (await this.listWorktrees(repoPath)).map((w) => w.branch),
+    );
     return before.filter((b) => !after.has(b));
   }
 
-  pullMainBranchIfOutdated(repoPath: string): "up-to-date" | "pulled" {
-    const worktrees = this.listWorktrees(repoPath);
+  async pullMainBranchIfOutdated(
+    repoPath: string,
+  ): Promise<"up-to-date" | "pulled"> {
+    const worktrees = await this.listWorktrees(repoPath);
     const main = worktrees.find((w) => w.is_main);
     if (!main) {
       throw new Error(`No main worktree found in ${repoPath}`);
@@ -141,25 +153,21 @@ export class WorktreeService {
       return "up-to-date";
     }
 
-    execFileSync("git", ["fetch", "origin"], {
-      cwd: main.path,
-      encoding: "utf8",
-    });
+    await spawnAsync("git", ["fetch", "origin"], { cwd: main.path });
 
-    let mergeOutput: string;
-    try {
-      mergeOutput = execFileSync("git", ["merge", "--ff-only", "@{u}"], {
-        cwd: main.path,
-        encoding: "utf8",
-      });
-    } catch (err) {
-      const stderr =
-        (err as { stderr?: string }).stderr?.trim() ??
-        (err instanceof Error ? err.message : String(err));
-      throw new Error(`Failed to fast-forward main branch: ${stderr}`);
+    const { code, stdout, stderr } = await spawnAsync(
+      "git",
+      ["merge", "--ff-only", "@{u}"],
+      { cwd: main.path },
+    );
+
+    if (code !== 0) {
+      throw new Error(
+        `Failed to fast-forward main branch: ${stderr.trim() || stdout.trim()}`,
+      );
     }
 
-    if (mergeOutput.trim() === "Already up to date.") {
+    if (stdout.trim() === "Already up to date.") {
       return "up-to-date";
     }
     return "pulled";

@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from "fs";
+import { mkdir, writeFile } from "fs/promises";
 import { tmpdir } from "os";
 import { join } from "path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -18,38 +18,40 @@ const listSessions = sessionService.listSessions.bind(sessionService);
 vi.spyOn(agentService, "startAgent").mockResolvedValue();
 vi.spyOn(agentService, "resumeAgent").mockResolvedValue();
 vi.spyOn(agentService, "cancelAgent").mockImplementation(() => {});
-vi.spyOn(worktreeService, "listWorktrees").mockImplementation((repoPath) => [
-  {
-    branch: "feat/test",
-    path: repoPath,
-    is_main: false,
-    is_bare: false,
-    head: "HEAD",
-  },
-  {
-    branch: "feat/a",
-    path: repoPath,
-    is_main: false,
-    is_bare: false,
-    head: "HEAD",
-  },
-  {
-    branch: "feat/b",
-    path: repoPath,
-    is_main: false,
-    is_bare: false,
-    head: "HEAD",
-  },
-]);
+vi.spyOn(worktreeService, "listWorktrees").mockImplementation(
+  async (repoPath) => [
+    {
+      branch: "feat/test",
+      path: repoPath,
+      is_main: false,
+      is_bare: false,
+      head: "HEAD",
+    },
+    {
+      branch: "feat/a",
+      path: repoPath,
+      is_main: false,
+      is_bare: false,
+      head: "HEAD",
+    },
+    {
+      branch: "feat/b",
+      path: repoPath,
+      is_main: false,
+      is_bare: false,
+      head: "HEAD",
+    },
+  ],
+);
 
 const DEFAULT_TRANSITIONS = [{ terminal: "success" as const, when: "Done" }];
 
-function makeFakeGitRepo(): string {
+async function makeFakeGitRepo(): Promise<string> {
   const dir = join(
     tmpdir(),
     `aitm-test-${Math.random().toString(36).slice(2)}`,
   );
-  mkdirSync(join(dir, ".git"), { recursive: true });
+  await mkdir(join(dir, ".git"), { recursive: true });
   return dir;
 }
 
@@ -59,9 +61,9 @@ beforeEach(() => {
 });
 
 describe("createSession", () => {
-  it("creates a session with RUNNING status", () => {
-    const repoPath = makeFakeGitRepo();
-    const session = createSession({
+  it("creates a session with RUNNING status", async () => {
+    const repoPath = await makeFakeGitRepo();
+    const session = await createSession({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       goal: "Write an implementation plan",
@@ -79,15 +81,15 @@ describe("createSession", () => {
     expect(session.created_at).toMatch(/^\d{4}-\d{2}-\d{2}T/);
   });
 
-  it("passes an explicit agent config to startAgent", () => {
-    const repoPath = makeFakeGitRepo();
+  it("passes an explicit agent config to startAgent", async () => {
+    const repoPath = await makeFakeGitRepo();
     const agentConfig = {
       provider: "codex" as const,
       model: "gpt-5.4",
       command: "/opt/homebrew/bin/codex",
     };
 
-    const session = createSession({
+    const session = await createSession({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       goal: "Write code",
@@ -112,12 +114,12 @@ describe("createSession", () => {
       `aitm-config-test-${Math.random().toString(36).slice(2)}`,
     );
     const configPath = join(dir, "config.yaml");
-    mkdirSync(dir, { recursive: true });
+    await mkdir(dir, { recursive: true });
     process.env.AITM_CONFIG_PATH = configPath;
 
-    const repoPath = makeFakeGitRepo();
+    const repoPath = await makeFakeGitRepo();
     try {
-      writeFileSync(
+      await writeFile(
         configPath,
         `
 agent:
@@ -128,7 +130,7 @@ workflows: {}
 `,
       );
 
-      const session = createSession({
+      const session = await createSession({
         repository_path: repoPath,
         worktree_branch: "feat/test",
         goal: "Write code",
@@ -155,15 +157,15 @@ workflows: {}
 });
 
 describe("listSessions", () => {
-  it("returns all sessions ordered by created_at descending", () => {
-    const repoPath = makeFakeGitRepo();
-    createSession({
+  it("returns all sessions ordered by created_at descending", async () => {
+    const repoPath = await makeFakeGitRepo();
+    await createSession({
       repository_path: repoPath,
       worktree_branch: "feat/a",
       goal: "Goal A",
       transitions: DEFAULT_TRANSITIONS,
     });
-    createSession({
+    await createSession({
       repository_path: repoPath,
       worktree_branch: "feat/b",
       goal: "Goal B",
@@ -177,16 +179,16 @@ describe("listSessions", () => {
     expect(branches).toContain("feat/b");
   });
 
-  it("filters by repository_path", () => {
-    const path1 = makeFakeGitRepo();
-    const path2 = makeFakeGitRepo();
-    createSession({
+  it("filters by repository_path", async () => {
+    const path1 = await makeFakeGitRepo();
+    const path2 = await makeFakeGitRepo();
+    await createSession({
       repository_path: path1,
       worktree_branch: "feat/a",
       goal: "A",
       transitions: DEFAULT_TRANSITIONS,
     });
-    createSession({
+    await createSession({
       repository_path: path2,
       worktree_branch: "feat/b",
       goal: "B",
@@ -198,15 +200,15 @@ describe("listSessions", () => {
     expect(sessions[0].worktree_branch).toBe("feat/a");
   });
 
-  it("filters by worktree_branch", () => {
-    const repoPath = makeFakeGitRepo();
-    createSession({
+  it("filters by worktree_branch", async () => {
+    const repoPath = await makeFakeGitRepo();
+    await createSession({
       repository_path: repoPath,
       worktree_branch: "feat/a",
       goal: "A",
       transitions: DEFAULT_TRANSITIONS,
     });
-    createSession({
+    await createSession({
       repository_path: repoPath,
       worktree_branch: "feat/b",
       goal: "B",
@@ -218,16 +220,16 @@ describe("listSessions", () => {
     expect(sessions[0].goal).toBe("A");
   });
 
-  it("filters by status", () => {
-    const repoPath = makeFakeGitRepo();
-    const session = createSession({
+  it("filters by status", async () => {
+    const repoPath = await makeFakeGitRepo();
+    const session = await createSession({
       repository_path: repoPath,
       worktree_branch: "feat/a",
       goal: "A",
       transitions: DEFAULT_TRANSITIONS,
     });
     failSession(session.id);
-    createSession({
+    await createSession({
       repository_path: repoPath,
       worktree_branch: "feat/b",
       goal: "B",
@@ -240,9 +242,9 @@ describe("listSessions", () => {
 });
 
 describe("getSession", () => {
-  it("returns the session by id", () => {
-    const repoPath = makeFakeGitRepo();
-    const created = createSession({
+  it("returns the session by id", async () => {
+    const repoPath = await makeFakeGitRepo();
+    const created = await createSession({
       repository_path: repoPath,
       worktree_branch: "feat/a",
       goal: "A",
@@ -260,9 +262,9 @@ describe("getSession", () => {
 });
 
 describe("failSession", () => {
-  it("marks a RUNNING session as FAILED", () => {
-    const repoPath = makeFakeGitRepo();
-    const session = createSession({
+  it("marks a RUNNING session as FAILED", async () => {
+    const repoPath = await makeFakeGitRepo();
+    const session = await createSession({
       repository_path: repoPath,
       worktree_branch: "feat/a",
       goal: "A",
@@ -277,9 +279,9 @@ describe("failSession", () => {
     expect(() => failSession("nonexistent")).toThrow("Session not found");
   });
 
-  it("throws when session is already in a terminal state", () => {
-    const repoPath = makeFakeGitRepo();
-    const session = createSession({
+  it("throws when session is already in a terminal state", async () => {
+    const repoPath = await makeFakeGitRepo();
+    const session = await createSession({
       repository_path: repoPath,
       worktree_branch: "feat/a",
       goal: "A",
@@ -290,9 +292,9 @@ describe("failSession", () => {
     expect(() => failSession(session.id)).toThrow("terminal state");
   });
 
-  it("marks an AWAITING_INPUT session as FAILED", () => {
-    const repoPath = makeFakeGitRepo();
-    const session = createSession({
+  it("marks an AWAITING_INPUT session as FAILED", async () => {
+    const repoPath = await makeFakeGitRepo();
+    const session = await createSession({
       repository_path: repoPath,
       worktree_branch: "feat/a",
       goal: "A",
@@ -309,9 +311,9 @@ describe("failSession", () => {
 });
 
 describe("replyToSession", () => {
-  it("calls resumeAgent when session is AWAITING_INPUT", () => {
-    const repoPath = makeFakeGitRepo();
-    const session = createSession({
+  it("calls resumeAgent when session is AWAITING_INPUT", async () => {
+    const repoPath = await makeFakeGitRepo();
+    const session = await createSession({
       repository_path: repoPath,
       worktree_branch: "feat/a",
       goal: "A",
@@ -321,7 +323,7 @@ describe("replyToSession", () => {
       "UPDATE sessions SET status = 'AWAITING_INPUT' WHERE id = ?",
     ).run(session.id);
 
-    replyToSession(session.id, "Use PostgreSQL");
+    await replyToSession(session.id, "Use PostgreSQL");
 
     expect(agentService.resumeAgent).toHaveBeenCalledWith(
       session.id,
@@ -334,29 +336,29 @@ describe("replyToSession", () => {
     );
   });
 
-  it("throws when session is not found", () => {
-    expect(() => replyToSession("nonexistent", "hello")).toThrow(
+  it("throws when session is not found", async () => {
+    await expect(replyToSession("nonexistent", "hello")).rejects.toThrow(
       "Session not found",
     );
   });
 
-  it("throws when session is RUNNING", () => {
-    const repoPath = makeFakeGitRepo();
-    const session = createSession({
+  it("throws when session is RUNNING", async () => {
+    const repoPath = await makeFakeGitRepo();
+    const session = await createSession({
       repository_path: repoPath,
       worktree_branch: "feat/a",
       goal: "A",
       transitions: DEFAULT_TRANSITIONS,
     });
 
-    expect(() => replyToSession(session.id, "hello")).toThrow(
+    await expect(replyToSession(session.id, "hello")).rejects.toThrow(
       "not awaiting input",
     );
   });
 
-  it("throws when session is in a terminal state", () => {
-    const repoPath = makeFakeGitRepo();
-    const session = createSession({
+  it("throws when session is in a terminal state", async () => {
+    const repoPath = await makeFakeGitRepo();
+    const session = await createSession({
       repository_path: repoPath,
       worktree_branch: "feat/a",
       goal: "A",
@@ -364,20 +366,20 @@ describe("replyToSession", () => {
     });
     failSession(session.id);
 
-    expect(() => replyToSession(session.id, "hello")).toThrow(
+    await expect(replyToSession(session.id, "hello")).rejects.toThrow(
       "not awaiting input",
     );
   });
 
-  it("uses the agent config from session creation, not the current default", () => {
-    const repoPath = makeFakeGitRepo();
+  it("uses the agent config from session creation, not the current default", async () => {
+    const repoPath = await makeFakeGitRepo();
     const agentConfig = {
       provider: "codex" as const,
       model: "gpt-5.4",
       command: "/opt/homebrew/bin/codex",
     };
 
-    const session = createSession({
+    const session = await createSession({
       repository_path: repoPath,
       worktree_branch: "feat/a",
       goal: "A",
@@ -388,7 +390,7 @@ describe("replyToSession", () => {
       "UPDATE sessions SET status = 'AWAITING_INPUT' WHERE id = ?",
     ).run(session.id);
 
-    replyToSession(session.id, "Continue");
+    await replyToSession(session.id, "Continue");
 
     expect(agentService.resumeAgent).toHaveBeenCalledWith(
       session.id,

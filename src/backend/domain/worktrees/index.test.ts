@@ -1,31 +1,26 @@
-import { execFileSync } from "child_process";
-import { mkdirSync, realpathSync, writeFileSync } from "fs";
+import { mkdir, realpath, writeFile } from "fs/promises";
 import { tmpdir } from "os";
 import { join } from "path";
 import { describe, expect, it } from "vitest";
 import { worktreeService } from "@/backend/container";
+import { spawnAsync } from "@/backend/utils/process";
 import { parseWorktreeList } from "./index";
 
 const listWorktrees = worktreeService.listWorktrees.bind(worktreeService);
 const removeWorktree = worktreeService.removeWorktree.bind(worktreeService);
 
-function makeGitRepo(): string {
-  const dir = realpathSync(
-    (() => {
-      const d = join(
-        tmpdir(),
-        `aitm-test-${Math.random().toString(36).slice(2)}`,
-      );
-      mkdirSync(d, { recursive: true });
-      return d;
-    })(),
-  );
-  execFileSync("git", ["init"], { cwd: dir });
-  execFileSync("git", ["config", "user.email", "test@test.com"], { cwd: dir });
-  execFileSync("git", ["config", "user.name", "Test"], { cwd: dir });
-  writeFileSync(join(dir, "README.md"), "# test");
-  execFileSync("git", ["add", "."], { cwd: dir });
-  execFileSync("git", ["commit", "-m", "init"], { cwd: dir });
+async function makeGitRepo(): Promise<string> {
+  const d = join(tmpdir(), `aitm-test-${Math.random().toString(36).slice(2)}`);
+  await mkdir(d, { recursive: true });
+  const dir = await realpath(d);
+  await spawnAsync("git", ["init"], { cwd: dir });
+  await spawnAsync("git", ["config", "user.email", "test@test.com"], {
+    cwd: dir,
+  });
+  await spawnAsync("git", ["config", "user.name", "Test"], { cwd: dir });
+  await writeFile(join(dir, "README.md"), "# test");
+  await spawnAsync("git", ["add", "."], { cwd: dir });
+  await spawnAsync("git", ["commit", "-m", "init"], { cwd: dir });
   return dir;
 }
 
@@ -117,9 +112,9 @@ describe("parseWorktreeList", () => {
 // ---------------------------------------------------------------------------
 
 describe("listWorktrees", () => {
-  it("returns the main worktree for a fresh repo", () => {
-    const dir = makeGitRepo();
-    const worktrees = listWorktrees(dir);
+  it("returns the main worktree for a fresh repo", async () => {
+    const dir = await makeGitRepo();
+    const worktrees = await listWorktrees(dir);
 
     expect(worktrees).toHaveLength(1);
     expect(worktrees[0].is_main).toBe(true);
@@ -127,18 +122,14 @@ describe("listWorktrees", () => {
     expect(worktrees[0].head).toHaveLength(7);
   });
 
-  it("throws when repoPath is not a git repo", () => {
-    const dir = realpathSync(
-      (() => {
-        const d = join(
-          tmpdir(),
-          `aitm-test-${Math.random().toString(36).slice(2)}`,
-        );
-        mkdirSync(d, { recursive: true });
-        return d;
-      })(),
+  it("throws when repoPath is not a git repo", async () => {
+    const d = join(
+      tmpdir(),
+      `aitm-test-${Math.random().toString(36).slice(2)}`,
     );
-    expect(() => listWorktrees(dir)).toThrow();
+    await mkdir(d, { recursive: true });
+    const dir = await realpath(d);
+    await expect(listWorktrees(dir)).rejects.toThrow();
   });
 });
 
@@ -147,18 +138,18 @@ describe("listWorktrees", () => {
 // ---------------------------------------------------------------------------
 
 describe("removeWorktree", () => {
-  it("throws when trying to remove the main worktree", () => {
-    const dir = makeGitRepo();
-    const [main] = listWorktrees(dir);
+  it("throws when trying to remove the main worktree", async () => {
+    const dir = await makeGitRepo();
+    const [main] = await listWorktrees(dir);
 
-    expect(() => removeWorktree(dir, main.branch)).toThrow(
+    await expect(removeWorktree(dir, main.branch)).rejects.toThrow(
       "is the main worktree",
     );
   });
 
-  it("throws when the branch has no worktree", () => {
-    const dir = makeGitRepo();
-    expect(() => removeWorktree(dir, "nonexistent-branch")).toThrow(
+  it("throws when the branch has no worktree", async () => {
+    const dir = await makeGitRepo();
+    await expect(removeWorktree(dir, "nonexistent-branch")).rejects.toThrow(
       "not found",
     );
   });

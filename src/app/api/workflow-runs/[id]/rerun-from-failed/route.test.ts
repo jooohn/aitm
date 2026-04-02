@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from "fs";
+import { mkdir, writeFile } from "fs/promises";
 import { NextRequest } from "next/server";
 import { tmpdir } from "os";
 import { join } from "path";
@@ -13,12 +13,12 @@ const completeStateExecution =
 import { db } from "@/backend/infra/db";
 import { POST } from "./route";
 
-function makeFakeGitRepo(): string {
+async function makeFakeGitRepo(): Promise<string> {
   const dir = join(
     tmpdir(),
     `aitm-test-${Math.random().toString(36).slice(2)}`,
   );
-  mkdirSync(join(dir, ".git"), { recursive: true });
+  await mkdir(join(dir, ".git"), { recursive: true });
   return dir;
 }
 
@@ -45,29 +45,31 @@ workflows:
 
 let configFile: string;
 
-beforeEach(() => {
+beforeEach(async () => {
   const dir = join(
     tmpdir(),
     `aitm-config-test-${Math.random().toString(36).slice(2)}`,
   );
-  mkdirSync(dir, { recursive: true });
+  await mkdir(dir, { recursive: true });
   configFile = join(dir, "config.yaml");
   process.env.AITM_CONFIG_PATH = configFile;
-  writeFileSync(configFile, WORKFLOW_CONFIG);
+  await writeFile(configFile, WORKFLOW_CONFIG);
 
   db.prepare("DELETE FROM sessions").run();
   db.prepare("DELETE FROM state_executions").run();
   db.prepare("DELETE FROM workflow_runs").run();
 
-  vi.spyOn(worktreeService, "listWorktrees").mockImplementation((repoPath) => [
-    {
-      branch: "feat/test",
-      path: repoPath,
-      is_main: false,
-      is_bare: false,
-      head: "HEAD",
-    },
-  ]);
+  vi.spyOn(worktreeService, "listWorktrees").mockImplementation(
+    async (repoPath) => [
+      {
+        branch: "feat/test",
+        path: repoPath,
+        is_main: false,
+        is_bare: false,
+        head: "HEAD",
+      },
+    ],
+  );
 });
 
 afterEach(() => {
@@ -85,9 +87,9 @@ function makeRequest(id: string): NextRequest {
   );
 }
 
-function setupFailedRun() {
-  const repoPath = makeFakeGitRepo();
-  const run = createWorkflowRun({
+async function setupFailedRun() {
+  const repoPath = await makeFakeGitRepo();
+  const run = await createWorkflowRun({
     repository_path: repoPath,
     worktree_branch: "feat/test",
     workflow_name: "my-flow",
@@ -98,7 +100,7 @@ function setupFailedRun() {
       "SELECT * FROM state_executions WHERE workflow_run_id = ? ORDER BY created_at ASC",
     )
     .all(run.id) as { id: string }[];
-  completeStateExecution(planExec.id, {
+  await completeStateExecution(planExec.id, {
     transition: "implement",
     reason: "Plan done",
     handoff_summary: "Wrote PLAN.md",
@@ -109,7 +111,7 @@ function setupFailedRun() {
       "SELECT * FROM state_executions WHERE workflow_run_id = ? AND state = 'implement'",
     )
     .get(run.id) as { id: string };
-  completeStateExecution(implementExec.id, {
+  await completeStateExecution(implementExec.id, {
     transition: "failure",
     reason: "Blocked",
     handoff_summary: "Could not proceed",
@@ -120,7 +122,7 @@ function setupFailedRun() {
 
 describe("POST /api/workflow-runs/:id/rerun-from-failed", () => {
   it("returns 200 with the updated workflow run when run is in failure status", async () => {
-    const { run } = setupFailedRun();
+    const { run } = await setupFailedRun();
 
     const res = await POST(makeRequest(run.id), makeParams(run.id));
 

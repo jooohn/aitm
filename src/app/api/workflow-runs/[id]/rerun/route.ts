@@ -16,7 +16,7 @@ export async function POST(
 ): Promise<NextResponse> {
   try {
     const { id } = await params;
-    const newRun = workflowRunService.rerunWorkflowRun(id);
+    const newRun = await workflowRunService.rerunWorkflowRun(id);
     return NextResponse.json(newRun, { status: 201 });
   } catch (err) {
     return errorResponse(err);

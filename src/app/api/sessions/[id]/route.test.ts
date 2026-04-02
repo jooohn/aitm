@@ -1,4 +1,4 @@
-import { mkdirSync } from "fs";
+import { mkdir } from "fs/promises";
 import { NextRequest } from "next/server";
 import { tmpdir } from "os";
 import { join } from "path";
@@ -10,12 +10,12 @@ const createSession = sessionService.createSession.bind(sessionService);
 import { db } from "@/backend/infra/db";
 import { GET } from "./route";
 
-function makeFakeGitRepo(): string {
+async function makeFakeGitRepo(): Promise<string> {
   const dir = join(
     tmpdir(),
     `aitm-test-${Math.random().toString(36).slice(2)}`,
   );
-  mkdirSync(join(dir, ".git"), { recursive: true });
+  await mkdir(join(dir, ".git"), { recursive: true });
   return dir;
 }
 
@@ -29,8 +29,8 @@ beforeEach(() => {
 
 describe("GET /api/sessions/:id", () => {
   it("returns 200 with the session", async () => {
-    const session = createSession({
-      repository_path: makeFakeGitRepo(),
+    const session = await createSession({
+      repository_path: await makeFakeGitRepo(),
       worktree_branch: "feat/test",
       goal: "Do something",
       transitions: [{ terminal: "success" as const, when: "Done" }],

@@ -3,7 +3,7 @@ export async function register() {
     const { sessionService, workflowRunService, houseKeepingService } =
       await import("./backend/container");
     sessionService.recoverCrashedSessions();
-    workflowRunService.recoverCrashedWorkflowRuns();
+    await workflowRunService.recoverCrashedWorkflowRuns();
     houseKeepingService.startPeriodicHouseKeeping();
   }
 }

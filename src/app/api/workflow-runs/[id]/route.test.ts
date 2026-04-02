@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from "fs";
+import { mkdir, writeFile } from "fs/promises";
 import { NextRequest } from "next/server";
 import { tmpdir } from "os";
 import { join } from "path";
@@ -11,26 +11,26 @@ const createWorkflowRun =
 import { db } from "@/backend/infra/db";
 import { GET } from "./route";
 
-function makeFakeGitRepo(): string {
+async function makeFakeGitRepo(): Promise<string> {
   const dir = join(
     tmpdir(),
     `aitm-test-${Math.random().toString(36).slice(2)}`,
   );
-  mkdirSync(join(dir, ".git"), { recursive: true });
+  await mkdir(join(dir, ".git"), { recursive: true });
   return dir;
 }
 
 let configFile: string;
 
-beforeEach(() => {
+beforeEach(async () => {
   const dir = join(
     tmpdir(),
     `aitm-config-test-${Math.random().toString(36).slice(2)}`,
   );
-  mkdirSync(dir, { recursive: true });
+  await mkdir(dir, { recursive: true });
   configFile = join(dir, "config.yaml");
   process.env.AITM_CONFIG_PATH = configFile;
-  writeFileSync(
+  await writeFile(
     configFile,
     `
 workflows:
@@ -56,15 +56,17 @@ workflows:
   db.prepare("DELETE FROM state_executions").run();
   db.prepare("DELETE FROM workflow_runs").run();
 
-  vi.spyOn(worktreeService, "listWorktrees").mockImplementation((repoPath) => [
-    {
-      branch: "feat/test",
-      path: repoPath,
-      is_main: false,
-      is_bare: false,
-      head: "HEAD",
-    },
-  ]);
+  vi.spyOn(worktreeService, "listWorktrees").mockImplementation(
+    async (repoPath) => [
+      {
+        branch: "feat/test",
+        path: repoPath,
+        is_main: false,
+        is_bare: false,
+        head: "HEAD",
+      },
+    ],
+  );
 });
 
 afterEach(() => {
@@ -77,8 +79,8 @@ function makeParams(id: string): { params: Promise<{ id: string }> } {
 
 describe("GET /api/workflow-runs/:id", () => {
   it("returns 200 with the workflow run and its state executions", async () => {
-    const repoPath = makeFakeGitRepo();
-    const run = createWorkflowRun({
+    const repoPath = await makeFakeGitRepo();
+    const run = await createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       workflow_name: "my-flow",

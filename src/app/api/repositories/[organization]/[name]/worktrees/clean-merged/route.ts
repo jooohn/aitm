@@ -22,7 +22,7 @@ export async function POST(
 ): Promise<NextResponse> {
   try {
     const { organization, name } = await params;
-    const repo = repositoryService.getRepositoryByAlias(
+    const repo = await repositoryService.getRepositoryByAlias(
       `${organization}/${name}`,
     );
     if (!repo) {
@@ -31,8 +31,10 @@ export async function POST(
         { status: 404 },
       );
     }
-    const removedBranches = worktreeService.cleanMergedWorktrees(repo.path);
-    sessionService.deleteWorktreeData(repo.path, removedBranches);
+    const removedBranches = await worktreeService.cleanMergedWorktrees(
+      repo.path,
+    );
+    await sessionService.deleteWorktreeData(repo.path, removedBranches);
     return new NextResponse(null, { status: 204 });
   } catch (err) {
     return errorResponse(err);

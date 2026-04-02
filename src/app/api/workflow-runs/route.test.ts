@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from "fs";
+import { mkdir, writeFile } from "fs/promises";
 import { NextRequest } from "next/server";
 import { tmpdir } from "os";
 import { join } from "path";
@@ -7,23 +7,23 @@ import { worktreeService } from "@/backend/container";
 import { db } from "@/backend/infra/db";
 import { GET, POST } from "./route";
 
-function makeFakeGitRepo(): string {
+async function makeFakeGitRepo(): Promise<string> {
   const dir = join(
     tmpdir(),
     `aitm-test-${Math.random().toString(36).slice(2)}`,
   );
-  mkdirSync(join(dir, ".git"), { recursive: true });
+  await mkdir(join(dir, ".git"), { recursive: true });
   return dir;
 }
 
 let configFile: string;
 
-beforeEach(() => {
+beforeEach(async () => {
   const dir = join(
     tmpdir(),
     `aitm-config-test-${Math.random().toString(36).slice(2)}`,
   );
-  mkdirSync(dir, { recursive: true });
+  await mkdir(dir, { recursive: true });
   configFile = join(dir, "config.yaml");
   process.env.AITM_CONFIG_PATH = configFile;
 
@@ -31,29 +31,31 @@ beforeEach(() => {
   db.prepare("DELETE FROM state_executions").run();
   db.prepare("DELETE FROM workflow_runs").run();
 
-  vi.spyOn(worktreeService, "listWorktrees").mockImplementation((repoPath) => [
-    {
-      branch: "feat/test",
-      path: repoPath,
-      is_main: false,
-      is_bare: false,
-      head: "HEAD",
-    },
-    {
-      branch: "feat/a",
-      path: repoPath,
-      is_main: false,
-      is_bare: false,
-      head: "HEAD",
-    },
-    {
-      branch: "feat/b",
-      path: repoPath,
-      is_main: false,
-      is_bare: false,
-      head: "HEAD",
-    },
-  ]);
+  vi.spyOn(worktreeService, "listWorktrees").mockImplementation(
+    async (repoPath) => [
+      {
+        branch: "feat/test",
+        path: repoPath,
+        is_main: false,
+        is_bare: false,
+        head: "HEAD",
+      },
+      {
+        branch: "feat/a",
+        path: repoPath,
+        is_main: false,
+        is_bare: false,
+        head: "HEAD",
+      },
+      {
+        branch: "feat/b",
+        path: repoPath,
+        is_main: false,
+        is_bare: false,
+        head: "HEAD",
+      },
+    ],
+  );
 });
 
 afterEach(() => {
@@ -62,8 +64,8 @@ afterEach(() => {
 
 describe("POST /api/workflow-runs", () => {
   it("creates a workflow run and returns 201", async () => {
-    const repoPath = makeFakeGitRepo();
-    writeFileSync(
+    const repoPath = await makeFakeGitRepo();
+    await writeFile(
       configFile,
       `
 workflows:
@@ -100,7 +102,7 @@ workflows:
   });
 
   it("returns 422 when required fields are missing", async () => {
-    writeFileSync(configFile, "");
+    await writeFile(configFile, "");
     const res = await POST(
       new NextRequest("http://localhost/api/workflow-runs", {
         method: "POST",
@@ -112,8 +114,8 @@ workflows:
   });
 
   it("returns 404 when workflow is not found in config", async () => {
-    const repoPath = makeFakeGitRepo();
-    writeFileSync(configFile, "workflows: {}\n");
+    const repoPath = await makeFakeGitRepo();
+    await writeFile(configFile, "workflows: {}\n");
     const res = await POST(
       new NextRequest("http://localhost/api/workflow-runs", {
         method: "POST",
@@ -131,7 +133,7 @@ workflows:
 
 describe("GET /api/workflow-runs", () => {
   it("returns 200 with all workflow runs", async () => {
-    writeFileSync(
+    await writeFile(
       configFile,
       `
 workflows:
@@ -145,7 +147,7 @@ workflows:
             when: "done"
 `,
     );
-    const repoPath = makeFakeGitRepo();
+    const repoPath = await makeFakeGitRepo();
 
     // Create one run directly
     await POST(
@@ -170,7 +172,7 @@ workflows:
   });
 
   it("filters by repository_path and worktree_branch", async () => {
-    writeFileSync(
+    await writeFile(
       configFile,
       `
 workflows:
@@ -184,8 +186,8 @@ workflows:
             when: "done"
 `,
     );
-    const repoA = makeFakeGitRepo();
-    const repoB = makeFakeGitRepo();
+    const repoA = await makeFakeGitRepo();
+    const repoB = await makeFakeGitRepo();
 
     await POST(
       new NextRequest("http://localhost/api/workflow-runs", {

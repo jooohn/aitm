@@ -24,7 +24,7 @@ export async function DELETE(
 ): Promise<NextResponse> {
   try {
     const { organization, name, branch } = await params;
-    const repo = repositoryService.getRepositoryByAlias(
+    const repo = await repositoryService.getRepositoryByAlias(
       `${organization}/${name}`,
     );
     if (!repo) {
@@ -34,8 +34,8 @@ export async function DELETE(
       );
     }
     const branchName = branch.join("/");
-    worktreeService.removeWorktree(repo.path, branchName);
-    sessionService.deleteWorktreeData(repo.path, [branchName]);
+    await worktreeService.removeWorktree(repo.path, branchName);
+    await sessionService.deleteWorktreeData(repo.path, [branchName]);
     return NextResponse.json({ success: true });
   } catch (err) {
     return errorResponse(err);

@@ -1,7 +1,7 @@
-import { execFileSync } from "child_process";
-import { existsSync } from "fs";
+import { access } from "fs/promises";
 import { basename, join } from "path";
 import { getConfigRepositories } from "@/backend/infra/config";
+import { spawnAsync } from "@/backend/utils/process";
 
 export interface Repository {
   path: string;
@@ -18,13 +18,22 @@ import { inferAlias } from "@/lib/utils/inferAlias";
 
 export { inferAlias };
 
-function isGitRepo(path: string): boolean {
-  return existsSync(join(path, ".git"));
+async function pathExists(path: string): Promise<boolean> {
+  try {
+    await access(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function isGitRepo(path: string): Promise<boolean> {
+  return pathExists(join(path, ".git"));
 }
 
 export class RepositoryService {
-  listRepositories(): Repository[] {
-    return getConfigRepositories()
+  async listRepositories(): Promise<Repository[]> {
+    return (await getConfigRepositories())
       .map((r) => ({
         path: r.path,
         name: basename(r.path),
@@ -33,17 +42,20 @@ export class RepositoryService {
       .sort((a, b) => a.path.localeCompare(b.path));
   }
 
-  getRepositoryByAlias(alias: string): Repository | undefined {
-    return this.listRepositories().find((r) => r.alias === alias);
+  async getRepositoryByAlias(alias: string): Promise<Repository | undefined> {
+    return (await this.listRepositories()).find((r) => r.alias === alias);
   }
 
-  getGitHubUrl(repoPath: string): string | null {
+  async getGitHubUrl(repoPath: string): Promise<string | null> {
     try {
-      const remoteUrl = execFileSync(
+      const { code, stdout } = await spawnAsync(
         "git",
         ["config", "--get", "remote.origin.url"],
-        { cwd: repoPath, encoding: "utf8" },
-      ).trim();
+        { cwd: repoPath },
+      );
+      if (code !== 0) return null;
+
+      const remoteUrl = stdout.trim();
 
       const sshMatch = remoteUrl.match(/^git@github\.com:(.+?)(?:\.git)?$/);
       if (sshMatch) return `https://github.com/${sshMatch[1]}`;
@@ -64,11 +76,11 @@ export class RepositoryService {
     }
   }
 
-  validateRepository(path: string): ValidationResult {
-    if (!existsSync(path)) {
+  async validateRepository(path: string): Promise<ValidationResult> {
+    if (!(await pathExists(path))) {
       return { valid: false, reason: "Path does not exist" };
     }
-    if (!isGitRepo(path)) {
+    if (!(await isGitRepo(path))) {
       return { valid: false, reason: "Path is not a git repository" };
     }
     return { valid: true };

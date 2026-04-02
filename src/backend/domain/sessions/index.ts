@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { accessSync, constants, mkdirSync, unlinkSync } from "fs";
+import { access, constants, mkdir, unlink } from "fs/promises";
 import { homedir, tmpdir } from "os";
 import { join } from "path";
 import {
@@ -52,7 +52,7 @@ export interface ListSessionsFilter {
   status?: SessionStatus;
 }
 
-function sessionsLogDir(): string {
+async function sessionsLogDir(): Promise<string> {
   const candidates = [
     process.env.AITM_SESSION_LOG_DIR,
     process.env.AITM_SESSIONS_DIR,
@@ -62,8 +62,8 @@ function sessionsLogDir(): string {
 
   for (const dir of candidates) {
     try {
-      mkdirSync(dir, { recursive: true });
-      accessSync(dir, constants.W_OK);
+      await mkdir(dir, { recursive: true });
+      await access(dir, constants.W_OK);
       return dir;
     } catch {
       // Try the next writable location.
@@ -88,11 +88,11 @@ export class SessionService {
       this.eventBus.emit("session.completed", { sessionId, decision });
   }
 
-  createSession(input: CreateSessionInput): Session {
+  async createSession(input: CreateSessionInput): Promise<Session> {
     const id = randomUUID();
     const now = new Date().toISOString();
-    const log_file_path = join(sessionsLogDir(), `${id}.log`);
-    const agentConfig = input.agent_config ?? getAgentConfig();
+    const log_file_path = join(await sessionsLogDir(), `${id}.log`);
+    const agentConfig = input.agent_config ?? (await getAgentConfig());
 
     this.sessionRepository.insertSession({
       id,
@@ -108,7 +108,7 @@ export class SessionService {
 
     let cwd: string;
     try {
-      const worktrees = this.worktreeService.listWorktrees(
+      const worktrees = await this.worktreeService.listWorktrees(
         input.repository_path,
       );
       const worktree = worktrees.find(
@@ -175,7 +175,7 @@ export class SessionService {
     return this.getSession(id) as Session;
   }
 
-  replyToSession(id: string, message: string): void {
+  async replyToSession(id: string, message: string): Promise<void> {
     const session = this.getSession(id);
     if (!session) {
       throw new Error(`Session not found: ${id}`);
@@ -189,7 +189,7 @@ export class SessionService {
 
     let cwd: string;
     try {
-      const worktrees = this.worktreeService.listWorktrees(
+      const worktrees = await this.worktreeService.listWorktrees(
         session.repository_path,
       );
       const worktree = worktrees.find(
@@ -220,7 +220,10 @@ export class SessionService {
       );
   }
 
-  deleteWorktreeData(repositoryPath: string, branches: string[]): void {
+  async deleteWorktreeData(
+    repositoryPath: string,
+    branches: string[],
+  ): Promise<void> {
     if (branches.length === 0) return;
 
     const rows = this.sessionRepository.deleteWorktreeData(
@@ -230,7 +233,7 @@ export class SessionService {
 
     for (const { log_file_path } of rows) {
       try {
-        unlinkSync(log_file_path);
+        await unlink(log_file_path);
       } catch {
         // ignore missing files
       }

@@ -1,4 +1,4 @@
-import { mkdirSync } from "fs";
+import { mkdir } from "fs/promises";
 import { tmpdir } from "os";
 import { join } from "path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -35,12 +35,12 @@ vi.mock("./claude-cli", () => ({
   },
 }));
 
-function makeFakeGitRepo(): string {
+async function makeFakeGitRepo(): Promise<string> {
   const dir = join(
     tmpdir(),
     `aitm-agent-test-${Math.random().toString(36).slice(2)}`,
   );
-  mkdirSync(join(dir, ".git"), { recursive: true });
+  await mkdir(join(dir, ".git"), { recursive: true });
   return dir;
 }
 
@@ -83,7 +83,7 @@ const resumeAgent = agentService.resumeAgent.bind(agentService);
 
 describe("startAgent", () => {
   it("sets AWAITING_INPUT and returns when agent selects __REQUIRE_USER_INPUT__", async () => {
-    const repoPath = makeFakeGitRepo();
+    const repoPath = await makeFakeGitRepo();
     const sessionId = "session-user-input";
     const logFilePath = join(tmpdir(), `${sessionId}.log`);
     const onComplete = vi.fn();
@@ -127,7 +127,7 @@ describe("startAgent", () => {
   });
 
   it("sets SUCCEEDED when agent completes with a real transition", async () => {
-    const repoPath = makeFakeGitRepo();
+    const repoPath = await makeFakeGitRepo();
     const sessionId = "session-success";
     const logFilePath = join(tmpdir(), `${sessionId}.log`);
     const onComplete = vi.fn();
@@ -166,7 +166,7 @@ describe("startAgent", () => {
   });
 
   it("does not launch the runtime when the session is already terminal before startup continues", async () => {
-    const repoPath = makeFakeGitRepo();
+    const repoPath = await makeFakeGitRepo();
     const sessionId = "session-stopped-before-start";
     const logFilePath = join(tmpdir(), `${sessionId}.log`);
     const onComplete = vi.fn();
@@ -208,7 +208,7 @@ describe("startAgent", () => {
   });
 
   it("completes the session when it becomes terminal after cwd is set but before runtime launch", async () => {
-    const repoPath = makeFakeGitRepo();
+    const repoPath = await makeFakeGitRepo();
     const sessionId = "session-stopped-before-runtime";
     const logFilePath = join(tmpdir(), `${sessionId}.log`);
     const onComplete = vi.fn();
@@ -239,7 +239,7 @@ describe("startAgent", () => {
 
 describe("resumeAgent", () => {
   it("resumes agent and sets SUCCEEDED when agent completes with a real transition", async () => {
-    const repoPath = makeFakeGitRepo();
+    const repoPath = await makeFakeGitRepo();
     const sessionId = "session-resume-success";
     const logFilePath = join(tmpdir(), `${sessionId}.log`);
     const onComplete = vi.fn();
@@ -289,7 +289,7 @@ describe("resumeAgent", () => {
   });
 
   it("sets AWAITING_INPUT again when agent requests more input", async () => {
-    const repoPath = makeFakeGitRepo();
+    const repoPath = await makeFakeGitRepo();
     const sessionId = "session-resume-more-input";
     const logFilePath = join(tmpdir(), `${sessionId}.log`);
     const onComplete = vi.fn();
@@ -328,7 +328,7 @@ describe("resumeAgent", () => {
   });
 
   it("sets FAILED when resume produces an error result", async () => {
-    const repoPath = makeFakeGitRepo();
+    const repoPath = await makeFakeGitRepo();
     const sessionId = "session-resume-error";
     const logFilePath = join(tmpdir(), `${sessionId}.log`);
     const onComplete = vi.fn();

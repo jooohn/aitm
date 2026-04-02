@@ -1,4 +1,4 @@
-import { mkdirSync } from "fs";
+import { mkdir } from "fs/promises";
 import { NextRequest } from "next/server";
 import { tmpdir } from "os";
 import { join } from "path";
@@ -14,24 +14,26 @@ import { POST } from "./route";
 vi.spyOn(agentService, "startAgent").mockResolvedValue();
 vi.spyOn(agentService, "resumeAgent").mockResolvedValue();
 vi.spyOn(agentService, "cancelAgent").mockImplementation(() => {});
-vi.spyOn(worktreeService, "listWorktrees").mockImplementation((repoPath) => [
-  {
-    branch: "feat/test",
-    path: repoPath,
-    is_main: false,
-    is_bare: false,
-    head: "HEAD",
-  },
-]);
+vi.spyOn(worktreeService, "listWorktrees").mockImplementation(
+  async (repoPath) => [
+    {
+      branch: "feat/test",
+      path: repoPath,
+      is_main: false,
+      is_bare: false,
+      head: "HEAD",
+    },
+  ],
+);
 
 const createSession = sessionService.createSession.bind(sessionService);
 
-function makeFakeGitRepo(): string {
+async function makeFakeGitRepo(): Promise<string> {
   const dir = join(
     tmpdir(),
     `aitm-test-${Math.random().toString(36).slice(2)}`,
   );
-  mkdirSync(join(dir, ".git"), { recursive: true });
+  await mkdir(join(dir, ".git"), { recursive: true });
   return dir;
 }
 
@@ -45,8 +47,8 @@ beforeEach(() => {
 
 describe("POST /api/sessions/:id/reply", () => {
   it("returns 200 and calls resumeAgent for AWAITING_INPUT session", async () => {
-    const session = createSession({
-      repository_path: makeFakeGitRepo(),
+    const session = await createSession({
+      repository_path: await makeFakeGitRepo(),
       worktree_branch: "feat/test",
       goal: "Do something",
       transitions: [{ terminal: "success" as const, when: "Done" }],
@@ -88,8 +90,8 @@ describe("POST /api/sessions/:id/reply", () => {
   });
 
   it("returns 422 when session is not AWAITING_INPUT", async () => {
-    const session = createSession({
-      repository_path: makeFakeGitRepo(),
+    const session = await createSession({
+      repository_path: await makeFakeGitRepo(),
       worktree_branch: "feat/test",
       goal: "Do something",
       transitions: [{ terminal: "success" as const, when: "Done" }],
@@ -107,8 +109,8 @@ describe("POST /api/sessions/:id/reply", () => {
   });
 
   it("returns 400 when message is missing", async () => {
-    const session = createSession({
-      repository_path: makeFakeGitRepo(),
+    const session = await createSession({
+      repository_path: await makeFakeGitRepo(),
       worktree_branch: "feat/test",
       goal: "Do something",
       transitions: [{ terminal: "success" as const, when: "Done" }],

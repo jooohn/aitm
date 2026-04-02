@@ -21,7 +21,7 @@ export async function POST(
 ): Promise<NextResponse> {
   try {
     const { id } = await params;
-    const run = workflowRunService.stopWorkflowRun(id);
+    const run = await workflowRunService.stopWorkflowRun(id);
     return NextResponse.json(run, { status: 200 });
   } catch (err) {
     return errorResponse(err);

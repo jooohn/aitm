@@ -14,7 +14,8 @@ export class HouseKeepingService {
   async runHouseKeeping(repoPath: string): Promise<void> {
     let removedBranches: string[] = [];
     try {
-      removedBranches = this.worktreeService.cleanMergedWorktrees(repoPath);
+      removedBranches =
+        await this.worktreeService.cleanMergedWorktrees(repoPath);
       if (removedBranches.length > 0) {
         logger.info({ repoPath, removedBranches }, "Cleaned merged worktrees");
       }
@@ -24,14 +25,15 @@ export class HouseKeepingService {
 
     if (removedBranches.length > 0) {
       try {
-        this.sessionService.deleteWorktreeData(repoPath, removedBranches);
+        await this.sessionService.deleteWorktreeData(repoPath, removedBranches);
       } catch (err) {
         logger.error({ err, repoPath }, "Failed to delete worktree data");
       }
     }
 
     try {
-      const result = this.worktreeService.pullMainBranchIfOutdated(repoPath);
+      const result =
+        await this.worktreeService.pullMainBranchIfOutdated(repoPath);
       if (result === "pulled") {
         logger.info({ repoPath }, "Pulled main branch");
       }
@@ -44,8 +46,8 @@ export class HouseKeepingService {
     const intervalMs =
       Number(process.env.AITM_HOUSE_KEEPING_INTERVAL_MS) || DEFAULT_INTERVAL_MS;
 
-    const run = () => {
-      const repos = getConfigRepositories();
+    const run = async () => {
+      const repos = await getConfigRepositories();
       for (const repo of repos) {
         this.runHouseKeeping(repo.path).catch((err) => {
           logger.error(

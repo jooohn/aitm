@@ -1,5 +1,5 @@
 import { AbortError } from "@anthropic-ai/claude-agent-sdk";
-import { appendFileSync, writeFileSync } from "fs";
+import { appendFile, writeFile } from "fs/promises";
 import type { SessionStatus } from "@/backend/domain/sessions";
 import type { AgentConfig, WorkflowTransition } from "@/backend/infra/config";
 import { db } from "@/backend/infra/db";
@@ -18,9 +18,9 @@ export interface TransitionDecision {
 // Internal helpers
 // ---------------------------------------------------------------------------
 
-function appendToLog(logFilePath: string, entry: unknown): void {
+async function appendToLog(logFilePath: string, entry: unknown): Promise<void> {
   try {
-    appendFileSync(logFilePath, `${JSON.stringify(entry)}\n`, "utf8");
+    await appendFile(logFilePath, `${JSON.stringify(entry)}\n`, "utf8");
   } catch {
     // Non-critical — ignore log write errors.
   }
@@ -168,7 +168,7 @@ export class AgentService {
     }
 
     try {
-      writeFileSync(logFilePath, "", "utf8");
+      await writeFile(logFilePath, "", "utf8");
     } catch {
       // Non-critical — subsequent append attempts are already best-effort.
     }
@@ -208,7 +208,7 @@ export class AgentService {
       );
     } catch (err) {
       if (!(err instanceof AbortError)) {
-        appendToLog(logFilePath, {
+        await appendToLog(logFilePath, {
           type: "error",
           message: err instanceof Error ? err.message : String(err),
         });
@@ -240,7 +240,7 @@ export class AgentService {
   ): Promise<void> {
     const agentSessionId = getAgentSessionId(sessionId);
     if (!agentSessionId) {
-      appendToLog(logFilePath, {
+      await appendToLog(logFilePath, {
         type: "error",
         message: "Cannot resume: no agent session ID available",
       });
@@ -279,7 +279,7 @@ export class AgentService {
       );
     } catch (err) {
       if (!(err instanceof AbortError)) {
-        appendToLog(logFilePath, {
+        await appendToLog(logFilePath, {
           type: "error",
           message: err instanceof Error ? err.message : String(err),
         });
@@ -307,7 +307,7 @@ export class AgentService {
     let decision: TransitionDecision | null = null;
 
     for await (const message of stream) {
-      appendToLog(logFilePath, message);
+      await appendToLog(logFilePath, message);
 
       if (message.type === "system" && message.subtype === "init") {
         const attachCommand =
@@ -335,15 +335,15 @@ export class AgentService {
    * Handle the transition decision after an agent stream completes.
    * Sets AWAITING_INPUT or terminal status accordingly.
    */
-  private handleDecision(
+  private async handleDecision(
     sessionId: string,
     decision: TransitionDecision | null,
     logFilePath: string,
     onComplete?: (decision: TransitionDecision | null) => void,
-  ): void {
+  ): Promise<void> {
     if (isUserInputTransition(decision)) {
       setStatus(sessionId, "AWAITING_INPUT");
-      appendToLog(logFilePath, {
+      await appendToLog(logFilePath, {
         type: "awaiting_input",
         message: decision!.handoff_summary,
       });

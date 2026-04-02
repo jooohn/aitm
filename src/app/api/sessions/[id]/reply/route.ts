@@ -21,7 +21,7 @@ export async function POST(
   }
 
   try {
-    sessionService.replyToSession(id, body.message);
+    await sessionService.replyToSession(id, body.message);
     const session = sessionService.getSession(id);
     return NextResponse.json(session);
   } catch (err) {

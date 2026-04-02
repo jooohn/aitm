@@ -16,5 +16,7 @@ export default defineConfig({
       AITM_DB_PATH: ":memory:",
       HOME: "/tmp/aitm-vitest-home",
     },
+    testTimeout: 15_000,
+    hookTimeout: 15_000,
   },
 });

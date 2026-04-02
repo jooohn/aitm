@@ -20,7 +20,7 @@ export async function GET(
 ): Promise<NextResponse> {
   try {
     const { organization, name } = await params;
-    const repo = repositoryService.getRepositoryByAlias(
+    const repo = await repositoryService.getRepositoryByAlias(
       `${organization}/${name}`,
     );
     if (!repo) {
@@ -29,7 +29,7 @@ export async function GET(
         { status: 404 },
       );
     }
-    return NextResponse.json(worktreeService.listWorktrees(repo.path));
+    return NextResponse.json(await worktreeService.listWorktrees(repo.path));
   } catch (err) {
     return errorResponse(err);
   }
@@ -41,7 +41,7 @@ export async function POST(
 ): Promise<NextResponse> {
   try {
     const { organization, name } = await params;
-    const repo = repositoryService.getRepositoryByAlias(
+    const repo = await repositoryService.getRepositoryByAlias(
       `${organization}/${name}`,
     );
     if (!repo) {
@@ -51,10 +51,14 @@ export async function POST(
       );
     }
     const body = await request.json();
-    const worktree = worktreeService.createWorktree(repo.path, body.branch, {
-      name: body.name,
-      no_fetch: body.no_fetch,
-    });
+    const worktree = await worktreeService.createWorktree(
+      repo.path,
+      body.branch,
+      {
+        name: body.name,
+        no_fetch: body.no_fetch,
+      },
+    );
     return NextResponse.json(worktree, { status: 201 });
   } catch (err) {
     return errorResponse(err);

@@ -26,7 +26,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    const run = workflowRunService.createWorkflowRun({
+    const run = await workflowRunService.createWorkflowRun({
       repository_path,
       worktree_branch,
       workflow_name,

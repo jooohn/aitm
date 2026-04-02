@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "fs";
+import { readFile } from "fs/promises";
 import yaml from "js-yaml";
 import { homedir } from "os";
 import { join } from "path";
@@ -122,20 +122,24 @@ function normalizeWorkflow(raw: RawWorkflowDefinition): WorkflowDefinition {
   };
 }
 
-function readConfig(): RawConfig {
+async function readConfig(): Promise<RawConfig> {
   const configPath = getConfigPath();
-  if (!existsSync(configPath)) return {};
-  const raw = yaml.load(readFileSync(configPath, "utf-8"));
-  if (raw && typeof raw === "object") return raw as RawConfig;
-  return {};
+  try {
+    const content = await readFile(configPath, "utf-8");
+    const raw = yaml.load(content);
+    if (raw && typeof raw === "object") return raw as RawConfig;
+    return {};
+  } catch {
+    return {};
+  }
 }
 
-export function getConfigRepositories(): ConfigRepository[] {
-  return readConfig().repositories ?? [];
+export async function getConfigRepositories(): Promise<ConfigRepository[]> {
+  return (await readConfig()).repositories ?? [];
 }
 
-export function getAgentConfig(): AgentConfig {
-  const raw = readConfig().agent;
+export async function getAgentConfig(): Promise<AgentConfig> {
+  const raw = (await readConfig()).agent;
   return {
     provider: raw?.provider ?? "claude",
     model: raw?.model,
@@ -143,10 +147,10 @@ export function getAgentConfig(): AgentConfig {
   };
 }
 
-export function resolveAgentConfig(
+export async function resolveAgentConfig(
   override?: AgentConfigOverride,
-): AgentConfig {
-  const base = getAgentConfig();
+): Promise<AgentConfig> {
+  const base = await getAgentConfig();
   const inheritsProviderFields =
     override?.provider === undefined || override.provider === base.provider;
 
@@ -158,8 +162,10 @@ export function resolveAgentConfig(
   };
 }
 
-export function getConfigWorkflows(): Record<string, WorkflowDefinition> {
-  const raw = readConfig().workflows ?? {};
+export async function getConfigWorkflows(): Promise<
+  Record<string, WorkflowDefinition>
+> {
+  const raw = (await readConfig()).workflows ?? {};
   return Object.fromEntries(
     Object.entries(raw).map(([name, def]) => [name, normalizeWorkflow(def)]),
   );

@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from "fs";
+import { mkdir, writeFile } from "fs/promises";
 import { NextRequest } from "next/server";
 import { tmpdir } from "os";
 import { join } from "path";
@@ -7,25 +7,25 @@ import { GET } from "./route";
 
 let configFile: string;
 
-function makeTempDir(): string {
+async function makeTempDir(): Promise<string> {
   const dir = join(
     tmpdir(),
     `aitm-test-${Math.random().toString(36).slice(2)}`,
   );
-  mkdirSync(dir, { recursive: true });
+  await mkdir(dir, { recursive: true });
   return dir;
 }
 
-function makeFakeGitRepo(): string {
-  const dir = makeTempDir();
-  mkdirSync(join(dir, ".git"));
+async function makeFakeGitRepo(): Promise<string> {
+  const dir = await makeTempDir();
+  await mkdir(join(dir, ".git"));
   return dir;
 }
 
-function writeConfig(paths: string[]) {
+async function writeConfig(paths: string[]) {
   const lines = ["repositories:"];
   for (const p of paths) lines.push(`  - path: ${p}`);
-  writeFileSync(configFile, lines.join("\n"));
+  await writeFile(configFile, lines.join("\n"));
 }
 
 function makeParams(
@@ -35,8 +35,8 @@ function makeParams(
   return { params: Promise.resolve({ organization, name }) };
 }
 
-beforeEach(() => {
-  const dir = makeTempDir();
+beforeEach(async () => {
+  const dir = await makeTempDir();
   configFile = join(dir, "config.yaml");
   process.env.AITM_CONFIG_PATH = configFile;
 });
@@ -47,8 +47,8 @@ afterEach(() => {
 
 describe("GET /api/repositories/:organization/:name", () => {
   it("returns 200 with the repository details", async () => {
-    const repoPath = makeFakeGitRepo();
-    writeConfig([repoPath]);
+    const repoPath = await makeFakeGitRepo();
+    await writeConfig([repoPath]);
     const parts = repoPath.split("/").filter(Boolean);
     const organization = parts[parts.length - 2];
     const name = parts[parts.length - 1];
@@ -68,7 +68,7 @@ describe("GET /api/repositories/:organization/:name", () => {
   });
 
   it("returns 404 for unknown alias", async () => {
-    writeConfig([]);
+    await writeConfig([]);
     const res = await GET(
       new NextRequest("http://localhost/api/repositories/no/such"),
       makeParams("no", "such"),

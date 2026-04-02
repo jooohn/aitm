@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "fs";
+import { access, readFile } from "fs/promises";
 import { NextRequest, NextResponse } from "next/server";
 import { sessionService } from "@/backend/container";
 
@@ -24,10 +24,10 @@ export async function GET(
 
   const stream = new ReadableStream({
     start(controller) {
-      function sendNewLines() {
+      async function sendNewLines() {
         try {
-          if (!existsSync(logFilePath)) return;
-          const content = readFileSync(logFilePath, "utf8");
+          await access(logFilePath);
+          const content = await readFile(logFilePath, "utf8");
           if (content.length <= offset) return;
           const newContent = content.slice(offset);
           offset = content.length;
@@ -41,10 +41,10 @@ export async function GET(
         }
       }
 
-      function checkAndClose() {
+      async function checkAndClose() {
         const current = sessionService.getSession(id);
         if (!current || TERMINAL_STATUSES.has(current.status)) {
-          sendNewLines();
+          await sendNewLines();
           try {
             controller.enqueue(encoder.encode("event: done\ndata: {}\n\n"));
             controller.close();
@@ -58,20 +58,21 @@ export async function GET(
         }
       }
 
-      sendNewLines();
+      sendNewLines().then(() => {
+        if (
+          TERMINAL_STATUSES.has(
+            sessionService.getSession(id)?.status ?? "FAILED",
+          )
+        ) {
+          controller.enqueue(encoder.encode("event: done\ndata: {}\n\n"));
+          controller.close();
+          return;
+        }
 
-      if (
-        TERMINAL_STATUSES.has(sessionService.getSession(id)?.status ?? "FAILED")
-      ) {
-        controller.enqueue(encoder.encode("event: done\ndata: {}\n\n"));
-        controller.close();
-        return;
-      }
-
-      intervalId = setInterval(() => {
-        sendNewLines();
-        checkAndClose();
-      }, POLL_INTERVAL_MS);
+        intervalId = setInterval(() => {
+          sendNewLines().then(() => checkAndClose());
+        }, POLL_INTERVAL_MS);
+      });
     },
     cancel() {
       if (intervalId !== null) {
