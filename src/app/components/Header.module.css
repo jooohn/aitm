@@ -1,7 +1,15 @@
 @reference "tailwindcss";
 
 .header {
-  @apply flex items-center justify-between px-6 py-3 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shrink-0;
+  @apply flex items-center justify-between px-6 py-3 border-b border-zinc-200 dark:border-zinc-800 shrink-0;
+}
+
+.stickyHeader {
+  @apply sticky top-0 z-40;
+}
+
+.backdropHeader {
+  @apply bg-white/85 dark:bg-zinc-950/85 backdrop-blur supports-[backdrop-filter]:bg-white/75 dark:supports-[backdrop-filter]:bg-zinc-950/75;
 }
 
 .logo {
