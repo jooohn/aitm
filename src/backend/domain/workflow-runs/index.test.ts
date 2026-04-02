@@ -962,24 +962,19 @@ workflows:
       workflow_name: "cmd-flow",
     });
 
-    await vi.waitFor(
-      () => {
-        const updatedRun = getWorkflowRun(run.id);
-        expect(updatedRun?.current_state).toBe("next");
-        expect(updatedRun?.status).toBe("running");
+    const updatedRun = getWorkflowRun(run.id);
+    expect(updatedRun?.current_state).toBe("next");
+    expect(updatedRun?.status).toBe("running");
 
-        const executions = db
-          .prepare(
-            "SELECT * FROM state_executions WHERE workflow_run_id = ? ORDER BY created_at ASC",
-          )
-          .all(run.id) as { state: string; completed_at: string | null }[];
-        expect(executions).toHaveLength(2);
-        expect(executions[0].state).toBe("cleanup");
-        expect(executions[0].completed_at).not.toBeNull();
-        expect(executions[1].state).toBe("next");
-      },
-      { timeout: 5000 },
-    );
+    const executions = db
+      .prepare(
+        "SELECT * FROM state_executions WHERE workflow_run_id = ? ORDER BY created_at ASC",
+      )
+      .all(run.id) as { state: string; completed_at: string | null }[];
+    expect(executions).toHaveLength(2);
+    expect(executions[0].state).toBe("cleanup");
+    expect(executions[0].completed_at).not.toBeNull();
+    expect(executions[1].state).toBe("next");
   });
 
   it("stores command output in command_output column", async () => {
@@ -1001,12 +996,10 @@ workflows:
       workflow_name: "cmd-flow",
     });
 
-    await vi.waitFor(() => {
-      const execution = db
-        .prepare("SELECT * FROM state_executions WHERE workflow_run_id = ?")
-        .get(run.id) as { command_output: string | null };
-      expect(execution.command_output).toContain("hello");
-    });
+    const execution = db
+      .prepare("SELECT * FROM state_executions WHERE workflow_run_id = ?")
+      .get(run.id) as { command_output: string | null };
+    expect(execution.command_output).toContain("hello");
   });
 
   it("uses the failed transition when command exits non-zero", async () => {
@@ -1030,11 +1023,9 @@ workflows:
       workflow_name: "cmd-flow",
     });
 
-    await vi.waitFor(() => {
-      const updatedRun = getWorkflowRun(run.id);
-      expect(updatedRun?.status).toBe("failure");
-      expect(updatedRun?.current_state).toBeNull();
-    });
+    const updatedRun = getWorkflowRun(run.id);
+    expect(updatedRun?.status).toBe("failure");
+    expect(updatedRun?.current_state).toBeNull();
   });
 
   it("marks the run as failure when no transition matches the exit code outcome", async () => {
@@ -1056,11 +1047,9 @@ workflows:
       workflow_name: "cmd-flow",
     });
 
-    await vi.waitFor(() => {
-      const updatedRun = getWorkflowRun(run.id);
-      expect(updatedRun?.status).toBe("failure");
-      expect(updatedRun?.current_state).toBeNull();
-    });
+    const updatedRun = getWorkflowRun(run.id);
+    expect(updatedRun?.status).toBe("failure");
+    expect(updatedRun?.current_state).toBeNull();
   });
 });
 

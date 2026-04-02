@@ -230,7 +230,7 @@ export class WorkflowRunService {
       };
     }
 
-    this.completeStateExecution(executionId, decision);
+    await this.completeStateExecution(executionId, decision);
   }
 
   private async startAgentStateExecution({
