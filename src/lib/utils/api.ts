@@ -126,6 +126,13 @@ export function fetchSessions(
   return apiFetch(`/api/sessions?${params}`);
 }
 
+export function fetchSessionsByStatus(
+  status: SessionStatus,
+): Promise<Session[]> {
+  const params = new URLSearchParams({ status });
+  return apiFetch(`/api/sessions?${params}`);
+}
+
 export async function failSession(id: string): Promise<Session> {
   return apiFetch(`/api/sessions/${id}/fail`, { method: "POST" });
 }
