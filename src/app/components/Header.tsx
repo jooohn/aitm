@@ -10,7 +10,9 @@ export default function Header() {
 
   return (
     <>
-      <header className={styles.header}>
+      <header
+        className={`${styles.header} ${styles.stickyHeader} ${styles.backdropHeader}`}
+      >
         <Link href="/" className={styles.logo}>
           aitm
         </Link>
