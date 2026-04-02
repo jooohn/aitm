@@ -79,7 +79,11 @@ async function* spawnCodexQuery(
     "--json",
     "--skip-git-repo-check",
     "--sandbox",
-    permissionMode === "acceptEdits" ? "workspace-write" : "read-only",
+    permissionMode === "bypassPermissions"
+      ? "danger-full-access"
+      : permissionMode === "acceptEdits"
+        ? "workspace-write"
+        : "read-only",
     "--output-last-message",
     outputPath,
     "-C",
