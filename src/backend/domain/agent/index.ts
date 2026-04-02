@@ -1,13 +1,11 @@
-import {
-  AbortError,
-  type PermissionMode,
-} from "@anthropic-ai/claude-agent-sdk";
+import { AbortError } from "@anthropic-ai/claude-agent-sdk";
 import { appendFile, writeFile } from "fs/promises";
 import type { SessionStatus } from "@/backend/domain/sessions";
 import type { AgentConfig, WorkflowTransition } from "@/backend/infra/config";
 import { db } from "@/backend/infra/db";
 import { claudeCLI } from "./claude-cli";
 import { codexSDK } from "./codex-sdk";
+import { DEFAULT_PERMISSION_MODE } from "./permission-mode";
 import type { AgentMessage, AgentRuntime, SessionTransition } from "./runtime";
 import { USER_INPUT_TRANSITION, USER_INPUT_TRANSITION_NAME } from "./runtime";
 
@@ -201,8 +199,8 @@ export class AgentService {
           cwd,
           command: agentConfig.command,
           model: agentConfig.model,
-          permissionMode: (agentConfig.permission_mode ??
-            "acceptEdits") as PermissionMode,
+          permissionMode:
+            agentConfig.permission_mode ?? DEFAULT_PERMISSION_MODE,
           abortController,
           outputFormat,
         }),
@@ -273,8 +271,8 @@ export class AgentService {
           cwd,
           command: agentConfig.command,
           model: agentConfig.model,
-          permissionMode: (agentConfig.permission_mode ??
-            "acceptEdits") as PermissionMode,
+          permissionMode:
+            agentConfig.permission_mode ?? DEFAULT_PERMISSION_MODE,
           abortController,
           outputFormat,
         }),

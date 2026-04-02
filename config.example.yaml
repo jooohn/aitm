@@ -11,10 +11,10 @@ agent:
   # Optional: override the CLI executable path or command name.
   # command: /opt/homebrew/bin/claude
   # Optional: permission mode for the agent.
-  # For Claude: plan, acceptEdits (default), bypassPermissions
-  # For Codex: maps to sandbox modes (read-only, workspace-write, danger-full-access)
-  # Use bypassPermissions when the agent needs network access (e.g. creating PRs).
-  # permission_mode: acceptEdits
+  # plan  - read-only, no mutations (Claude: plan, Codex: read-only sandbox)
+  # edit  - edit files in workspace (Claude: acceptEdits, Codex: workspace-write sandbox) [default]
+  # full  - full access incl. network (Claude: bypassPermissions, Codex: danger-full-access sandbox + network)
+  # permission_mode: edit
 
 workflows:
   development-flow:
@@ -84,7 +84,7 @@ workflows:
           Stage all relevant changes, create a well-formed git commit, push the
           branch to the remote repository, and open a pull request.
         agent:
-          permission_mode: bypassPermissions
+          permission_mode: full
         transitions:
           - terminal: success
             when: "pull request was created successfully"

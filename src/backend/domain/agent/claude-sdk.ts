@@ -1,5 +1,6 @@
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import { buildTransitionOutputFormatForClaude } from "@/backend/domain/agent/claude-common";
+import { toClaudePermissionMode } from "./permission-mode";
 import type {
   AgentMessage,
   AgentQueryParams,
@@ -19,7 +20,7 @@ export const claudeSDK: AgentRuntime = {
       prompt,
       options: {
         cwd,
-        permissionMode,
+        permissionMode: toClaudePermissionMode(permissionMode),
         abortController,
         outputFormat,
       },
@@ -42,7 +43,7 @@ export const claudeSDK: AgentRuntime = {
       prompt,
       options: {
         cwd,
-        permissionMode,
+        permissionMode: toClaudePermissionMode(permissionMode),
         abortController,
         outputFormat,
         resume: agentSessionId,

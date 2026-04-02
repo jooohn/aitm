@@ -1,5 +1,5 @@
-import type { PermissionMode } from "@anthropic-ai/claude-agent-sdk";
-import { WorkflowTransition } from "@/backend/infra/config";
+import type { WorkflowTransition } from "@/backend/infra/config";
+import type { PermissionMode } from "./permission-mode";
 
 type AssistantContentBlock =
   | { type: "text"; text: string }

@@ -26,7 +26,7 @@ function makeQueryParams(
     sessionId: "sess-1",
     prompt: "do something",
     cwd: "/tmp/repo",
-    permissionMode: "acceptEdits",
+    permissionMode: "edit",
     abortController: new AbortController(),
     ...overrides,
   };
@@ -248,7 +248,7 @@ describe("codexSDK.query", () => {
     );
   });
 
-  it("maps permissionMode acceptEdits to workspace-write sandbox", async () => {
+  it("maps permissionMode edit to workspace-write sandbox with no network", async () => {
     const events: ThreadEvent[] = [
       { type: "turn.started" },
       {
@@ -259,15 +259,19 @@ describe("codexSDK.query", () => {
     runStreamedMock.mockResolvedValue({ events: eventsFromArray(events) });
 
     await collectMessages(
-      codexSDK.query(makeQueryParams({ permissionMode: "acceptEdits" })),
+      codexSDK.query(makeQueryParams({ permissionMode: "edit" })),
     );
 
     expect(startThreadMock).toHaveBeenCalledWith(
-      expect.objectContaining({ sandboxMode: "workspace-write" }),
+      expect.objectContaining({
+        sandboxMode: "workspace-write",
+        networkAccessEnabled: false,
+        approvalPolicy: "never",
+      }),
     );
   });
 
-  it("maps permissionMode bypassPermissions to danger-full-access sandbox", async () => {
+  it("maps permissionMode full to danger-full-access sandbox with network", async () => {
     const events: ThreadEvent[] = [
       { type: "turn.started" },
       {
@@ -278,15 +282,19 @@ describe("codexSDK.query", () => {
     runStreamedMock.mockResolvedValue({ events: eventsFromArray(events) });
 
     await collectMessages(
-      codexSDK.query(makeQueryParams({ permissionMode: "bypassPermissions" })),
+      codexSDK.query(makeQueryParams({ permissionMode: "full" })),
     );
 
     expect(startThreadMock).toHaveBeenCalledWith(
-      expect.objectContaining({ sandboxMode: "danger-full-access" }),
+      expect.objectContaining({
+        sandboxMode: "danger-full-access",
+        networkAccessEnabled: true,
+        approvalPolicy: "never",
+      }),
     );
   });
 
-  it("maps other permissionMode to read-only sandbox", async () => {
+  it("maps permissionMode plan to read-only sandbox with no network", async () => {
     const events: ThreadEvent[] = [
       { type: "turn.started" },
       {
@@ -301,7 +309,11 @@ describe("codexSDK.query", () => {
     );
 
     expect(startThreadMock).toHaveBeenCalledWith(
-      expect.objectContaining({ sandboxMode: "read-only" }),
+      expect.objectContaining({
+        sandboxMode: "read-only",
+        networkAccessEnabled: false,
+        approvalPolicy: "never",
+      }),
     );
   });
 

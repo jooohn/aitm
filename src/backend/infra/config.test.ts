@@ -169,7 +169,7 @@ workflows:
       push:
         goal: "Push and create PR"
         agent:
-          permission_mode: bypassPermissions
+          permission_mode: full
         transitions:
           - terminal: success
             when: "done"
@@ -188,7 +188,7 @@ workflows:
       provider: undefined,
       model: undefined,
       command: undefined,
-      permission_mode: "bypassPermissions",
+      permission_mode: "full",
     });
   });
 
@@ -361,13 +361,13 @@ workflows: {}
       `
 agent:
   provider: codex
-  permission_mode: bypassPermissions
+  permission_mode: full
 workflows: {}
 `,
     );
 
     const config = await getAgentConfig();
-    expect(config.permission_mode).toBe("bypassPermissions");
+    expect(config.permission_mode).toBe("full");
   });
 });
 
@@ -450,7 +450,7 @@ workflows: {}
       `
 agent:
   provider: codex
-  permission_mode: bypassPermissions
+  permission_mode: full
 workflows: {}
 `,
     );
@@ -461,7 +461,7 @@ workflows: {}
       }),
     ).toMatchObject({
       provider: "codex",
-      permission_mode: "bypassPermissions",
+      permission_mode: "full",
     });
   });
 
@@ -471,18 +471,18 @@ workflows: {}
       `
 agent:
   provider: codex
-  permission_mode: acceptEdits
+  permission_mode: edit
 workflows: {}
 `,
     );
 
     expect(
       await resolveAgentConfig({
-        permission_mode: "bypassPermissions",
+        permission_mode: "full",
       }),
     ).toMatchObject({
       provider: "codex",
-      permission_mode: "bypassPermissions",
+      permission_mode: "full",
     });
   });
 

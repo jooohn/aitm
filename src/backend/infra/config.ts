@@ -2,6 +2,7 @@ import { readFile } from "fs/promises";
 import yaml from "js-yaml";
 import { homedir } from "os";
 import { join } from "path";
+import type { PermissionMode } from "@/backend/domain/agent/permission-mode";
 
 function getConfigPath(): string {
   return (
@@ -15,7 +16,7 @@ export interface AgentConfig {
   provider: AgentProvider;
   model?: string;
   command?: string;
-  permission_mode?: string;
+  permission_mode?: PermissionMode;
 }
 
 export type AgentConfigOverride = Partial<AgentConfig>;

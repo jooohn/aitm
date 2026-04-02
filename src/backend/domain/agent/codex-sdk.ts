@@ -1,23 +1,13 @@
-import type { SandboxMode, ThreadEvent } from "@openai/codex-sdk";
+import type { ThreadEvent } from "@openai/codex-sdk";
 import { Codex } from "@openai/codex-sdk";
 import { buildTransitionOutputFormatForCodex } from "./codex-cli";
+import { toCodexConfig } from "./permission-mode";
 import type {
   AgentMessage,
   AgentQueryParams,
   AgentResumeParams,
   AgentRuntime,
 } from "./runtime";
-
-function sandboxModeFor(permissionMode: string): SandboxMode {
-  switch (permissionMode) {
-    case "bypassPermissions":
-      return "danger-full-access";
-    case "acceptEdits":
-      return "workspace-write";
-    default:
-      return "read-only";
-  }
-}
 
 async function* streamEvents(
   events: AsyncIterable<ThreadEvent>,
@@ -54,10 +44,11 @@ async function* streamQuery(
 
   const codex = new Codex(command ? { codexPathOverride: command } : undefined);
 
+  const codexConfig = toCodexConfig(permissionMode);
   const thread = codex.startThread({
     model,
     workingDirectory: cwd,
-    sandboxMode: sandboxModeFor(permissionMode),
+    ...codexConfig,
     skipGitRepoCheck: true,
   });
 
@@ -86,10 +77,11 @@ async function* streamResume(
 
   const codex = new Codex(command ? { codexPathOverride: command } : undefined);
 
+  const codexConfig = toCodexConfig(permissionMode);
   const thread = codex.resumeThread(agentSessionId, {
     model,
     workingDirectory: cwd,
-    sandboxMode: sandboxModeFor(permissionMode),
+    ...codexConfig,
     skipGitRepoCheck: true,
   });
 

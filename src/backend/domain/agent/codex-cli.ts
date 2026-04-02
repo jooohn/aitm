@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
 import { logger } from "@/backend/infra/logger";
+import { toCodexConfig } from "./permission-mode";
 import type {
   AgentMessage,
   AgentQueryParams,
@@ -74,16 +75,13 @@ async function* spawnCodexQuery(
     await writeFile(schemaPath, JSON.stringify(outputFormat.schema), "utf8");
   }
 
+  const codexConfig = toCodexConfig(permissionMode);
   const args = [
     "exec",
     "--json",
     "--skip-git-repo-check",
     "--sandbox",
-    permissionMode === "bypassPermissions"
-      ? "danger-full-access"
-      : permissionMode === "acceptEdits"
-        ? "workspace-write"
-        : "read-only",
+    codexConfig.sandboxMode,
     "--output-last-message",
     outputPath,
     "-C",

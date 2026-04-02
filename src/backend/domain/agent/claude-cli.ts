@@ -3,6 +3,8 @@ import { createInterface } from "node:readline";
 import type { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import { buildTransitionOutputFormatForClaude } from "@/backend/domain/agent/claude-common";
 import { logger } from "@/backend/infra/logger";
+import type { PermissionMode } from "./permission-mode";
+import { toClaudePermissionMode } from "./permission-mode";
 import type {
   AgentMessage,
   AgentQueryParams,
@@ -15,7 +17,7 @@ interface SpawnClaudeParams {
   cwd: string;
   command?: string;
   model?: string;
-  permissionMode: string;
+  permissionMode: PermissionMode;
   abortController: AbortController;
   outputFormat?: { type: string; schema: Record<string, unknown> };
   resumeSessionId?: string;
@@ -41,7 +43,7 @@ async function* spawnClaude(
     "stream-json",
     "--verbose",
     "--permission-mode",
-    permissionMode,
+    toClaudePermissionMode(permissionMode),
   ];
 
   if (resumeSessionId) {
