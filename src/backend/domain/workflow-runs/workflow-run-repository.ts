@@ -34,6 +34,7 @@ export class WorkflowRunRepository {
         id                  TEXT    PRIMARY KEY,
         workflow_run_id     TEXT    NOT NULL REFERENCES workflow_runs(id),
         state               TEXT    NOT NULL,
+        state_type          TEXT    NOT NULL DEFAULT 'agent',
         command_output      TEXT,
         transition_decision TEXT,
         handoff_summary     TEXT,
@@ -41,21 +42,38 @@ export class WorkflowRunRepository {
         completed_at        TEXT
       );
     `);
+
+    const columns = this.db
+      .prepare("PRAGMA table_info(state_executions)")
+      .all() as Array<{ name: string }>;
+    const hasStateType = columns.some((column) => column.name === "state_type");
+    if (!hasStateType) {
+      this.db.exec(
+        "ALTER TABLE state_executions ADD COLUMN state_type TEXT NOT NULL DEFAULT 'agent'",
+      );
+    }
   }
 
   insertStateExecution(params: {
     id: string;
     workflowRunId: string;
     stateName: string;
+    stateType: "agent" | "command";
     now: string;
   }): void {
     this.db
       .prepare(
         `INSERT INTO state_executions
-         (id, workflow_run_id, state, command_output, transition_decision, handoff_summary, created_at, completed_at)
-       VALUES (?, ?, ?, NULL, NULL, NULL, ?, NULL)`,
+         (id, workflow_run_id, state, state_type, command_output, transition_decision, handoff_summary, created_at, completed_at)
+       VALUES (?, ?, ?, ?, NULL, NULL, NULL, ?, NULL)`,
       )
-      .run(params.id, params.workflowRunId, params.stateName, params.now);
+      .run(
+        params.id,
+        params.workflowRunId,
+        params.stateName,
+        params.stateType,
+        params.now,
+      );
   }
 
   getStateExecution(id: string): StateExecution | undefined {
