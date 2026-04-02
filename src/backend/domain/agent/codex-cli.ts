@@ -3,6 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
+import { logger } from "@/backend/infra/logger";
 import type {
   AgentMessage,
   AgentQueryParams,
@@ -94,7 +95,7 @@ async function* spawnCodexQuery(
   }
 
   const spawnInput = { command: command ?? "codex", args, cwd };
-  console.log(JSON.stringify(spawnInput));
+  logger.info(spawnInput, "Spawning codex CLI");
   const child = spawn(spawnInput.command, spawnInput.args, {
     cwd: spawnInput.cwd,
     stdio: ["pipe", "pipe", "pipe"],
@@ -140,7 +141,7 @@ async function* spawnCodexQuery(
       let event: unknown;
       try {
         event = JSON.parse(line);
-        console.log(JSON.stringify({ message: "codex line output", event }));
+        logger.debug({ event }, "codex line output");
       } catch {
         continue;
       }

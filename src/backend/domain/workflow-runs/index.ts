@@ -8,6 +8,7 @@ import {
   WorkflowState,
 } from "@/backend/infra/config";
 import type { EventBus } from "@/backend/infra/event-bus";
+import { logger } from "@/backend/infra/logger";
 import { type TransitionDecision } from "../agent";
 import type { SessionService, SessionStatus } from "../sessions";
 import type { Worktree, WorktreeService } from "../worktrees";
@@ -509,10 +510,7 @@ export class WorkflowRunService {
       });
     } catch (err) {
       // Non-zero exit from git stash is non-blocking — log a warning and continue.
-      console.warn(
-        "git stash warning:",
-        err instanceof Error ? err.message : err,
-      );
+      logger.warn({ err }, "git stash warning");
     }
 
     const inputs = run.inputs

@@ -1,4 +1,5 @@
 import type { TransitionDecision } from "@/backend/domain/agent";
+import { logger } from "@/backend/infra/logger";
 
 export interface EventMap {
   "session.completed": {
@@ -25,7 +26,7 @@ export class EventBus {
       try {
         (listener as Listener<K>)(payload);
       } catch (err) {
-        console.error(`Event listener error for "${eventName}":`, err);
+        logger.error({ err, eventName }, "Event listener error");
       }
     }
   }

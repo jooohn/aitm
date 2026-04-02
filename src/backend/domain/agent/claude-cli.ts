@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { createInterface } from "node:readline";
 import type { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import { buildTransitionOutputFormatForClaude } from "@/backend/domain/agent/claude-common";
+import { logger } from "@/backend/infra/logger";
 import type {
   AgentMessage,
   AgentQueryParams,
@@ -56,7 +57,7 @@ async function* spawnClaude(
   }
 
   const spawnInput = { command: command ?? "claude", args, cwd };
-  console.log(JSON.stringify(spawnInput));
+  logger.info(spawnInput, "Spawning claude CLI");
   const child = spawn(spawnInput.command, spawnInput.args, {
     cwd: spawnInput.cwd,
     stdio: ["pipe", "pipe", "pipe"],

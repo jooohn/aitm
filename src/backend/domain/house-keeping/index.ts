@@ -1,4 +1,5 @@
 import { getConfigRepositories } from "@/backend/infra/config";
+import { logger } from "@/backend/infra/logger";
 import type { SessionService } from "../sessions";
 import type { WorktreeService } from "../worktrees";
 
@@ -15,38 +16,27 @@ export class HouseKeepingService {
     try {
       removedBranches = this.worktreeService.cleanMergedWorktrees(repoPath);
       if (removedBranches.length > 0) {
-        console.log(
-          `[house-keeping] Cleaned merged worktrees in ${repoPath}: ${removedBranches.join(", ")}`,
-        );
+        logger.info({ repoPath, removedBranches }, "Cleaned merged worktrees");
       }
     } catch (err) {
-      console.error(
-        `[house-keeping] Failed to clean merged worktrees in ${repoPath}:`,
-        err,
-      );
+      logger.error({ err, repoPath }, "Failed to clean merged worktrees");
     }
 
     if (removedBranches.length > 0) {
       try {
         this.sessionService.deleteWorktreeData(repoPath, removedBranches);
       } catch (err) {
-        console.error(
-          `[house-keeping] Failed to delete worktree data in ${repoPath}:`,
-          err,
-        );
+        logger.error({ err, repoPath }, "Failed to delete worktree data");
       }
     }
 
     try {
       const result = this.worktreeService.pullMainBranchIfOutdated(repoPath);
       if (result === "pulled") {
-        console.log(`[house-keeping] Pulled main branch in ${repoPath}`);
+        logger.info({ repoPath }, "Pulled main branch");
       }
     } catch (err) {
-      console.error(
-        `[house-keeping] Failed to pull main branch in ${repoPath}:`,
-        err,
-      );
+      logger.error({ err, repoPath }, "Failed to pull main branch");
     }
   }
 
@@ -58,9 +48,9 @@ export class HouseKeepingService {
       const repos = getConfigRepositories();
       for (const repo of repos) {
         this.runHouseKeeping(repo.path).catch((err) => {
-          console.error(
-            `[house-keeping] Unexpected error for ${repo.path}:`,
-            err,
+          logger.error(
+            { err, repoPath: repo.path },
+            "Unexpected house-keeping error",
           );
         });
       }

@@ -1,4 +1,5 @@
 import { execFileSync } from "child_process";
+import { logger } from "@/backend/infra/logger";
 
 export interface Worktree {
   branch: string;
@@ -136,9 +137,7 @@ export class WorktreeService {
       throw new Error(`No main worktree found in ${repoPath}`);
     }
     if (main.is_bare) {
-      console.warn(
-        `[house-keeping] Skipping pull for bare main worktree in ${repoPath}`,
-      );
+      logger.warn({ repoPath }, "Skipping pull for bare main worktree");
       return "up-to-date";
     }
 

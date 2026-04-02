@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { EventMap } from "./event-bus";
 import { EventBus } from "./event-bus";
+import { logger } from "./logger";
 
 describe("EventBus", () => {
   it("calls a registered listener when an event is emitted", () => {
@@ -44,7 +45,7 @@ describe("EventBus", () => {
 
   it("catches and logs errors thrown by listeners without affecting other listeners", () => {
     const eventBus = new EventBus();
-    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const errorSpy = vi.spyOn(logger, "error").mockImplementation(() => {});
     const badListener = vi.fn(() => {
       throw new Error("listener error");
     });
@@ -57,8 +58,8 @@ describe("EventBus", () => {
     expect(badListener).toHaveBeenCalledOnce();
     expect(goodListener).toHaveBeenCalledOnce();
     expect(errorSpy).toHaveBeenCalledWith(
-      expect.stringContaining("session.completed"),
-      expect.any(Error),
+      expect.objectContaining({ eventName: "session.completed" }),
+      "Event listener error",
     );
 
     errorSpy.mockRestore();

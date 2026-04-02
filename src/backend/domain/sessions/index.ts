@@ -8,6 +8,7 @@ import {
   type WorkflowTransition,
 } from "@/backend/infra/config";
 import type { EventBus } from "@/backend/infra/event-bus";
+import { logger } from "@/backend/infra/logger";
 import type { AgentService, TransitionDecision } from "../agent";
 import type { WorktreeService } from "../worktrees";
 import type { SessionRepository } from "./session-repository";
@@ -118,9 +119,9 @@ export class SessionService {
       }
       cwd = worktree.path;
     } catch (err) {
-      console.error(
-        `Failed to resolve worktree for session ${id}:`,
-        err instanceof Error ? err.message : err,
+      logger.error(
+        { err, sessionId: id },
+        "Failed to resolve worktree for session",
       );
       this.sessionRepository.setSessionFailed(id, now);
       this.eventBus.emit("session.completed", {
@@ -140,7 +141,9 @@ export class SessionService {
         log_file_path,
         this.buildOnComplete(id),
       )
-      .catch(console.error);
+      .catch((err) =>
+        logger.error({ err, sessionId: id }, "Failed to start agent"),
+      );
 
     return this.getSession(id) as Session;
   }
@@ -212,7 +215,9 @@ export class SessionService {
         session.log_file_path,
         this.buildOnComplete(id),
       )
-      .catch(console.error);
+      .catch((err) =>
+        logger.error({ err, sessionId: id }, "Failed to resume agent"),
+      );
   }
 
   deleteWorktreeData(repositoryPath: string, branches: string[]): void {
