@@ -9,7 +9,14 @@ import type {
 } from "./runtime";
 
 function sandboxModeFor(permissionMode: string): SandboxMode {
-  return permissionMode === "acceptEdits" ? "workspace-write" : "read-only";
+  switch (permissionMode) {
+    case "bypassPermissions":
+      return "danger-full-access";
+    case "acceptEdits":
+      return "workspace-write";
+    default:
+      return "read-only";
+  }
 }
 
 async function* streamEvents(

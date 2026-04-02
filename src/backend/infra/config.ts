@@ -15,6 +15,7 @@ export interface AgentConfig {
   provider: AgentProvider;
   model?: string;
   command?: string;
+  permission_mode?: string;
 }
 
 export type AgentConfigOverride = Partial<AgentConfig>;
@@ -83,6 +84,7 @@ function normalizeAgentConfigOverride(
     provider: raw.provider,
     model: raw.model,
     command: raw.command,
+    permission_mode: raw.permission_mode,
   };
 }
 
@@ -144,6 +146,7 @@ export async function getAgentConfig(): Promise<AgentConfig> {
     provider: raw?.provider ?? "claude",
     model: raw?.model,
     command: raw?.command,
+    permission_mode: raw?.permission_mode,
   };
 }
 
@@ -159,6 +162,9 @@ export async function resolveAgentConfig(
     model: override?.model ?? (inheritsProviderFields ? base.model : undefined),
     command:
       override?.command ?? (inheritsProviderFields ? base.command : undefined),
+    permission_mode:
+      override?.permission_mode ??
+      (inheritsProviderFields ? base.permission_mode : undefined),
   };
 }
 

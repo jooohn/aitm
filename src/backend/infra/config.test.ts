@@ -154,6 +154,41 @@ workflows:
       provider: "codex",
       model: "gpt-5.4",
       command: undefined,
+      permission_mode: undefined,
+    });
+  });
+
+  it("parses permission_mode override on a goal state", async () => {
+    await writeFile(
+      configFile,
+      `
+workflows:
+  my-flow:
+    initial_state: push
+    states:
+      push:
+        goal: "Push and create PR"
+        agent:
+          permission_mode: bypassPermissions
+        transitions:
+          - terminal: success
+            when: "done"
+`,
+    );
+
+    const workflows = await getConfigWorkflows();
+    const pushState = workflows["my-flow"].states.push;
+
+    expect("goal" in pushState).toBe(true);
+    if (!("goal" in pushState)) {
+      throw new Error("expected goal state");
+    }
+
+    expect(pushState.agent).toEqual({
+      provider: undefined,
+      model: undefined,
+      command: undefined,
+      permission_mode: "bypassPermissions",
     });
   });
 
@@ -319,6 +354,21 @@ workflows: {}
       command: "/opt/homebrew/bin/codex",
     });
   });
+
+  it("parses permission_mode from agent config", async () => {
+    await writeFile(
+      configFile,
+      `
+agent:
+  provider: codex
+  permission_mode: bypassPermissions
+workflows: {}
+`,
+    );
+
+    const config = await getAgentConfig();
+    expect(config.permission_mode).toBe("bypassPermissions");
+  });
 });
 
 describe("resolveAgentConfig", () => {
@@ -391,6 +441,48 @@ workflows: {}
       provider: "codex",
       model: "gpt-5.4",
       command: "/opt/homebrew/bin/codex",
+    });
+  });
+
+  it("inherits permission_mode from the top-level agent config", async () => {
+    await writeFile(
+      configFile,
+      `
+agent:
+  provider: codex
+  permission_mode: bypassPermissions
+workflows: {}
+`,
+    );
+
+    expect(
+      await resolveAgentConfig({
+        model: "gpt-5.4",
+      }),
+    ).toMatchObject({
+      provider: "codex",
+      permission_mode: "bypassPermissions",
+    });
+  });
+
+  it("lets a state override replace the permission_mode", async () => {
+    await writeFile(
+      configFile,
+      `
+agent:
+  provider: codex
+  permission_mode: acceptEdits
+workflows: {}
+`,
+    );
+
+    expect(
+      await resolveAgentConfig({
+        permission_mode: "bypassPermissions",
+      }),
+    ).toMatchObject({
+      provider: "codex",
+      permission_mode: "bypassPermissions",
     });
   });
 

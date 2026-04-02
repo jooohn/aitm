@@ -1,4 +1,7 @@
-import { AbortError } from "@anthropic-ai/claude-agent-sdk";
+import {
+  AbortError,
+  type PermissionMode,
+} from "@anthropic-ai/claude-agent-sdk";
 import { appendFile, writeFile } from "fs/promises";
 import type { SessionStatus } from "@/backend/domain/sessions";
 import type { AgentConfig, WorkflowTransition } from "@/backend/infra/config";
@@ -198,7 +201,8 @@ export class AgentService {
           cwd,
           command: agentConfig.command,
           model: agentConfig.model,
-          permissionMode: "acceptEdits",
+          permissionMode: (agentConfig.permission_mode ??
+            "acceptEdits") as PermissionMode,
           abortController,
           outputFormat,
         }),
@@ -269,7 +273,8 @@ export class AgentService {
           cwd,
           command: agentConfig.command,
           model: agentConfig.model,
-          permissionMode: "acceptEdits",
+          permissionMode: (agentConfig.permission_mode ??
+            "acceptEdits") as PermissionMode,
           abortController,
           outputFormat,
         }),

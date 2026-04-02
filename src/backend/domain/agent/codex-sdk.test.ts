@@ -267,6 +267,25 @@ describe("codexSDK.query", () => {
     );
   });
 
+  it("maps permissionMode bypassPermissions to danger-full-access sandbox", async () => {
+    const events: ThreadEvent[] = [
+      { type: "turn.started" },
+      {
+        type: "turn.completed",
+        usage: { input_tokens: 0, cached_input_tokens: 0, output_tokens: 0 },
+      },
+    ];
+    runStreamedMock.mockResolvedValue({ events: eventsFromArray(events) });
+
+    await collectMessages(
+      codexSDK.query(makeQueryParams({ permissionMode: "bypassPermissions" })),
+    );
+
+    expect(startThreadMock).toHaveBeenCalledWith(
+      expect.objectContaining({ sandboxMode: "danger-full-access" }),
+    );
+  });
+
   it("maps other permissionMode to read-only sandbox", async () => {
     const events: ThreadEvent[] = [
       { type: "turn.started" },
