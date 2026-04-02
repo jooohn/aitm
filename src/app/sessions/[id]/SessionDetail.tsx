@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import SessionBreadcrumb from "@/app/components/SessionBreadcrumb";
 import {
   failSession,
   fetchSession,
@@ -8,11 +9,7 @@ import {
   type Session,
   type SessionStatus,
 } from "@/lib/utils/api";
-import type {
-  OutputItem,
-  ToolCallItem,
-  ToolGroupItem,
-} from "@/lib/utils/outputItem";
+import type { OutputItem, ToolGroupItem } from "@/lib/utils/outputItem";
 import { parseLogEntry } from "@/lib/utils/parseLogEntry";
 import OutputItemView from "./OutputItemView";
 import styles from "./SessionDetail.module.css";
@@ -73,18 +70,11 @@ export default function SessionDetail({
   const [replyText, setReplyText] = useState("");
   const [replying, setReplying] = useState(false);
   const [replyError, setReplyError] = useState<string | null>(null);
-  const [isGoalExpanded, setIsGoalExpanded] = useState(false);
-  const [canExpandGoal, setCanExpandGoal] = useState(false);
 
   const outputRef = useRef<HTMLDivElement>(null);
-  const goalSubtitleMeasureRef = useRef<HTMLParagraphElement>(null);
-  const goalH1MeasureRef = useRef<HTMLHeadingElement>(null);
   const autoScrollRef = useRef(true);
 
   const isTerminal = TERMINAL_STATUSES.includes(session.status);
-  const goalText = session.goal;
-  const stateName = session.state_name;
-  const goalSubtitleId = `session-goal-subtitle-${session.id}`;
 
   useEffect(() => {
     setSession(initial);
@@ -97,8 +87,6 @@ export default function SessionDetail({
     setReplyText("");
     setReplying(false);
     setReplyError(null);
-    setIsGoalExpanded(false);
-    setCanExpandGoal(false);
     autoScrollRef.current = true;
   }, [initial.id]);
 
@@ -149,34 +137,6 @@ export default function SessionDetail({
       outputRef.current.scrollTop = outputRef.current.scrollHeight;
     }
   }, [outputItems]);
-
-  useEffect(() => {
-    const node = stateName
-      ? goalSubtitleMeasureRef.current
-      : goalH1MeasureRef.current;
-    if (!node) return;
-
-    const measureOverflow = () => {
-      const nextCanExpand =
-        node.scrollHeight > node.clientHeight + 1 ||
-        node.scrollWidth > node.clientWidth + 1;
-      setCanExpandGoal(nextCanExpand);
-      if (!nextCanExpand) {
-        setIsGoalExpanded(false);
-      }
-    };
-
-    measureOverflow();
-
-    if (typeof ResizeObserver === "undefined") {
-      return;
-    }
-
-    const observer = new ResizeObserver(measureOverflow);
-    observer.observe(node);
-
-    return () => observer.disconnect();
-  }, [stateName]);
 
   // Poll for session status updates
   useEffect(() => {
@@ -238,7 +198,7 @@ export default function SessionDetail({
 
   return (
     <div className={styles.container}>
-      {/* Header */}
+      <SessionBreadcrumb session={session} />
       <div className={styles.header}>
         <div className={styles.headerLeft}>
           <span
@@ -246,65 +206,8 @@ export default function SessionDetail({
           >
             {STATUS_LABELS[session.status]}
           </span>
-          {stateName ? (
-            <>
-              <h1 className={styles.goal}>{stateName}</h1>
-              <div className={styles.goalSubtitleBlock}>
-                <p
-                  id={goalSubtitleId}
-                  className={`${styles.goalSubtitle} ${
-                    isGoalExpanded ? "" : styles.goalSubtitleCollapsed
-                  }`}
-                >
-                  {goalText}
-                </p>
-                <p
-                  ref={goalSubtitleMeasureRef}
-                  aria-hidden="true"
-                  className={`${styles.goalSubtitle} ${styles.goalSubtitleCollapsed} ${styles.goalSubtitleMeasure}`}
-                >
-                  {goalText}
-                </p>
-                {canExpandGoal && (
-                  <button
-                    type="button"
-                    aria-controls={goalSubtitleId}
-                    aria-expanded={isGoalExpanded}
-                    className={styles.goalSubtitleToggle}
-                    onClick={() => setIsGoalExpanded((current) => !current)}
-                  >
-                    {isGoalExpanded ? "Show less" : "Show more"}
-                  </button>
-                )}
-              </div>
-            </>
-          ) : (
-            <div className={styles.goalSubtitleBlock}>
-              <h1
-                id={goalSubtitleId}
-                className={`${styles.goal} ${isGoalExpanded ? "" : styles.goalCollapsed}`}
-              >
-                {goalText}
-              </h1>
-              <h1
-                ref={goalH1MeasureRef}
-                aria-hidden="true"
-                className={`${styles.goal} ${styles.goalCollapsed} ${styles.goalSubtitleMeasure}`}
-              >
-                {goalText}
-              </h1>
-              {canExpandGoal && (
-                <button
-                  type="button"
-                  aria-controls={goalSubtitleId}
-                  aria-expanded={isGoalExpanded}
-                  className={styles.goalSubtitleToggle}
-                  onClick={() => setIsGoalExpanded((current) => !current)}
-                >
-                  {isGoalExpanded ? "Show less" : "Show more"}
-                </button>
-              )}
-            </div>
+          {session.state_name && (
+            <h1 className={styles.goal}>{session.state_name}</h1>
           )}
         </div>
         {!isTerminal && (
@@ -320,23 +223,13 @@ export default function SessionDetail({
       </div>
       {failError && <p className={styles.error}>{failError}</p>}
 
-      {/* Details */}
-      <dl className={styles.details}>
-        {session.terminal_attach_command && (
-          <div className={styles.detailRow}>
-            <dt className={styles.detailLabel}>Terminal attach</dt>
-            <dd>
-              <code className={styles.attachCommand}>
-                {session.terminal_attach_command}
-              </code>
-            </dd>
-          </div>
-        )}
-      </dl>
-
-      {/* Output pane */}
       <section>
-        <h2 className={styles.sectionHeading}>Output</h2>
+        <h2 className={styles.sectionHeading}>Goal</h2>
+        <div className={styles.goalPane}>{session.goal}</div>
+      </section>
+
+      <section>
+        <h2 className={styles.sectionHeading}>Session</h2>
         <div
           ref={outputRef}
           className={styles.output}
@@ -347,32 +240,41 @@ export default function SessionDetail({
           ) : (
             outputItems.map((item, i) => <OutputItemView key={i} item={item} />)
           )}
+
+          {session.status === "AWAITING_INPUT" && (
+            <form onSubmit={handleReply} className={styles.replyForm}>
+              <textarea
+                className={styles.replyInput}
+                value={replyText}
+                onChange={(e) => setReplyText(e.target.value)}
+                placeholder="Type your reply…"
+                disabled={replying}
+                rows={3}
+              />
+              <button
+                type="submit"
+                className={styles.replyButton}
+                disabled={replying || !replyText.trim()}
+              >
+                {replying ? "Sending…" : "Send reply"}
+              </button>
+              {replyError && <p className={styles.error}>{replyError}</p>}
+            </form>
+          )}
         </div>
       </section>
 
-      {/* Reply form */}
-      {session.status === "AWAITING_INPUT" && (
-        <section>
-          <h2 className={styles.sectionHeading}>Reply</h2>
-          <form onSubmit={handleReply} className={styles.replyForm}>
-            <textarea
-              className={styles.replyInput}
-              value={replyText}
-              onChange={(e) => setReplyText(e.target.value)}
-              placeholder="Type your reply…"
-              disabled={replying}
-              rows={3}
-            />
-            <button
-              type="submit"
-              className={styles.replyButton}
-              disabled={replying || !replyText.trim()}
-            >
-              {replying ? "Sending…" : "Send reply"}
-            </button>
-            {replyError && <p className={styles.error}>{replyError}</p>}
-          </form>
-        </section>
+      {session.terminal_attach_command && (
+        <dl className={styles.details}>
+          <div className={styles.detailRow}>
+            <dt className={styles.detailLabel}>Terminal attach</dt>
+            <dd>
+              <code className={styles.attachCommand}>
+                {session.terminal_attach_command}
+              </code>
+            </dd>
+          </div>
+        </dl>
       )}
     </div>
   );

@@ -2,12 +2,12 @@
 
 import { notFound, useParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import SessionDetail from "@/app/sessions/[id]/SessionDetail";
 import { fetchSession, type Session } from "@/lib/utils/api";
-import styles from "./page.module.css";
-import SessionDetail from "./SessionDetail";
 
-export default function SessionPage() {
-  const { id } = useParams<{ id: string }>();
+export default function TodoSessionPage() {
+  const { sessionId } = useParams<{ sessionId: string }>();
+  const id = sessionId.replace(/^session-/, "");
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFoundError, setNotFoundError] = useState(false);
@@ -22,9 +22,5 @@ export default function SessionPage() {
   if (loading) return null;
   if (notFoundError || !session) return notFound();
 
-  return (
-    <main className={styles.page}>
-      <SessionDetail session={session} />
-    </main>
-  );
+  return <SessionDetail key={session.id} session={session} />;
 }

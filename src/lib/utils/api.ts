@@ -107,6 +107,8 @@ export interface Session {
   log_file_path: string;
   claude_session_id: string | null;
   state_name: string | null;
+  workflow_name: string | null;
+  workflow_run_id: string | null;
   created_at: string;
   updated_at: string;
 }

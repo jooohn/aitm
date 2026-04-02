@@ -1,27 +1,23 @@
 @reference "tailwindcss";
 
 .page {
-  @apply max-w-7xl mx-auto px-6 py-10;
+  @apply w-full flex-1;
 }
 
 .shell {
-  @apply grid gap-6 lg:grid-cols-[22rem_minmax(0,1fr)] items-start;
+  @apply grid lg:grid-cols-[22rem_minmax(0,1fr)];
 }
 
 .listPane {
-  @apply rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-5 flex flex-col gap-4;
+  @apply border-r border-zinc-200 dark:border-zinc-800 px-5 py-6 flex flex-col gap-4 sticky top-[var(--header-h,49px)] h-[calc(100vh-var(--header-h,49px))] overflow-y-auto;
 }
 
 .listHeader {
   @apply flex flex-col gap-1;
 }
 
-.eyebrow {
-  @apply text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500 dark:text-zinc-400;
-}
-
 .title {
-  @apply text-2xl font-semibold text-zinc-950 dark:text-zinc-50;
+  @apply text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide;
 }
 
 .status {
@@ -33,53 +29,29 @@
 }
 
 .list {
-  @apply flex flex-col gap-3;
+  @apply flex flex-col;
 }
 
-.sessionButton {
-  @apply w-full text-left rounded-xl border border-zinc-200 dark:border-zinc-800 px-4 py-3 flex flex-col gap-2 bg-zinc-50 dark:bg-zinc-900 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors;
+.sessionLink {
+  @apply block px-3 py-3 flex flex-col gap-1 rounded-lg no-underline hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors;
 }
 
-.sessionButtonActive {
-  @apply border-amber-400 bg-amber-50 dark:bg-amber-950/40 dark:border-amber-700;
+.sessionLinkActive {
+  @apply bg-zinc-100 dark:bg-zinc-800;
 }
 
-.sessionTitle {
-  @apply text-sm font-semibold text-zinc-950 dark:text-zinc-50;
+.sessionPrimary {
+  @apply text-sm font-semibold text-zinc-950 dark:text-zinc-50 truncate;
 }
 
-.sessionMeta {
+.sessionSecondary {
   @apply flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400;
 }
 
-.sessionBranch {
-  @apply text-xs font-mono text-zinc-600 dark:text-zinc-300;
-}
-
-.badge {
-  @apply inline-block text-xs font-medium px-1.5 py-0.5 rounded;
-}
-
-.badge-RUNNING {
-  @apply bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300;
-}
-
-.badge-SUCCEEDED {
-  @apply bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300;
-}
-
-.badge-AWAITING_INPUT {
-  @apply bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300;
-}
-
-.badge-FAILED {
-  @apply bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300;
-}
-
 .detailPane {
-  @apply min-w-0;
+  @apply min-w-0 px-6 py-6 flex flex-col gap-4;
 }
 
 .emptyDetail {
-  @apply rounded-2xl border border-dashed border-zinc-300 dark:border-zinc-700 p-8 text-sm text-zinc-500 dark:text-zinc-400;
+  @apply text-sm text-zinc-500 dark:text-zinc-400;
 }

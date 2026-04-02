@@ -1,7 +1,7 @@
 @reference "tailwindcss";
 
 .header {
-  @apply flex items-center justify-between px-6 py-3 border-b border-zinc-200 dark:border-zinc-800 shrink-0;
+  @apply flex items-center justify-between px-6 h-[var(--header-h)] border-b border-zinc-200 dark:border-zinc-800 shrink-0;
 }
 
 .stickyHeader {

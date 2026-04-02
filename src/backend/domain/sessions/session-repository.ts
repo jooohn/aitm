@@ -61,9 +61,10 @@ export class SessionRepository {
   getSession(id: string): Session | undefined {
     return this.db
       .prepare(
-        `SELECT s.*, se.state AS state_name
+        `SELECT s.*, se.state AS state_name, wr.workflow_name, wr.id AS workflow_run_id
        FROM sessions s
        LEFT JOIN state_executions se ON se.id = s.state_execution_id
+       LEFT JOIN workflow_runs wr ON se.workflow_run_id = wr.id
        WHERE s.id = ?`,
       )
       .get(id) as Session | undefined;
@@ -74,15 +75,15 @@ export class SessionRepository {
     const params: string[] = [];
 
     if (filter.repository_path !== undefined) {
-      conditions.push("repository_path = ?");
+      conditions.push("s.repository_path = ?");
       params.push(filter.repository_path);
     }
     if (filter.worktree_branch !== undefined) {
-      conditions.push("worktree_branch = ?");
+      conditions.push("s.worktree_branch = ?");
       params.push(filter.worktree_branch);
     }
     if (filter.status !== undefined) {
-      conditions.push("status = ?");
+      conditions.push("s.status = ?");
       params.push(filter.status);
     }
 
@@ -90,9 +91,10 @@ export class SessionRepository {
       conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
     return this.db
       .prepare(
-        `SELECT s.*, se.state AS state_name
+        `SELECT s.*, se.state AS state_name, wr.workflow_name, wr.id AS workflow_run_id
        FROM sessions s
        LEFT JOIN state_executions se ON se.id = s.state_execution_id
+       LEFT JOIN workflow_runs wr ON se.workflow_run_id = wr.id
        ${where}
        ORDER BY s.created_at DESC`,
       )
