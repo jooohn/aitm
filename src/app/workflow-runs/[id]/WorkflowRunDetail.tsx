@@ -50,6 +50,7 @@ interface StateExecutionItemProps {
 function StateExecutionItem({ execution }: StateExecutionItemProps) {
   const decision = parseDecision(execution.transition_decision);
   const isRunning = execution.completed_at === null;
+  const isCommandExecution = execution.state_type === "command";
 
   return (
     <li className={styles.execution}>
@@ -78,33 +79,63 @@ function StateExecutionItem({ execution }: StateExecutionItemProps) {
           {new Date(execution.created_at).toLocaleString()}
         </span>
       </div>
-      {decision && (
+      {(decision || isCommandExecution) && (
         <div className={styles.decision}>
-          <div className={styles.decisionTransition}>
-            <span className={styles.decisionLabel}>Transition</span>
-            <span
-              className={`${styles.transitionTarget} ${
-                decision.transition === "success"
-                  ? styles["transition-success"]
-                  : decision.transition === "failure"
-                    ? styles["transition-failure"]
-                    : styles["transition-state"]
-              }`}
-            >
-              {decision.transition}
-            </span>
-          </div>
-          <div className={styles.decisionRow}>
-            <span className={styles.decisionLabel}>Reason</span>
-            <span className={styles.decisionValue}>{decision.reason}</span>
-          </div>
-          {decision.handoff_summary && (
-            <div className={styles.decisionRow}>
-              <span className={styles.decisionLabel}>Summary</span>
-              <span className={styles.decisionValue}>
-                {decision.handoff_summary}
+          {decision && (
+            <div className={styles.decisionTransition}>
+              <span className={styles.decisionLabel}>Transition</span>
+              <span
+                className={`${styles.transitionTarget} ${
+                  decision.transition === "success"
+                    ? styles["transition-success"]
+                    : decision.transition === "failure"
+                      ? styles["transition-failure"]
+                      : styles["transition-state"]
+                }`}
+              >
+                {decision.transition}
               </span>
             </div>
+          )}
+          {isCommandExecution ? (
+            <div className={styles.decisionColumn}>
+              <span className={styles.decisionLabel}>Output</span>
+              <div
+                className={styles.commandOutput}
+                data-testid={`command-output-${execution.id}`}
+              >
+                {execution.command_output ? (
+                  <div className={styles.commandOutputLine}>
+                    {execution.command_output}
+                  </div>
+                ) : (
+                  <div
+                    className={`${styles.commandOutputLine} ${styles.commandOutputEmpty}`}
+                  >
+                    No output captured.
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <>
+              {decision && (
+                <div className={styles.decisionRow}>
+                  <span className={styles.decisionLabel}>Reason</span>
+                  <span className={styles.decisionValue}>
+                    {decision.reason}
+                  </span>
+                </div>
+              )}
+              {decision?.handoff_summary && (
+                <div className={styles.decisionRow}>
+                  <span className={styles.decisionLabel}>Summary</span>
+                  <span className={styles.decisionValue}>
+                    {decision.handoff_summary}
+                  </span>
+                </div>
+              )}
+            </>
           )}
         </div>
       )}

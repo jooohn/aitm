@@ -53,6 +53,15 @@ workflows:
         transitions:
           - terminal: success
             when: "code is done"
+  command-flow:
+    initial_state: command-step
+    states:
+      command-step:
+        type: command
+        command: "printf 'stdout line\\n' && printf 'stderr line\\n' >&2"
+        transitions:
+          - terminal: success
+            when: "succeeded"
 `,
   );
 
@@ -103,6 +112,29 @@ describe("GET /api/workflow-runs/:id", () => {
     expect(Array.isArray(body.state_executions)).toBe(true);
     expect(body.state_executions).toHaveLength(1);
     expect(body.state_executions[0].state).toBe("plan");
+    expect(body.state_executions[0].state_type).toBe("agent");
+  });
+
+  it("returns command state executions with explicit state_type and command output", async () => {
+    const repoPath = await makeFakeGitRepo();
+    const run = await createWorkflowRun({
+      repository_path: repoPath,
+      worktree_branch: "feat/test",
+      workflow_name: "command-flow",
+    });
+
+    const res = await GET(
+      new NextRequest(`http://localhost/api/workflow-runs/${run.id}`),
+      makeParams(run.id),
+    );
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.state_executions).toHaveLength(1);
+    expect(body.state_executions[0].state).toBe("command-step");
+    expect(body.state_executions[0].state_type).toBe("command");
+    expect(body.state_executions[0].command_output).toContain("stdout line");
+    expect(body.state_executions[0].command_output).toContain("stderr line");
   });
 
   it("returns 404 for unknown id", async () => {
