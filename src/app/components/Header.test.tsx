@@ -9,13 +9,12 @@ vi.mock("next/link", () => ({
   default: ({
     children,
     href,
-    className,
-  }: {
+    ...props
+  }: React.AnchorHTMLAttributes<HTMLAnchorElement> & {
     children: React.ReactNode;
     href: string;
-    className?: string;
   }) => (
-    <a href={href} className={className}>
+    <a href={href} {...props}>
       {children}
     </a>
   ),
@@ -55,5 +54,14 @@ describe("Header", () => {
     fireEvent.click(screen.getByRole("button", { name: "Run Workflow" }));
 
     expect(screen.getByText("Run workflow modal")).toBeInTheDocument();
+  });
+
+  it("renders a todo shortcut in the header actions", () => {
+    render(<Header />);
+
+    expect(screen.getByRole("link", { name: "Open todos" })).toHaveAttribute(
+      "href",
+      "/todos",
+    );
   });
 });

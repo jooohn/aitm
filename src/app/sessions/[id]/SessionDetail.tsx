@@ -50,6 +50,7 @@ function appendWithGrouping(
 
 interface Props {
   session: Session;
+  onSessionUpdated?: (session: Session) => void;
 }
 
 const STATUS_LABELS: Record<SessionStatus, string> = {
@@ -61,7 +62,10 @@ const STATUS_LABELS: Record<SessionStatus, string> = {
 
 const TERMINAL_STATUSES: SessionStatus[] = ["SUCCEEDED", "FAILED"];
 
-export default function SessionDetail({ session: initial }: Props) {
+export default function SessionDetail({
+  session: initial,
+  onSessionUpdated,
+}: Props) {
   const [session, setSession] = useState<Session>(initial);
   const [outputItems, setOutputItems] = useState<OutputItem[]>([]);
   const [failing, setFailing] = useState(false);
@@ -81,6 +85,27 @@ export default function SessionDetail({ session: initial }: Props) {
   const goalText = session.goal;
   const stateName = session.state_name;
   const goalSubtitleId = `session-goal-subtitle-${session.id}`;
+
+  useEffect(() => {
+    setSession(initial);
+  }, [initial]);
+
+  useEffect(() => {
+    setOutputItems([]);
+    setFailing(false);
+    setFailError(null);
+    setReplyText("");
+    setReplying(false);
+    setReplyError(null);
+    setIsGoalExpanded(false);
+    setCanExpandGoal(false);
+    autoScrollRef.current = true;
+  }, [initial.id]);
+
+  function applySessionUpdate(updated: Session) {
+    setSession(updated);
+    onSessionUpdated?.(updated);
+  }
 
   // SSE stream for live output
   useEffect(() => {
@@ -160,7 +185,7 @@ export default function SessionDetail({ session: initial }: Props) {
     const interval = setInterval(async () => {
       try {
         const updated = await fetchSession(session.id);
-        setSession(updated);
+        applySessionUpdate(updated);
         if (TERMINAL_STATUSES.includes(updated.status)) {
           clearInterval(interval);
         }
@@ -183,7 +208,7 @@ export default function SessionDetail({ session: initial }: Props) {
     setFailError(null);
     try {
       const updated = await failSession(session.id);
-      setSession(updated);
+      applySessionUpdate(updated);
     } catch (err) {
       setFailError(
         err instanceof Error ? err.message : "Failed to mark session as failed",
@@ -200,7 +225,7 @@ export default function SessionDetail({ session: initial }: Props) {
     setReplyError(null);
     try {
       const updated = await replyToSession(session.id, replyText.trim());
-      setSession(updated);
+      applySessionUpdate(updated);
       setReplyText("");
     } catch (err) {
       setReplyError(

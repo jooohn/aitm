@@ -1,5 +1,9 @@
-import { describe, expect, it } from "vitest";
-import { canStopWorkflowRun, type WorkflowRunDetail } from "./api";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  canStopWorkflowRun,
+  fetchSessionsByStatus,
+  type WorkflowRunDetail,
+} from "./api";
 
 function makeRun(
   overrides: Partial<WorkflowRunDetail> = {},
@@ -83,5 +87,27 @@ describe("canStopWorkflowRun", () => {
     });
 
     expect(canStopWorkflowRun(run)).toBe(false);
+  });
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+describe("fetchSessionsByStatus", () => {
+  it("requests sessions filtered by status", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => [],
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await fetchSessionsByStatus("AWAITING_INPUT");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/sessions?status=AWAITING_INPUT",
+      undefined,
+    );
   });
 });

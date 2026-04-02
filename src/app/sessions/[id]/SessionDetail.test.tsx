@@ -157,4 +157,36 @@ describe("SessionDetail – with stateName (existing behavior unchanged)", () =>
     const subtitle = document.querySelector("p:not([aria-hidden])");
     expect(subtitle).toHaveTextContent("The full goal text");
   });
+
+  it("updates the rendered session when the parent provides a different session", () => {
+    const { rerender } = render(
+      <SessionDetail
+        session={makeSession({
+          id: "session-1",
+          goal: "First goal",
+          state_name: "First state",
+          status: "AWAITING_INPUT",
+        })}
+        initialMessages={[]}
+      />,
+    );
+
+    rerender(
+      <SessionDetail
+        session={makeSession({
+          id: "session-2",
+          goal: "Second goal",
+          state_name: "Second state",
+          status: "FAILED",
+        })}
+        initialMessages={[]}
+      />,
+    );
+
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
+      "Second state",
+    );
+    expect(screen.getByText("Failed")).toBeInTheDocument();
+    expect(screen.queryByText("Awaiting input")).not.toBeInTheDocument();
+  });
 });

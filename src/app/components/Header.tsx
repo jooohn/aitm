@@ -16,13 +16,35 @@ export default function Header() {
         <Link href="/" className={styles.logo}>
           aitm
         </Link>
-        <button
-          type="button"
-          className={styles.runButton}
-          onClick={() => setModalOpen(true)}
-        >
-          Run Workflow
-        </button>
+        <div className={styles.actions}>
+          <Link
+            href="/todos"
+            className={styles.iconButton}
+            aria-label="Open todos"
+          >
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 20 20"
+              fill="none"
+              className={styles.icon}
+            >
+              <path
+                d="M6 5.75h8M6 10h8M6 14.25h5M3.75 5.75h.5M3.75 10h.5M3.75 14.25h.5"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </Link>
+          <button
+            type="button"
+            className={styles.runButton}
+            onClick={() => setModalOpen(true)}
+          >
+            Run Workflow
+          </button>
+        </div>
       </header>
       {modalOpen && <RunWorkflowModal onClose={() => setModalOpen(false)} />}
     </>
