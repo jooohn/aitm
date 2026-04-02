@@ -2,6 +2,9 @@ import type { ThreadEvent } from "@openai/codex-sdk";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentMessage, AgentQueryParams } from "./runtime";
 
+// Undo the global test-setup mock so we can test the real wrapper module.
+vi.unmock("@/backend/domain/agent/codex-sdk");
+
 // ---------------------------------------------------------------------------
 // Mocks
 // ---------------------------------------------------------------------------

@@ -3,6 +3,7 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  agentService,
   sessionService,
   workflowRunService,
   worktreeService,
@@ -79,6 +80,9 @@ beforeEach(() => {
   db.prepare("DELETE FROM sessions").run();
   db.prepare("DELETE FROM state_executions").run();
   db.prepare("DELETE FROM workflow_runs").run();
+
+  // Prevent the background agent from running and racing with test assertions.
+  vi.spyOn(agentService, "startAgent").mockResolvedValue(undefined);
 
   // Default mock: return a worktree matching any branch so SessionService
   // can resolve cwd when creating sessions.
@@ -734,7 +738,10 @@ describe("workflow run lifecycle around session startup races", () => {
       .get(execution.id) as { id: string };
 
     failSession(session.id);
-    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    // Simulate what startAgent would do when it detects the failed session:
+    // it calls onComplete(null) which triggers completeStateExecution(null).
+    await completeStateExecution(execution.id, null);
 
     const updatedRun = getWorkflowRun(run.id);
     expect(updatedRun?.status).toBe("failure");

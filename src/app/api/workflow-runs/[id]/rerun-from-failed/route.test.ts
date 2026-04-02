@@ -3,7 +3,11 @@ import { NextRequest } from "next/server";
 import { tmpdir } from "os";
 import { join } from "path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { workflowRunService, worktreeService } from "@/backend/container";
+import {
+  agentService,
+  workflowRunService,
+  worktreeService,
+} from "@/backend/container";
 
 const createWorkflowRun =
   workflowRunService.createWorkflowRun.bind(workflowRunService);
@@ -59,6 +63,7 @@ beforeEach(async () => {
   db.prepare("DELETE FROM state_executions").run();
   db.prepare("DELETE FROM workflow_runs").run();
 
+  vi.spyOn(agentService, "startAgent").mockResolvedValue(undefined);
   vi.spyOn(worktreeService, "listWorktrees").mockImplementation(
     async (repoPath) => [
       {

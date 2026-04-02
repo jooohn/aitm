@@ -2,8 +2,8 @@ import { mkdir } from "fs/promises";
 import { NextRequest } from "next/server";
 import { tmpdir } from "os";
 import { join } from "path";
-import { beforeEach, describe, expect, it } from "vitest";
-import { sessionService } from "@/backend/container";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { agentService, sessionService } from "@/backend/container";
 
 const createSession = sessionService.createSession.bind(sessionService);
 
@@ -24,6 +24,7 @@ function makeParams(id: string): { params: Promise<{ id: string }> } {
 }
 
 beforeEach(() => {
+  vi.spyOn(agentService, "startAgent").mockResolvedValue(undefined);
   db.prepare("DELETE FROM sessions").run();
 });
 

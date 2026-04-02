@@ -13,6 +13,7 @@ export default defineConfig({
   test: {
     environment: "node",
     pool: "forks",
+    setupFiles: ["src/test-setup.ts"],
     env: {
       AITM_DB_PATH: ":memory:",
       HOME: "/tmp/aitm-vitest-home",
