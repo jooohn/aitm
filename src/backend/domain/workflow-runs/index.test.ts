@@ -927,7 +927,7 @@ workflows:
     return { repoPath, worktreePath };
   }
 
-  it("executes the command and advances to the next state on succeeded", () => {
+  it("executes the command and advances to the next state on succeeded", async () => {
     const { repoPath } = setupCommandRun();
 
     const run = createWorkflowRun({
@@ -936,23 +936,27 @@ workflows:
       workflow_name: "cmd-flow",
     });
 
-    // cleanup (exit 0 → succeeded → next) should have run synchronously
-    const updatedRun = getWorkflowRun(run.id);
-    expect(updatedRun?.current_state).toBe("next");
-    expect(updatedRun?.status).toBe("running");
+    await vi.waitFor(
+      () => {
+        const updatedRun = getWorkflowRun(run.id);
+        expect(updatedRun?.current_state).toBe("next");
+        expect(updatedRun?.status).toBe("running");
 
-    const executions = db
-      .prepare(
-        "SELECT * FROM state_executions WHERE workflow_run_id = ? ORDER BY created_at ASC",
-      )
-      .all(run.id) as { state: string; completed_at: string | null }[];
-    expect(executions).toHaveLength(2);
-    expect(executions[0].state).toBe("cleanup");
-    expect(executions[0].completed_at).not.toBeNull();
-    expect(executions[1].state).toBe("next");
+        const executions = db
+          .prepare(
+            "SELECT * FROM state_executions WHERE workflow_run_id = ? ORDER BY created_at ASC",
+          )
+          .all(run.id) as { state: string; completed_at: string | null }[];
+        expect(executions).toHaveLength(2);
+        expect(executions[0].state).toBe("cleanup");
+        expect(executions[0].completed_at).not.toBeNull();
+        expect(executions[1].state).toBe("next");
+      },
+      { timeout: 5000 },
+    );
   });
 
-  it("stores command output in command_output column", () => {
+  it("stores command output in command_output column", async () => {
     const { repoPath } = setupCommandRun(`
 workflows:
   cmd-flow:
@@ -971,13 +975,15 @@ workflows:
       workflow_name: "cmd-flow",
     });
 
-    const execution = db
-      .prepare("SELECT * FROM state_executions WHERE workflow_run_id = ?")
-      .get(run.id) as { command_output: string | null };
-    expect(execution.command_output).toContain("hello");
+    await vi.waitFor(() => {
+      const execution = db
+        .prepare("SELECT * FROM state_executions WHERE workflow_run_id = ?")
+        .get(run.id) as { command_output: string | null };
+      expect(execution.command_output).toContain("hello");
+    });
   });
 
-  it("uses the failed transition when command exits non-zero", () => {
+  it("uses the failed transition when command exits non-zero", async () => {
     const { repoPath } = setupCommandRun(`
 workflows:
   cmd-flow:
@@ -998,12 +1004,14 @@ workflows:
       workflow_name: "cmd-flow",
     });
 
-    const updatedRun = getWorkflowRun(run.id);
-    expect(updatedRun?.status).toBe("failure");
-    expect(updatedRun?.current_state).toBeNull();
+    await vi.waitFor(() => {
+      const updatedRun = getWorkflowRun(run.id);
+      expect(updatedRun?.status).toBe("failure");
+      expect(updatedRun?.current_state).toBeNull();
+    });
   });
 
-  it("marks the run as failure when no transition matches the exit code outcome", () => {
+  it("marks the run as failure when no transition matches the exit code outcome", async () => {
     const { repoPath } = setupCommandRun(`
 workflows:
   cmd-flow:
@@ -1022,9 +1030,11 @@ workflows:
       workflow_name: "cmd-flow",
     });
 
-    const updatedRun = getWorkflowRun(run.id);
-    expect(updatedRun?.status).toBe("failure");
-    expect(updatedRun?.current_state).toBeNull();
+    await vi.waitFor(() => {
+      const updatedRun = getWorkflowRun(run.id);
+      expect(updatedRun?.status).toBe("failure");
+      expect(updatedRun?.current_state).toBeNull();
+    });
   });
 });
 

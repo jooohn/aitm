@@ -191,7 +191,7 @@ export class WorkflowRunService {
     }
   }
 
-  private startCommandStateExecution({
+  private async startCommandStateExecution({
     stateDef,
     executionId,
     worktree,
@@ -200,7 +200,7 @@ export class WorkflowRunService {
     executionId: string;
     worktree: Worktree;
   }) {
-    const { outcome, commandOutput } = this.commandStateExecutor.execute(
+    const { outcome, commandOutput } = await this.commandStateExecutor.execute(
       stateDef.command,
       { cwd: worktree.path },
     );
