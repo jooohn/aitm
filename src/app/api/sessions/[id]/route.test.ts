@@ -47,6 +47,23 @@ describe("GET /api/sessions/:id", () => {
     expect(body.goal).toBe("Do something");
   });
 
+  it("includes state_execution_id in the response", async () => {
+    const session = await createSession({
+      repository_path: await makeFakeGitRepo(),
+      worktree_branch: "feat/test",
+      goal: "Do something",
+      transitions: [{ terminal: "success" as const, when: "Done" }],
+    });
+
+    const res = await GET(
+      new NextRequest(`http://localhost/api/sessions/${session.id}`),
+      makeParams(session.id),
+    );
+    const body = await res.json();
+    expect(body).toHaveProperty("state_execution_id");
+    expect(body.state_execution_id).toBeNull();
+  });
+
   it("returns 404 for unknown id", async () => {
     const res = await GET(
       new NextRequest("http://localhost/api/sessions/nonexistent"),

@@ -5,10 +5,26 @@ import "@testing-library/jest-dom/vitest";
 import type { Session } from "@/lib/utils/api";
 import SessionDetail from "./SessionDetail";
 
+vi.mock("next/link", () => ({
+  default: ({
+    children,
+    href,
+    className,
+  }: {
+    children: React.ReactNode;
+    href: string;
+    className?: string;
+  }) => (
+    <a href={href} className={className}>
+      {children}
+    </a>
+  ),
+}));
+
 function makeSession(overrides: Partial<Session> = {}): Session {
   return {
     id: "test-session-id",
-    repository_path: "/tmp/repo",
+    repository_path: "/tmp/repos/acme/app",
     worktree_branch: "main",
     goal: "Implement a feature",
     transitions: "[]",
@@ -16,6 +32,7 @@ function makeSession(overrides: Partial<Session> = {}): Session {
     state_name: null,
     workflow_name: null,
     workflow_run_id: null,
+    state_execution_id: null,
     status: "RUNNING",
     created_at: "2024-01-01T00:00:00Z",
     updated_at: "2024-01-01T00:00:00Z",
@@ -97,5 +114,40 @@ describe("SessionDetail – status and updates", () => {
     );
     expect(screen.getByText("Failed")).toBeInTheDocument();
     expect(screen.queryByText("Awaiting input")).not.toBeInTheDocument();
+  });
+});
+
+describe("SessionDetail – breadcrumb with state_execution_id", () => {
+  it("renders state name as a link to state-execution page when state_execution_id is present", () => {
+    const session = makeSession({
+      repository_path: "/tmp/repos/acme/app",
+      worktree_branch: "feat/new",
+      workflow_name: "deploy",
+      workflow_run_id: "run-123",
+      state_name: "build",
+      state_execution_id: "exec-456",
+    });
+    render(<SessionDetail session={session} />);
+
+    // State name should be a link in the breadcrumb (not current page – session is current)
+    const stateLink = screen.getByRole("link", { name: "build" });
+    expect(stateLink).toHaveAttribute(
+      "href",
+      "/workflow-runs/run-123/state-executions/exec-456",
+    );
+  });
+
+  it("renders state name as plain text when state_execution_id is absent", () => {
+    const session = makeSession({
+      workflow_name: "deploy",
+      workflow_run_id: "run-123",
+      state_name: "build",
+      state_execution_id: null,
+    });
+    render(<SessionDetail session={session} />);
+
+    // state_name should appear but not as a link in the breadcrumb
+    expect(screen.getAllByText("build").length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByRole("link", { name: "build" })).toBeNull();
   });
 });

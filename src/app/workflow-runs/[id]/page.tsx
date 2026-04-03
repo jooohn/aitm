@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { notFound, useParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import WorkflowBreadcrumb from "@/app/components/WorkflowBreadcrumb";
 import { fetchWorkflowRun, type WorkflowRunDetail } from "@/lib/utils/api";
 import { inferAlias } from "@/lib/utils/inferAlias";
 import styles from "./page.module.css";
@@ -29,33 +29,11 @@ export default function WorkflowRunPage() {
 
   return (
     <main className={styles.page}>
-      <nav className={styles.breadcrumb}>
-        <Link href="/" className={styles.breadcrumbLink}>
-          Repositories
-        </Link>
-        <span className={styles.breadcrumbSep}>/</span>
-        {organization && repoName ? (
-          <>
-            <Link
-              href={`/repositories/${organization}/${repoName}`}
-              className={styles.breadcrumbLink}
-            >
-              {repoAlias}
-            </Link>
-            <span className={styles.breadcrumbSep}>/</span>
-            <Link
-              href={`/repositories/${organization}/${repoName}/worktrees/${branch}`}
-              className={styles.breadcrumbLink}
-            >
-              {branch}
-            </Link>
-          </>
-        ) : (
-          <span>{repoAlias}</span>
-        )}
-        <span className={styles.breadcrumbSep}>/</span>
-        <span className={styles.breadcrumbCurrent}>{id.slice(0, 8)}…</span>
-      </nav>
+      <WorkflowBreadcrumb
+        repository={{ organization, name: repoName }}
+        branch={branch}
+        workflowRun={{ id: run.id, name: run.workflow_name }}
+      />
       <WorkflowRunDetailView run={run} />
     </main>
   );

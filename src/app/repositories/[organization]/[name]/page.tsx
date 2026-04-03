@@ -1,10 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { notFound, useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import QuickLaunchSection from "@/app/components/QuickLaunchSection";
 import RepositoryWorkflowsSection from "@/app/components/RepositoryWorkflowsSection";
+import WorkflowBreadcrumb from "@/app/components/WorkflowBreadcrumb";
 import WorktreeSection from "@/app/components/WorktreeSection";
 import {
   fetchRepository,
@@ -47,13 +47,7 @@ export default function RepositoryPage() {
 
   return (
     <main className={styles.page}>
-      <nav className={styles.breadcrumb}>
-        <Link href="/" className={styles.breadcrumbLink}>
-          Repositories
-        </Link>
-        <span className={styles.breadcrumbSep}>/</span>
-        <span>{alias}</span>
-      </nav>
+      <WorkflowBreadcrumb repository={{ organization, name }} />
       <div className={styles.headingRow}>
         <h1 className={styles.heading}>{alias}</h1>
         {repo.github_url && (

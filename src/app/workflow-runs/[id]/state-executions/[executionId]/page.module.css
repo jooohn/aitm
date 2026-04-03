@@ -1,0 +1,57 @@
+@reference "tailwindcss";
+
+.page {
+  @apply max-w-3xl mx-auto px-6 py-12 flex flex-col gap-8;
+}
+
+.header {
+  @apply flex items-start justify-between gap-4;
+}
+
+.headerLeft {
+  @apply flex flex-col gap-2;
+}
+
+.title {
+  @apply text-2xl font-semibold text-zinc-900 dark:text-zinc-50 font-mono;
+}
+
+.badge {
+  @apply self-start inline-block text-xs font-medium px-1.5 py-0.5 rounded;
+}
+
+.badge-running {
+  @apply bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300;
+}
+
+.badge-completed {
+  @apply bg-zinc-100 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300;
+}
+
+.details {
+  @apply flex flex-col divide-y divide-zinc-200 dark:divide-zinc-700;
+}
+
+.detailRow {
+  @apply py-3 flex flex-col gap-1 sm:flex-row sm:gap-8;
+}
+
+.detailLabel {
+  @apply text-sm font-medium text-zinc-500 sm:w-44 shrink-0;
+}
+
+.detailValue {
+  @apply text-sm text-zinc-800 dark:text-zinc-200;
+}
+
+.sessionLink {
+  @apply font-mono hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors underline underline-offset-2;
+}
+
+.sectionHeading {
+  @apply text-sm font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-3;
+}
+
+.commandOutput {
+  @apply rounded-lg bg-zinc-900 dark:bg-zinc-950 p-4 font-mono text-xs leading-relaxed text-zinc-200 whitespace-pre-wrap break-words;
+}
