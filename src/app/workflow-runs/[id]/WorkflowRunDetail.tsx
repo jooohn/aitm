@@ -6,15 +6,18 @@ import { useEffect, useState } from "react";
 import {
   canStopWorkflowRun,
   fetchWorkflowRun,
+  fetchWorkflows,
   rerunWorkflowRun,
   rerunWorkflowRunFromFailedState,
   type StateExecution,
   stopWorkflowRun,
+  type WorkflowDefinition,
   type WorkflowRunDetail,
   type WorkflowRunStatus,
 } from "@/lib/utils/api";
 import { parseWorkflowRunInputs } from "./parseWorkflowRunInputs";
 import styles from "./WorkflowRunDetail.module.css";
+import WorkflowStateDiagram from "./WorkflowStateDiagram";
 
 interface Props {
   run: WorkflowRunDetail;
@@ -154,6 +157,8 @@ export default function WorkflowRunDetail({ run: initial }: Props) {
   const [rerunFromFailedError, setRerunFromFailedError] = useState<
     string | null
   >(null);
+  const [workflowDefinition, setWorkflowDefinition] =
+    useState<WorkflowDefinition | null>(null);
 
   const isTerminal = TERMINAL_STATUSES.includes(run.status);
   const inputEntries = parseWorkflowRunInputs(run.inputs);
@@ -220,6 +225,17 @@ export default function WorkflowRunDetail({ run: initial }: Props) {
 
     return () => clearInterval(interval);
   }, [run.id, isTerminal]);
+
+  useEffect(() => {
+    fetchWorkflows()
+      .then((workflows) => {
+        const def = workflows[run.workflow_name];
+        if (def) setWorkflowDefinition(def);
+      })
+      .catch(() => {
+        // ignore fetch errors for workflow definition
+      });
+  }, [run.workflow_name]);
 
   return (
     <div className={styles.container}>
@@ -303,6 +319,18 @@ export default function WorkflowRunDetail({ run: initial }: Props) {
           </div>
         )}
       </dl>
+
+      {workflowDefinition && (
+        <section>
+          <h2 className={styles.sectionHeading}>State diagram</h2>
+          <WorkflowStateDiagram
+            definition={workflowDefinition}
+            stateExecutions={run.state_executions}
+            currentState={run.current_state}
+            status={run.status}
+          />
+        </section>
+      )}
 
       <section>
         <h2 className={styles.sectionHeading}>State executions</h2>

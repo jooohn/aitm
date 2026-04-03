@@ -1,0 +1,91 @@
+@reference "tailwindcss";
+
+.container {
+  @apply w-full overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-4;
+}
+
+.svg {
+  @apply block;
+}
+
+/* State nodes */
+.stateNode {
+  @apply fill-white dark:fill-zinc-800 stroke-zinc-300 dark:stroke-zinc-600;
+  stroke-width: 2;
+}
+
+.nodeExecuted {
+  @apply fill-blue-50 dark:fill-blue-950 stroke-blue-500 dark:stroke-blue-400;
+  stroke-width: 2;
+}
+
+.nodeCurrent {
+  @apply fill-blue-100 dark:fill-blue-900 stroke-blue-600 dark:stroke-blue-400;
+  stroke-width: 2.5;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.nodeDimmed {
+  opacity: 0.5;
+}
+
+.stateLabel {
+  @apply fill-zinc-700 dark:fill-zinc-200 text-xs;
+  font-family: ui-monospace, monospace;
+}
+
+/* Terminal nodes */
+.terminalNode {
+  stroke-width: 2;
+}
+
+.terminalSuccess {
+  @apply fill-emerald-50 dark:fill-emerald-950 stroke-emerald-500 dark:stroke-emerald-400;
+}
+
+.terminalFailure {
+  @apply fill-red-50 dark:fill-red-950 stroke-red-500 dark:stroke-red-400;
+}
+
+.terminalLabel {
+  @apply fill-zinc-600 dark:fill-zinc-300 text-xs;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-weight: 600;
+}
+
+/* Edges */
+.edge {
+  @apply stroke-zinc-300 dark:stroke-zinc-600;
+  stroke-width: 1.5;
+  fill: none;
+}
+
+.edgeExecuted {
+  @apply stroke-blue-500 dark:stroke-blue-400;
+  stroke-width: 2;
+  fill: none;
+}
+
+.edgeLabel {
+  @apply fill-zinc-400 dark:fill-zinc-500 text-[10px];
+  font-family: ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Arrowheads */
+.arrowhead {
+  @apply fill-zinc-300 dark:fill-zinc-600;
+}
+
+.arrowheadExecuted {
+  @apply fill-blue-500 dark:fill-blue-400;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
