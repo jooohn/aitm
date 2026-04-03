@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useNotificationStream } from "@/lib/hooks/useNotificationStream";
 import { fetchSessionsByStatus, type Session } from "@/lib/utils/api";
 import { inferAlias } from "@/lib/utils/inferAlias";
 import styles from "./page.module.css";
@@ -17,7 +18,7 @@ export default function TodosLayout({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const refresh = useCallback(() => {
     fetchSessionsByStatus("AWAITING_INPUT")
       .then((nextSessions) => {
         setError(null);
@@ -30,6 +31,12 @@ export default function TodosLayout({
       })
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  useNotificationStream(refresh);
 
   return (
     <main className={styles.page}>

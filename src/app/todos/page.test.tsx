@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Session } from "@/lib/utils/api";
@@ -12,6 +12,14 @@ const { fetchSessionsByStatusMock } = vi.hoisted(() => ({
 
 vi.mock("@/lib/utils/api", () => ({
   fetchSessionsByStatus: fetchSessionsByStatusMock,
+}));
+
+let capturedCallback: (() => void) | null = null;
+
+vi.mock("@/lib/hooks/useNotificationStream", () => ({
+  useNotificationStream: (cb: () => void) => {
+    capturedCallback = cb;
+  },
 }));
 
 vi.mock("next/link", () => ({
@@ -57,6 +65,7 @@ function makeSession(overrides: Partial<Session> = {}): Session {
 
 beforeEach(() => {
   fetchSessionsByStatusMock.mockReset();
+  capturedCallback = null;
 });
 
 afterEach(() => {
@@ -111,5 +120,35 @@ describe("/todos layout", () => {
     expect(
       await screen.findByText("Select a session to inspect its details."),
     ).toBeInTheDocument();
+  });
+
+  it("re-fetches session list when notification stream fires", async () => {
+    fetchSessionsByStatusMock
+      .mockResolvedValueOnce([
+        makeSession({ id: "session-1", state_name: "First task" }),
+      ])
+      .mockResolvedValueOnce([
+        makeSession({ id: "session-1", state_name: "First task" }),
+        makeSession({ id: "session-2", state_name: "Second task" }),
+      ]);
+
+    render(
+      <TodosLayout>
+        <TodosPage />
+      </TodosLayout>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByRole("link")).toHaveLength(1);
+    });
+
+    // Simulate SSE message via captured callback
+    act(() => {
+      capturedCallback!();
+    });
+
+    await waitFor(() => {
+      expect(screen.getAllByRole("link")).toHaveLength(2);
+    });
   });
 });

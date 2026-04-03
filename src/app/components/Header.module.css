@@ -28,6 +28,14 @@
   @apply h-4 w-4;
 }
 
+.iconButtonWrapper {
+  @apply relative;
+}
+
+.todosBadge {
+  @apply absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-red-500;
+}
+
 .runButton {
   @apply text-sm px-4 py-1.5 rounded bg-zinc-900 dark:bg-zinc-100 text-zinc-50 dark:text-zinc-900 hover:bg-zinc-700 dark:hover:bg-zinc-300 transition-colors cursor-pointer;
 }
