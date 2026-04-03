@@ -3,6 +3,7 @@ import { appendFile, writeFile } from "fs/promises";
 import type { SessionStatus } from "@/backend/domain/sessions";
 import type { AgentConfig, WorkflowTransition } from "@/backend/infra/config";
 import { db } from "@/backend/infra/db";
+import { eventBus } from "@/backend/infra/event-bus";
 import { claudeCLI } from "./claude-cli";
 import { codexSDK } from "./codex-sdk";
 import { DEFAULT_PERMISSION_MODE } from "./permission-mode";
@@ -346,6 +347,10 @@ export class AgentService {
   ): Promise<void> {
     if (isUserInputTransition(decision)) {
       setStatus(sessionId, "AWAITING_INPUT");
+      eventBus.emit("session.status-changed", {
+        sessionId,
+        status: "AWAITING_INPUT",
+      });
       await appendToLog(logFilePath, {
         type: "awaiting_input",
         message: decision!.handoff_summary,

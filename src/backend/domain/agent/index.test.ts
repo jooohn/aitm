@@ -4,6 +4,7 @@ import { join } from "path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { agentService } from "@/backend/container";
 import { db } from "@/backend/infra/db";
+import { eventBus } from "@/backend/infra/event-bus";
 
 const { queryMock, resumeMock } = vi.hoisted(() => ({
   queryMock: vi.fn(),
@@ -124,6 +125,49 @@ describe("startAgent", () => {
 
     // onComplete should NOT have been called
     expect(onComplete).not.toHaveBeenCalled();
+  });
+
+  it("emits session.status-changed event when agent sets AWAITING_INPUT", async () => {
+    const repoPath = await makeFakeGitRepo();
+    const sessionId = "session-status-changed-event";
+    const logFilePath = join(tmpdir(), `${sessionId}.log`);
+    insertSession(sessionId, repoPath, logFilePath);
+
+    const statusChangedListener = vi.fn();
+    eventBus.on("session.status-changed", statusChangedListener);
+
+    queryMock.mockImplementation(async function* () {
+      yield {
+        type: "system",
+        subtype: "init",
+        session_id: "agent-session-ev",
+      };
+      yield {
+        type: "result",
+        subtype: "success",
+        structured_output: {
+          transition: "__REQUIRE_USER_INPUT__",
+          reason: "Need clarification",
+          handoff_summary: "What database?",
+        },
+      };
+    });
+
+    await startAgent(
+      sessionId,
+      repoPath,
+      "Goal",
+      [{ terminal: "success", when: "done" }],
+      agentConfig,
+      logFilePath,
+    );
+
+    expect(statusChangedListener).toHaveBeenCalledWith({
+      sessionId,
+      status: "AWAITING_INPUT",
+    });
+
+    eventBus.off("session.status-changed", statusChangedListener);
   });
 
   it("sets SUCCEEDED when agent completes with a real transition", async () => {

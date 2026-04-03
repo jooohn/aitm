@@ -1,10 +1,15 @@
 import type { TransitionDecision } from "@/backend/domain/agent";
+import type { SessionStatus } from "@/backend/domain/sessions";
 import { logger } from "@/backend/infra/logger";
 
 export interface EventMap {
   "session.completed": {
     sessionId: string;
     decision: TransitionDecision | null;
+  };
+  "session.status-changed": {
+    sessionId: string;
+    status: SessionStatus;
   };
 }
 
@@ -17,6 +22,15 @@ export class EventBus {
     const list = this.listeners.get(eventName) ?? [];
     list.push(listener as Listener<never>);
     this.listeners.set(eventName, list);
+  }
+
+  off<K extends keyof EventMap>(eventName: K, listener: Listener<K>): void {
+    const list = this.listeners.get(eventName);
+    if (!list) return;
+    const index = list.indexOf(listener as Listener<never>);
+    if (index !== -1) {
+      list.splice(index, 1);
+    }
   }
 
   emit<K extends keyof EventMap>(eventName: K, payload: EventMap[K]): void {
