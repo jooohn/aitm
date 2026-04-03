@@ -1,9 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { notFound, useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import SessionSection from "@/app/components/SessionSection";
+import WorkflowBreadcrumb from "@/app/components/WorkflowBreadcrumb";
 import WorkflowSection from "@/app/components/WorkflowSection";
 import {
   fetchRepository,
@@ -23,7 +23,6 @@ export default function WorktreePage() {
     name: string;
     "worktree-name": string[];
   }>();
-  const alias = `${organization}/${name}`;
   const branch = worktreeNameSegments.join("/");
 
   const [repo, setRepo] = useState<RepositoryDetail | null>(null);
@@ -53,20 +52,7 @@ export default function WorktreePage() {
 
   return (
     <main className={styles.page}>
-      <nav className={styles.breadcrumb}>
-        <Link href="/" className={styles.breadcrumbLink}>
-          Repositories
-        </Link>
-        <span className={styles.breadcrumbSep}>/</span>
-        <Link
-          href={`/repositories/${organization}/${name}`}
-          className={styles.breadcrumbLink}
-        >
-          {alias}
-        </Link>
-        <span className={styles.breadcrumbSep}>/</span>
-        <span>{branch}</span>
-      </nav>
+      <WorkflowBreadcrumb repository={{ organization, name }} branch={branch} />
       <h1 className={styles.heading}>{branch || "(bare)"}</h1>
       <dl className={styles.details}>
         <div className={styles.row}>

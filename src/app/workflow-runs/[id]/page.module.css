@@ -3,19 +3,3 @@
 .page {
   @apply max-w-3xl mx-auto px-6 py-12 flex flex-col gap-8;
 }
-
-.breadcrumb {
-  @apply flex items-center gap-2 text-sm text-zinc-500;
-}
-
-.breadcrumbLink {
-  @apply hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors;
-}
-
-.breadcrumbSep {
-  @apply select-none;
-}
-
-.breadcrumbCurrent {
-  @apply font-mono text-zinc-700 dark:text-zinc-300;
-}

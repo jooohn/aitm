@@ -106,6 +106,7 @@ export interface Session {
   terminal_attach_command: string | null;
   log_file_path: string;
   claude_session_id: string | null;
+  state_execution_id: string | null;
   state_name: string | null;
   workflow_name: string | null;
   workflow_run_id: string | null;

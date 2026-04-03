@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import SessionBreadcrumb from "@/app/components/SessionBreadcrumb";
+import WorkflowBreadcrumb from "@/app/components/WorkflowBreadcrumb";
 import {
   failSession,
   fetchSession,
@@ -9,6 +9,7 @@ import {
   type Session,
   type SessionStatus,
 } from "@/lib/utils/api";
+import { inferAlias } from "@/lib/utils/inferAlias";
 import type { OutputItem, ToolGroupItem } from "@/lib/utils/outputItem";
 import { parseLogEntry } from "@/lib/utils/parseLogEntry";
 import OutputItemView from "./OutputItemView";
@@ -196,9 +197,32 @@ export default function SessionDetail({
     }
   }
 
+  const repoAlias = inferAlias(session.repository_path);
+  const [organization, repoName] = repoAlias.split("/");
+
   return (
     <div className={styles.container}>
-      <SessionBreadcrumb session={session} />
+      <WorkflowBreadcrumb
+        repository={{ organization, name: repoName }}
+        branch={session.worktree_branch}
+        workflowRun={
+          session.workflow_run_id && session.workflow_name
+            ? { id: session.workflow_run_id, name: session.workflow_name }
+            : undefined
+        }
+        stateExecution={
+          session.state_name &&
+          session.state_execution_id &&
+          session.workflow_run_id
+            ? {
+                id: session.state_execution_id,
+                workflowRunId: session.workflow_run_id,
+                stateName: session.state_name,
+              }
+            : undefined
+        }
+        sessionLabel={session.state_name ?? session.id.slice(0, 8)}
+      />
       <div className={styles.header}>
         <div className={styles.headerLeft}>
           <span
