@@ -27,7 +27,7 @@ export interface ConfigRepository {
 }
 
 export type WorkflowTransition =
-  | { state: string; when: string }
+  | { step: string; when: string }
   | { terminal: "success" | "failure"; when: string };
 
 export interface OutputMetadataFieldDef {
@@ -35,7 +35,7 @@ export interface OutputMetadataFieldDef {
   description?: string;
 }
 
-export interface AgentWorkflowState {
+export interface AgentWorkflowStep {
   type: "agent";
   goal: string;
   transitions: WorkflowTransition[];
@@ -46,13 +46,13 @@ export interface AgentWorkflowState {
   };
 }
 
-export interface CommandWorkflowState {
+export interface CommandWorkflowStep {
   type: "command";
   command: string;
   transitions: WorkflowTransition[];
 }
 
-export type WorkflowState = AgentWorkflowState | CommandWorkflowState;
+export type WorkflowStep = AgentWorkflowStep | CommandWorkflowStep;
 
 export interface WorkflowInput {
   name: string;
@@ -70,15 +70,15 @@ interface WorkflowInputDef {
 }
 
 interface RawWorkflowDefinition {
-  initial_state: string;
+  initial_step: string;
   inputs?: Record<string, WorkflowInputDef>;
-  states?: Record<string, WorkflowState>;
+  steps?: Record<string, WorkflowStep>;
 }
 
 export interface WorkflowDefinition {
-  initial_state: string;
+  initial_step: string;
   inputs?: WorkflowInput[];
-  states: Record<string, WorkflowState>;
+  steps: Record<string, WorkflowStep>;
 }
 
 interface RawConfig {
@@ -141,8 +141,8 @@ function resolvePresets(
 }
 
 function normalizeOutput(
-  raw: AgentWorkflowState["output"],
-): AgentWorkflowState["output"] | undefined {
+  raw: AgentWorkflowStep["output"],
+): AgentWorkflowStep["output"] | undefined {
   if (!raw) return undefined;
   const presetMetadata = resolvePresets(raw.presets);
   const explicitMetadata = normalizeOutputMetadata(raw.metadata);
@@ -154,9 +154,9 @@ function normalizeOutput(
   return { metadata };
 }
 
-function normalizeWorkflowState(
-  raw: Exclude<WorkflowState, "type">,
-): WorkflowState {
+function normalizeWorkflowStep(
+  raw: Exclude<WorkflowStep, "type">,
+): WorkflowStep {
   if ("goal" in raw) {
     return {
       type: "agent",
@@ -178,14 +178,14 @@ function normalizeWorkflow(raw: RawWorkflowDefinition): WorkflowDefinition {
   const inputs = raw.inputs
     ? Object.entries(raw.inputs).map(([name, def]) => ({ name, ...def }))
     : undefined;
-  const states = raw.states ?? {};
+  const steps = raw.steps ?? {};
   return {
     ...raw,
     inputs,
-    states: Object.fromEntries(
-      Object.entries(states).map(([name, state]) => [
+    steps: Object.fromEntries(
+      Object.entries(steps).map(([name, step]) => [
         name,
-        normalizeWorkflowState(state),
+        normalizeWorkflowStep(step),
       ]),
     ),
   };

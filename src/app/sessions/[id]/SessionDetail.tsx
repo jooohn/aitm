@@ -214,18 +214,18 @@ export default function SessionDetail({
             ? { id: session.workflow_run_id, name: session.workflow_name }
             : undefined
         }
-        stateExecution={
-          session.state_name &&
-          session.state_execution_id &&
+        stepExecution={
+          session.step_name &&
+          session.step_execution_id &&
           session.workflow_run_id
             ? {
-                id: session.state_execution_id,
+                id: session.step_execution_id,
                 workflowRunId: session.workflow_run_id,
-                stateName: session.state_name,
+                stepName: session.step_name,
               }
             : undefined
         }
-        sessionLabel={session.state_name ?? session.id.slice(0, 8)}
+        sessionLabel={session.step_name ?? session.id.slice(0, 8)}
       />
       <div className={styles.header}>
         <div className={styles.headerLeft}>
@@ -234,8 +234,8 @@ export default function SessionDetail({
           >
             {STATUS_LABELS[session.status]}
           </span>
-          {session.state_name && (
-            <h1 className={styles.goal}>{session.state_name}</h1>
+          {session.step_name && (
+            <h1 className={styles.goal}>{session.step_name}</h1>
           )}
         </div>
         {!isTerminal && (

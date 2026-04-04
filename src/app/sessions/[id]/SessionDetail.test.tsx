@@ -29,10 +29,10 @@ function makeSession(overrides: Partial<Session> = {}): Session {
     goal: "Implement a feature",
     transitions: "[]",
     transition_decision: null,
-    state_name: null,
+    step_name: null,
     workflow_name: null,
     workflow_run_id: null,
-    state_execution_id: null,
+    step_execution_id: null,
     status: "RUNNING",
     created_at: "2024-01-01T00:00:00Z",
     updated_at: "2024-01-01T00:00:00Z",
@@ -70,7 +70,7 @@ describe("SessionDetail – goal section", () => {
   it("renders stateName as h1 when present", () => {
     const session = makeSession({
       goal: "The full goal text",
-      state_name: "Implementing",
+      step_name: "Implementing",
     });
     render(<SessionDetail session={session} />);
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
@@ -79,7 +79,7 @@ describe("SessionDetail – goal section", () => {
   });
 
   it("does not render h1 when stateName is absent", () => {
-    const session = makeSession({ state_name: null });
+    const session = makeSession({ step_name: null });
     render(<SessionDetail session={session} />);
     expect(screen.queryByRole("heading", { level: 1 })).toBeNull();
   });
@@ -92,7 +92,7 @@ describe("SessionDetail – status and updates", () => {
         session={makeSession({
           id: "session-1",
           goal: "First goal",
-          state_name: "First state",
+          step_name: "First state",
           status: "AWAITING_INPUT",
         })}
       />,
@@ -103,7 +103,7 @@ describe("SessionDetail – status and updates", () => {
         session={makeSession({
           id: "session-2",
           goal: "Second goal",
-          state_name: "Second state",
+          step_name: "Second state",
           status: "FAILED",
         })}
       />,
@@ -117,15 +117,15 @@ describe("SessionDetail – status and updates", () => {
   });
 });
 
-describe("SessionDetail – breadcrumb with state_execution_id", () => {
-  it("renders state name as a link to state-execution page when state_execution_id is present", () => {
+describe("SessionDetail – breadcrumb with step_execution_id", () => {
+  it("renders state name as a link to state-execution page when step_execution_id is present", () => {
     const session = makeSession({
       repository_path: "/tmp/repos/acme/app",
       worktree_branch: "feat/new",
       workflow_name: "deploy",
       workflow_run_id: "run-123",
-      state_name: "build",
-      state_execution_id: "exec-456",
+      step_name: "build",
+      step_execution_id: "exec-456",
     });
     render(<SessionDetail session={session} />);
 
@@ -133,20 +133,20 @@ describe("SessionDetail – breadcrumb with state_execution_id", () => {
     const stateLink = screen.getByRole("link", { name: "build" });
     expect(stateLink).toHaveAttribute(
       "href",
-      "/workflow-runs/run-123/state-executions/exec-456",
+      "/workflow-runs/run-123/step-executions/exec-456",
     );
   });
 
-  it("renders state name as plain text when state_execution_id is absent", () => {
+  it("renders state name as plain text when step_execution_id is absent", () => {
     const session = makeSession({
       workflow_name: "deploy",
       workflow_run_id: "run-123",
-      state_name: "build",
-      state_execution_id: null,
+      step_name: "build",
+      step_execution_id: null,
     });
     render(<SessionDetail session={session} />);
 
-    // state_name should appear but not as a link in the breadcrumb
+    // step_name should appear but not as a link in the breadcrumb
     expect(screen.getAllByText("build").length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByRole("link", { name: "build" })).toBeNull();
   });

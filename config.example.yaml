@@ -23,8 +23,8 @@ workflows:
         label: Feature Description
         description: "Describe the feature you want to implement"
         required: true
-    initial_state: plan
-    states:
+    initial_step: plan
+    steps:
       plan:
         goal: |
           Read the task goal. If the spec is ambiguous or missing, ask clarifying
@@ -34,9 +34,9 @@ workflows:
           provider: codex
           model: gpt-5.4
         transitions:
-          - state: plan
+          - step: plan
             when: "specs need clarification or the plan is not yet documented"
-          - state: implement
+          - step: implement
             when: "a clear plan is documented in PLAN.md"
           - terminal: failure
             when: "the task is out of scope or cannot be planned"
@@ -45,13 +45,13 @@ workflows:
         goal: |
           Implement the plan documented in PLAN.md. Write production-quality code.
         agent:
-          # provider is optional here; this state inherits the top-level provider
+          # provider is optional here; this step inherits the top-level provider
           # and only overrides the model.
           model: sonnet-4.5
         transitions:
-          - state: implement
+          - step: implement
             when: "implementation is incomplete"
-          - state: test
+          - step: test
             when: "implementation is complete and ready for testing"
           - terminal: failure
             when: "implementation is blocked and cannot proceed"
@@ -60,9 +60,9 @@ workflows:
         goal: |
           Run the test suite. Fix any failures. Ensure all tests pass.
         transitions:
-          - state: implement
+          - step: implement
             when: "test failures reveal implementation issues"
-          - state: review
+          - step: review
             when: "all tests pass"
           - terminal: failure
             when: "tests cannot be fixed without reconsidering the plan"
@@ -72,9 +72,9 @@ workflows:
           Review the diff. Check for correctness, style, and completeness.
           Request changes if needed.
         transitions:
-          - state: implement
+          - step: implement
             when: "review found issues that require code changes"
-          - state: commit-push-pr
+          - step: commit-push-pr
             when: "code is ready to commit"
           - terminal: failure
             when: "changes should be abandoned"

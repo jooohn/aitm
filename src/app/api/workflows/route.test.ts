@@ -34,8 +34,8 @@ describe("GET /api/workflows", () => {
       `
 workflows:
   my-flow:
-    initial_state: plan
-    states:
+    initial_step: plan
+    steps:
       plan:
         goal: "Write a plan"
         transitions:
@@ -47,6 +47,6 @@ workflows:
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body).toHaveProperty("my-flow");
-    expect(body["my-flow"].initial_state).toBe("plan");
+    expect(body["my-flow"].initial_step).toBe("plan");
   });
 });

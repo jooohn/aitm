@@ -2,7 +2,7 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { StateExecution, WorkflowRunDetail } from "@/lib/utils/api";
+import type { StepExecution, WorkflowRunDetail } from "@/lib/utils/api";
 
 vi.mock("next/link", () => ({
   default: ({
@@ -42,14 +42,14 @@ vi.mock("@/lib/utils/api", async () => {
   };
 });
 
-import StateExecutionPage from "./page";
+import StepExecutionPage from "./page";
 
 function makeExecution(
-  overrides: Partial<StateExecution> & { id: string; state: string },
-): StateExecution {
+  overrides: Partial<StepExecution> & { id: string; step: string },
+): StepExecution {
   return {
     workflow_run_id: "run-1",
-    state_type: "agent",
+    step_type: "agent",
     command_output: null,
     session_id: null,
     session_status: null,
@@ -69,12 +69,12 @@ function makeRun(
     repository_path: "/tmp/repos/acme/app",
     worktree_branch: "feat/test",
     workflow_name: "my-flow",
-    current_state: null,
+    current_step: null,
     status: "success",
     inputs: null,
     created_at: "2024-01-01T00:00:00Z",
     updated_at: "2024-01-01T00:05:00Z",
-    state_executions: [],
+    step_executions: [],
     ...overrides,
   };
 }
@@ -85,21 +85,21 @@ afterEach(() => {
   mockRunData = null;
 });
 
-describe("StateExecutionPage", () => {
+describe("StepExecutionPage", () => {
   it("renders state name and type for an agent execution", async () => {
     mockParams = { id: "run-1", executionId: "exec-1" };
     mockRunData = makeRun({
-      state_executions: [
+      step_executions: [
         makeExecution({
           id: "exec-1",
-          state: "plan",
-          state_type: "agent",
+          step: "plan",
+          step_type: "agent",
           session_id: "session-abc",
         }),
       ],
     });
 
-    render(<StateExecutionPage />);
+    render(<StepExecutionPage />);
     // Wait for async fetch - state name appears as h1 heading
     expect(
       await screen.findByRole("heading", { level: 1, name: "plan" }),
@@ -110,17 +110,17 @@ describe("StateExecutionPage", () => {
   it("renders a link to the session for agent-type executions", async () => {
     mockParams = { id: "run-1", executionId: "exec-1" };
     mockRunData = makeRun({
-      state_executions: [
+      step_executions: [
         makeExecution({
           id: "exec-1",
-          state: "plan",
-          state_type: "agent",
+          step: "plan",
+          step_type: "agent",
           session_id: "session-abc",
         }),
       ],
     });
 
-    render(<StateExecutionPage />);
+    render(<StepExecutionPage />);
     const sessionLink = await screen.findByRole("link", {
       name: /session/i,
     });
@@ -130,17 +130,17 @@ describe("StateExecutionPage", () => {
   it("renders command output for command-type executions", async () => {
     mockParams = { id: "run-1", executionId: "exec-cmd" };
     mockRunData = makeRun({
-      state_executions: [
+      step_executions: [
         makeExecution({
           id: "exec-cmd",
-          state: "lint",
-          state_type: "command",
+          step: "lint",
+          step_type: "command",
           command_output: "All checks passed",
         }),
       ],
     });
 
-    render(<StateExecutionPage />);
+    render(<StepExecutionPage />);
     expect(await screen.findByText("All checks passed")).toBeInTheDocument();
     expect(screen.getByText("command")).toBeInTheDocument();
   });
@@ -148,10 +148,10 @@ describe("StateExecutionPage", () => {
   it("renders transition decision when available", async () => {
     mockParams = { id: "run-1", executionId: "exec-1" };
     mockRunData = makeRun({
-      state_executions: [
+      step_executions: [
         makeExecution({
           id: "exec-1",
-          state: "plan",
+          step: "plan",
           transition_decision: JSON.stringify({
             transition: "implement",
             reason: "Plan is ready",
@@ -161,7 +161,7 @@ describe("StateExecutionPage", () => {
       ],
     });
 
-    render(<StateExecutionPage />);
+    render(<StepExecutionPage />);
     expect(await screen.findByText("implement")).toBeInTheDocument();
     expect(screen.getByText("Plan is ready")).toBeInTheDocument();
     expect(
@@ -172,16 +172,16 @@ describe("StateExecutionPage", () => {
   it("renders completed status when completed_at is set", async () => {
     mockParams = { id: "run-1", executionId: "exec-1" };
     mockRunData = makeRun({
-      state_executions: [
+      step_executions: [
         makeExecution({
           id: "exec-1",
-          state: "plan",
+          step: "plan",
           completed_at: "2024-01-01T00:05:00Z",
         }),
       ],
     });
 
-    render(<StateExecutionPage />);
+    render(<StepExecutionPage />);
     // Wait for the heading to confirm data loaded, then check badge
     await screen.findByRole("heading", { level: 1, name: "plan" });
     // "Completed" appears as badge and as detail label
@@ -191,16 +191,16 @@ describe("StateExecutionPage", () => {
   it("renders running status when completed_at is null", async () => {
     mockParams = { id: "run-1", executionId: "exec-1" };
     mockRunData = makeRun({
-      state_executions: [
+      step_executions: [
         makeExecution({
           id: "exec-1",
-          state: "build",
+          step: "build",
           completed_at: null,
         }),
       ],
     });
 
-    render(<StateExecutionPage />);
+    render(<StepExecutionPage />);
     expect(await screen.findByText("Running")).toBeInTheDocument();
   });
 
@@ -211,10 +211,10 @@ describe("StateExecutionPage", () => {
       repository_path: "/tmp/repos/acme/app",
       worktree_branch: "feat/test",
       workflow_name: "my-flow",
-      state_executions: [makeExecution({ id: "exec-1", state: "plan" })],
+      step_executions: [makeExecution({ id: "exec-1", step: "plan" })],
     });
 
-    render(<StateExecutionPage />);
+    render(<StepExecutionPage />);
 
     // Breadcrumb should show repo, branch, workflow run as links; state as plain text
     expect(

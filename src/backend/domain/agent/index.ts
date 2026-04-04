@@ -84,8 +84,8 @@ function buildTransitionsSection(transitions: SessionTransition[]): string {
       let name: string;
       if ("user_input" in t) {
         name = USER_INPUT_TRANSITION_NAME;
-      } else if ("state" in t) {
-        name = t.state;
+      } else if ("step" in t) {
+        name = t.step;
       } else {
         name = t.terminal;
       }

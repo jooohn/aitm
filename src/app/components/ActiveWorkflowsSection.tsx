@@ -72,7 +72,7 @@ export default function ActiveWorkflowsSection() {
                 </div>
                 <div className={styles.meta}>
                   <span>{run.workflow_name}</span>
-                  {run.current_state && <span>· {run.current_state}</span>}
+                  {run.current_step && <span>· {run.current_step}</span>}
                   <span>· {new Date(run.created_at).toLocaleString()}</span>
                 </div>
               </div>

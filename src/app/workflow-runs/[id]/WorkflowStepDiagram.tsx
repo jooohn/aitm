@@ -1,17 +1,17 @@
 "use client";
 
 import type {
-  StateExecution,
+  StepExecution,
   WorkflowDefinition,
   WorkflowRunStatus,
 } from "@/lib/utils/api";
-import styles from "./WorkflowStateDiagram.module.css";
+import styles from "./WorkflowStepDiagram.module.css";
 import { buildGraph, computeLayout } from "./workflowGraph";
 
 interface Props {
   definition: WorkflowDefinition;
-  stateExecutions: StateExecution[];
-  currentState: string | null;
+  stepExecutions: StepExecution[];
+  currentStep: string | null;
   status: WorkflowRunStatus;
 }
 
@@ -22,7 +22,7 @@ const ROW_GAP = 80;
 const PADDING = 40;
 const TERMINAL_RADIUS = 22;
 
-function parseTransitionTarget(execution: StateExecution): string | null {
+function parseTransitionTarget(execution: StepExecution): string | null {
   if (!execution.transition_decision) return null;
   try {
     const decision = JSON.parse(execution.transition_decision);
@@ -32,10 +32,10 @@ function parseTransitionTarget(execution: StateExecution): string | null {
   }
 }
 
-export default function WorkflowStateDiagram({
+export default function WorkflowStepDiagram({
   definition,
-  stateExecutions,
-  currentState,
+  stepExecutions,
+  currentStep,
   status,
 }: Props) {
   const graph = buildGraph(definition);
@@ -44,22 +44,22 @@ export default function WorkflowStateDiagram({
   // Build a lookup for node types
   const nodeTypeMap = new Map(graph.nodes.map((n) => [n.id, n.type]));
 
-  // Determine which states have been executed
-  const executedStates = new Set(stateExecutions.map((e) => e.state));
+  // Determine which steps have been executed
+  const executedSteps = new Set(stepExecutions.map((e) => e.step));
 
-  // Determine executed edges: state -> transition target
+  // Determine executed edges: step -> transition target
   const executedEdges = new Set<string>();
-  for (const execution of stateExecutions) {
+  for (const execution of stepExecutions) {
     const target = parseTransitionTarget(execution);
     if (target) {
-      executedEdges.add(`${execution.state}->${target}`);
+      executedEdges.add(`${execution.step}->${target}`);
     }
   }
 
   // Check if terminal node was reached
   const isTerminal = status === "success" || status === "failure";
   if (isTerminal) {
-    executedStates.add(status);
+    executedSteps.add(status);
   }
 
   // Check if there are back-edges (cycles) that need extra vertical space
@@ -218,8 +218,8 @@ export default function WorkflowStateDiagram({
           const pos = layout.get(node.id);
           if (!pos) return null;
           const center = nodeCenter(node.id);
-          const isExecuted = executedStates.has(node.id);
-          const isCurrent = currentState === node.id;
+          const isExecuted = executedSteps.has(node.id);
+          const isCurrent = currentStep === node.id;
 
           if (node.type === "terminal") {
             return (

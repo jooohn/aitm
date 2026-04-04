@@ -76,10 +76,10 @@ describe("WorkflowBreadcrumb", () => {
         repository={repository}
         branch="feat/new"
         workflowRun={{ id: "run-123", name: "deploy" }}
-        stateExecution={{
+        stepExecution={{
           id: "exec-456",
           workflowRunId: "run-123",
-          stateName: "build",
+          stepName: "build",
         }}
       />,
     );
@@ -102,10 +102,10 @@ describe("WorkflowBreadcrumb", () => {
         repository={repository}
         branch="feat/new"
         workflowRun={{ id: "run-123", name: "deploy" }}
-        stateExecution={{
+        stepExecution={{
           id: "exec-456",
           workflowRunId: "run-123",
-          stateName: "build",
+          stepName: "build",
         }}
         sessionLabel="Session abc12345"
       />,
@@ -116,7 +116,7 @@ describe("WorkflowBreadcrumb", () => {
     expect(screen.getByRole("link", { name: "deploy" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "build" })).toHaveAttribute(
       "href",
-      "/workflow-runs/run-123/state-executions/exec-456",
+      "/workflow-runs/run-123/step-executions/exec-456",
     );
 
     // Session label is current page → plain text

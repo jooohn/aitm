@@ -9,7 +9,7 @@ import {
   fetchWorkflows,
   rerunWorkflowRun,
   rerunWorkflowRunFromFailedState,
-  type StateExecution,
+  type StepExecution,
   stopWorkflowRun,
   type WorkflowDefinition,
   type WorkflowRunDetail,
@@ -17,7 +17,7 @@ import {
 } from "@/lib/utils/api";
 import { parseWorkflowRunInputs } from "./parseWorkflowRunInputs";
 import styles from "./WorkflowRunDetail.module.css";
-import WorkflowStateDiagram from "./WorkflowStateDiagram";
+import WorkflowStepDiagram from "./WorkflowStepDiagram";
 
 interface Props {
   run: WorkflowRunDetail;
@@ -46,19 +46,19 @@ function parseDecision(raw: string | null): TransitionDecision | null {
   }
 }
 
-interface StateExecutionItemProps {
-  execution: StateExecution;
+interface StepExecutionItemProps {
+  execution: StepExecution;
 }
 
-function StateExecutionItem({ execution }: StateExecutionItemProps) {
+function StepExecutionItem({ execution }: StepExecutionItemProps) {
   const decision = parseDecision(execution.transition_decision);
   const isRunning = execution.completed_at === null;
-  const isCommandExecution = execution.state_type === "command";
+  const isCommandExecution = execution.step_type === "command";
 
   return (
     <li className={styles.execution}>
       <div className={styles.executionHeader}>
-        <span className={styles.stateName}>{execution.state}</span>
+        <span className={styles.stateName}>{execution.step}</span>
         {isRunning ? (
           <span className={`${styles.badge} ${styles["badge-running"]}`}>
             Running
@@ -272,7 +272,7 @@ export default function WorkflowRunDetail({ run: initial }: Props) {
               onClick={handleRerunFromFailed}
               disabled={rerunningFromFailed}
             >
-              {rerunningFromFailed ? "Re-running…" : "Re-run from failed state"}
+              {rerunningFromFailed ? "Re-running…" : "Re-run from failed step"}
             </button>
             {rerunError && <p className={styles.rerunError}>{rerunError}</p>}
             {rerunFromFailedError && (
@@ -291,10 +291,10 @@ export default function WorkflowRunDetail({ run: initial }: Props) {
           <dt className={styles.detailLabel}>Branch</dt>
           <dd className={styles.detailValue}>{run.worktree_branch}</dd>
         </div>
-        {run.current_state && (
+        {run.current_step && (
           <div className={styles.detailRow}>
-            <dt className={styles.detailLabel}>Current state</dt>
-            <dd className={styles.detailValue}>{run.current_state}</dd>
+            <dt className={styles.detailLabel}>Current step</dt>
+            <dd className={styles.detailValue}>{run.current_step}</dd>
           </div>
         )}
         <div className={styles.detailRow}>
@@ -322,24 +322,24 @@ export default function WorkflowRunDetail({ run: initial }: Props) {
 
       {workflowDefinition && (
         <section>
-          <h2 className={styles.sectionHeading}>State diagram</h2>
-          <WorkflowStateDiagram
+          <h2 className={styles.sectionHeading}>Step diagram</h2>
+          <WorkflowStepDiagram
             definition={workflowDefinition}
-            stateExecutions={run.state_executions}
-            currentState={run.current_state}
+            stepExecutions={run.step_executions}
+            currentStep={run.current_step}
             status={run.status}
           />
         </section>
       )}
 
       <section>
-        <h2 className={styles.sectionHeading}>State executions</h2>
-        {run.state_executions.length === 0 ? (
-          <p className={styles.empty}>No state executions yet.</p>
+        <h2 className={styles.sectionHeading}>Step executions</h2>
+        {run.step_executions.length === 0 ? (
+          <p className={styles.empty}>No step executions yet.</p>
         ) : (
           <ul className={styles.executions}>
-            {[...run.state_executions].reverse().map((execution) => (
-              <StateExecutionItem key={execution.id} execution={execution} />
+            {[...run.step_executions].reverse().map((execution) => (
+              <StepExecutionItem key={execution.id} execution={execution} />
             ))}
           </ul>
         )}

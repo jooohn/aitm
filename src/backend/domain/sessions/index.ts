@@ -32,9 +32,9 @@ export interface Session {
   terminal_attach_command: string | null;
   log_file_path: string;
   claude_session_id: string | null;
-  state_execution_id: string | null;
+  step_execution_id: string | null;
   metadata_fields: string | null; // JSON-serialized Record<string, OutputMetadataFieldDef>
-  state_name: string | null;
+  step_name: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -45,7 +45,7 @@ export interface CreateSessionInput {
   goal: string;
   transitions: WorkflowTransition[];
   agent_config?: AgentConfig;
-  state_execution_id?: string;
+  step_execution_id?: string;
   metadata_fields?: Record<string, OutputMetadataFieldDef>;
 }
 
@@ -108,7 +108,7 @@ export class SessionService {
       transitions: JSON.stringify(input.transitions),
       agent_config: JSON.stringify(agentConfig),
       log_file_path,
-      state_execution_id: input.state_execution_id ?? null,
+      step_execution_id: input.step_execution_id ?? null,
       metadata_fields: metadataFieldsJson,
       now,
     });

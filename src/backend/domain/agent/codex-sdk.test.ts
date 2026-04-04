@@ -385,7 +385,7 @@ describe("codexSDK.query", () => {
 describe("codexSDK.buildTransitionOutputFormat", () => {
   it("produces a schema with enum transition names", () => {
     const format = codexSDK.buildTransitionOutputFormat([
-      { state: "review", when: "code is ready" },
+      { step: "review", when: "code is ready" },
       { terminal: "success", when: "all done" },
     ]);
 

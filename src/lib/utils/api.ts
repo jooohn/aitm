@@ -106,8 +106,8 @@ export interface Session {
   terminal_attach_command: string | null;
   log_file_path: string;
   claude_session_id: string | null;
-  state_execution_id: string | null;
-  state_name: string | null;
+  step_execution_id: string | null;
+  step_name: string | null;
   workflow_name: string | null;
   workflow_run_id: string | null;
   created_at: string;
@@ -154,12 +154,12 @@ export async function replyToSession(
 export type WorkflowRunStatus = "running" | "success" | "failure";
 
 export interface WorkflowTransition {
-  state?: string;
+  step?: string;
   terminal?: "success" | "failure";
   when: string;
 }
 
-export interface WorkflowState {
+export interface WorkflowStep {
   goal: string;
   transitions: WorkflowTransition[];
 }
@@ -173,9 +173,9 @@ export interface WorkflowInput {
 }
 
 export interface WorkflowDefinition {
-  initial_state: string;
+  initial_step: string;
   inputs?: WorkflowInput[];
-  states: Record<string, WorkflowState>;
+  steps: Record<string, WorkflowStep>;
 }
 
 export interface WorkflowRun {
@@ -183,18 +183,18 @@ export interface WorkflowRun {
   repository_path: string;
   worktree_branch: string;
   workflow_name: string;
-  current_state: string | null;
+  current_step: string | null;
   status: WorkflowRunStatus;
   inputs: string | null;
   created_at: string;
   updated_at: string;
 }
 
-export interface StateExecution {
+export interface StepExecution {
   id: string;
   workflow_run_id: string;
-  state: string;
-  state_type: "agent" | "command";
+  step: string;
+  step_type: "agent" | "command";
   command_output: string | null;
   session_id: string | null;
   session_status: SessionStatus | null;
@@ -205,12 +205,12 @@ export interface StateExecution {
 }
 
 export interface WorkflowRunDetail extends WorkflowRun {
-  state_executions: StateExecution[];
+  step_executions: StepExecution[];
 }
 
 export function canStopWorkflowRun(run: WorkflowRunDetail): boolean {
   if (run.status !== "running") return false;
-  return run.state_executions.some(
+  return run.step_executions.some(
     (execution) =>
       execution.completed_at === null && execution.session_id !== null,
   );

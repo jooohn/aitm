@@ -2,7 +2,7 @@
 import { cleanup, render, screen, within } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { StateExecution, WorkflowRunDetail } from "@/lib/utils/api";
+import type { StepExecution, WorkflowRunDetail } from "@/lib/utils/api";
 import WorkflowRunDetail from "./WorkflowRunDetail";
 
 vi.mock("next/link", () => ({
@@ -28,13 +28,13 @@ vi.mock("next/navigation", () => ({
 }));
 
 function makeExecution(
-  overrides: Partial<StateExecution> & { state: string },
-): StateExecution {
+  overrides: Partial<StepExecution> & { step: string },
+): StepExecution {
   return {
-    id: `${overrides.state}-execution`,
+    id: `${overrides.step}-execution`,
     workflow_run_id: "run-1",
-    state: overrides.state,
-    state_type: "agent",
+    step: overrides.step,
+    step_type: "agent",
     command_output: null,
     session_id: null,
     session_status: null,
@@ -54,12 +54,12 @@ function makeRun(
     repository_path: "/tmp/repo",
     worktree_branch: "feat/test",
     workflow_name: "my-flow",
-    current_state: null,
+    current_step: null,
     status: "success",
     inputs: null,
     created_at: "2024-01-01T00:00:00Z",
     updated_at: "2024-01-01T00:05:00Z",
-    state_executions: [],
+    step_executions: [],
     ...overrides,
   };
 }
@@ -72,19 +72,19 @@ describe("WorkflowRunDetail", () => {
   it("renders command executions in a dedicated output block and leaves agent summaries unchanged", () => {
     const agentExecution = {
       ...makeExecution({
-        state: "plan",
+        step: "plan",
         transition_decision: JSON.stringify({
           transition: "implement",
           reason: "Plan is ready",
           handoff_summary: "Defined the implementation steps.",
         }),
       }),
-      state_type: "agent",
-    } as StateExecution & { state_type: "agent" };
+      step_type: "agent",
+    } as StepExecution & { step_type: "agent" };
 
     const commandExecution = {
       ...makeExecution({
-        state: "lint",
+        step: "lint",
         command_output: "stdout line\nstderr line",
         transition_decision: JSON.stringify({
           transition: "success",
@@ -92,13 +92,13 @@ describe("WorkflowRunDetail", () => {
           handoff_summary: "stdout line\nstderr line",
         }),
       }),
-      state_type: "command",
-    } as StateExecution & { state_type: "command" };
+      step_type: "command",
+    } as StepExecution & { step_type: "command" };
 
     render(
       <WorkflowRunDetail
         run={makeRun({
-          state_executions: [agentExecution, commandExecution],
+          step_executions: [agentExecution, commandExecution],
         })}
       />,
     );

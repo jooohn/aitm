@@ -62,18 +62,18 @@ describe("getConfigWorkflows", () => {
     expect(await getConfigWorkflows()).toEqual({});
   });
 
-  it("parses a workflow with states and next-state transitions", async () => {
+  it("parses a workflow with steps and next-step transitions", async () => {
     await writeFile(
       configFile,
       `
 workflows:
   my-flow:
-    initial_state: plan
-    states:
+    initial_step: plan
+    steps:
       plan:
         goal: "Write a plan"
         transitions:
-          - state: implement
+          - step: implement
             when: "plan is ready"
           - terminal: failure
             when: "cannot proceed"
@@ -89,38 +89,38 @@ workflows:
 
     expect(workflows).toHaveProperty("my-flow");
     const flow = workflows["my-flow"];
-    expect(flow.initial_state).toBe("plan");
-    expect(flow.states).toHaveProperty("plan");
-    expect(flow.states).toHaveProperty("implement");
+    expect(flow.initial_step).toBe("plan");
+    expect(flow.steps).toHaveProperty("plan");
+    expect(flow.steps).toHaveProperty("implement");
 
-    const planState = flow.states.plan;
-    expect("goal" in planState).toBe(true);
-    if (!("goal" in planState)) {
-      throw new Error("expected goal state");
+    const planStep = flow.steps.plan;
+    expect("goal" in planStep).toBe(true);
+    if (!("goal" in planStep)) {
+      throw new Error("expected goal step");
     }
-    expect(planState.goal).toBe("Write a plan");
-    expect(planState.transitions).toHaveLength(2);
-    expect(planState.transitions[0]).toEqual({
-      state: "implement",
+    expect(planStep.goal).toBe("Write a plan");
+    expect(planStep.transitions).toHaveLength(2);
+    expect(planStep.transitions[0]).toEqual({
+      step: "implement",
       when: "plan is ready",
     });
-    expect(planState.transitions[1]).toEqual({
+    expect(planStep.transitions[1]).toEqual({
       terminal: "failure",
       when: "cannot proceed",
     });
 
-    const implementState = flow.states.implement;
-    expect("goal" in implementState).toBe(true);
-    if (!("goal" in implementState)) {
-      throw new Error("expected goal state");
+    const implementStep = flow.steps.implement;
+    expect("goal" in implementStep).toBe(true);
+    if (!("goal" in implementStep)) {
+      throw new Error("expected goal step");
     }
-    expect(implementState.transitions[0]).toEqual({
+    expect(implementStep.transitions[0]).toEqual({
       terminal: "success",
       when: "code is done",
     });
   });
 
-  it("parses an agent override on a goal state", async () => {
+  it("parses an agent override on a goal step", async () => {
     await writeFile(
       configFile,
       `
@@ -129,8 +129,8 @@ agent:
   model: sonnet
 workflows:
   my-flow:
-    initial_state: plan
-    states:
+    initial_step: plan
+    steps:
       plan:
         goal: "Write a plan"
         agent:
@@ -143,14 +143,14 @@ workflows:
     );
 
     const workflows = await getConfigWorkflows();
-    const planState = workflows["my-flow"].states.plan;
+    const planStep = workflows["my-flow"].steps.plan;
 
-    expect("goal" in planState).toBe(true);
-    if (!("goal" in planState)) {
-      throw new Error("expected goal state");
+    expect("goal" in planStep).toBe(true);
+    if (!("goal" in planStep)) {
+      throw new Error("expected goal step");
     }
 
-    expect(planState.agent).toEqual({
+    expect(planStep.agent).toEqual({
       provider: "codex",
       model: "gpt-5.4",
       command: undefined,
@@ -158,14 +158,14 @@ workflows:
     });
   });
 
-  it("parses permission_mode override on a goal state", async () => {
+  it("parses permission_mode override on a goal step", async () => {
     await writeFile(
       configFile,
       `
 workflows:
   my-flow:
-    initial_state: push
-    states:
+    initial_step: push
+    steps:
       push:
         goal: "Push and create PR"
         agent:
@@ -177,14 +177,14 @@ workflows:
     );
 
     const workflows = await getConfigWorkflows();
-    const pushState = workflows["my-flow"].states.push;
+    const pushStep = workflows["my-flow"].steps.push;
 
-    expect("goal" in pushState).toBe(true);
-    if (!("goal" in pushState)) {
-      throw new Error("expected goal state");
+    expect("goal" in pushStep).toBe(true);
+    if (!("goal" in pushStep)) {
+      throw new Error("expected goal step");
     }
 
-    expect(pushState.agent).toEqual({
+    expect(pushStep.agent).toEqual({
       provider: undefined,
       model: undefined,
       command: undefined,
@@ -198,7 +198,7 @@ workflows:
       `
 workflows:
   my-flow:
-    initial_state: step1
+    initial_step: step1
     inputs:
       title:
         label: Title
@@ -208,7 +208,7 @@ workflows:
         type: multiline-text
       notes:
         label: Notes
-    states:
+    steps:
       step1:
         goal: "Do step 1"
         transitions:
@@ -228,18 +228,18 @@ workflows:
     expect(flow.inputs![2].type).toBeUndefined();
   });
 
-  it("parses a workflow with a command state", async () => {
+  it("parses a workflow with a command step", async () => {
     await writeFile(
       configFile,
       `
 workflows:
   my-flow:
-    initial_state: cleanup
-    states:
+    initial_step: cleanup
+    steps:
       cleanup:
         command: "rm -rf PLAN.md"
         transitions:
-          - state: commit
+          - step: commit
             when: succeeded
           - terminal: failure
             when: failed
@@ -253,35 +253,35 @@ workflows:
 
     const workflows = await getConfigWorkflows();
     const flow = workflows["my-flow"];
-    expect(flow.initial_state).toBe("cleanup");
+    expect(flow.initial_step).toBe("cleanup");
 
-    const cleanupState = flow.states.cleanup;
-    expect("command" in cleanupState).toBe(true);
-    if ("command" in cleanupState) {
-      expect(cleanupState.command).toBe("rm -rf PLAN.md");
+    const cleanupStep = flow.steps.cleanup;
+    expect("command" in cleanupStep).toBe(true);
+    if ("command" in cleanupStep) {
+      expect(cleanupStep.command).toBe("rm -rf PLAN.md");
     }
-    expect(cleanupState.transitions).toHaveLength(2);
-    expect(cleanupState.transitions[0]).toEqual({
-      state: "commit",
+    expect(cleanupStep.transitions).toHaveLength(2);
+    expect(cleanupStep.transitions[0]).toEqual({
+      step: "commit",
       when: "succeeded",
     });
-    expect(cleanupState.transitions[1]).toEqual({
+    expect(cleanupStep.transitions[1]).toEqual({
       terminal: "failure",
       when: "failed",
     });
 
-    const commitState = flow.states.commit;
-    expect("goal" in commitState).toBe(true);
+    const commitStep = flow.steps.commit;
+    expect("goal" in commitStep).toBe(true);
   });
 
-  it("parses output.metadata on an agent state", async () => {
+  it("parses output.metadata on an agent step", async () => {
     await writeFile(
       configFile,
       `
 workflows:
   my-flow:
-    initial_state: push
-    states:
+    initial_step: push
+    steps:
       push:
         goal: "Push and create PR"
         output:
@@ -298,14 +298,14 @@ workflows:
     );
 
     const workflows = await getConfigWorkflows();
-    const pushState = workflows["my-flow"].states.push;
+    const pushStep = workflows["my-flow"].steps.push;
 
-    expect("goal" in pushState).toBe(true);
-    if (!("goal" in pushState)) {
-      throw new Error("expected goal state");
+    expect("goal" in pushStep).toBe(true);
+    if (!("goal" in pushStep)) {
+      throw new Error("expected goal step");
     }
 
-    expect(pushState.output).toEqual({
+    expect(pushStep.output).toEqual({
       metadata: {
         pr_url: { type: "string", description: "The pull request URL" },
         pr_number: { type: "string" },
@@ -319,8 +319,8 @@ workflows:
       `
 workflows:
   my-flow:
-    initial_state: push
-    states:
+    initial_step: push
+    steps:
       push:
         goal: "Push and create PR"
         output:
@@ -338,15 +338,15 @@ workflows:
     );
 
     const workflows = await getConfigWorkflows();
-    const pushState = workflows["my-flow"].states.push;
+    const pushStep = workflows["my-flow"].steps.push;
 
-    expect("goal" in pushState).toBe(true);
-    if (!("goal" in pushState)) {
-      throw new Error("expected goal state");
+    expect("goal" in pushStep).toBe(true);
+    if (!("goal" in pushStep)) {
+      throw new Error("expected goal step");
     }
 
     // Only pr_url should survive validation
-    expect(pushState.output).toEqual({
+    expect(pushStep.output).toEqual({
       metadata: {
         pr_url: { type: "string", description: "The pull request URL" },
       },
@@ -359,8 +359,8 @@ workflows:
       `
 workflows:
   my-flow:
-    initial_state: push
-    states:
+    initial_step: push
+    steps:
       push:
         goal: "Push and create PR"
         output:
@@ -382,15 +382,15 @@ workflows:
     );
 
     const workflows = await getConfigWorkflows();
-    const pushState = workflows["my-flow"].states.push;
+    const pushStep = workflows["my-flow"].steps.push;
 
-    expect("goal" in pushState).toBe(true);
-    if (!("goal" in pushState)) {
-      throw new Error("expected goal state");
+    expect("goal" in pushStep).toBe(true);
+    if (!("goal" in pushStep)) {
+      throw new Error("expected goal step");
     }
 
     // Only pr_url should survive — core field names are filtered out
-    expect(pushState.output).toEqual({
+    expect(pushStep.output).toEqual({
       metadata: {
         pr_url: { type: "string", description: "The pull request URL" },
       },
@@ -403,8 +403,8 @@ workflows:
       `
 workflows:
   my-flow:
-    initial_state: push
-    states:
+    initial_step: push
+    steps:
       push:
         goal: "Push and create PR"
         output:
@@ -419,14 +419,14 @@ workflows:
     );
 
     const workflows = await getConfigWorkflows();
-    const pushState = workflows["my-flow"].states.push;
+    const pushStep = workflows["my-flow"].steps.push;
 
-    expect("goal" in pushState).toBe(true);
-    if (!("goal" in pushState)) {
-      throw new Error("expected goal state");
+    expect("goal" in pushStep).toBe(true);
+    if (!("goal" in pushStep)) {
+      throw new Error("expected goal step");
     }
 
-    expect(pushState.output).toBeUndefined();
+    expect(pushStep.output).toBeUndefined();
   });
 
   it("resolves output.presets into prefixed metadata fields", async () => {
@@ -435,8 +435,8 @@ workflows:
       `
 workflows:
   my-flow:
-    initial_state: push
-    states:
+    initial_step: push
+    steps:
       push:
         goal: "Push and create PR"
         output:
@@ -449,14 +449,14 @@ workflows:
     );
 
     const workflows = await getConfigWorkflows();
-    const pushState = workflows["my-flow"].states.push;
+    const pushStep = workflows["my-flow"].steps.push;
 
-    expect("goal" in pushState).toBe(true);
-    if (!("goal" in pushState)) {
-      throw new Error("expected goal state");
+    expect("goal" in pushStep).toBe(true);
+    if (!("goal" in pushStep)) {
+      throw new Error("expected goal step");
     }
 
-    expect(pushState.output).toEqual({
+    expect(pushStep.output).toEqual({
       metadata: {
         presets__pull_request_url: {
           type: "string",
@@ -472,8 +472,8 @@ workflows:
       `
 workflows:
   my-flow:
-    initial_state: push
-    states:
+    initial_step: push
+    steps:
       push:
         goal: "Push and create PR"
         output:
@@ -487,14 +487,14 @@ workflows:
     );
 
     const workflows = await getConfigWorkflows();
-    const pushState = workflows["my-flow"].states.push;
+    const pushStep = workflows["my-flow"].steps.push;
 
-    expect("goal" in pushState).toBe(true);
-    if (!("goal" in pushState)) {
-      throw new Error("expected goal state");
+    expect("goal" in pushStep).toBe(true);
+    if (!("goal" in pushStep)) {
+      throw new Error("expected goal step");
     }
 
-    expect(pushState.output).toEqual({
+    expect(pushStep.output).toEqual({
       metadata: {
         presets__pull_request_url: {
           type: "string",
@@ -510,8 +510,8 @@ workflows:
       `
 workflows:
   my-flow:
-    initial_state: push
-    states:
+    initial_step: push
+    steps:
       push:
         goal: "Push and create PR"
         output:
@@ -528,14 +528,14 @@ workflows:
     );
 
     const workflows = await getConfigWorkflows();
-    const pushState = workflows["my-flow"].states.push;
+    const pushStep = workflows["my-flow"].steps.push;
 
-    expect("goal" in pushState).toBe(true);
-    if (!("goal" in pushState)) {
-      throw new Error("expected goal state");
+    expect("goal" in pushStep).toBe(true);
+    if (!("goal" in pushStep)) {
+      throw new Error("expected goal step");
     }
 
-    expect(pushState.output).toEqual({
+    expect(pushStep.output).toEqual({
       metadata: {
         presets__pull_request_url: {
           type: "string",
@@ -555,8 +555,8 @@ workflows:
       `
 workflows:
   my-flow:
-    initial_state: push
-    states:
+    initial_step: push
+    steps:
       push:
         goal: "Push and create PR"
         output:
@@ -569,24 +569,24 @@ workflows:
     );
 
     const workflows = await getConfigWorkflows();
-    const pushState = workflows["my-flow"].states.push;
+    const pushStep = workflows["my-flow"].steps.push;
 
-    expect("goal" in pushState).toBe(true);
-    if (!("goal" in pushState)) {
-      throw new Error("expected goal state");
+    expect("goal" in pushStep).toBe(true);
+    if (!("goal" in pushStep)) {
+      throw new Error("expected goal step");
     }
 
-    expect(pushState.output).toBeUndefined();
+    expect(pushStep.output).toBeUndefined();
   });
 
-  it("omits output when not specified on agent state", async () => {
+  it("omits output when not specified on agent step", async () => {
     await writeFile(
       configFile,
       `
 workflows:
   my-flow:
-    initial_state: plan
-    states:
+    initial_step: plan
+    steps:
       plan:
         goal: "Write a plan"
         transitions:
@@ -596,24 +596,24 @@ workflows:
     );
 
     const workflows = await getConfigWorkflows();
-    const planState = workflows["my-flow"].states.plan;
+    const planStep = workflows["my-flow"].steps.plan;
 
-    expect("goal" in planState).toBe(true);
-    if (!("goal" in planState)) {
-      throw new Error("expected goal state");
+    expect("goal" in planStep).toBe(true);
+    if (!("goal" in planStep)) {
+      throw new Error("expected goal step");
     }
 
-    expect(planState.output).toBeUndefined();
+    expect(planStep.output).toBeUndefined();
   });
 
-  it("does not retain agent config on command states", async () => {
+  it("does not retain agent config on command steps", async () => {
     await writeFile(
       configFile,
       `
 workflows:
   my-flow:
-    initial_state: cleanup
-    states:
+    initial_step: cleanup
+    steps:
       cleanup:
         command: "echo cleanup"
         agent:
@@ -626,10 +626,10 @@ workflows:
     );
 
     const workflows = await getConfigWorkflows();
-    const cleanupState = workflows["my-flow"].states.cleanup;
+    const cleanupStep = workflows["my-flow"].steps.cleanup;
 
-    expect("command" in cleanupState).toBe(true);
-    expect(cleanupState).not.toHaveProperty("agent");
+    expect("command" in cleanupStep).toBe(true);
+    expect(cleanupStep).not.toHaveProperty("agent");
   });
 
   it("parses multiple workflows", async () => {
@@ -638,16 +638,16 @@ workflows:
       `
 workflows:
   flow-a:
-    initial_state: step1
-    states:
+    initial_step: step1
+    steps:
       step1:
         goal: "Do step 1"
         transitions:
           - terminal: success
             when: "done"
   flow-b:
-    initial_state: start
-    states:
+    initial_step: start
+    steps:
       start:
         goal: "Do start"
         transitions:
@@ -727,7 +727,7 @@ workflows: {}
     });
   });
 
-  it("lets a state override replace the top-level provider", async () => {
+  it("lets a step override replace the top-level provider", async () => {
     await writeFile(
       configFile,
       `
@@ -797,7 +797,7 @@ workflows: {}
     });
   });
 
-  it("lets a state override replace the permission_mode", async () => {
+  it("lets a step override replace the permission_mode", async () => {
     await writeFile(
       configFile,
       `

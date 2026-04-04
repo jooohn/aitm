@@ -28,7 +28,7 @@ beforeEach(async () => {
   process.env.AITM_CONFIG_PATH = configFile;
 
   db.prepare("DELETE FROM sessions").run();
-  db.prepare("DELETE FROM state_executions").run();
+  db.prepare("DELETE FROM step_executions").run();
   db.prepare("DELETE FROM workflow_runs").run();
 
   vi.spyOn(worktreeService, "listWorktrees").mockImplementation(
@@ -70,8 +70,8 @@ describe("POST /api/workflow-runs", () => {
       `
 workflows:
   my-flow:
-    initial_state: plan
-    states:
+    initial_step: plan
+    steps:
       plan:
         goal: "Write a plan"
         transitions:
@@ -98,7 +98,7 @@ workflows:
     expect(body.worktree_branch).toBe("feat/test");
     expect(body.workflow_name).toBe("my-flow");
     expect(body.status).toBe("running");
-    expect(body.current_state).toBe("plan");
+    expect(body.current_step).toBe("plan");
   });
 
   it("returns 422 when required fields are missing", async () => {
@@ -138,8 +138,8 @@ describe("GET /api/workflow-runs", () => {
       `
 workflows:
   my-flow:
-    initial_state: plan
-    states:
+    initial_step: plan
+    steps:
       plan:
         goal: "Write a plan"
         transitions:
@@ -177,8 +177,8 @@ workflows:
       `
 workflows:
   my-flow:
-    initial_state: plan
-    states:
+    initial_step: plan
+    steps:
       plan:
         goal: "Write a plan"
         transitions:

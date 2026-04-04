@@ -5,7 +5,7 @@
 
 ## Summary
 
-A global YAML configuration file at `~/.aitm/config.yaml` that defines the agent runtime and named workflows. A workflow is a directed graph of states where each state corresponds to an agent session. Users initiate a workflow run against a worktree; aitm advances through states automatically based on the configured agent's autonomous transition decisions.
+A global YAML configuration file at `~/.aitm/config.yaml` that defines the agent runtime and named workflows. A workflow is a directed graph of steps where each step corresponds to an agent session. Users initiate a workflow run against a worktree; aitm advances through steps automatically based on the configured agent's autonomous transition decisions.
 
 ## Requirements
 
@@ -28,7 +28,7 @@ See spec: repository-management.md for the full field reference.
 
 ### Agent runtime
 
-The top-level `agent` block selects which CLI aitm launches for workflow states:
+The top-level `agent` block selects which CLI aitm launches for workflow steps:
 
 ```yaml
 agent:
@@ -45,22 +45,22 @@ agent:
 
 ### Workflow definition
 
-A workflow is a named directed graph with exactly one `initial_state` and at least one terminal transition.
+A workflow is a named directed graph with exactly one `initial_step` and at least one terminal transition.
 
 ```yaml
 workflows:
   development-flow:
-    initial_state: plan
-    states:
+    initial_step: plan
+    steps:
       plan:
         goal: |
           Read the task goal. If the spec is ambiguous or missing, ask clarifying
           questions and document a clear plan in PLAN.md. Otherwise, document your
           understanding and proceed.
         transitions:
-          - state: plan
+          - step: plan
             when: "specs need clarification or the plan is not yet documented"
-          - state: implement
+          - step: implement
             when: "a clear plan is documented in PLAN.md"
           - terminal: failure
             when: "the task is out of scope or cannot be planned"
@@ -69,9 +69,9 @@ workflows:
         goal: |
           Implement the plan documented in PLAN.md. Write production-quality code.
         transitions:
-          - state: implement
+          - step: implement
             when: "implementation is incomplete"
-          - state: test
+          - step: test
             when: "implementation is complete and ready for testing"
           - terminal: failure
             when: "implementation is blocked and cannot proceed"
@@ -80,9 +80,9 @@ workflows:
         goal: |
           Run the test suite. Fix any failures. Ensure all tests pass.
         transitions:
-          - state: implement
+          - step: implement
             when: "test failures reveal implementation issues"
-          - state: review
+          - step: review
             when: "all tests pass"
           - terminal: failure
             when: "tests cannot be fixed without reconsidering the plan"
@@ -92,9 +92,9 @@ workflows:
           Review the diff. Check for correctness, style, and completeness.
           Request changes if needed.
         transitions:
-          - state: implement
+          - step: implement
             when: "review found issues that require code changes"
-          - state: commit
+          - step: commit
             when: "code is ready to commit"
           - terminal: failure
             when: "changes should be abandoned"
@@ -103,7 +103,7 @@ workflows:
         goal: |
           Stage all relevant changes and create a well-formed git commit.
         transitions:
-          - state: push
+          - step: push
             when: "commit was created successfully"
           - terminal: failure
             when: "commit could not be created"
@@ -118,21 +118,21 @@ workflows:
             when: "push failed and cannot be resolved"
 ```
 
-### State definition
+### Step definition
 
-Each state under `states` is one of:
+Each step under `steps` is one of:
 
-1. A goal-based state with `goal` and `transitions`
-2. A command-based state with `command` and `transitions`
+1. A goal-based step with `goal` and `transitions`
+2. A command-based step with `command` and `transitions`
 
-Goal-based states have:
+Goal-based steps have:
 
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `goal` | string | yes | Fixed instruction string passed to the configured agent session as its objective |
 | `transitions` | list | yes | Ordered list of transition candidates; the configured agent selects the first matching one |
 
-Goal-based states may also define an optional `agent` block that overrides the top-level runtime for that state only:
+Goal-based steps may also define an optional `agent` block that overrides the top-level runtime for that step only:
 
 ```yaml
 agent:
@@ -141,15 +141,15 @@ agent:
 
 workflows:
   development-flow:
-    initial_state: plan
-    states:
+    initial_step: plan
+    steps:
       plan:
         goal: Write a plan
         agent:
           provider: codex
           model: gpt-5.4
         transitions:
-          - state: implement
+          - step: implement
             when: plan is ready
 
       implement:
@@ -161,23 +161,23 @@ workflows:
             when: done
 ```
 
-State-level `agent` fields use shallow inheritance from the top-level `agent` config:
+Step-level `agent` fields use shallow inheritance from the top-level `agent` config:
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `provider` | `claude` \| `codex` | no | Optional. If omitted, the state inherits the top-level provider. |
-| `model` | string | no | Optional. Overrides the model for that state only. |
-| `command` | string | no | Optional. Overrides the CLI executable path or command name for that state only. |
+| `provider` | `claude` \| `codex` | no | Optional. If omitted, the step inherits the top-level provider. |
+| `model` | string | no | Optional. Overrides the model for that step only. |
+| `command` | string | no | Optional. Overrides the CLI executable path or command name for that step only. |
 
-Command-based states do not use `agent` config. If `provider` is omitted in a goal-state override, only the supplied fields are replaced and the remaining fields continue to inherit from the top-level `agent` block.
+Command-based steps do not use `agent` config. If `provider` is omitted in a goal-step override, only the supplied fields are replaced and the remaining fields continue to inherit from the top-level `agent` block.
 
 ### Transition definition
 
 Each item in `transitions` is one of two forms:
 
-**Next-state transition:**
+**Next-step transition:**
 ```yaml
-- state: <state-name>
+- step: <step-name>
   when: "<natural language condition>"
 ```
 
@@ -189,20 +189,20 @@ Each item in `transitions` is one of two forms:
 
 `when` is a natural language description of the condition. The configured agent evaluates all candidates and selects the appropriate one at the end of each session.
 
-### Context handoff between states
+### Context handoff between steps
 
-When a session ends and a transition fires, the full history of all prior state executions is passed to the next session. Each entry contains:
+When a session ends and a transition fires, the full history of all prior step executions is passed to the next session. Each entry contains:
 
 1. **Summary** — a brief, agent-generated note of what was accomplished, key decisions made, and any artifacts produced (e.g. files created or modified)
-2. **Log file reference** — path to that state's session log file
+2. **Log file reference** — path to that step's session log file
 
-The next session receives its `goal` wrapped in `<goal>` tags, followed by a `<handoff>` block listing all prior states oldest-first. Log files are not loaded automatically; the session may read them if deeper context is needed. This design keeps each session's context window small while preserving a full audit trail.
+The next session receives its `goal` wrapped in `<goal>` tags, followed by a `<handoff>` block listing all prior steps oldest-first. Log files are not loaded automatically; the session may read them if deeper context is needed. This design keeps each session's context window small while preserving a full audit trail.
 
 ### Initiating a workflow run
 
-The user selects a workflow from the list of configured workflows and associates it with a worktree. The workflow starts at `initial_state` with no prior handoff context. The worktree's top-level objective (as specified when creating the worktree or session) is available to the first session.
+The user selects a workflow from the list of configured workflows and associates it with a worktree. The workflow starts at `initial_step` with no prior handoff context. The worktree's top-level objective (as specified when creating the worktree or session) is available to the first session.
 
-### Terminal states
+### Terminal steps
 
 A terminal transition ends the workflow run for that worktree. The terminal value (`success` or `failure`) is recorded on the workflow run. The worktree itself remains open for the user to inspect, merge, or discard manually.
 
@@ -210,7 +210,7 @@ A terminal transition ends the workflow run for that worktree. The terminal valu
 
 - Per-repository config or overrides (global only for now)
 - Templated goals with variable interpolation (fixed strings only for now)
-- Human-in-the-loop / approval gate states (all states are agent sessions for now)
+- Human-in-the-loop / approval gate steps (all steps are agent sessions for now)
 - Automatic worktree cleanup or merge on workflow completion
 
 ## Open questions

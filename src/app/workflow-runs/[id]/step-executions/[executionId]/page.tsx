@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import WorkflowBreadcrumb from "@/app/components/WorkflowBreadcrumb";
 import {
   fetchWorkflowRun,
-  type StateExecution,
+  type StepExecution,
   type WorkflowRunDetail,
 } from "@/lib/utils/api";
 import { inferAlias } from "@/lib/utils/inferAlias";
@@ -27,7 +27,7 @@ function parseDecision(raw: string | null): TransitionDecision | null {
   }
 }
 
-export default function StateExecutionPage() {
+export default function StepExecutionPage() {
   const { id, executionId } = useParams<{ id: string; executionId: string }>();
   const [run, setRun] = useState<WorkflowRunDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -42,7 +42,7 @@ export default function StateExecutionPage() {
   if (loading) return null;
   if (!run) return notFound();
 
-  const execution = run.state_executions.find((e) => e.id === executionId);
+  const execution = run.step_executions.find((e) => e.id === executionId);
   if (!execution) return notFound();
 
   const repoAlias = inferAlias(run.repository_path);
@@ -56,10 +56,10 @@ export default function StateExecutionPage() {
         repository={{ organization, name: repoName }}
         branch={run.worktree_branch}
         workflowRun={{ id: run.id, name: run.workflow_name }}
-        stateExecution={{
+        stepExecution={{
           id: execution.id,
           workflowRunId: run.id,
-          stateName: execution.state,
+          stepName: execution.step,
         }}
       />
 
@@ -74,14 +74,14 @@ export default function StateExecutionPage() {
               Completed
             </span>
           )}
-          <h1 className={styles.title}>{execution.state}</h1>
+          <h1 className={styles.title}>{execution.step}</h1>
         </div>
       </div>
 
       <dl className={styles.details}>
         <div className={styles.detailRow}>
           <dt className={styles.detailLabel}>Type</dt>
-          <dd className={styles.detailValue}>{execution.state_type}</dd>
+          <dd className={styles.detailValue}>{execution.step_type}</dd>
         </div>
         <div className={styles.detailRow}>
           <dt className={styles.detailLabel}>Started</dt>
@@ -112,7 +112,7 @@ export default function StateExecutionPage() {
         )}
       </dl>
 
-      {execution.state_type === "command" && execution.command_output && (
+      {execution.step_type === "command" && execution.command_output && (
         <section>
           <h2 className={styles.sectionHeading}>Command output</h2>
           <div className={styles.commandOutput}>{execution.command_output}</div>

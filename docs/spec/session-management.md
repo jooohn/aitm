@@ -20,14 +20,14 @@ Sessions are persisted in SQLite.
 | `id` | string (UUID) | no | Primary key |
 | `repository_path` | string | no | Absolute path to the repository |
 | `worktree_branch` | string | no | The worktree branch in which the agent runs |
-| `goal` | string | no | Free-text description of what the agent should accomplish (may include handoff context from prior states) |
+| `goal` | string | no | Free-text description of what the agent should accomplish (may include handoff context from prior steps) |
 | `transitions` | string (JSON) | no | Serialised `WorkflowTransition[]` — the workflow-defined transitions (does not include the injected `__REQUIRE_USER_INPUT__`) |
 | `transition_decision` | string (JSON) | yes | Serialised `TransitionDecision` emitted by the agent: `{transition, reason, handoff_summary}` |
 | `status` | enum | no | `RUNNING` \| `AWAITING_INPUT` \| `SUCCEEDED` \| `FAILED` |
 | `terminal_attach_command` | string | yes | Shell command to attach to the live agent (e.g. `claude --resume <claude-session-id>`) |
 | `log_file_path` | string | no | Absolute path to the append-only stdout/stderr log file (e.g. `~/.aitm/sessions/<id>.log`) |
 | `claude_session_id` | string | yes | The internal agent session ID (Claude or Codex), set once the agent starts |
-| `state_execution_id` | string (FK → state_executions) | yes | The workflow state execution that owns this session |
+| `step_execution_id` | string (FK → step_executions) | yes | The workflow step execution that owns this session |
 | `created_at` | timestamp | no | When the session was created |
 | `updated_at` | timestamp | no | Last status change |
 
@@ -85,7 +85,7 @@ User input is handled entirely at the session level, transparent to the workflow
 ```typescript
 // config.ts — unchanged
 type WorkflowTransition =
-  | { state: string; when: string }
+  | { step: string; when: string }
   | { terminal: "success" | "failure"; when: string }
 
 // Used internally by agent/session layer

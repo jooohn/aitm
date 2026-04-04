@@ -39,12 +39,12 @@ beforeEach(async () => {
     `
 workflows:
   my-flow:
-    initial_state: plan
-    states:
+    initial_step: plan
+    steps:
       plan:
         goal: "Write a plan"
         transitions:
-          - state: implement
+          - step: implement
             when: "plan is ready"
           - terminal: failure
             when: "cannot proceed"
@@ -54,8 +54,8 @@ workflows:
           - terminal: success
             when: "code is done"
   command-flow:
-    initial_state: command-step
-    states:
+    initial_step: command-step
+    steps:
       command-step:
         type: command
         command: "printf 'stdout line\\n' && printf 'stderr line\\n' >&2"
@@ -66,7 +66,7 @@ workflows:
   );
 
   db.prepare("DELETE FROM sessions").run();
-  db.prepare("DELETE FROM state_executions").run();
+  db.prepare("DELETE FROM step_executions").run();
   db.prepare("DELETE FROM workflow_runs").run();
 
   vi.spyOn(agentService, "startAgent").mockResolvedValue(undefined);
@@ -92,7 +92,7 @@ function makeParams(id: string): { params: Promise<{ id: string }> } {
 }
 
 describe("GET /api/workflow-runs/:id", () => {
-  it("returns 200 with the workflow run and its state executions", async () => {
+  it("returns 200 with the workflow run and its step executions", async () => {
     const repoPath = await makeFakeGitRepo();
     const run = await createWorkflowRun({
       repository_path: repoPath,
@@ -109,13 +109,13 @@ describe("GET /api/workflow-runs/:id", () => {
     const body = await res.json();
     expect(body.id).toBe(run.id);
     expect(body.workflow_name).toBe("my-flow");
-    expect(Array.isArray(body.state_executions)).toBe(true);
-    expect(body.state_executions).toHaveLength(1);
-    expect(body.state_executions[0].state).toBe("plan");
-    expect(body.state_executions[0].state_type).toBe("agent");
+    expect(Array.isArray(body.step_executions)).toBe(true);
+    expect(body.step_executions).toHaveLength(1);
+    expect(body.step_executions[0].step).toBe("plan");
+    expect(body.step_executions[0].step_type).toBe("agent");
   });
 
-  it("returns command state executions with explicit state_type and command output", async () => {
+  it("returns command step executions with explicit step_type and command output", async () => {
     const repoPath = await makeFakeGitRepo();
     const run = await createWorkflowRun({
       repository_path: repoPath,
@@ -130,11 +130,11 @@ describe("GET /api/workflow-runs/:id", () => {
 
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.state_executions).toHaveLength(1);
-    expect(body.state_executions[0].state).toBe("command-step");
-    expect(body.state_executions[0].state_type).toBe("command");
-    expect(body.state_executions[0].command_output).toContain("stdout line");
-    expect(body.state_executions[0].command_output).toContain("stderr line");
+    expect(body.step_executions).toHaveLength(1);
+    expect(body.step_executions[0].step).toBe("command-step");
+    expect(body.step_executions[0].step_type).toBe("command");
+    expect(body.step_executions[0].command_output).toContain("stdout line");
+    expect(body.step_executions[0].command_output).toContain("stderr line");
   });
 
   it("returns 404 for unknown id", async () => {

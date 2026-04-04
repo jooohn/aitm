@@ -71,9 +71,7 @@ export default function TodosLayout({
                         {session.worktree_branch}
                       </span>
                       <span className={styles.sessionSecondary}>
-                        {session.state_name && (
-                          <span>{session.state_name}</span>
-                        )}
+                        {session.step_name && <span>{session.step_name}</span>}
                         {session.workflow_name && (
                           <span>{session.workflow_name}</span>
                         )}

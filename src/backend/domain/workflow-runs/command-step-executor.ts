@@ -1,18 +1,18 @@
 import { env } from "process";
 import { spawnAsync } from "@/backend/utils/process";
 
-export interface CommandStateExecutionResult {
+export interface CommandStepExecutionResult {
   outcome: "succeeded" | "failed";
   commandOutput: string | null;
 }
 
-export class CommandStateExecutor {
+export class CommandStepExecutor {
   constructor() {}
 
   async execute(
     command: string,
     { cwd }: { cwd: string },
-  ): Promise<CommandStateExecutionResult> {
+  ): Promise<CommandStepExecutionResult> {
     const { code, stdout, stderr } = await spawnAsync("sh", ["-c", command], {
       cwd,
     });

@@ -18,7 +18,7 @@ export class SessionRepository {
         terminal_attach_command TEXT,
         log_file_path           TEXT    NOT NULL,
         claude_session_id       TEXT,
-        state_execution_id      TEXT    REFERENCES state_executions(id),
+        step_execution_id      TEXT    REFERENCES step_executions(id),
         metadata_fields         TEXT,
         created_at              TEXT    NOT NULL,
         updated_at              TEXT    NOT NULL
@@ -44,7 +44,7 @@ export class SessionRepository {
     transitions: string;
     agent_config: string;
     log_file_path: string;
-    state_execution_id: string | null;
+    step_execution_id: string | null;
     metadata_fields: string | null;
     now: string;
   }): void {
@@ -53,7 +53,7 @@ export class SessionRepository {
         `INSERT INTO sessions
          (id, repository_path, worktree_branch, goal, transitions,
           transition_decision, agent_config, status, terminal_attach_command, log_file_path,
-          claude_session_id, state_execution_id, metadata_fields, created_at, updated_at)
+          claude_session_id, step_execution_id, metadata_fields, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, NULL, ?, 'RUNNING', NULL, ?, NULL, ?, ?, ?, ?)`,
       )
       .run(
@@ -64,7 +64,7 @@ export class SessionRepository {
         params.transitions,
         params.agent_config,
         params.log_file_path,
-        params.state_execution_id,
+        params.step_execution_id,
         params.metadata_fields,
         params.now,
         params.now,
@@ -74,9 +74,9 @@ export class SessionRepository {
   getSession(id: string): Session | undefined {
     return this.db
       .prepare(
-        `SELECT s.*, se.state AS state_name, wr.workflow_name, wr.id AS workflow_run_id
+        `SELECT s.*, se.step AS step_name, wr.workflow_name, wr.id AS workflow_run_id
        FROM sessions s
-       LEFT JOIN state_executions se ON se.id = s.state_execution_id
+       LEFT JOIN step_executions se ON se.id = s.step_execution_id
        LEFT JOIN workflow_runs wr ON se.workflow_run_id = wr.id
        WHERE s.id = ?`,
       )
@@ -104,9 +104,9 @@ export class SessionRepository {
       conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
     return this.db
       .prepare(
-        `SELECT s.*, se.state AS state_name, wr.workflow_name, wr.id AS workflow_run_id
+        `SELECT s.*, se.step AS step_name, wr.workflow_name, wr.id AS workflow_run_id
        FROM sessions s
-       LEFT JOIN state_executions se ON se.id = s.state_execution_id
+       LEFT JOIN step_executions se ON se.id = s.step_execution_id
        LEFT JOIN workflow_runs wr ON se.workflow_run_id = wr.id
        ${where}
        ORDER BY s.created_at DESC`,
@@ -150,7 +150,7 @@ export class SessionRepository {
         .run(...params);
       this.db
         .prepare(
-          `DELETE FROM state_executions WHERE workflow_run_id IN (
+          `DELETE FROM step_executions WHERE workflow_run_id IN (
            SELECT id FROM workflow_runs WHERE repository_path = ? AND worktree_branch IN (${placeholders})
          )`,
         )

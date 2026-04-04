@@ -9,12 +9,12 @@ import {
 
 function linearWorkflow(): WorkflowDefinition {
   return {
-    initial_state: "plan",
-    states: {
+    initial_step: "plan",
+    steps: {
       plan: {
         goal: "Create a plan",
         transitions: [
-          { state: "implement", when: "plan is ready" },
+          { step: "implement", when: "plan is ready" },
           { terminal: "failure", when: "planning failed" },
         ],
       },
@@ -31,27 +31,27 @@ function linearWorkflow(): WorkflowDefinition {
 
 function branchingWorkflow(): WorkflowDefinition {
   return {
-    initial_state: "triage",
-    states: {
+    initial_step: "triage",
+    steps: {
       triage: {
         goal: "Triage the issue",
         transitions: [
-          { state: "fix_bug", when: "it's a bug" },
-          { state: "add_feature", when: "it's a feature request" },
+          { step: "fix_bug", when: "it's a bug" },
+          { step: "add_feature", when: "it's a feature request" },
           { terminal: "failure", when: "cannot triage" },
         ],
       },
       fix_bug: {
         goal: "Fix the bug",
         transitions: [
-          { state: "review", when: "bug fixed" },
+          { step: "review", when: "bug fixed" },
           { terminal: "failure", when: "cannot fix" },
         ],
       },
       add_feature: {
         goal: "Add the feature",
         transitions: [
-          { state: "review", when: "feature added" },
+          { step: "review", when: "feature added" },
           { terminal: "failure", when: "cannot add" },
         ],
       },
@@ -74,7 +74,7 @@ describe("buildGraph", () => {
     expect(nodeIds).toEqual(["failure", "implement", "plan", "success"]);
 
     const planNode = graph.nodes.find((n) => n.id === "plan");
-    expect(planNode).toMatchObject({ id: "plan", type: "state" });
+    expect(planNode).toMatchObject({ id: "plan", type: "step" });
 
     const successNode = graph.nodes.find((n) => n.id === "success");
     expect(successNode).toMatchObject({
@@ -128,13 +128,13 @@ describe("buildGraph", () => {
     const terminalNodes = graph.nodes.filter((n) => n.type === "terminal");
     expect(terminalNodes).toHaveLength(2);
 
-    const stateNodes = graph.nodes.filter((n) => n.type === "state");
+    const stateNodes = graph.nodes.filter((n) => n.type === "step");
     expect(stateNodes).toHaveLength(4);
   });
 
   it("records the initial state", () => {
     const graph = buildGraph(linearWorkflow());
-    expect(graph.initialState).toBe("plan");
+    expect(graph.initialStep).toBe("plan");
   });
 });
 
@@ -170,19 +170,19 @@ describe("computeLayout", () => {
 
   it("terminates on cyclic graphs without infinite loop", () => {
     const cyclicWorkflow: WorkflowDefinition = {
-      initial_state: "a",
-      states: {
+      initial_step: "a",
+      steps: {
         a: {
           goal: "State A",
           transitions: [
-            { state: "b", when: "go to b" },
+            { step: "b", when: "go to b" },
             { terminal: "failure", when: "fail" },
           ],
         },
         b: {
           goal: "State B",
           transitions: [
-            { state: "a", when: "go back to a" },
+            { step: "a", when: "go back to a" },
             { terminal: "success", when: "done" },
           ],
         },
@@ -204,42 +204,42 @@ describe("computeLayout", () => {
 
   it("assigns stable layers for cyclic development-flow workflow", () => {
     const devFlow: WorkflowDefinition = {
-      initial_state: "plan",
-      states: {
+      initial_step: "plan",
+      steps: {
         plan: {
           goal: "Create a plan",
           transitions: [
-            { state: "implement", when: "plan is ready" },
+            { step: "implement", when: "plan is ready" },
             { terminal: "failure", when: "planning failed" },
           ],
         },
         implement: {
           goal: "Implement the plan",
           transitions: [
-            { state: "test", when: "implementation complete" },
+            { step: "test", when: "implementation complete" },
             { terminal: "failure", when: "blocked" },
           ],
         },
         test: {
           goal: "Run tests",
           transitions: [
-            { state: "review", when: "succeeded" },
-            { state: "implement", when: "failed" },
+            { step: "review", when: "succeeded" },
+            { step: "implement", when: "failed" },
           ],
         },
         review: {
           goal: "Review changes",
           transitions: [
-            { state: "implement", when: "issues found" },
-            { state: "cleanup", when: "looks good" },
+            { step: "implement", when: "issues found" },
+            { step: "cleanup", when: "looks good" },
             { terminal: "failure", when: "abandon" },
           ],
         },
         cleanup: {
           goal: "Cleanup",
           transitions: [
-            { state: "commit", when: "succeeded" },
-            { state: "commit", when: "failed" },
+            { step: "commit", when: "succeeded" },
+            { step: "commit", when: "failed" },
           ],
         },
         commit: {

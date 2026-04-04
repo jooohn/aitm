@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { CommandStateExecutor } from "./command-state-executor";
+import { CommandStepExecutor } from "./command-step-executor";
 
-describe("CommandStateExecutor", () => {
-  const executor = new CommandStateExecutor();
+describe("CommandStepExecutor", () => {
+  const executor = new CommandStepExecutor();
 
   it("returns succeeded when command exits with 0", async () => {
     const result = await executor.execute("echo hello", { cwd: "/tmp" });

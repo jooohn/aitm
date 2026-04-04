@@ -3,11 +3,11 @@ import { cleanup, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type {
-  StateExecution,
+  StepExecution,
   WorkflowDefinition,
   WorkflowRunStatus,
 } from "@/lib/utils/api";
-import WorkflowStateDiagram from "./WorkflowStateDiagram";
+import WorkflowStepDiagram from "./WorkflowStepDiagram";
 
 afterEach(() => {
   cleanup();
@@ -15,12 +15,12 @@ afterEach(() => {
 
 function linearWorkflow(): WorkflowDefinition {
   return {
-    initial_state: "plan",
-    states: {
+    initial_step: "plan",
+    steps: {
       plan: {
         goal: "Create a plan",
         transitions: [
-          { state: "implement", when: "plan is ready" },
+          { step: "implement", when: "plan is ready" },
           { terminal: "failure", when: "planning failed" },
         ],
       },
@@ -36,13 +36,13 @@ function linearWorkflow(): WorkflowDefinition {
 }
 
 function makeExecution(
-  overrides: Partial<StateExecution> & { state: string },
-): StateExecution {
+  overrides: Partial<StepExecution> & { step: string },
+): StepExecution {
   return {
-    id: `${overrides.state}-execution`,
+    id: `${overrides.step}-execution`,
     workflow_run_id: "run-1",
-    state: overrides.state,
-    state_type: "agent",
+    step: overrides.step,
+    step_type: "agent",
     command_output: null,
     session_id: null,
     session_status: null,
@@ -54,13 +54,13 @@ function makeExecution(
   };
 }
 
-describe("WorkflowStateDiagram", () => {
+describe("WorkflowStepDiagram", () => {
   it("renders all state nodes from the workflow definition", () => {
     render(
-      <WorkflowStateDiagram
+      <WorkflowStepDiagram
         definition={linearWorkflow()}
-        stateExecutions={[]}
-        currentState={null}
+        stepExecutions={[]}
+        currentStep={null}
         status="running"
       />,
     );
@@ -71,10 +71,10 @@ describe("WorkflowStateDiagram", () => {
 
   it("renders terminal nodes", () => {
     render(
-      <WorkflowStateDiagram
+      <WorkflowStepDiagram
         definition={linearWorkflow()}
-        stateExecutions={[]}
-        currentState={null}
+        stepExecutions={[]}
+        currentStep={null}
         status="running"
       />,
     );
@@ -91,7 +91,7 @@ describe("WorkflowStateDiagram", () => {
   it("highlights executed states", () => {
     const executions = [
       makeExecution({
-        state: "plan",
+        step: "plan",
         transition_decision: JSON.stringify({
           transition: "implement",
           reason: "Plan ready",
@@ -101,10 +101,10 @@ describe("WorkflowStateDiagram", () => {
     ];
 
     const { container } = render(
-      <WorkflowStateDiagram
+      <WorkflowStepDiagram
         definition={linearWorkflow()}
-        stateExecutions={executions}
-        currentState="implement"
+        stepExecutions={executions}
+        currentStep="implement"
         status="running"
       />,
     );
@@ -122,10 +122,10 @@ describe("WorkflowStateDiagram", () => {
 
   it("highlights the current running state", () => {
     const { container } = render(
-      <WorkflowStateDiagram
+      <WorkflowStepDiagram
         definition={linearWorkflow()}
-        stateExecutions={[]}
-        currentState="plan"
+        stepExecutions={[]}
+        currentStep="plan"
         status="running"
       />,
     );
@@ -137,7 +137,7 @@ describe("WorkflowStateDiagram", () => {
   it("highlights executed edges along the path", () => {
     const executions = [
       makeExecution({
-        state: "plan",
+        step: "plan",
         transition_decision: JSON.stringify({
           transition: "implement",
           reason: "Plan ready",
@@ -147,10 +147,10 @@ describe("WorkflowStateDiagram", () => {
     ];
 
     const { container } = render(
-      <WorkflowStateDiagram
+      <WorkflowStepDiagram
         definition={linearWorkflow()}
-        stateExecutions={executions}
-        currentState="implement"
+        stepExecutions={executions}
+        currentStep="implement"
         status="running"
       />,
     );
@@ -173,7 +173,7 @@ describe("WorkflowStateDiagram", () => {
   it("marks terminal node as executed when run is terminal", () => {
     const executions = [
       makeExecution({
-        state: "plan",
+        step: "plan",
         transition_decision: JSON.stringify({
           transition: "implement",
           reason: "Plan ready",
@@ -181,7 +181,7 @@ describe("WorkflowStateDiagram", () => {
         }),
       }),
       makeExecution({
-        state: "implement",
+        step: "implement",
         transition_decision: JSON.stringify({
           transition: "success",
           reason: "Done",
@@ -191,10 +191,10 @@ describe("WorkflowStateDiagram", () => {
     ];
 
     const { container } = render(
-      <WorkflowStateDiagram
+      <WorkflowStepDiagram
         definition={linearWorkflow()}
-        stateExecutions={executions}
-        currentState={null}
+        stepExecutions={executions}
+        currentStep={null}
         status="success"
       />,
     );
@@ -205,10 +205,10 @@ describe("WorkflowStateDiagram", () => {
 
   it("uses terminal radius for edge endpoints to terminal nodes", () => {
     const { container } = render(
-      <WorkflowStateDiagram
+      <WorkflowStepDiagram
         definition={linearWorkflow()}
-        stateExecutions={[]}
-        currentState={null}
+        stepExecutions={[]}
+        currentStep={null}
         status="running"
       />,
     );
@@ -254,10 +254,10 @@ describe("WorkflowStateDiagram", () => {
     // This tests the start offset when source is a terminal (unlikely but defensive)
     // For now, just verify the fix doesn't break normal state->state edges
     const { container } = render(
-      <WorkflowStateDiagram
+      <WorkflowStepDiagram
         definition={linearWorkflow()}
-        stateExecutions={[]}
-        currentState={null}
+        stepExecutions={[]}
+        currentStep={null}
         status="running"
       />,
     );
@@ -273,10 +273,10 @@ describe("WorkflowStateDiagram", () => {
 
   it("renders edge labels with transition conditions", () => {
     render(
-      <WorkflowStateDiagram
+      <WorkflowStepDiagram
         definition={linearWorkflow()}
-        stateExecutions={[]}
-        currentState={null}
+        stepExecutions={[]}
+        currentStep={null}
         status="running"
       />,
     );
@@ -287,13 +287,13 @@ describe("WorkflowStateDiagram", () => {
 
   it("renders unique keys when multiple transitions share the same from and to", () => {
     const workflow: WorkflowDefinition = {
-      initial_state: "cleanup",
-      states: {
+      initial_step: "cleanup",
+      steps: {
         cleanup: {
           goal: "Cleanup files",
           transitions: [
-            { state: "commit", when: "succeeded" },
-            { state: "commit", when: "failed" },
+            { step: "commit", when: "succeeded" },
+            { step: "commit", when: "failed" },
           ],
         },
         commit: {
@@ -305,10 +305,10 @@ describe("WorkflowStateDiagram", () => {
 
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const { container } = render(
-      <WorkflowStateDiagram
+      <WorkflowStepDiagram
         definition={workflow}
-        stateExecutions={[]}
-        currentState={null}
+        stepExecutions={[]}
+        currentStep={null}
         status="running"
       />,
     );
@@ -331,19 +331,19 @@ describe("WorkflowStateDiagram", () => {
 
   it("renders back-edges as curved paths instead of straight lines", () => {
     const cyclicWorkflow: WorkflowDefinition = {
-      initial_state: "implement",
-      states: {
+      initial_step: "implement",
+      steps: {
         implement: {
           goal: "Implement",
           transitions: [
-            { state: "test", when: "ready" },
+            { step: "test", when: "ready" },
             { terminal: "failure", when: "blocked" },
           ],
         },
         test: {
           goal: "Test",
           transitions: [
-            { state: "implement", when: "failed" },
+            { step: "implement", when: "failed" },
             { terminal: "success", when: "passed" },
           ],
         },
@@ -351,10 +351,10 @@ describe("WorkflowStateDiagram", () => {
     };
 
     const { container } = render(
-      <WorkflowStateDiagram
+      <WorkflowStepDiagram
         definition={cyclicWorkflow}
-        stateExecutions={[]}
-        currentState={null}
+        stepExecutions={[]}
+        currentStep={null}
         status="running"
       />,
     );

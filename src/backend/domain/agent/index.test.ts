@@ -57,7 +57,7 @@ function insertSession(
     `INSERT INTO sessions
        (id, repository_path, worktree_branch, goal, transitions,
         transition_decision, status, terminal_attach_command, log_file_path,
-        claude_session_id, state_execution_id, created_at, updated_at)
+        claude_session_id, step_execution_id, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?, NULL, ?, NULL, ?, ?, NULL, ?, ?)`,
   ).run(
     sessionId,

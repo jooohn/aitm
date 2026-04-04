@@ -11,8 +11,8 @@ import {
 
 const createWorkflowRun =
   workflowRunService.createWorkflowRun.bind(workflowRunService);
-const completeStateExecution =
-  workflowRunService.completeStateExecution.bind(workflowRunService);
+const completeStepExecution =
+  workflowRunService.completeStepExecution.bind(workflowRunService);
 
 import { db } from "@/backend/infra/db";
 import { POST } from "./route";
@@ -29,12 +29,12 @@ async function makeFakeGitRepo(): Promise<string> {
 const WORKFLOW_CONFIG = `
 workflows:
   my-flow:
-    initial_state: plan
-    states:
+    initial_step: plan
+    steps:
       plan:
         goal: "Write a plan"
         transitions:
-          - state: implement
+          - step: implement
             when: "plan is ready"
           - terminal: failure
             when: "cannot proceed"
@@ -60,7 +60,7 @@ beforeEach(async () => {
   await writeFile(configFile, WORKFLOW_CONFIG);
 
   db.prepare("DELETE FROM sessions").run();
-  db.prepare("DELETE FROM state_executions").run();
+  db.prepare("DELETE FROM step_executions").run();
   db.prepare("DELETE FROM workflow_runs").run();
 
   vi.spyOn(agentService, "startAgent").mockResolvedValue(undefined);
@@ -102,10 +102,10 @@ async function setupFailedRun() {
 
   const [planExec] = db
     .prepare(
-      "SELECT * FROM state_executions WHERE workflow_run_id = ? ORDER BY created_at ASC",
+      "SELECT * FROM step_executions WHERE workflow_run_id = ? ORDER BY created_at ASC",
     )
     .all(run.id) as { id: string }[];
-  await completeStateExecution(planExec.id, {
+  await completeStepExecution(planExec.id, {
     transition: "implement",
     reason: "Plan done",
     handoff_summary: "Wrote PLAN.md",
@@ -113,10 +113,10 @@ async function setupFailedRun() {
 
   const implementExec = db
     .prepare(
-      "SELECT * FROM state_executions WHERE workflow_run_id = ? AND state = 'implement'",
+      "SELECT * FROM step_executions WHERE workflow_run_id = ? AND step = 'implement'",
     )
     .get(run.id) as { id: string };
-  await completeStateExecution(implementExec.id, {
+  await completeStepExecution(implementExec.id, {
     transition: "failure",
     reason: "Blocked",
     handoff_summary: "Could not proceed",
@@ -135,8 +135,8 @@ describe("POST /api/workflow-runs/:id/rerun-from-failed", () => {
     const body = await res.json();
     expect(body.id).toBe(run.id);
     expect(body.status).toBe("running");
-    expect(body.current_state).toBe("implement");
-    expect(Array.isArray(body.state_executions)).toBe(true);
+    expect(body.current_step).toBe("implement");
+    expect(Array.isArray(body.step_executions)).toBe(true);
   });
 
   it("returns 404 for unknown id", async () => {
@@ -152,7 +152,7 @@ describe("POST /api/workflow-runs/:id/rerun-from-failed", () => {
     const id = "test-running-run-id";
     db.prepare(
       `INSERT INTO workflow_runs
-         (id, repository_path, worktree_branch, workflow_name, current_state, status, inputs, created_at, updated_at)
+         (id, repository_path, worktree_branch, workflow_name, current_step, status, inputs, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, 'running', NULL, ?, ?)`,
     ).run(id, "/repo", "feat/test", "my-flow", "plan", now, now);
 

@@ -13,12 +13,12 @@ function makeRun(
     repository_path: "/tmp/repo",
     worktree_branch: "feat/test",
     workflow_name: "my-flow",
-    current_state: "plan",
+    current_step: "plan",
     status: "running",
     inputs: null,
     created_at: "2026-04-01T00:00:00.000Z",
     updated_at: "2026-04-01T00:00:00.000Z",
-    state_executions: [],
+    step_executions: [],
     ...overrides,
   };
 }
@@ -26,11 +26,11 @@ function makeRun(
 describe("canStopWorkflowRun", () => {
   it("returns true for a running workflow with an active session-backed execution", () => {
     const run = makeRun({
-      state_executions: [
+      step_executions: [
         {
           id: "exec-1",
           workflow_run_id: "run-1",
-          state: "plan",
+          step: "plan",
           command_output: null,
           session_id: "session-1",
           session_status: "RUNNING",
@@ -47,11 +47,11 @@ describe("canStopWorkflowRun", () => {
 
   it("returns false for a running workflow whose active execution has no session", () => {
     const run = makeRun({
-      state_executions: [
+      step_executions: [
         {
           id: "exec-1",
           workflow_run_id: "run-1",
-          state: "plan",
+          step: "plan",
           command_output: null,
           session_id: null,
           session_status: null,
@@ -69,12 +69,12 @@ describe("canStopWorkflowRun", () => {
   it("returns false for terminal workflow runs", () => {
     const run = makeRun({
       status: "failure",
-      current_state: null,
-      state_executions: [
+      current_step: null,
+      step_executions: [
         {
           id: "exec-1",
           workflow_run_id: "run-1",
-          state: "plan",
+          step: "plan",
           command_output: null,
           session_id: "session-1",
           session_status: "FAILED",

@@ -2,7 +2,7 @@ import type { WorkflowDefinition } from "@/lib/utils/api";
 
 export interface GraphNode {
   id: string;
-  type: "state" | "terminal";
+  type: "step" | "terminal";
   terminal?: "success" | "failure";
 }
 
@@ -15,7 +15,7 @@ export interface GraphEdge {
 export interface Graph {
   nodes: GraphNode[];
   edges: GraphEdge[];
-  initialState: string;
+  initialStep: string;
 }
 
 export interface NodePosition {
@@ -27,14 +27,14 @@ export function buildGraph(definition: WorkflowDefinition): Graph {
   const nodes: Map<string, GraphNode> = new Map();
   const edges: GraphEdge[] = [];
 
-  for (const [stateName, state] of Object.entries(definition.states)) {
-    nodes.set(stateName, { id: stateName, type: "state" });
+  for (const [stateName, state] of Object.entries(definition.steps)) {
+    nodes.set(stateName, { id: stateName, type: "step" });
 
     for (const transition of state.transitions) {
-      if (transition.state) {
+      if (transition.step) {
         edges.push({
           from: stateName,
-          to: transition.state,
+          to: transition.step,
           label: transition.when,
         });
       } else if (transition.terminal) {
@@ -57,7 +57,7 @@ export function buildGraph(definition: WorkflowDefinition): Graph {
   return {
     nodes: Array.from(nodes.values()),
     edges,
-    initialState: definition.initial_state,
+    initialStep: definition.initial_step,
   };
 }
 
@@ -78,9 +78,9 @@ export function computeLayout(graph: Graph): Map<string, NodePosition> {
   // BFS with first-visit-wins (min-layer) for non-terminal nodes.
   // This prevents cycles from pushing all nodes to the max layer.
   const queue: Array<{ id: string; layer: number }> = [
-    { id: graph.initialState, layer: 0 },
+    { id: graph.initialStep, layer: 0 },
   ];
-  layers.set(graph.initialState, 0);
+  layers.set(graph.initialStep, 0);
 
   while (queue.length > 0) {
     const { id, layer } = queue.shift()!;

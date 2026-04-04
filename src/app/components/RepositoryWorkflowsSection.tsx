@@ -93,8 +93,8 @@ export default function RepositoryWorkflowsSection({
                   <span className={styles.workflowName}>
                     {run.workflow_name}
                   </span>
-                  {run.current_state && (
-                    <span className={styles.state}>· {run.current_state}</span>
+                  {run.current_step && (
+                    <span className={styles.state}>· {run.current_step}</span>
                   )}
                   <span>· {new Date(run.created_at).toLocaleString()}</span>
                 </div>

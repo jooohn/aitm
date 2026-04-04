@@ -1,10 +1,10 @@
 import { randomUUID } from "crypto";
 import {
-  AgentWorkflowState,
-  CommandWorkflowState,
+  AgentWorkflowStep,
+  CommandWorkflowStep,
   getConfigWorkflows,
   resolveAgentConfig,
-  WorkflowState,
+  WorkflowStep,
 } from "@/backend/infra/config";
 import type { EventBus } from "@/backend/infra/event-bus";
 import { logger } from "@/backend/infra/logger";
@@ -12,7 +12,7 @@ import { spawnAsync } from "@/backend/utils/process";
 import { type TransitionDecision } from "../agent";
 import type { SessionService, SessionStatus } from "../sessions";
 import type { Worktree, WorktreeService } from "../worktrees";
-import type { CommandStateExecutor } from "./command-state-executor";
+import type { CommandStepExecutor } from "./command-step-executor";
 import type {
   PreviousExecutionHandoff,
   WorkflowRunRepository,
@@ -25,7 +25,7 @@ export interface WorkflowRun {
   repository_path: string;
   worktree_branch: string;
   workflow_name: string;
-  current_state: string | null;
+  current_step: string | null;
   status: WorkflowRunStatus;
   inputs: string | null;
   metadata: string | null;
@@ -33,11 +33,11 @@ export interface WorkflowRun {
   updated_at: string;
 }
 
-export interface StateExecution {
+export interface StepExecution {
   id: string;
   workflow_run_id: string;
-  state: string;
-  state_type: "agent" | "command";
+  step: string;
+  step_type: "agent" | "command";
   command_output: string | null;
   session_id: string | null;
   session_status: SessionStatus | null;
@@ -48,7 +48,7 @@ export interface StateExecution {
 }
 
 export interface WorkflowRunWithExecutions extends WorkflowRun {
-  state_executions: StateExecution[];
+  step_executions: StepExecution[];
 }
 
 export interface CreateWorkflowRunInput {
@@ -65,11 +65,11 @@ export interface ListWorkflowRunsFilter {
 }
 
 function buildGoal(
-  stateGoal: string,
+  stepGoal: string,
   previousExecutions: PreviousExecutionHandoff[],
   inputs?: Record<string, string>,
 ): string {
-  const parts = ["<goal>", stateGoal, "</goal>"];
+  const parts = ["<goal>", stepGoal, "</goal>"];
 
   if (
     previousExecutions.length === 0 &&
@@ -84,9 +84,9 @@ function buildGoal(
   }
 
   if (previousExecutions.length > 0) {
-    parts.push("", "<handoff>", "Previous states (oldest first):", "");
+    parts.push("", "<handoff>", "Previous steps (oldest first):", "");
     for (const prev of previousExecutions) {
-      parts.push(`State: ${prev.state}`, `Summary: ${prev.handoff_summary}`);
+      parts.push(`Step: ${prev.step}`, `Summary: ${prev.handoff_summary}`);
       if (prev.log_file_path) {
         parts.push(`Log: ${prev.log_file_path}`);
       }
@@ -115,7 +115,7 @@ export class WorkflowRunService {
     private workflowRunRepository: WorkflowRunRepository,
     private sessionService: SessionService,
     private worktreeService: WorktreeService,
-    private commandStateExecutor: CommandStateExecutor,
+    private commandStepExecutor: CommandStepExecutor,
     eventBus: EventBus,
   ) {
     eventBus.on("session.completed", ({ sessionId, decision }) => {
@@ -128,34 +128,34 @@ export class WorkflowRunService {
     decision: TransitionDecision | null,
   ): Promise<void> {
     const session = this.sessionService.getSession(sessionId);
-    if (!session?.state_execution_id) return;
-    await this.completeStateExecution(session.state_execution_id, decision);
+    if (!session?.step_execution_id) return;
+    await this.completeStepExecution(session.step_execution_id, decision);
   }
 
-  private async startStateExecution(
+  private async startStepExecution(
     workflowRunId: string,
-    stateName: string,
+    stepName: string,
     repositoryPath: string,
     worktreeBranch: string,
     workflowName: string,
     previousExecutions: PreviousExecutionHandoff[],
     inputs?: Record<string, string>,
-  ): Promise<StateExecution> {
+  ): Promise<StepExecution> {
     const workflows = await getConfigWorkflows();
     const workflow = workflows[workflowName];
     if (!workflow) throw new Error(`Workflow not found: ${workflowName}`);
 
-    const stateDef = workflow.states?.[stateName];
-    if (!stateDef) throw new Error(`State not found: ${stateName}`);
+    const stepDef = workflow.steps?.[stepName];
+    if (!stepDef) throw new Error(`Step not found: ${stepName}`);
 
     const executionId = randomUUID();
     const now = new Date().toISOString();
 
-    this.workflowRunRepository.insertStateExecution({
+    this.workflowRunRepository.insertStepExecution({
       id: executionId,
       workflowRunId,
-      stateName,
-      stateType: stateDef.type,
+      stepName,
+      stepType: stepDef.type,
       now,
     });
 
@@ -164,57 +164,57 @@ export class WorkflowRunService {
       worktreeBranch,
     );
     if (!worktree) {
-      await this.completeStateExecution(executionId, null);
-      return this.workflowRunRepository.getStateExecution(executionId)!;
+      await this.completeStepExecution(executionId, null);
+      return this.workflowRunRepository.getStepExecution(executionId)!;
     }
-    await this.executeState({
-      stateDef,
+    await this.executeStep({
+      stepDef,
       executionId,
       repositoryPath,
       worktree,
       inputs,
       previousExecutions,
     });
-    return this.workflowRunRepository.getStateExecution(executionId)!;
+    return this.workflowRunRepository.getStepExecution(executionId)!;
   }
 
-  private executeState(params: {
-    stateDef: WorkflowState;
+  private executeStep(params: {
+    stepDef: WorkflowStep;
     executionId: string;
     repositoryPath: string;
     worktree: Worktree;
     inputs?: Record<string, string>;
     previousExecutions: PreviousExecutionHandoff[];
   }) {
-    const { stateDef, ...remaining } = params;
-    switch (stateDef.type) {
+    const { stepDef, ...remaining } = params;
+    switch (stepDef.type) {
       case "command":
-        return this.startCommandStateExecution({ stateDef, ...remaining });
+        return this.startCommandStepExecution({ stepDef, ...remaining });
       case "agent":
-        return this.startAgentStateExecution({ stateDef, ...remaining });
+        return this.startAgentStepExecution({ stepDef, ...remaining });
     }
   }
 
-  private async startCommandStateExecution({
-    stateDef,
+  private async startCommandStepExecution({
+    stepDef,
     executionId,
     worktree,
   }: {
-    stateDef: CommandWorkflowState;
+    stepDef: CommandWorkflowStep;
     executionId: string;
     worktree: Worktree;
   }) {
-    const { outcome, commandOutput } = await this.commandStateExecutor.execute(
-      stateDef.command,
+    const { outcome, commandOutput } = await this.commandStepExecutor.execute(
+      stepDef.command,
       { cwd: worktree.path },
     );
 
-    this.workflowRunRepository.setStateExecutionCommandOutput(
+    this.workflowRunRepository.setStepExecutionCommandOutput(
       executionId,
       commandOutput,
     );
 
-    const matchedTransition = stateDef.transitions.find(
+    const matchedTransition = stepDef.transitions.find(
       (t) => t.when === outcome,
     );
 
@@ -223,8 +223,8 @@ export class WorkflowRunService {
       decision = null;
     } else {
       const transitionName =
-        "state" in matchedTransition
-          ? matchedTransition.state
+        "step" in matchedTransition
+          ? matchedTransition.step
           : matchedTransition.terminal;
       decision = {
         transition: transitionName,
@@ -233,34 +233,34 @@ export class WorkflowRunService {
       };
     }
 
-    await this.completeStateExecution(executionId, decision);
+    await this.completeStepExecution(executionId, decision);
   }
 
-  private async startAgentStateExecution({
-    stateDef,
+  private async startAgentStepExecution({
+    stepDef,
     executionId,
     repositoryPath,
     worktree,
     inputs,
     previousExecutions,
   }: {
-    stateDef: AgentWorkflowState;
+    stepDef: AgentWorkflowStep;
     executionId: string;
     repositoryPath: string;
     worktree: Worktree;
     inputs?: Record<string, string>;
     previousExecutions: PreviousExecutionHandoff[];
   }) {
-    const goal = buildGoal(stateDef.goal, previousExecutions, inputs);
-    const agentConfig = await resolveAgentConfig(stateDef.agent);
+    const goal = buildGoal(stepDef.goal, previousExecutions, inputs);
+    const agentConfig = await resolveAgentConfig(stepDef.agent);
     await this.sessionService.createSession({
       repository_path: repositoryPath,
       worktree_branch: worktree.branch,
       goal,
-      transitions: stateDef.transitions,
+      transitions: stepDef.transitions,
       agent_config: agentConfig,
-      state_execution_id: executionId,
-      metadata_fields: stateDef.output?.metadata,
+      step_execution_id: executionId,
+      metadata_fields: stepDef.output?.metadata,
     });
   }
 
@@ -294,14 +294,14 @@ export class WorkflowRunService {
       repository_path: input.repository_path,
       worktree_branch: input.worktree_branch,
       workflow_name: input.workflow_name,
-      initial_state: workflow.initial_state,
+      initial_step: workflow.initial_step,
       inputs_json,
       now,
     });
 
-    await this.startStateExecution(
+    await this.startStepExecution(
       id,
-      workflow.initial_state,
+      workflow.initial_step,
       input.repository_path,
       input.worktree_branch,
       input.workflow_name,
@@ -312,12 +312,12 @@ export class WorkflowRunService {
     return this.workflowRunRepository.getWorkflowRunById(id) as WorkflowRun;
   }
 
-  async completeStateExecution(
-    stateExecutionId: string,
+  async completeStepExecution(
+    stepExecutionId: string,
     decision: TransitionDecision | null,
   ): Promise<void> {
     const execution =
-      this.workflowRunRepository.getStateExecution(stateExecutionId);
+      this.workflowRunRepository.getStepExecution(stepExecutionId);
     if (!execution) return;
 
     const run = this.workflowRunRepository.getWorkflowRunById(
@@ -327,8 +327,8 @@ export class WorkflowRunService {
 
     const now = new Date().toISOString();
 
-    this.workflowRunRepository.completeStateExecution(
-      stateExecutionId,
+    this.workflowRunRepository.completeStepExecution(
+      stepExecutionId,
       decision ? JSON.stringify(decision) : null,
       decision?.handoff_summary ?? null,
       now,
@@ -357,13 +357,13 @@ export class WorkflowRunService {
     // Look up the workflow definition to validate the next state exists.
     const workflows = await getConfigWorkflows();
     const workflow = workflows[run.workflow_name];
-    if (!workflow || !workflow.states?.[transition]) {
+    if (!workflow || !workflow.steps?.[transition]) {
       this.workflowRunRepository.terminateWorkflowRun(run.id, "failure", now);
       return;
     }
 
     // Advance to next state.
-    this.workflowRunRepository.updateWorkflowRunCurrentState(
+    this.workflowRunRepository.updateWorkflowRunCurrentStep(
       run.id,
       transition,
       now,
@@ -374,7 +374,7 @@ export class WorkflowRunService {
       .listCompletedExecutionsHandoff(run.id)
       .filter((e): e is PreviousExecutionHandoff => e.handoff_summary !== null);
 
-    await this.startStateExecution(
+    await this.startStepExecution(
       run.id,
       transition,
       run.repository_path,
@@ -392,7 +392,7 @@ export class WorkflowRunService {
     }
 
     const activeExecution =
-      this.workflowRunRepository.getActiveStateExecution(id);
+      this.workflowRunRepository.getActiveStepExecution(id);
 
     if (!activeExecution?.session_id) {
       throw new Error("No active session to stop for this workflow run");
@@ -408,7 +408,7 @@ export class WorkflowRunService {
       }
     }
 
-    await this.completeStateExecution(activeExecution.id, {
+    await this.completeStepExecution(activeExecution.id, {
       transition: "failure",
       reason: "Emergency stop requested",
       handoff_summary: "Workflow run stopped manually.",
@@ -417,13 +417,13 @@ export class WorkflowRunService {
     return this.getWorkflowRun(id)!;
   }
 
-  // Mark state_executions as completed where the session has reached a terminal
+  // Mark step_executions as completed where the session has reached a terminal
   // state but the execution was never closed (e.g., due to a server crash).
   // Then fail any workflow runs that have no remaining active state execution.
   async recoverCrashedWorkflowRuns(): Promise<void> {
     const now = new Date().toISOString();
 
-    // For uncompleted state executions whose session SUCCEEDED: replay completeStateExecution()
+    // For uncompleted state executions whose session SUCCEEDED: replay completeStepExecution()
     // so the workflow advances (or terminates) correctly using the session's decision.
     // This handles the case where the server crashed after the session completed but before
     // the onComplete callback was invoked.
@@ -439,7 +439,7 @@ export class WorkflowRunService {
           // malformed JSON — treat as no decision, will terminate as failure
         }
       }
-      await this.completeStateExecution(execution_id, decision);
+      await this.completeStepExecution(execution_id, decision);
     }
 
     // For uncompleted state executions whose session FAILED while the workflow is still running:
@@ -447,8 +447,8 @@ export class WorkflowRunService {
     const pendingFailed =
       this.workflowRunRepository.listPendingFailedExecutions();
 
-    for (const { execution_id, state, workflow_run_id } of pendingFailed) {
-      this.workflowRunRepository.closeStateExecution(execution_id, now);
+    for (const { execution_id, step, workflow_run_id } of pendingFailed) {
+      this.workflowRunRepository.closeStepExecution(execution_id, now);
 
       const run = this.workflowRunRepository.getWorkflowRunById(
         workflow_run_id,
@@ -464,9 +464,9 @@ export class WorkflowRunService {
         ? (JSON.parse(run.inputs) as Record<string, string>)
         : undefined;
 
-      await this.startStateExecution(
+      await this.startStepExecution(
         workflow_run_id,
-        state,
+        step,
         run.repository_path,
         run.worktree_branch,
         run.workflow_name,
@@ -481,7 +481,7 @@ export class WorkflowRunService {
       this.workflowRunRepository.listOrphanedCommandExecutions();
 
     for (const { execution_id, workflow_run_id } of orphanedCommandExecutions) {
-      this.workflowRunRepository.closeStateExecution(execution_id, now);
+      this.workflowRunRepository.closeStepExecution(execution_id, now);
       this.workflowRunRepository.terminateWorkflowRun(
         workflow_run_id,
         "failure",
@@ -549,13 +549,13 @@ export class WorkflowRunService {
       );
     }
 
-    const lastExecution = this.workflowRunRepository.getLastStateExecution(id);
+    const lastExecution = this.workflowRunRepository.getLastStepExecution(id);
     if (!lastExecution) throw new Error("Workflow run not found");
 
-    const failedState = lastExecution.state;
+    const failedStep = lastExecution.step;
     const now = new Date().toISOString();
 
-    this.workflowRunRepository.setWorkflowRunRunning(id, failedState, now);
+    this.workflowRunRepository.setWorkflowRunRunning(id, failedStep, now);
 
     const previousExecutions = this.workflowRunRepository
       .listCompletedExecutionsHandoffExcluding(id, lastExecution.id)
@@ -565,9 +565,9 @@ export class WorkflowRunService {
       ? (JSON.parse(run.inputs) as Record<string, string>)
       : undefined;
 
-    await this.startStateExecution(
+    await this.startStepExecution(
       id,
-      failedState,
+      failedStep,
       run.repository_path,
       run.worktree_branch,
       run.workflow_name,

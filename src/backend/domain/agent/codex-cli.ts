@@ -209,7 +209,7 @@ export function buildTransitionOutputFormatForCodex(
 ): OutputFormat {
   const transitionNames = transitions.map((t) => {
     if ("user_input" in t) return USER_INPUT_TRANSITION_NAME;
-    if ("state" in t) return t.state;
+    if ("step" in t) return t.step;
     return t.terminal;
   });
 

@@ -15,8 +15,8 @@ vi.spyOn(agentService, "cancelAgent").mockImplementation(() => {});
 
 const createWorkflowRun =
   workflowRunService.createWorkflowRun.bind(workflowRunService);
-const completeStateExecution =
-  workflowRunService.completeStateExecution.bind(workflowRunService);
+const completeStepExecution =
+  workflowRunService.completeStepExecution.bind(workflowRunService);
 
 import { db } from "@/backend/infra/db";
 import { POST } from "./route";
@@ -33,12 +33,12 @@ async function makeFakeGitRepo(): Promise<string> {
 const WORKFLOW_CONFIG = `
 workflows:
   my-flow:
-    initial_state: plan
-    states:
+    initial_step: plan
+    steps:
       plan:
         goal: "Write a plan"
         transitions:
-          - state: implement
+          - step: implement
             when: "plan is ready"
           - terminal: failure
             when: "cannot proceed"
@@ -64,7 +64,7 @@ beforeEach(async () => {
   await writeFile(configFile, WORKFLOW_CONFIG);
 
   db.prepare("DELETE FROM sessions").run();
-  db.prepare("DELETE FROM state_executions").run();
+  db.prepare("DELETE FROM step_executions").run();
   db.prepare("DELETE FROM workflow_runs").run();
 
   vi.spyOn(worktreeService, "listWorktrees").mockImplementation(
@@ -109,7 +109,7 @@ describe("POST /api/workflow-runs/:id/stop", () => {
     const body = await res.json();
     expect(body.id).toBe(run.id);
     expect(body.status).toBe("failure");
-    expect(body.current_state).toBeNull();
+    expect(body.current_step).toBeNull();
   });
 
   it("returns 404 for unknown id", async () => {
@@ -129,9 +129,9 @@ describe("POST /api/workflow-runs/:id/stop", () => {
       workflow_name: "my-flow",
     });
     const [execution] = db
-      .prepare("SELECT * FROM state_executions WHERE workflow_run_id = ?")
+      .prepare("SELECT * FROM step_executions WHERE workflow_run_id = ?")
       .all(run.id) as { id: string }[];
-    await completeStateExecution(execution.id, {
+    await completeStepExecution(execution.id, {
       transition: "failure",
       reason: "Blocked",
       handoff_summary: "Could not proceed",
@@ -152,10 +152,10 @@ describe("POST /api/workflow-runs/:id/stop", () => {
       workflow_name: "my-flow",
     });
     const [execution] = db
-      .prepare("SELECT * FROM state_executions WHERE workflow_run_id = ?")
+      .prepare("SELECT * FROM step_executions WHERE workflow_run_id = ?")
       .all(run.id) as { id: string }[];
     const session = db
-      .prepare("SELECT * FROM sessions WHERE state_execution_id = ?")
+      .prepare("SELECT * FROM sessions WHERE step_execution_id = ?")
       .get(execution.id) as { id: string };
     db.prepare("UPDATE sessions SET status = 'SUCCEEDED' WHERE id = ?").run(
       session.id,
@@ -167,6 +167,6 @@ describe("POST /api/workflow-runs/:id/stop", () => {
     const body = await res.json();
     expect(body.id).toBe(run.id);
     expect(body.status).toBe("failure");
-    expect(body.current_state).toBeNull();
+    expect(body.current_step).toBeNull();
   });
 });
