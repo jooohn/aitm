@@ -170,6 +170,45 @@ describe("createWorkflowRun", () => {
     expect(executions[0].state).toBe("plan");
   });
 
+  it("stores output.metadata field definitions on the session for the agent", async () => {
+    const configWithMetadata = `
+workflows:
+  my-flow:
+    initial_state: plan
+    states:
+      plan:
+        goal: "Write a plan"
+        output:
+          metadata:
+            pr_url:
+              type: string
+              description: "The pull request URL"
+            pr_number:
+              type: string
+        transitions:
+          - terminal: success
+            when: "done"
+`;
+    process.env.AITM_CONFIG_PATH = await writeTempConfig(configWithMetadata);
+    const repoPath = await makeFakeGitRepo();
+
+    await createWorkflowRun({
+      repository_path: repoPath,
+      worktree_branch: "feat/test",
+      workflow_name: "my-flow",
+    });
+
+    // The session should store metadata_fields so the agent output schema includes them
+    const session = db
+      .prepare("SELECT * FROM sessions WHERE repository_path = ?")
+      .get(repoPath) as { metadata_fields: string | null };
+    const metadataFields = JSON.parse(session.metadata_fields!);
+    expect(metadataFields).toEqual({
+      pr_url: { type: "string", description: "The pull request URL" },
+      pr_number: { type: "string" },
+    });
+  });
+
   it("throws when workflow is not found in config", async () => {
     process.env.AITM_CONFIG_PATH = await writeTempConfig(
       SIMPLE_WORKFLOW_CONFIG,
@@ -571,6 +610,67 @@ describe("completeStateExecution", () => {
     // Second implement session should contain BOTH prior handoffs
     expect(implement2Session.goal).toContain("Created PLAN.md with approach");
     expect(implement2Session.goal).toContain("Wrote src/index.ts");
+  });
+
+  it("stores metadata on the workflow run when the decision carries metadata", async () => {
+    const { run, execution } = await setupRunAtPlan();
+
+    await completeStateExecution(execution.id, {
+      transition: "implement",
+      reason: "Plan is done",
+      handoff_summary: "Wrote PLAN.md",
+      metadata: { pr_url: "https://github.com/org/repo/pull/42" },
+    });
+
+    const updatedRun = getWorkflowRun(run.id);
+    expect(updatedRun?.metadata).toBe(
+      JSON.stringify({ pr_url: "https://github.com/org/repo/pull/42" }),
+    );
+  });
+
+  it("merges metadata across multiple state executions", async () => {
+    const { run, execution } = await setupRunAtPlan();
+
+    await completeStateExecution(execution.id, {
+      transition: "implement",
+      reason: "Plan is done",
+      handoff_summary: "Wrote PLAN.md",
+      metadata: { plan_status: "complete" },
+    });
+
+    // Complete implement with additional metadata
+    const implementExec = db
+      .prepare(
+        "SELECT * FROM state_executions WHERE workflow_run_id = ? AND state = 'implement'",
+      )
+      .get(run.id) as { id: string };
+
+    await completeStateExecution(implementExec.id, {
+      transition: "success",
+      reason: "Code is done",
+      handoff_summary: "All done",
+      metadata: { pr_url: "https://github.com/org/repo/pull/42" },
+    });
+
+    const updatedRun = getWorkflowRun(run.id);
+    const metadata = JSON.parse(updatedRun!.metadata!);
+    expect(metadata).toEqual({
+      plan_status: "complete",
+      pr_url: "https://github.com/org/repo/pull/42",
+    });
+  });
+
+  it("does not set metadata when decision has no metadata", async () => {
+    const { run, execution } = await setupRunAtPlan();
+
+    await completeStateExecution(execution.id, {
+      transition: "failure",
+      reason: "Blocked",
+      handoff_summary: "Could not proceed",
+    });
+
+    const updatedRun = getWorkflowRun(run.id);
+    expect(updatedRun?.metadata).toBeNull();
   });
 });
 

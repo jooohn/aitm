@@ -28,6 +28,7 @@ export interface WorkflowRun {
   current_state: string | null;
   status: WorkflowRunStatus;
   inputs: string | null;
+  metadata: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -259,6 +260,7 @@ export class WorkflowRunService {
       transitions: stateDef.transitions,
       agent_config: agentConfig,
       state_execution_id: executionId,
+      metadata_fields: stateDef.output?.metadata,
     });
   }
 
@@ -331,6 +333,13 @@ export class WorkflowRunService {
       decision?.handoff_summary ?? null,
       now,
     );
+
+    if (decision?.metadata && Object.keys(decision.metadata).length > 0) {
+      this.workflowRunRepository.mergeWorkflowRunMetadata(
+        run.id,
+        decision.metadata,
+      );
+    }
 
     if (!decision) {
       // No structured output → mark as failure.

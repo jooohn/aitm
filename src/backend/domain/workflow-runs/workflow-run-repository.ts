@@ -26,6 +26,7 @@ export class WorkflowRunRepository {
         current_state    TEXT,
         status           TEXT    NOT NULL DEFAULT 'running',
         inputs           TEXT,
+        metadata         TEXT,
         created_at       TEXT    NOT NULL,
         updated_at       TEXT    NOT NULL
       );
@@ -43,14 +44,24 @@ export class WorkflowRunRepository {
       );
     `);
 
-    const columns = this.db
+    const seColumns = this.db
       .prepare("PRAGMA table_info(state_executions)")
       .all() as Array<{ name: string }>;
-    const hasStateType = columns.some((column) => column.name === "state_type");
+    const hasStateType = seColumns.some(
+      (column) => column.name === "state_type",
+    );
     if (!hasStateType) {
       this.db.exec(
         "ALTER TABLE state_executions ADD COLUMN state_type TEXT NOT NULL DEFAULT 'agent'",
       );
+    }
+
+    const wrColumns = this.db
+      .prepare("PRAGMA table_info(workflow_runs)")
+      .all() as Array<{ name: string }>;
+    const hasMetadata = wrColumns.some((column) => column.name === "metadata");
+    if (!hasMetadata) {
+      this.db.exec("ALTER TABLE workflow_runs ADD COLUMN metadata TEXT");
     }
   }
 
@@ -258,6 +269,24 @@ export class WorkflowRunRepository {
     return this.db
       .prepare(`SELECT * FROM workflow_runs ${where} ORDER BY created_at DESC`)
       .all(...params) as WorkflowRun[];
+  }
+
+  mergeWorkflowRunMetadata(
+    id: string,
+    newMetadata: Record<string, string>,
+  ): void {
+    const row = this.db
+      .prepare("SELECT metadata FROM workflow_runs WHERE id = ?")
+      .get(id) as { metadata: string | null } | undefined;
+
+    const existing: Record<string, string> = row?.metadata
+      ? JSON.parse(row.metadata)
+      : {};
+    const merged = { ...existing, ...newMetadata };
+
+    this.db
+      .prepare("UPDATE workflow_runs SET metadata = ? WHERE id = ?")
+      .run(JSON.stringify(merged), id);
   }
 
   updateWorkflowRunCurrentState(id: string, state: string, now: string): void {

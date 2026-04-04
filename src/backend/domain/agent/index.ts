@@ -1,7 +1,11 @@
 import { AbortError } from "@anthropic-ai/claude-agent-sdk";
 import { appendFile, writeFile } from "fs/promises";
 import type { SessionStatus } from "@/backend/domain/sessions";
-import type { AgentConfig, WorkflowTransition } from "@/backend/infra/config";
+import type {
+  AgentConfig,
+  OutputMetadataFieldDef,
+  WorkflowTransition,
+} from "@/backend/infra/config";
 import { db } from "@/backend/infra/db";
 import { claudeCLI } from "./claude-cli";
 import { codexSDK } from "./codex-sdk";
@@ -13,6 +17,7 @@ export interface TransitionDecision {
   transition: string;
   reason: string;
   handoff_summary: string;
+  metadata?: Record<string, string>;
 }
 
 // ---------------------------------------------------------------------------
@@ -100,6 +105,8 @@ function selectRuntime(agentConfig: AgentConfig): AgentRuntime {
   return agentConfig.provider === "codex" ? codexSDK : claudeCLI;
 }
 
+const CORE_DECISION_KEYS = new Set(["transition", "reason", "handoff_summary"]);
+
 /** Process messages from an agent stream. Returns the transition decision if one was produced. */
 function processResultMessage(
   sessionId: string,
@@ -107,7 +114,23 @@ function processResultMessage(
 ): TransitionDecision | null {
   let decision: TransitionDecision | null = null;
   if (message.subtype === "success" && message.structured_output) {
-    decision = message.structured_output as TransitionDecision;
+    const raw = message.structured_output as Record<string, unknown>;
+    decision = {
+      transition: raw.transition as string,
+      reason: raw.reason as string,
+      handoff_summary: raw.handoff_summary as string,
+    };
+
+    // Extract metadata: any keys beyond the three core fields
+    const metadataEntries = Object.entries(raw).filter(
+      ([key]) => !CORE_DECISION_KEYS.has(key),
+    );
+    if (metadataEntries.length > 0) {
+      decision.metadata = Object.fromEntries(
+        metadataEntries.map(([k, v]) => [k, String(v)]),
+      );
+    }
+
     db.prepare("UPDATE sessions SET transition_decision = ? WHERE id = ?").run(
       JSON.stringify(decision),
       sessionId,
@@ -152,6 +175,7 @@ export class AgentService {
     agentConfig: AgentConfig,
     logFilePath: string,
     onComplete?: (decision: TransitionDecision | null) => void,
+    metadataFields?: Record<string, OutputMetadataFieldDef>,
   ): Promise<void> {
     const abortController = new AbortController();
     this.activeAbortControllers.set(sessionId, abortController);
@@ -179,8 +203,10 @@ export class AgentService {
     const prompt = [goal, "", buildTransitionsSection(sessionTransitions)].join(
       "\n",
     );
-    const outputFormat =
-      agentRuntime.buildTransitionOutputFormat(sessionTransitions);
+    const outputFormat = agentRuntime.buildTransitionOutputFormat(
+      sessionTransitions,
+      metadataFields,
+    );
 
     let decision: TransitionDecision | null = null;
     try {
@@ -239,6 +265,7 @@ export class AgentService {
     agentConfig: AgentConfig,
     logFilePath: string,
     onComplete?: (decision: TransitionDecision | null) => void,
+    metadataFields?: Record<string, OutputMetadataFieldDef>,
   ): Promise<void> {
     const agentSessionId = getAgentSessionId(sessionId);
     if (!agentSessionId) {
@@ -258,8 +285,10 @@ export class AgentService {
 
     const agentRuntime = selectRuntime(agentConfig);
     const sessionTransitions = buildSessionTransitions(transitions);
-    const outputFormat =
-      agentRuntime.buildTransitionOutputFormat(sessionTransitions);
+    const outputFormat = agentRuntime.buildTransitionOutputFormat(
+      sessionTransitions,
+      metadataFields,
+    );
 
     let decision: TransitionDecision | null = null;
     try {

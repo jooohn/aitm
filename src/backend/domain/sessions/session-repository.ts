@@ -19,10 +19,21 @@ export class SessionRepository {
         log_file_path           TEXT    NOT NULL,
         claude_session_id       TEXT,
         state_execution_id      TEXT    REFERENCES state_executions(id),
+        metadata_fields         TEXT,
         created_at              TEXT    NOT NULL,
         updated_at              TEXT    NOT NULL
       );
     `);
+
+    const columns = this.db
+      .prepare("PRAGMA table_info(sessions)")
+      .all() as Array<{ name: string }>;
+    const hasMetadataFields = columns.some(
+      (column) => column.name === "metadata_fields",
+    );
+    if (!hasMetadataFields) {
+      this.db.exec("ALTER TABLE sessions ADD COLUMN metadata_fields TEXT");
+    }
   }
 
   insertSession(params: {
@@ -34,6 +45,7 @@ export class SessionRepository {
     agent_config: string;
     log_file_path: string;
     state_execution_id: string | null;
+    metadata_fields: string | null;
     now: string;
   }): void {
     this.db
@@ -41,8 +53,8 @@ export class SessionRepository {
         `INSERT INTO sessions
          (id, repository_path, worktree_branch, goal, transitions,
           transition_decision, agent_config, status, terminal_attach_command, log_file_path,
-          claude_session_id, state_execution_id, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, NULL, ?, 'RUNNING', NULL, ?, NULL, ?, ?, ?)`,
+          claude_session_id, state_execution_id, metadata_fields, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, NULL, ?, 'RUNNING', NULL, ?, NULL, ?, ?, ?, ?)`,
       )
       .run(
         params.id,
@@ -53,6 +65,7 @@ export class SessionRepository {
         params.agent_config,
         params.log_file_path,
         params.state_execution_id,
+        params.metadata_fields,
         params.now,
         params.now,
       );

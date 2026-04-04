@@ -274,6 +274,188 @@ workflows:
     expect("goal" in commitState).toBe(true);
   });
 
+  it("parses output.metadata on an agent state", async () => {
+    await writeFile(
+      configFile,
+      `
+workflows:
+  my-flow:
+    initial_state: push
+    states:
+      push:
+        goal: "Push and create PR"
+        output:
+          metadata:
+            pr_url:
+              type: string
+              description: "The pull request URL"
+            pr_number:
+              type: string
+        transitions:
+          - terminal: success
+            when: "done"
+`,
+    );
+
+    const workflows = await getConfigWorkflows();
+    const pushState = workflows["my-flow"].states.push;
+
+    expect("goal" in pushState).toBe(true);
+    if (!("goal" in pushState)) {
+      throw new Error("expected goal state");
+    }
+
+    expect(pushState.output).toEqual({
+      metadata: {
+        pr_url: { type: "string", description: "The pull request URL" },
+        pr_number: { type: "string" },
+      },
+    });
+  });
+
+  it("strips metadata fields with invalid shape (not an object with type)", async () => {
+    await writeFile(
+      configFile,
+      `
+workflows:
+  my-flow:
+    initial_state: push
+    states:
+      push:
+        goal: "Push and create PR"
+        output:
+          metadata:
+            pr_url:
+              type: string
+              description: "The pull request URL"
+            bad_field: "just a string"
+            also_bad:
+              description: "missing type"
+        transitions:
+          - terminal: success
+            when: "done"
+`,
+    );
+
+    const workflows = await getConfigWorkflows();
+    const pushState = workflows["my-flow"].states.push;
+
+    expect("goal" in pushState).toBe(true);
+    if (!("goal" in pushState)) {
+      throw new Error("expected goal state");
+    }
+
+    // Only pr_url should survive validation
+    expect(pushState.output).toEqual({
+      metadata: {
+        pr_url: { type: "string", description: "The pull request URL" },
+      },
+    });
+  });
+
+  it("rejects metadata field names that collide with core decision keys", async () => {
+    await writeFile(
+      configFile,
+      `
+workflows:
+  my-flow:
+    initial_state: push
+    states:
+      push:
+        goal: "Push and create PR"
+        output:
+          metadata:
+            transition:
+              type: string
+              description: "This collides with a core field"
+            reason:
+              type: string
+            pr_url:
+              type: string
+              description: "The pull request URL"
+            handoff_summary:
+              type: string
+        transitions:
+          - terminal: success
+            when: "done"
+`,
+    );
+
+    const workflows = await getConfigWorkflows();
+    const pushState = workflows["my-flow"].states.push;
+
+    expect("goal" in pushState).toBe(true);
+    if (!("goal" in pushState)) {
+      throw new Error("expected goal state");
+    }
+
+    // Only pr_url should survive — core field names are filtered out
+    expect(pushState.output).toEqual({
+      metadata: {
+        pr_url: { type: "string", description: "The pull request URL" },
+      },
+    });
+  });
+
+  it("sets output to undefined when all metadata fields are invalid", async () => {
+    await writeFile(
+      configFile,
+      `
+workflows:
+  my-flow:
+    initial_state: push
+    states:
+      push:
+        goal: "Push and create PR"
+        output:
+          metadata:
+            transition:
+              type: string
+            bad_field: 42
+        transitions:
+          - terminal: success
+            when: "done"
+`,
+    );
+
+    const workflows = await getConfigWorkflows();
+    const pushState = workflows["my-flow"].states.push;
+
+    expect("goal" in pushState).toBe(true);
+    if (!("goal" in pushState)) {
+      throw new Error("expected goal state");
+    }
+
+    expect(pushState.output).toBeUndefined();
+  });
+
+  it("omits output when not specified on agent state", async () => {
+    await writeFile(
+      configFile,
+      `
+workflows:
+  my-flow:
+    initial_state: plan
+    states:
+      plan:
+        goal: "Write a plan"
+        transitions:
+          - terminal: success
+            when: "done"
+`,
+    );
+
+    const workflows = await getConfigWorkflows();
+    const planState = workflows["my-flow"].states.plan;
+
+    expect("goal" in planState).toBe(true);
+    if (!("goal" in planState)) {
+      throw new Error("expected goal state");
+    }
+
+    expect(planState.output).toBeUndefined();
+  });
+
   it("does not retain agent config on command states", async () => {
     await writeFile(
       configFile,

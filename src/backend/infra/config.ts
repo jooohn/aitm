@@ -29,11 +29,19 @@ export type WorkflowTransition =
   | { state: string; when: string }
   | { terminal: "success" | "failure"; when: string };
 
+export interface OutputMetadataFieldDef {
+  type: string;
+  description?: string;
+}
+
 export interface AgentWorkflowState {
   type: "agent";
   goal: string;
   transitions: WorkflowTransition[];
   agent?: AgentConfigOverride;
+  output?: {
+    metadata?: Record<string, OutputMetadataFieldDef>;
+  };
 }
 
 export interface CommandWorkflowState {
@@ -89,6 +97,39 @@ function normalizeAgentConfigOverride(
   };
 }
 
+const CORE_DECISION_KEYS = new Set(["transition", "reason", "handoff_summary"]);
+
+function normalizeOutputMetadata(
+  raw: unknown,
+): Record<string, OutputMetadataFieldDef> | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const entries = Object.entries(raw as Record<string, unknown>).filter(
+    ([key, def]) =>
+      !CORE_DECISION_KEYS.has(key) &&
+      def !== null &&
+      typeof def === "object" &&
+      typeof (def as Record<string, unknown>).type === "string",
+  );
+  if (entries.length === 0) return undefined;
+  return Object.fromEntries(
+    entries.map(([key, def]) => {
+      const d = def as Record<string, unknown>;
+      const field: OutputMetadataFieldDef = { type: d.type as string };
+      if (typeof d.description === "string") field.description = d.description;
+      return [key, field];
+    }),
+  );
+}
+
+function normalizeOutput(
+  raw: AgentWorkflowState["output"],
+): AgentWorkflowState["output"] | undefined {
+  if (!raw) return undefined;
+  const metadata = normalizeOutputMetadata(raw.metadata);
+  if (!metadata) return undefined;
+  return { metadata };
+}
+
 function normalizeWorkflowState(
   raw: Exclude<WorkflowState, "type">,
 ): WorkflowState {
@@ -98,6 +139,7 @@ function normalizeWorkflowState(
       goal: raw.goal,
       transitions: raw.transitions,
       agent: normalizeAgentConfigOverride(raw.agent),
+      output: normalizeOutput(raw.output),
     };
   }
 

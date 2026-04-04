@@ -1,34 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { buildTransitionOutputFormatForCodex } from "./codex-cli";
+import { buildTransitionOutputFormatForClaude } from "./claude-common";
 
-describe("buildTransitionOutputFormatForCodex", () => {
-  it("restricts transition to the configured state and terminal names", () => {
-    const outputFormat = buildTransitionOutputFormatForCodex([
-      { state: "plan", when: "needs clarification" },
-      { state: "implement", when: "plan is ready" },
-      { terminal: "failure", when: "blocked" },
-    ]);
-
-    expect(outputFormat).toEqual({
-      type: "json_schema",
-      schema: {
-        type: "object",
-        properties: {
-          transition: {
-            type: "string",
-            enum: ["plan", "implement", "failure"],
-          },
-          reason: { type: "string" },
-          handoff_summary: { type: "string" },
-        },
-        required: ["transition", "reason", "handoff_summary"],
-        additionalProperties: false,
-      },
-    });
-  });
-
+describe("buildTransitionOutputFormatForClaude", () => {
   it("includes metadata fields as optional properties in the schema", () => {
-    const outputFormat = buildTransitionOutputFormatForCodex(
+    const outputFormat = buildTransitionOutputFormatForClaude(
       [{ terminal: "success", when: "done" }],
       {
         pr_url: { type: "string", description: "The pull request URL" },
@@ -54,11 +29,12 @@ describe("buildTransitionOutputFormatForCodex", () => {
   });
 
   it("ignores metadata fields that collide with core decision keys", () => {
-    const outputFormat = buildTransitionOutputFormatForCodex(
+    const outputFormat = buildTransitionOutputFormatForClaude(
       [{ terminal: "success", when: "done" }],
       {
         transition: { type: "string", description: "collides" },
         reason: { type: "string" },
+        handoff_summary: { type: "string" },
         pr_url: { type: "string", description: "The pull request URL" },
       },
     );
@@ -66,12 +42,10 @@ describe("buildTransitionOutputFormatForCodex", () => {
     const schema = outputFormat.schema as Record<string, unknown>;
     const properties = schema.properties as Record<string, unknown>;
 
-    // Core transition field should retain its enum, not be overwritten
-    expect(properties.transition).toEqual({
-      type: "string",
-      enum: ["success"],
-    });
+    // Core fields should retain their original definitions (no description from metadata)
+    expect(properties.transition).toEqual({ type: "string" });
     expect(properties.reason).toEqual({ type: "string" });
+    expect(properties.handoff_summary).toEqual({ type: "string" });
 
     // Only pr_url should be added from metadata
     expect(properties.pr_url).toEqual({
@@ -81,14 +55,13 @@ describe("buildTransitionOutputFormatForCodex", () => {
   });
 
   it("works without metadata (backward compat)", () => {
-    const outputFormat = buildTransitionOutputFormatForCodex([
+    const outputFormat = buildTransitionOutputFormatForClaude([
       { terminal: "success", when: "done" },
     ]);
 
     const schema = outputFormat.schema as Record<string, unknown>;
     const properties = schema.properties as Record<string, unknown>;
 
-    // Only the three core fields
     expect(Object.keys(properties)).toEqual([
       "transition",
       "reason",

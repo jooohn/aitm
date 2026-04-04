@@ -74,6 +74,7 @@ describe("POST /api/sessions/:id/reply", () => {
       expect.any(Object),
       session.log_file_path,
       expect.any(Function),
+      undefined,
     );
   });
 

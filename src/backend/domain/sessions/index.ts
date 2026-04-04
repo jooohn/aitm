@@ -5,6 +5,7 @@ import { join } from "path";
 import {
   type AgentConfig,
   getAgentConfig,
+  type OutputMetadataFieldDef,
   type WorkflowTransition,
 } from "@/backend/infra/config";
 import type { EventBus } from "@/backend/infra/event-bus";
@@ -32,6 +33,7 @@ export interface Session {
   log_file_path: string;
   claude_session_id: string | null;
   state_execution_id: string | null;
+  metadata_fields: string | null; // JSON-serialized Record<string, OutputMetadataFieldDef>
   state_name: string | null;
   created_at: string;
   updated_at: string;
@@ -44,6 +46,7 @@ export interface CreateSessionInput {
   transitions: WorkflowTransition[];
   agent_config?: AgentConfig;
   state_execution_id?: string;
+  metadata_fields?: Record<string, OutputMetadataFieldDef>;
 }
 
 export interface ListSessionsFilter {
@@ -93,6 +96,9 @@ export class SessionService {
     const now = new Date().toISOString();
     const log_file_path = join(await sessionsLogDir(), `${id}.log`);
     const agentConfig = input.agent_config ?? (await getAgentConfig());
+    const metadataFieldsJson = input.metadata_fields
+      ? JSON.stringify(input.metadata_fields)
+      : null;
 
     this.sessionRepository.insertSession({
       id,
@@ -103,6 +109,7 @@ export class SessionService {
       agent_config: JSON.stringify(agentConfig),
       log_file_path,
       state_execution_id: input.state_execution_id ?? null,
+      metadata_fields: metadataFieldsJson,
       now,
     });
 
@@ -140,6 +147,7 @@ export class SessionService {
         agentConfig,
         log_file_path,
         this.buildOnComplete(id),
+        input.metadata_fields,
       )
       .catch((err) =>
         logger.error({ err, sessionId: id }, "Failed to start agent"),
@@ -186,6 +194,8 @@ export class SessionService {
 
     const transitions: WorkflowTransition[] = JSON.parse(session.transitions);
     const agentConfig: AgentConfig = JSON.parse(session.agent_config);
+    const metadataFields: Record<string, OutputMetadataFieldDef> | undefined =
+      session.metadata_fields ? JSON.parse(session.metadata_fields) : undefined;
 
     let cwd: string;
     try {
@@ -214,6 +224,7 @@ export class SessionService {
         agentConfig,
         session.log_file_path,
         this.buildOnComplete(id),
+        metadataFields,
       )
       .catch((err) =>
         logger.error({ err, sessionId: id }, "Failed to resume agent"),
