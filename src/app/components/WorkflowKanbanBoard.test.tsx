@@ -56,6 +56,7 @@ function makeRun(overrides: Partial<WorkflowRun> = {}): WorkflowRun {
     current_step: "plan",
     status: "running",
     inputs: null,
+    metadata: null,
     created_at: "2026-04-01T00:00:00Z",
     updated_at: "2026-04-01T00:00:00Z",
     ...overrides,
@@ -263,6 +264,50 @@ describe("WorkflowKanbanBoard", () => {
     );
 
     expect(screen.getByText("Loading…")).toBeInTheDocument();
+  });
+
+  it("renders a PR link when metadata contains a pull request URL", async () => {
+    fetchWorkflowRunsMock.mockResolvedValue([
+      makeRun({
+        id: "r1",
+        current_step: "review",
+        metadata: JSON.stringify({
+          presets__pull_request_url: "https://github.com/org/repo/pull/99",
+        }),
+      }),
+    ]);
+
+    render(
+      <WorkflowKanbanBoard
+        repositoryPath="/repos/org/name"
+        activeWorktreeBranches={null}
+      />,
+    );
+
+    await screen.findByText("feature-branch");
+
+    const prLink = screen.getByRole("link", { name: /PR/ });
+    expect(prLink).toHaveAttribute(
+      "href",
+      "https://github.com/org/repo/pull/99",
+    );
+    expect(prLink).toHaveAttribute("target", "_blank");
+  });
+
+  it("does not render a PR link when metadata is null", async () => {
+    fetchWorkflowRunsMock.mockResolvedValue([
+      makeRun({ id: "r1", current_step: "plan", metadata: null }),
+    ]);
+
+    render(
+      <WorkflowKanbanBoard
+        repositoryPath="/repos/org/name"
+        activeWorktreeBranches={null}
+      />,
+    );
+
+    await screen.findByText("feature-branch");
+    expect(screen.queryByRole("link", { name: /PR/ })).not.toBeInTheDocument();
   });
 
   it("shows status badge on cards", async () => {

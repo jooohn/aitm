@@ -9,6 +9,7 @@ import {
   type WorkflowRun,
   type WorkflowRunStatus,
 } from "@/lib/utils/api";
+import { extractPullRequestUrl } from "@/lib/utils/extractPullRequestUrl";
 import { getOrderedSteps } from "@/lib/utils/workflowStepOrder";
 import styles from "./WorkflowKanbanBoard.module.css";
 
@@ -128,24 +129,56 @@ export default function WorkflowKanbanBoard({
                       {col}
                     </div>
                     <div className={styles.columnCards}>
-                      {(runsByColumn.get(col) ?? []).map((run) => (
-                        <div key={run.id} className={styles.card} role="row">
-                          <Link
-                            href={`/workflow-runs/${run.id}`}
-                            className={styles.cardBranch}
-                          >
-                            {run.worktree_branch}
-                          </Link>
-                          <div className={styles.cardMeta}>
-                            <span
-                              className={`${styles.badge} ${styles[`badge-${run.status}`]}`}
+                      {(runsByColumn.get(col) ?? []).map((run) => {
+                        const prUrl = extractPullRequestUrl(run.metadata);
+                        return (
+                          <div key={run.id} className={styles.card} role="row">
+                            <Link
+                              href={`/workflow-runs/${run.id}`}
+                              className={styles.cardBranch}
                             >
-                              {STATUS_LABELS[run.status]}
-                            </span>
-                            <span>{timeAgo(run.created_at)}</span>
+                              {run.worktree_branch}
+                            </Link>
+                            <div className={styles.cardMeta}>
+                              <span
+                                className={`${styles.badge} ${styles[`badge-${run.status}`]}`}
+                              >
+                                {STATUS_LABELS[run.status]}
+                              </span>
+                              <span>{timeAgo(run.created_at)}</span>
+                              {prUrl && (
+                                <a
+                                  href={prUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className={styles.prLink}
+                                >
+                                  PR
+                                  <svg
+                                    width="12"
+                                    height="12"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    style={{
+                                      display: "inline",
+                                      verticalAlign: "middle",
+                                      marginLeft: 2,
+                                    }}
+                                  >
+                                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                                    <polyline points="15 3 21 3 21 9" />
+                                    <line x1="10" y1="14" x2="21" y2="3" />
+                                  </svg>
+                                </a>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 ))}
