@@ -1,7 +1,7 @@
 @reference "tailwindcss";
 
 .page {
-  @apply max-w-2xl mx-auto px-6 py-12 flex flex-col gap-8;
+  @apply max-w-full mx-auto px-6 py-12 flex flex-col gap-8;
 }
 
 .headingRow {
