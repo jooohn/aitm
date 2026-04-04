@@ -549,7 +549,7 @@ describe("completeStepExecution", () => {
 
     const updatedRun = getWorkflowRun(run.id);
     expect(updatedRun?.status).toBe("failure");
-    expect(updatedRun?.current_step).toBeNull();
+    expect(updatedRun?.current_step).toBe("plan");
   });
 
   it("marks workflow run as failure when transition name is not valid", async () => {
@@ -563,7 +563,7 @@ describe("completeStepExecution", () => {
 
     const updatedRun = getWorkflowRun(run.id);
     expect(updatedRun?.status).toBe("failure");
-    expect(updatedRun?.current_step).toBeNull();
+    expect(updatedRun?.current_step).toBe("plan");
   });
 
   it("passes all previous executions as handoff context to the new session goal", async () => {
@@ -702,7 +702,7 @@ describe("stopWorkflowRun", () => {
     const stopped = await stopWorkflowRun(run.id);
 
     expect(stopped.status).toBe("failure");
-    expect(stopped.current_step).toBeNull();
+    expect(stopped.current_step).toBe("plan");
 
     const updatedExecution = db
       .prepare("SELECT * FROM step_executions WHERE id = ?")
@@ -780,7 +780,7 @@ workflows:
     const stopped = await stopWorkflowRun(run.id);
 
     expect(stopped.status).toBe("failure");
-    expect(stopped.current_step).toBeNull();
+    expect(stopped.current_step).toBe("plan");
 
     const updatedExecution = db
       .prepare("SELECT completed_at FROM step_executions WHERE id = ?")
@@ -803,7 +803,7 @@ workflows:
     const stopped = await stopWorkflowRun(run.id);
 
     expect(stopped.status).toBe("failure");
-    expect(stopped.current_step).toBeNull();
+    expect(stopped.current_step).toBe("plan");
 
     const updatedExecution = db
       .prepare("SELECT completed_at FROM step_executions WHERE id = ?")
@@ -845,7 +845,7 @@ describe("workflow run lifecycle around session startup races", () => {
 
     const updatedRun = getWorkflowRun(run.id);
     expect(updatedRun?.status).toBe("failure");
-    expect(updatedRun?.current_step).toBeNull();
+    expect(updatedRun?.current_step).toBe("plan");
 
     const updatedExecution = db
       .prepare("SELECT completed_at FROM step_executions WHERE id = ?")
@@ -952,7 +952,7 @@ workflows:
 
     const updatedRun = getWorkflowRun(run.id);
     expect(updatedRun?.status).toBe("failure");
-    expect(updatedRun?.current_step).toBeNull();
+    expect(updatedRun?.current_step).toBe("plan");
   });
 });
 
@@ -1132,7 +1132,7 @@ workflows:
 
     const updatedRun = getWorkflowRun(run.id);
     expect(updatedRun?.status).toBe("failure");
-    expect(updatedRun?.current_step).toBeNull();
+    expect(updatedRun?.current_step).toBe("bad-cmd");
   });
 
   it("marks the run as failure when no transition matches the exit code outcome", async () => {
@@ -1156,7 +1156,7 @@ workflows:
 
     const updatedRun = getWorkflowRun(run.id);
     expect(updatedRun?.status).toBe("failure");
-    expect(updatedRun?.current_step).toBeNull();
+    expect(updatedRun?.current_step).toBe("bad-cmd");
   });
 });
 

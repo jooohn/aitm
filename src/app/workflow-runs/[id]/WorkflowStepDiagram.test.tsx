@@ -69,7 +69,7 @@ describe("WorkflowStepDiagram", () => {
     expect(screen.getByText("implement")).toBeInTheDocument();
   });
 
-  it("renders terminal nodes", () => {
+  it("renders only success terminal node (no failure terminal)", () => {
     render(
       <WorkflowStepDiagram
         definition={linearWorkflow()}
@@ -79,13 +79,12 @@ describe("WorkflowStepDiagram", () => {
       />,
     );
 
-    // Terminal nodes should show success/failure markers
     const svg = document.querySelector("svg");
     expect(svg).not.toBeNull();
 
-    // Check for terminal node text
+    // Only success terminal should be rendered, not failure
     expect(screen.getByText("Success")).toBeInTheDocument();
-    expect(screen.getByText("Failure")).toBeInTheDocument();
+    expect(screen.queryByText("Failure")).not.toBeInTheDocument();
   });
 
   it("highlights executed states", () => {
@@ -134,6 +133,36 @@ describe("WorkflowStepDiagram", () => {
     expect(planNode?.getAttribute("data-current")).toBe("true");
   });
 
+  it("marks the failed step node with data-failed when run has failed", () => {
+    const executions = [
+      makeExecution({
+        step: "plan",
+        transition_decision: JSON.stringify({
+          transition: "implement",
+          reason: "Plan ready",
+          handoff_summary: "Done",
+        }),
+      }),
+    ];
+
+    const { container } = render(
+      <WorkflowStepDiagram
+        definition={linearWorkflow()}
+        stepExecutions={executions}
+        currentStep="implement"
+        status="failure"
+      />,
+    );
+
+    // The implement node (where the run failed) should have data-failed="true"
+    const implementNode = container.querySelector('[data-node-id="implement"]');
+    expect(implementNode?.getAttribute("data-failed")).toBe("true");
+
+    // The plan node should not be marked as failed
+    const planNode = container.querySelector('[data-node-id="plan"]');
+    expect(planNode?.getAttribute("data-failed")).toBe("false");
+  });
+
   it("highlights executed edges along the path", () => {
     const executions = [
       makeExecution({
@@ -162,12 +191,11 @@ describe("WorkflowStepDiagram", () => {
     expect(executedEdge).not.toBeNull();
     expect(executedEdge?.getAttribute("data-executed")).toBe("true");
 
-    // The edge from plan to failure should NOT be highlighted
-    const nonExecutedEdge = container.querySelector(
+    // There should be no edge to the failure terminal (it no longer exists)
+    const failureEdge = container.querySelector(
       '[data-edge-from="plan"][data-edge-to="failure"]',
     );
-    expect(nonExecutedEdge).not.toBeNull();
-    expect(nonExecutedEdge?.getAttribute("data-executed")).toBe("false");
+    expect(failureEdge).toBeNull();
   });
 
   it("marks terminal node as executed when run is terminal", () => {
@@ -282,7 +310,9 @@ describe("WorkflowStepDiagram", () => {
     );
 
     expect(screen.getByText("plan is ready")).toBeInTheDocument();
-    expect(screen.getByText("planning failed")).toBeInTheDocument();
+    expect(screen.getByText("implementation complete")).toBeInTheDocument();
+    // "planning failed" edge (to failure terminal) should not be rendered
+    expect(screen.queryByText("planning failed")).not.toBeInTheDocument();
   });
 
   it("renders unique keys when multiple transitions share the same from and to", () => {
