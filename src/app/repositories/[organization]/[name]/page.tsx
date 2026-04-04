@@ -48,7 +48,6 @@ export default function RepositoryPage() {
 
   return (
     <main className={styles.page}>
-      <WorkflowBreadcrumb repository={{ organization, name }} />
       <div className={styles.headingRow}>
         <h1 className={styles.heading}>{alias}</h1>
         {repo.github_url && (
