@@ -1,0 +1,69 @@
+@reference "tailwindcss";
+
+.section {
+  @apply flex flex-col gap-4;
+}
+
+.heading {
+  @apply text-lg font-semibold text-zinc-900 dark:text-zinc-50;
+}
+
+.status {
+  @apply text-sm text-zinc-500;
+}
+
+.error {
+  @apply text-sm text-red-600 dark:text-red-400;
+}
+
+.workflowHeading {
+  @apply text-base font-medium text-zinc-800 dark:text-zinc-200;
+}
+
+.boardScroll {
+  @apply overflow-x-auto;
+}
+
+.board {
+  @apply inline-flex gap-3 min-w-full pb-2;
+}
+
+.column {
+  @apply flex flex-col gap-2 min-w-[180px] w-[220px] flex-shrink-0;
+}
+
+.columnHeader {
+  @apply text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide px-2 py-1.5 bg-zinc-100 dark:bg-zinc-800 rounded;
+}
+
+.columnCards {
+  @apply flex flex-col gap-2;
+}
+
+.card {
+  @apply flex flex-col gap-1 p-2 rounded border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900;
+}
+
+.cardBranch {
+  @apply text-sm font-medium font-mono text-zinc-900 dark:text-zinc-100 hover:underline truncate;
+}
+
+.cardMeta {
+  @apply flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400;
+}
+
+.badge {
+  @apply inline-block text-xs font-medium px-1.5 py-0.5 rounded;
+}
+
+.badge-running {
+  @apply bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300;
+}
+
+.badge-success {
+  @apply bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300;
+}
+
+.badge-failure {
+  @apply bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300;
+}

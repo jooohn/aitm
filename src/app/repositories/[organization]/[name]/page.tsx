@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import QuickLaunchSection from "@/app/components/QuickLaunchSection";
 import RepositoryWorkflowsSection from "@/app/components/RepositoryWorkflowsSection";
 import WorkflowBreadcrumb from "@/app/components/WorkflowBreadcrumb";
+import WorkflowKanbanBoard from "@/app/components/WorkflowKanbanBoard";
 import WorktreeSection from "@/app/components/WorktreeSection";
 import {
   fetchRepository,
@@ -76,6 +77,10 @@ export default function RepositoryPage() {
           <dd className={styles.value}>{repo.path}</dd>
         </div>
       </dl>
+      <WorkflowKanbanBoard
+        repositoryPath={repo.path}
+        activeWorktreeBranches={activeWorktreeBranches}
+      />
       <RepositoryWorkflowsSection
         repositoryPath={repo.path}
         activeWorktreeBranches={activeWorktreeBranches}
