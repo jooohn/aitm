@@ -429,6 +429,156 @@ workflows:
     expect(pushState.output).toBeUndefined();
   });
 
+  it("resolves output.presets into prefixed metadata fields", async () => {
+    await writeFile(
+      configFile,
+      `
+workflows:
+  my-flow:
+    initial_state: push
+    states:
+      push:
+        goal: "Push and create PR"
+        output:
+          presets:
+            - pull_request_url
+        transitions:
+          - terminal: success
+            when: "done"
+`,
+    );
+
+    const workflows = await getConfigWorkflows();
+    const pushState = workflows["my-flow"].states.push;
+
+    expect("goal" in pushState).toBe(true);
+    if (!("goal" in pushState)) {
+      throw new Error("expected goal state");
+    }
+
+    expect(pushState.output).toEqual({
+      metadata: {
+        presets__pull_request_url: {
+          type: "string",
+          description: "The URL of the pull request created for this change",
+        },
+      },
+    });
+  });
+
+  it("ignores unknown preset names", async () => {
+    await writeFile(
+      configFile,
+      `
+workflows:
+  my-flow:
+    initial_state: push
+    states:
+      push:
+        goal: "Push and create PR"
+        output:
+          presets:
+            - pull_request_url
+            - unknown_preset
+        transitions:
+          - terminal: success
+            when: "done"
+`,
+    );
+
+    const workflows = await getConfigWorkflows();
+    const pushState = workflows["my-flow"].states.push;
+
+    expect("goal" in pushState).toBe(true);
+    if (!("goal" in pushState)) {
+      throw new Error("expected goal state");
+    }
+
+    expect(pushState.output).toEqual({
+      metadata: {
+        presets__pull_request_url: {
+          type: "string",
+          description: "The URL of the pull request created for this change",
+        },
+      },
+    });
+  });
+
+  it("merges presets with explicit metadata fields", async () => {
+    await writeFile(
+      configFile,
+      `
+workflows:
+  my-flow:
+    initial_state: push
+    states:
+      push:
+        goal: "Push and create PR"
+        output:
+          presets:
+            - pull_request_url
+          metadata:
+            custom_field:
+              type: string
+              description: "A custom field"
+        transitions:
+          - terminal: success
+            when: "done"
+`,
+    );
+
+    const workflows = await getConfigWorkflows();
+    const pushState = workflows["my-flow"].states.push;
+
+    expect("goal" in pushState).toBe(true);
+    if (!("goal" in pushState)) {
+      throw new Error("expected goal state");
+    }
+
+    expect(pushState.output).toEqual({
+      metadata: {
+        presets__pull_request_url: {
+          type: "string",
+          description: "The URL of the pull request created for this change",
+        },
+        custom_field: {
+          type: "string",
+          description: "A custom field",
+        },
+      },
+    });
+  });
+
+  it("sets output to undefined when all presets are unknown and no metadata", async () => {
+    await writeFile(
+      configFile,
+      `
+workflows:
+  my-flow:
+    initial_state: push
+    states:
+      push:
+        goal: "Push and create PR"
+        output:
+          presets:
+            - unknown_preset
+        transitions:
+          - terminal: success
+            when: "done"
+`,
+    );
+
+    const workflows = await getConfigWorkflows();
+    const pushState = workflows["my-flow"].states.push;
+
+    expect("goal" in pushState).toBe(true);
+    if (!("goal" in pushState)) {
+      throw new Error("expected goal state");
+    }
+
+    expect(pushState.output).toBeUndefined();
+  });
+
   it("omits output when not specified on agent state", async () => {
     await writeFile(
       configFile,
