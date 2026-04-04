@@ -31,3 +31,23 @@
 .value {
   @apply text-sm font-mono text-zinc-800 dark:text-zinc-200;
 }
+
+.mainLayout {
+  @apply flex gap-6;
+}
+
+.kanbanPane {
+  @apply flex-1 min-w-0;
+}
+
+.launchPane {
+  @apply w-80 shrink-0 flex flex-col gap-4;
+}
+
+.launchHeading {
+  @apply text-lg font-semibold text-zinc-900 dark:text-zinc-50;
+}
+
+.error {
+  @apply text-sm text-red-600 dark:text-red-400;
+}
