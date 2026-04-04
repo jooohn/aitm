@@ -42,6 +42,7 @@ export default function Header() {
             </Link>
             {count > 0 && (
               <span
+                role="status"
                 className={styles.todosBadge}
                 data-testid="todos-badge"
                 aria-label={`${count} todos awaiting input`}

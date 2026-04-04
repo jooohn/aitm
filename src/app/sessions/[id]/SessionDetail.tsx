@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import WorkflowBreadcrumb from "@/app/components/WorkflowBreadcrumb";
 import {
   failSession,
@@ -81,6 +81,7 @@ export default function SessionDetail({
     setSession(initial);
   }, [initial]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reset UI state when a different session is passed in
   useEffect(() => {
     setOutputItems([]);
     setFailing(false);
@@ -89,12 +90,15 @@ export default function SessionDetail({
     setReplying(false);
     setReplyError(null);
     autoScrollRef.current = true;
-  }, [initial.id]);
+  }, [initial]);
 
-  function applySessionUpdate(updated: Session) {
-    setSession(updated);
-    onSessionUpdated?.(updated);
-  }
+  const applySessionUpdate = useCallback(
+    (updated: Session) => {
+      setSession(updated);
+      onSessionUpdated?.(updated);
+    },
+    [onSessionUpdated],
+  );
 
   // SSE stream for live output
   useEffect(() => {
@@ -156,7 +160,7 @@ export default function SessionDetail({
     }, 2000);
 
     return () => clearInterval(interval);
-  }, [session.id, isTerminal]);
+  }, [session.id, isTerminal, applySessionUpdate]);
 
   function handleOutputScroll() {
     if (!outputRef.current) return;

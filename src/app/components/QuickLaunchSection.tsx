@@ -34,7 +34,6 @@ export default function QuickLaunchSection({
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: load only on mount
   useEffect(() => {
     async function load() {
       setLoading(true);

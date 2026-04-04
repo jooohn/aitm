@@ -112,7 +112,6 @@ export default function OutputItemView({ item }: Props) {
           {groupExpanded && (
             <div className={styles.toolGroupBody}>
               {item.calls.map((call, i) => (
-                // biome-ignore lint/suspicious/noArrayIndexKey: stable ordering within group
                 <ToolCallView key={i} item={call} indented />
               ))}
             </div>
