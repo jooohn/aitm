@@ -1,5 +1,5 @@
 @reference "tailwindcss";
 
 .page {
-  @apply max-w-3xl mx-auto px-6 py-12 flex flex-col gap-8;
+  @apply mx-auto px-6 py-12 flex flex-col gap-8;
 }
