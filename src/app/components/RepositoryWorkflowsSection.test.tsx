@@ -63,12 +63,14 @@ describe("RepositoryWorkflowsSection", () => {
       />,
     );
 
-    const prLink = await screen.findByRole("link", { name: "· PR" });
+    const prLink = await screen.findByRole("link", { name: /PR/ });
     expect(prLink).toBeInTheDocument();
     expect(prLink).toHaveAttribute(
       "href",
       "https://github.com/org/repo/pull/42",
     );
+    // Separator should be outside the link, not inside
+    expect(prLink.textContent).not.toContain("·");
   });
 
   it("does not render a PR link when metadata is null", async () => {
@@ -86,8 +88,6 @@ describe("RepositoryWorkflowsSection", () => {
     );
 
     await screen.findByText("my-flow");
-    expect(
-      screen.queryByRole("link", { name: "· PR" }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /PR/ })).not.toBeInTheDocument();
   });
 });
