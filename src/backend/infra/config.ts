@@ -3,6 +3,7 @@ import yaml from "js-yaml";
 import { homedir } from "os";
 import { join } from "path";
 import type { PermissionMode } from "@/backend/domain/agent/permission-mode";
+import { METADATA_PRESETS } from "./presets";
 
 function getConfigPath(): string {
   return (
@@ -40,6 +41,7 @@ export interface AgentWorkflowState {
   transitions: WorkflowTransition[];
   agent?: AgentConfigOverride;
   output?: {
+    presets?: string[];
     metadata?: Record<string, OutputMetadataFieldDef>;
   };
 }
@@ -121,11 +123,33 @@ function normalizeOutputMetadata(
   );
 }
 
+function resolvePresets(
+  presets: string[] | undefined,
+): Record<string, OutputMetadataFieldDef> | undefined {
+  if (!presets || !Array.isArray(presets)) return undefined;
+  const entries = presets
+    .filter((name) => name in METADATA_PRESETS)
+    .map((name) => {
+      const preset = METADATA_PRESETS[name];
+      return [
+        `presets__${name}`,
+        { type: preset.type, description: preset.description },
+      ] as const;
+    });
+  if (entries.length === 0) return undefined;
+  return Object.fromEntries(entries);
+}
+
 function normalizeOutput(
   raw: AgentWorkflowState["output"],
 ): AgentWorkflowState["output"] | undefined {
   if (!raw) return undefined;
-  const metadata = normalizeOutputMetadata(raw.metadata);
+  const presetMetadata = resolvePresets(raw.presets);
+  const explicitMetadata = normalizeOutputMetadata(raw.metadata);
+  const metadata =
+    presetMetadata || explicitMetadata
+      ? { ...presetMetadata, ...explicitMetadata }
+      : undefined;
   if (!metadata) return undefined;
   return { metadata };
 }
