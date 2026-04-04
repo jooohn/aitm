@@ -24,6 +24,12 @@ const STATUS_LABELS: Record<WorkflowRunStatus, string> = {
   failure: "Failure",
 };
 
+const statusCardClass: Partial<Record<WorkflowRunStatus, string>> = {
+  failure: styles.cardFailure,
+  success: styles.cardSuccess,
+  running: styles.cardRunning,
+};
+
 const TERMINAL_COLUMNS = ["Success"] as const;
 
 export default function WorkflowKanbanBoard({
@@ -114,11 +120,30 @@ export default function WorkflowKanbanBoard({
           runsByColumn.get(col)?.push(run);
         }
 
+        const statusCounts = new Map<WorkflowRunStatus, number>();
+        for (const run of wfRuns) {
+          statusCounts.set(run.status, (statusCounts.get(run.status) ?? 0) + 1);
+        }
+
         return (
           <div key={wfName}>
             {workflowNames.length > 1 && (
               <h3 className={styles.workflowHeading}>{wfName}</h3>
             )}
+            <div className={styles.summaryBar} data-testid="status-summary">
+              {(["running", "success", "failure"] as const).map((status) => {
+                const count = statusCounts.get(status);
+                if (!count) return null;
+                return (
+                  <span
+                    key={status}
+                    className={`${styles.badge} ${styles[`badge-${status}`]}`}
+                  >
+                    {count} {STATUS_LABELS[status]}
+                  </span>
+                );
+              })}
+            </div>
             <div className={styles.boardScroll}>
               <div className={styles.board} role="table">
                 {columns.map((col) => (
@@ -132,7 +157,12 @@ export default function WorkflowKanbanBoard({
                         return (
                           <div
                             key={run.id}
-                            className={`${styles.card}${run.status === "failure" ? ` ${styles.cardFailure}` : ""}`}
+                            className={[
+                              styles.card,
+                              statusCardClass[run.status],
+                            ]
+                              .filter(Boolean)
+                              .join(" ")}
                             role="row"
                           >
                             <Link

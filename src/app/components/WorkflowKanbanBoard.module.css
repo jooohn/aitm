@@ -20,6 +20,10 @@
   @apply text-base font-medium text-zinc-800 dark:text-zinc-200;
 }
 
+.summaryBar {
+  @apply flex items-center gap-2 mb-2;
+}
+
 .boardScroll {
   @apply overflow-x-auto;
 }
@@ -42,6 +46,14 @@
 
 .card {
   @apply flex flex-col gap-1 p-2 rounded border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900;
+}
+
+.cardRunning {
+  @apply border-blue-400 dark:border-blue-600;
+}
+
+.cardSuccess {
+  @apply border-green-400 dark:border-green-600;
 }
 
 .cardFailure {

@@ -326,4 +326,112 @@ describe("WorkflowKanbanBoard", () => {
     await screen.findByText("feature-branch");
     expect(screen.getByText("Running")).toBeInTheDocument();
   });
+
+  describe("status summary bar", () => {
+    it("renders a summary bar with aggregated status counts", async () => {
+      fetchWorkflowRunsMock.mockResolvedValue([
+        makeRun({ id: "r1", current_step: "plan", status: "running" }),
+        makeRun({
+          id: "r2",
+          current_step: "implement",
+          status: "running",
+          worktree_branch: "feat-b",
+        }),
+        makeRun({
+          id: "r3",
+          current_step: null,
+          status: "success",
+          worktree_branch: "feat-c",
+        }),
+        makeRun({
+          id: "r4",
+          current_step: "review",
+          status: "failure",
+          worktree_branch: "feat-d",
+        }),
+      ]);
+
+      render(
+        <WorkflowKanbanBoard
+          repositoryPath="/repos/org/name"
+          activeWorktreeBranches={null}
+        />,
+      );
+
+      await screen.findByText("feature-branch");
+
+      const summaryBar = screen.getByTestId("status-summary");
+      expect(within(summaryBar).getByText("2 Running")).toBeInTheDocument();
+      expect(within(summaryBar).getByText("1 Success")).toBeInTheDocument();
+      expect(within(summaryBar).getByText("1 Failure")).toBeInTheDocument();
+    });
+
+    it("omits status categories with zero count", async () => {
+      fetchWorkflowRunsMock.mockResolvedValue([
+        makeRun({ id: "r1", current_step: "plan", status: "running" }),
+      ]);
+
+      render(
+        <WorkflowKanbanBoard
+          repositoryPath="/repos/org/name"
+          activeWorktreeBranches={null}
+        />,
+      );
+
+      await screen.findByText("feature-branch");
+
+      const summaryBar = screen.getByTestId("status-summary");
+      expect(within(summaryBar).getByText(/Running/)).toBeInTheDocument();
+      expect(within(summaryBar).queryByText(/Success/)).not.toBeInTheDocument();
+      expect(within(summaryBar).queryByText(/Failure/)).not.toBeInTheDocument();
+    });
+  });
+
+  describe("card status border styling", () => {
+    it("applies cardSuccess class to successful run cards", async () => {
+      fetchWorkflowRunsMock.mockResolvedValue([
+        makeRun({
+          id: "r1",
+          current_step: null,
+          status: "success",
+          worktree_branch: "feat-done",
+        }),
+      ]);
+
+      render(
+        <WorkflowKanbanBoard
+          repositoryPath="/repos/org/name"
+          activeWorktreeBranches={null}
+        />,
+      );
+
+      await screen.findByText("feat-done");
+
+      const card = screen.getByText("feat-done").closest("[role='row']")!;
+      expect(card.className).toContain("cardSuccess");
+    });
+
+    it("applies cardRunning class to running run cards", async () => {
+      fetchWorkflowRunsMock.mockResolvedValue([
+        makeRun({
+          id: "r1",
+          current_step: "plan",
+          status: "running",
+          worktree_branch: "feat-wip",
+        }),
+      ]);
+
+      render(
+        <WorkflowKanbanBoard
+          repositoryPath="/repos/org/name"
+          activeWorktreeBranches={null}
+        />,
+      );
+
+      await screen.findByText("feat-wip");
+
+      const card = screen.getByText("feat-wip").closest("[role='row']")!;
+      expect(card.className).toContain("cardRunning");
+    });
+  });
 });
