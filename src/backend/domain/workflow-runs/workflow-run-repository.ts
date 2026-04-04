@@ -290,11 +290,20 @@ export class WorkflowRunRepository {
     terminal: "success" | "failure",
     now: string,
   ): void {
-    this.db
-      .prepare(
-        "UPDATE workflow_runs SET status = ?, current_step = NULL, updated_at = ? WHERE id = ?",
-      )
-      .run(terminal, now, id);
+    if (terminal === "success") {
+      this.db
+        .prepare(
+          "UPDATE workflow_runs SET status = ?, current_step = NULL, updated_at = ? WHERE id = ?",
+        )
+        .run(terminal, now, id);
+    } else {
+      // On failure, preserve current_step so the UI knows which step failed
+      this.db
+        .prepare(
+          "UPDATE workflow_runs SET status = ?, updated_at = ? WHERE id = ?",
+        )
+        .run(terminal, now, id);
+    }
   }
 
   setWorkflowRunRunning(id: string, step: string, now: string): void {
@@ -377,7 +386,7 @@ export class WorkflowRunRepository {
     this.db
       .prepare(
         `UPDATE workflow_runs
-     SET status = 'failure', current_step = NULL, updated_at = ?
+     SET status = 'failure', updated_at = ?
      WHERE status = 'running'
        AND id NOT IN (
          SELECT workflow_run_id FROM step_executions WHERE completed_at IS NULL

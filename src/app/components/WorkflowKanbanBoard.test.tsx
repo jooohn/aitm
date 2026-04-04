@@ -105,13 +105,7 @@ describe("WorkflowKanbanBoard", () => {
 
     const columnHeaders = screen.getAllByRole("columnheader");
     const headerTexts = columnHeaders.map((h) => h.textContent);
-    expect(headerTexts).toEqual([
-      "plan",
-      "implement",
-      "review",
-      "Success",
-      "Failure",
-    ]);
+    expect(headerTexts).toEqual(["plan", "implement", "review", "Success"]);
   });
 
   it("places running workflow runs in their current_step column", async () => {
@@ -164,11 +158,11 @@ describe("WorkflowKanbanBoard", () => {
     ).toBeInTheDocument();
   });
 
-  it("places failed runs in the Failure column", async () => {
+  it("places failed runs in their current_step column with failure styling", async () => {
     fetchWorkflowRunsMock.mockResolvedValue([
       makeRun({
         id: "r2",
-        current_step: null,
+        current_step: "implement",
         status: "failure",
         worktree_branch: "feat-fail",
       }),
@@ -183,11 +177,18 @@ describe("WorkflowKanbanBoard", () => {
 
     await screen.findByText("feat-fail");
 
-    const failureHeader = screen.getByRole("columnheader", { name: "Failure" });
-    const failureColumn = failureHeader.closest("[data-column]")!;
+    // Should be in the "implement" column, not a "Failure" column
+    const implementHeader = screen.getByRole("columnheader", {
+      name: "implement",
+    });
+    const implementColumn = implementHeader.closest("[data-column]")!;
     expect(
-      within(failureColumn as HTMLElement).getByText("feat-fail"),
+      within(implementColumn as HTMLElement).getByText("feat-fail"),
     ).toBeInTheDocument();
+
+    // Should have failure card styling
+    const card = screen.getByText("feat-fail").closest("[role='row']")!;
+    expect(card.className).toContain("cardFailure");
   });
 
   it("filters runs by active worktree branches when provided", async () => {

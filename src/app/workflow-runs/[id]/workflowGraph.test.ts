@@ -71,7 +71,7 @@ describe("buildGraph", () => {
     const graph = buildGraph(linearWorkflow());
 
     const nodeIds = graph.nodes.map((n) => n.id).sort();
-    expect(nodeIds).toEqual(["failure", "implement", "plan", "success"]);
+    expect(nodeIds).toEqual(["implement", "plan", "success"]);
 
     const planNode = graph.nodes.find((n) => n.id === "plan");
     expect(planNode).toMatchObject({ id: "plan", type: "step" });
@@ -83,12 +83,9 @@ describe("buildGraph", () => {
       terminal: "success",
     });
 
+    // No failure terminal node
     const failureNode = graph.nodes.find((n) => n.id === "failure");
-    expect(failureNode).toMatchObject({
-      id: "failure",
-      type: "terminal",
-      terminal: "failure",
-    });
+    expect(failureNode).toBeUndefined();
   });
 
   it("creates edges for all transitions", () => {
@@ -102,31 +99,25 @@ describe("buildGraph", () => {
           label: "plan is ready",
         }),
         expect.objectContaining({
-          from: "plan",
-          to: "failure",
-          label: "planning failed",
-        }),
-        expect.objectContaining({
           from: "implement",
           to: "success",
           label: "implementation complete",
         }),
-        expect.objectContaining({
-          from: "implement",
-          to: "failure",
-          label: "implementation failed",
-        }),
       ]),
     );
-    expect(graph.edges).toHaveLength(4);
+    // No edges to failure terminal
+    const failureEdges = graph.edges.filter((e) => e.to === "failure");
+    expect(failureEdges).toHaveLength(0);
+    expect(graph.edges).toHaveLength(2);
   });
 
   it("handles branching workflows with shared terminals", () => {
     const graph = buildGraph(branchingWorkflow());
 
-    // Should have one success and one failure node, not duplicates
+    // Should have only one terminal node (success), no failure terminal
     const terminalNodes = graph.nodes.filter((n) => n.type === "terminal");
-    expect(terminalNodes).toHaveLength(2);
+    expect(terminalNodes).toHaveLength(1);
+    expect(terminalNodes[0].terminal).toBe("success");
 
     const stateNodes = graph.nodes.filter((n) => n.type === "step");
     expect(stateNodes).toHaveLength(4);
@@ -143,12 +134,12 @@ describe("computeLayout", () => {
     const graph = buildGraph(linearWorkflow());
     const layout = computeLayout(graph);
 
-    // plan is layer 0, implement is layer 1, terminals are layer 2
+    // plan is layer 0, implement is layer 1, success terminal is layer 2
     expect(layout.get("plan")?.layer).toBe(0);
     expect(layout.get("implement")?.layer).toBe(1);
-    // success and failure should be in the last layer
     expect(layout.get("success")?.layer).toBe(2);
-    expect(layout.get("failure")?.layer).toBe(2);
+    // No failure terminal in layout
+    expect(layout.has("failure")).toBe(false);
   });
 
   it("handles branching paths and assigns converging nodes the max layer", () => {
@@ -162,10 +153,10 @@ describe("computeLayout", () => {
     expect(layout.get("add_feature")?.layer).toBe(1);
     // review converges from both branches - should be layer 2
     expect(layout.get("review")?.layer).toBe(2);
-    // terminals after review - layer 3
+    // success terminal after review - layer 3
     expect(layout.get("success")?.layer).toBe(3);
-    // failure is reachable from multiple layers; should use max
-    expect(layout.get("failure")?.layer).toBeGreaterThanOrEqual(3);
+    // No failure terminal in layout
+    expect(layout.has("failure")).toBe(false);
   });
 
   it("terminates on cyclic graphs without infinite loop", () => {
@@ -266,11 +257,9 @@ describe("computeLayout", () => {
 
     // Terminal nodes should be placed after their latest predecessor
     const successLayer = layout.get("success")?.layer ?? -1;
-    const failureLayer = layout.get("failure")?.layer ?? -1;
     expect(successLayer).toBe(6);
-    // failure is reachable from plan(0), implement(1), review(3), commit(5)
-    // With max-of-predecessors approach for terminals, it should be at 6
-    expect(failureLayer).toBe(6);
+    // No failure terminal in layout
+    expect(layout.has("failure")).toBe(false);
   });
 
   it("assigns different positions within the same layer", () => {

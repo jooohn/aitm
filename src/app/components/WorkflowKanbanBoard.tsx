@@ -24,7 +24,7 @@ const STATUS_LABELS: Record<WorkflowRunStatus, string> = {
   failure: "Failure",
 };
 
-const TERMINAL_COLUMNS = ["Success", "Failure"] as const;
+const TERMINAL_COLUMNS = ["Success"] as const;
 
 export default function WorkflowKanbanBoard({
   repositoryPath,
@@ -108,8 +108,6 @@ export default function WorkflowKanbanBoard({
           let col: string;
           if (run.status === "success" && !run.current_step) {
             col = "Success";
-          } else if (run.status === "failure" && !run.current_step) {
-            col = "Failure";
           } else {
             col = run.current_step ?? steps[0];
           }
@@ -132,7 +130,11 @@ export default function WorkflowKanbanBoard({
                       {(runsByColumn.get(col) ?? []).map((run) => {
                         const prUrl = extractPullRequestUrl(run.metadata);
                         return (
-                          <div key={run.id} className={styles.card} role="row">
+                          <div
+                            key={run.id}
+                            className={`${styles.card}${run.status === "failure" ? ` ${styles.cardFailure}` : ""}`}
+                            role="row"
+                          >
                             <Link
                               href={`/workflow-runs/${run.id}`}
                               className={styles.cardBranch}

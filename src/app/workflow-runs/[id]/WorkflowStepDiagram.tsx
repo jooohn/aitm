@@ -56,10 +56,9 @@ export default function WorkflowStepDiagram({
     }
   }
 
-  // Check if terminal node was reached
-  const isTerminal = status === "success" || status === "failure";
-  if (isTerminal) {
-    executedSteps.add(status);
+  // Check if success terminal node was reached
+  if (status === "success") {
+    executedSteps.add("success");
   }
 
   // Check if there are back-edges (cycles) that need extra vertical space
@@ -253,6 +252,7 @@ export default function WorkflowStepDiagram({
 
           const x = center.x - NODE_WIDTH / 2;
           const y = center.y - NODE_HEIGHT / 2;
+          const isFailed = status === "failure" && currentStep === node.id;
 
           return (
             <g
@@ -260,6 +260,7 @@ export default function WorkflowStepDiagram({
               data-node-id={node.id}
               data-executed={isExecuted ? "true" : "false"}
               data-current={isCurrent ? "true" : "false"}
+              data-failed={isFailed ? "true" : "false"}
             >
               <rect
                 x={x}
@@ -269,10 +270,10 @@ export default function WorkflowStepDiagram({
                 rx={8}
                 ry={8}
                 className={`${styles.stateNode} ${
-                  isCurrent ? styles.nodeCurrent : ""
-                } ${isExecuted ? styles.nodeExecuted : ""} ${
-                  !isExecuted && !isCurrent ? styles.nodeDimmed : ""
-                }`}
+                  isFailed ? styles.nodeFailure : ""
+                } ${isCurrent && !isFailed ? styles.nodeCurrent : ""} ${
+                  isExecuted && !isFailed ? styles.nodeExecuted : ""
+                } ${!isExecuted && !isCurrent && !isFailed ? styles.nodeDimmed : ""}`}
               />
               <text
                 x={center.x}

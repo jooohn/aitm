@@ -109,7 +109,7 @@ describe("POST /api/workflow-runs/:id/stop", () => {
     const body = await res.json();
     expect(body.id).toBe(run.id);
     expect(body.status).toBe("failure");
-    expect(body.current_step).toBeNull();
+    expect(body.current_step).toBe("plan");
   });
 
   it("returns 404 for unknown id", async () => {
@@ -167,6 +167,6 @@ describe("POST /api/workflow-runs/:id/stop", () => {
     const body = await res.json();
     expect(body.id).toBe(run.id);
     expect(body.status).toBe("failure");
-    expect(body.current_step).toBeNull();
+    expect(body.current_step).toBe("plan");
   });
 });

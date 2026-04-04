@@ -37,7 +37,7 @@ export function buildGraph(definition: WorkflowDefinition): Graph {
           to: transition.step,
           label: transition.when,
         });
-      } else if (transition.terminal) {
+      } else if (transition.terminal && transition.terminal !== "failure") {
         if (!nodes.has(transition.terminal)) {
           nodes.set(transition.terminal, {
             id: transition.terminal,

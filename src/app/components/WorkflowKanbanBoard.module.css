@@ -44,6 +44,10 @@
   @apply flex flex-col gap-1 p-2 rounded border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900;
 }
 
+.cardFailure {
+  @apply border-red-400 dark:border-red-600;
+}
+
 .cardBranch {
   @apply text-sm font-medium font-mono text-zinc-900 dark:text-zinc-100 hover:underline truncate;
 }
