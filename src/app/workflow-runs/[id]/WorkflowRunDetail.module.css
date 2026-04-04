@@ -151,7 +151,7 @@
 }
 
 .commandOutput {
-  @apply h-72 overflow-y-auto rounded-lg bg-zinc-900 dark:bg-zinc-950 p-4 font-mono text-xs leading-relaxed text-zinc-200;
+  @apply max-h-72 overflow-y-auto rounded-lg bg-zinc-900 dark:bg-zinc-950 p-4 font-mono text-xs leading-relaxed text-zinc-200;
 }
 
 .commandOutputLine {
