@@ -132,6 +132,15 @@ export class WorkflowRunRepository {
       | undefined;
   }
 
+  countStepExecutions(workflowRunId: string): number {
+    const row = this.db
+      .prepare(
+        "SELECT COUNT(*) as count FROM step_executions WHERE workflow_run_id = ?",
+      )
+      .get(workflowRunId) as { count: number };
+    return row.count;
+  }
+
   getLastStepExecution(workflowRunId: string): StepExecution | undefined {
     return this.db
       .prepare(

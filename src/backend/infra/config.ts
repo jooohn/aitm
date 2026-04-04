@@ -71,12 +71,14 @@ interface WorkflowInputDef {
 
 interface RawWorkflowDefinition {
   initial_step: string;
+  max_steps?: number;
   inputs?: Record<string, WorkflowInputDef>;
   steps?: Record<string, WorkflowStep>;
 }
 
 export interface WorkflowDefinition {
   initial_step: string;
+  max_steps?: number;
   inputs?: WorkflowInput[];
   steps: Record<string, WorkflowStep>;
 }
