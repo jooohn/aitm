@@ -1,0 +1,283 @@
+// @vitest-environment jsdom
+import { cleanup, render, screen, within } from "@testing-library/react";
+import "@testing-library/jest-dom/vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { WorkflowDefinition, WorkflowRun } from "@/lib/utils/api";
+import WorkflowKanbanBoard from "./WorkflowKanbanBoard";
+
+vi.mock("next/link", () => ({
+  default: ({
+    children,
+    href,
+    ...props
+  }: React.AnchorHTMLAttributes<HTMLAnchorElement> & {
+    children: React.ReactNode;
+    href: string;
+  }) => (
+    <a href={href} {...props}>
+      {children}
+    </a>
+  ),
+}));
+
+const WORKFLOW_DEF: WorkflowDefinition = {
+  initial_step: "plan",
+  steps: {
+    plan: {
+      goal: "Create a plan",
+      transitions: [
+        { step: "implement", when: "plan approved" },
+        { terminal: "failure", when: "plan rejected" },
+      ],
+    },
+    implement: {
+      goal: "Implement the plan",
+      transitions: [
+        { step: "review", when: "implementation done" },
+        { terminal: "failure", when: "implementation failed" },
+      ],
+    },
+    review: {
+      goal: "Review the code",
+      transitions: [
+        { terminal: "success", when: "review passed" },
+        { step: "implement", when: "review rejected" },
+      ],
+    },
+  },
+};
+
+function makeRun(overrides: Partial<WorkflowRun> = {}): WorkflowRun {
+  return {
+    id: "run-1",
+    repository_path: "/repos/org/name",
+    worktree_branch: "feature-branch",
+    workflow_name: "default",
+    current_step: "plan",
+    status: "running",
+    inputs: null,
+    created_at: "2026-04-01T00:00:00Z",
+    updated_at: "2026-04-01T00:00:00Z",
+    ...overrides,
+  };
+}
+
+const { fetchWorkflowsMock, fetchWorkflowRunsMock } = vi.hoisted(() => ({
+  fetchWorkflowsMock: vi.fn(),
+  fetchWorkflowRunsMock: vi.fn(),
+}));
+
+vi.mock("@/lib/utils/api", async () => {
+  const actual = await vi.importActual("@/lib/utils/api");
+  return {
+    ...actual,
+    fetchWorkflows: fetchWorkflowsMock,
+    fetchWorkflowRuns: fetchWorkflowRunsMock,
+  };
+});
+
+beforeEach(() => {
+  fetchWorkflowsMock.mockResolvedValue({ default: WORKFLOW_DEF });
+  fetchWorkflowRunsMock.mockResolvedValue([]);
+});
+
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+});
+
+describe("WorkflowKanbanBoard", () => {
+  it("renders columns in topological order plus terminal columns", async () => {
+    fetchWorkflowRunsMock.mockResolvedValue([
+      makeRun({ id: "r1", current_step: "plan" }),
+    ]);
+
+    render(
+      <WorkflowKanbanBoard
+        repositoryPath="/repos/org/name"
+        activeWorktreeBranches={null}
+      />,
+    );
+
+    // Wait for data to load
+    await screen.findByText("plan");
+
+    const columnHeaders = screen.getAllByRole("columnheader");
+    const headerTexts = columnHeaders.map((h) => h.textContent);
+    expect(headerTexts).toEqual([
+      "plan",
+      "implement",
+      "review",
+      "Success",
+      "Failure",
+    ]);
+  });
+
+  it("places running workflow runs in their current_step column", async () => {
+    fetchWorkflowRunsMock.mockResolvedValue([
+      makeRun({
+        id: "r1",
+        current_step: "implement",
+        worktree_branch: "feat-a",
+      }),
+    ]);
+
+    render(
+      <WorkflowKanbanBoard
+        repositoryPath="/repos/org/name"
+        activeWorktreeBranches={null}
+      />,
+    );
+
+    await screen.findByText("feat-a");
+
+    // The card should link to the workflow run detail page
+    const link = screen.getByRole("link", { name: "feat-a" });
+    expect(link).toHaveAttribute("href", "/workflow-runs/r1");
+  });
+
+  it("places successful runs in the Success column", async () => {
+    fetchWorkflowRunsMock.mockResolvedValue([
+      makeRun({
+        id: "r1",
+        current_step: null,
+        status: "success",
+        worktree_branch: "feat-done",
+      }),
+    ]);
+
+    render(
+      <WorkflowKanbanBoard
+        repositoryPath="/repos/org/name"
+        activeWorktreeBranches={null}
+      />,
+    );
+
+    await screen.findByText("feat-done");
+
+    // Find the Success column and check card is inside it
+    const successHeader = screen.getByRole("columnheader", { name: "Success" });
+    const successColumn = successHeader.closest("[data-column]")!;
+    expect(
+      within(successColumn as HTMLElement).getByText("feat-done"),
+    ).toBeInTheDocument();
+  });
+
+  it("places failed runs in the Failure column", async () => {
+    fetchWorkflowRunsMock.mockResolvedValue([
+      makeRun({
+        id: "r2",
+        current_step: null,
+        status: "failure",
+        worktree_branch: "feat-fail",
+      }),
+    ]);
+
+    render(
+      <WorkflowKanbanBoard
+        repositoryPath="/repos/org/name"
+        activeWorktreeBranches={null}
+      />,
+    );
+
+    await screen.findByText("feat-fail");
+
+    const failureHeader = screen.getByRole("columnheader", { name: "Failure" });
+    const failureColumn = failureHeader.closest("[data-column]")!;
+    expect(
+      within(failureColumn as HTMLElement).getByText("feat-fail"),
+    ).toBeInTheDocument();
+  });
+
+  it("filters runs by active worktree branches when provided", async () => {
+    fetchWorkflowRunsMock.mockResolvedValue([
+      makeRun({
+        id: "r1",
+        worktree_branch: "active-branch",
+        current_step: "plan",
+      }),
+      makeRun({
+        id: "r2",
+        worktree_branch: "stale-branch",
+        current_step: "plan",
+      }),
+    ]);
+
+    render(
+      <WorkflowKanbanBoard
+        repositoryPath="/repos/org/name"
+        activeWorktreeBranches={["active-branch"]}
+      />,
+    );
+
+    await screen.findByText("active-branch");
+    expect(screen.queryByText("stale-branch")).not.toBeInTheDocument();
+  });
+
+  it("groups runs by workflow_name and renders separate boards", async () => {
+    const otherDef: WorkflowDefinition = {
+      initial_step: "build",
+      steps: {
+        build: {
+          goal: "Build",
+          transitions: [{ terminal: "success", when: "done" }],
+        },
+      },
+    };
+
+    fetchWorkflowsMock.mockResolvedValue({
+      default: WORKFLOW_DEF,
+      deploy: otherDef,
+    });
+
+    fetchWorkflowRunsMock.mockResolvedValue([
+      makeRun({ id: "r1", workflow_name: "default", current_step: "plan" }),
+      makeRun({
+        id: "r2",
+        workflow_name: "deploy",
+        current_step: "build",
+        worktree_branch: "deploy-branch",
+      }),
+    ]);
+
+    render(
+      <WorkflowKanbanBoard
+        repositoryPath="/repos/org/name"
+        activeWorktreeBranches={null}
+      />,
+    );
+
+    await screen.findByText("feature-branch");
+
+    // Should render both workflow names as headings
+    expect(screen.getByText("default")).toBeInTheDocument();
+    expect(screen.getByText("deploy")).toBeInTheDocument();
+  });
+
+  it("shows loading state initially", () => {
+    render(
+      <WorkflowKanbanBoard
+        repositoryPath="/repos/org/name"
+        activeWorktreeBranches={null}
+      />,
+    );
+
+    expect(screen.getByText("Loading…")).toBeInTheDocument();
+  });
+
+  it("shows status badge on cards", async () => {
+    fetchWorkflowRunsMock.mockResolvedValue([
+      makeRun({ id: "r1", current_step: "plan", status: "running" }),
+    ]);
+
+    render(
+      <WorkflowKanbanBoard
+        repositoryPath="/repos/org/name"
+        activeWorktreeBranches={null}
+      />,
+    );
+
+    await screen.findByText("feature-branch");
+    expect(screen.getByText("Running")).toBeInTheDocument();
+  });
+});
