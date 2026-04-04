@@ -88,6 +88,24 @@ afterEach(() => {
 });
 
 describe("WorkflowKanbanBoard", () => {
+  it("renders 'Workflow Runs' as the section heading", async () => {
+    fetchWorkflowRunsMock.mockResolvedValue([
+      makeRun({ id: "r1", current_step: "plan" }),
+    ]);
+
+    render(
+      <WorkflowKanbanBoard
+        repositoryPath="/repos/org/name"
+        activeWorktreeBranches={null}
+      />,
+    );
+
+    await screen.findByText("feature-branch");
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Workflow Runs" }),
+    ).toBeInTheDocument();
+  });
+
   it("renders columns in topological order plus terminal columns", async () => {
     fetchWorkflowRunsMock.mockResolvedValue([
       makeRun({ id: "r1", current_step: "plan" }),

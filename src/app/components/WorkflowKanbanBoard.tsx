@@ -96,7 +96,7 @@ export default function WorkflowKanbanBoard({
 
   return (
     <section className={styles.section}>
-      <h2 className={styles.heading}>Kanban</h2>
+      <h2 className={styles.heading}>Workflow Runs</h2>
       {workflowNames.map((wfName) => {
         const definition = workflows[wfName];
         if (!definition) return null;

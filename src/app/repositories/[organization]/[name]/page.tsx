@@ -1,20 +1,24 @@
 "use client";
 
-import { notFound, useParams } from "next/navigation";
+import { notFound, useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import QuickLaunchSection from "@/app/components/QuickLaunchSection";
-import RepositoryWorkflowsSection from "@/app/components/RepositoryWorkflowsSection";
 import WorkflowBreadcrumb from "@/app/components/WorkflowBreadcrumb";
 import WorkflowKanbanBoard from "@/app/components/WorkflowKanbanBoard";
+import WorkflowLaunchForm from "@/app/components/WorkflowLaunchForm";
 import WorktreeSection from "@/app/components/WorktreeSection";
 import {
+  createWorkflowRun,
+  createWorktree,
   fetchRepository,
+  fetchWorkflows,
   fetchWorktrees,
   type RepositoryDetail,
+  type WorkflowDefinition,
 } from "@/lib/utils/api";
 import styles from "./page.module.css";
 
 export default function RepositoryPage() {
+  const router = useRouter();
   const { organization, name } = useParams<{
     organization: string;
     name: string;
@@ -25,6 +29,18 @@ export default function RepositoryPage() {
     string[] | null
   >(null);
   const [loading, setLoading] = useState(true);
+
+  // Launch form state
+  const [workflows, setWorkflows] = useState<
+    Record<string, WorkflowDefinition>
+  >({});
+  const [wfLoading, setWfLoading] = useState(true);
+  const [wfError, setWfError] = useState<string | null>(null);
+  const [branch, setBranch] = useState("");
+  const [selectedWorkflow, setSelectedWorkflow] = useState("");
+  const [inputValues, setInputValues] = useState<Record<string, string>>({});
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -43,8 +59,51 @@ export default function RepositoryPage() {
       .finally(() => setLoading(false));
   }, [organization, name]);
 
+  useEffect(() => {
+    fetchWorkflows()
+      .then((wfs) => {
+        setWorkflows(wfs);
+        const names = Object.keys(wfs);
+        if (names.length > 0) {
+          setSelectedWorkflow(names[0]);
+        }
+      })
+      .catch((err) => {
+        setWfError(
+          err instanceof Error ? err.message : "Failed to load workflows",
+        );
+      })
+      .finally(() => setWfLoading(false));
+  }, []);
+
+  async function handleLaunch(e: React.FormEvent) {
+    e.preventDefault();
+    if (!branch.trim() || !selectedWorkflow || !repo) return;
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      await createWorktree(organization, name, { branch });
+      const run = await createWorkflowRun({
+        repository_path: repo.path,
+        worktree_branch: branch,
+        workflow_name: selectedWorkflow,
+        inputs: Object.keys(inputValues).length > 0 ? inputValues : undefined,
+      });
+      router.push(`/workflow-runs/${run.id}`);
+    } catch (err) {
+      setSubmitError(
+        err instanceof Error
+          ? err.message
+          : "Failed to create worktree or launch workflow",
+      );
+      setSubmitting(false);
+    }
+  }
+
   if (loading) return null;
   if (!repo) return notFound();
+
+  const workflowNames = Object.keys(workflows);
 
   return (
     <main className={styles.page}>
@@ -77,19 +136,58 @@ export default function RepositoryPage() {
           <dd className={styles.value}>{repo.path}</dd>
         </div>
       </dl>
-      <WorkflowKanbanBoard
-        repositoryPath={repo.path}
-        activeWorktreeBranches={activeWorktreeBranches}
-      />
-      <RepositoryWorkflowsSection
-        repositoryPath={repo.path}
-        activeWorktreeBranches={activeWorktreeBranches}
-      />
-      <QuickLaunchSection
-        organization={organization}
-        name={name}
-        repositoryPath={repo.path}
-      />
+      <div className={styles.mainLayout}>
+        <div className={styles.kanbanPane}>
+          <WorkflowKanbanBoard
+            repositoryPath={repo.path}
+            activeWorktreeBranches={activeWorktreeBranches}
+          />
+        </div>
+        <aside className={styles.launchPane}>
+          <h2 className={styles.launchHeading}>Launch new Workflow</h2>
+          {wfLoading && <p>Loading...</p>}
+          {wfError && <p className={styles.error}>{wfError}</p>}
+          {!wfLoading && !wfError && workflowNames.length > 0 && (
+            <WorkflowLaunchForm
+              workflowNames={workflowNames}
+              workflows={workflows}
+              selectedWorkflow={selectedWorkflow}
+              onWorkflowChange={(wf) => {
+                setSelectedWorkflow(wf);
+                setInputValues({});
+              }}
+              inputValues={inputValues}
+              onInputChange={(inputName, value) =>
+                setInputValues((prev) => ({ ...prev, [inputName]: value }))
+              }
+              onSubmit={handleLaunch}
+              disabled={submitting}
+              submitDisabled={submitting || !branch.trim()}
+              isSubmitting={submitting}
+              submitLabel="Create & launch"
+              submittingLabel="Launching..."
+              idPrefix="lp"
+            >
+              <div>
+                <label htmlFor="lp-branch">
+                  Branch name
+                  <span>*</span>
+                </label>
+                <input
+                  id="lp-branch"
+                  type="text"
+                  placeholder="e.g. feature/my-change"
+                  value={branch}
+                  onChange={(e) => setBranch(e.target.value)}
+                  disabled={submitting}
+                  required
+                />
+              </div>
+            </WorkflowLaunchForm>
+          )}
+          {submitError && <p className={styles.error}>{submitError}</p>}
+        </aside>
+      </div>
       <WorktreeSection organization={organization} name={name} />
     </main>
   );
