@@ -7,6 +7,7 @@ import {
   type WorkflowRun,
   type WorkflowRunStatus,
 } from "@/lib/utils/api";
+import { extractPullRequestUrl } from "@/lib/utils/extractPullRequestUrl";
 import styles from "./RepositoryWorkflowsSection.module.css";
 
 interface Props {
@@ -73,34 +74,47 @@ export default function RepositoryWorkflowsSection({
           {runs.length === 0 && (
             <li className={styles.status}>No workflow runs yet.</li>
           )}
-          {runs.map((run) => (
-            <li key={run.id} className={styles.item}>
-              <div className={styles.info}>
-                <div className={styles.header}>
-                  <span
-                    className={`${styles.badge} ${styles[`badge-${run.status}`]}`}
-                  >
-                    {STATUS_LABELS[run.status]}
-                  </span>
-                  <Link
-                    href={`/workflow-runs/${run.id}`}
-                    className={styles.branch}
-                  >
-                    {run.worktree_branch}
-                  </Link>
+          {runs.map((run) => {
+            const prUrl = extractPullRequestUrl(run.metadata);
+            return (
+              <li key={run.id} className={styles.item}>
+                <div className={styles.info}>
+                  <div className={styles.header}>
+                    <span
+                      className={`${styles.badge} ${styles[`badge-${run.status}`]}`}
+                    >
+                      {STATUS_LABELS[run.status]}
+                    </span>
+                    <Link
+                      href={`/workflow-runs/${run.id}`}
+                      className={styles.branch}
+                    >
+                      {run.worktree_branch}
+                    </Link>
+                  </div>
+                  <div className={styles.meta}>
+                    <span className={styles.workflowName}>
+                      {run.workflow_name}
+                    </span>
+                    {run.current_step && (
+                      <span className={styles.state}>· {run.current_step}</span>
+                    )}
+                    <span>· {new Date(run.created_at).toLocaleString()}</span>
+                    {prUrl && (
+                      <a
+                        href={prUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={styles.prLink}
+                      >
+                        · PR
+                      </a>
+                    )}
+                  </div>
                 </div>
-                <div className={styles.meta}>
-                  <span className={styles.workflowName}>
-                    {run.workflow_name}
-                  </span>
-                  {run.current_step && (
-                    <span className={styles.state}>· {run.current_step}</span>
-                  )}
-                  <span>· {new Date(run.created_at).toLocaleString()}</span>
-                </div>
-              </div>
-            </li>
-          ))}
+              </li>
+            );
+          })}
         </ul>
       )}
     </section>

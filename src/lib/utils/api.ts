@@ -186,6 +186,7 @@ export interface WorkflowRun {
   current_step: string | null;
   status: WorkflowRunStatus;
   inputs: string | null;
+  metadata: string | null;
   created_at: string;
   updated_at: string;
 }
