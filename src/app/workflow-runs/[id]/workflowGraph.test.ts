@@ -193,13 +193,84 @@ describe("computeLayout", () => {
     // Should terminate without infinite loop
     const layout = computeLayout(graph);
 
-    // All nodes should be assigned a finite layer capped at (nodeCount - 1)
+    // All nodes should be assigned a finite layer
     for (const [, pos] of layout) {
       expect(pos.layer).toBeLessThan(graph.nodes.length);
       expect(pos.layer).toBeGreaterThanOrEqual(0);
     }
     // b should be reachable from a
     expect(layout.get("b")?.layer).toBeGreaterThanOrEqual(1);
+  });
+
+  it("assigns stable layers for cyclic development-flow workflow", () => {
+    const devFlow: WorkflowDefinition = {
+      initial_state: "plan",
+      states: {
+        plan: {
+          goal: "Create a plan",
+          transitions: [
+            { state: "implement", when: "plan is ready" },
+            { terminal: "failure", when: "planning failed" },
+          ],
+        },
+        implement: {
+          goal: "Implement the plan",
+          transitions: [
+            { state: "test", when: "implementation complete" },
+            { terminal: "failure", when: "blocked" },
+          ],
+        },
+        test: {
+          goal: "Run tests",
+          transitions: [
+            { state: "review", when: "succeeded" },
+            { state: "implement", when: "failed" },
+          ],
+        },
+        review: {
+          goal: "Review changes",
+          transitions: [
+            { state: "implement", when: "issues found" },
+            { state: "cleanup", when: "looks good" },
+            { terminal: "failure", when: "abandon" },
+          ],
+        },
+        cleanup: {
+          goal: "Cleanup",
+          transitions: [
+            { state: "commit", when: "succeeded" },
+            { state: "commit", when: "failed" },
+          ],
+        },
+        commit: {
+          goal: "Commit and push",
+          transitions: [
+            { terminal: "success", when: "PR created" },
+            { terminal: "failure", when: "failed" },
+          ],
+        },
+      },
+    };
+
+    const graph = buildGraph(devFlow);
+    const layout = computeLayout(graph);
+
+    // Nodes in the cycle (implement, test, review) should keep their
+    // first-visit layers rather than being pushed to the max layer.
+    expect(layout.get("plan")?.layer).toBe(0);
+    expect(layout.get("implement")?.layer).toBe(1);
+    expect(layout.get("test")?.layer).toBe(2);
+    expect(layout.get("review")?.layer).toBe(3);
+    expect(layout.get("cleanup")?.layer).toBe(4);
+    expect(layout.get("commit")?.layer).toBe(5);
+
+    // Terminal nodes should be placed after their latest predecessor
+    const successLayer = layout.get("success")?.layer ?? -1;
+    const failureLayer = layout.get("failure")?.layer ?? -1;
+    expect(successLayer).toBe(6);
+    // failure is reachable from plan(0), implement(1), review(3), commit(5)
+    // With max-of-predecessors approach for terminals, it should be at 6
+    expect(failureLayer).toBe(6);
   });
 
   it("assigns different positions within the same layer", () => {

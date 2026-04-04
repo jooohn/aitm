@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type {
   StateExecution,
   WorkflowDefinition,
@@ -283,5 +283,95 @@ describe("WorkflowStateDiagram", () => {
 
     expect(screen.getByText("plan is ready")).toBeInTheDocument();
     expect(screen.getByText("planning failed")).toBeInTheDocument();
+  });
+
+  it("renders unique keys when multiple transitions share the same from and to", () => {
+    const workflow: WorkflowDefinition = {
+      initial_state: "cleanup",
+      states: {
+        cleanup: {
+          goal: "Cleanup files",
+          transitions: [
+            { state: "commit", when: "succeeded" },
+            { state: "commit", when: "failed" },
+          ],
+        },
+        commit: {
+          goal: "Commit",
+          transitions: [{ terminal: "success", when: "done" }],
+        },
+      },
+    };
+
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { container } = render(
+      <WorkflowStateDiagram
+        definition={workflow}
+        stateExecutions={[]}
+        currentState={null}
+        status="running"
+      />,
+    );
+    consoleSpy.mockRestore();
+
+    // Both edges should be rendered (two separate <g> elements for cleanup→commit)
+    const edges = container.querySelectorAll(
+      '[data-edge-from="cleanup"][data-edge-to="commit"]',
+    );
+    expect(edges).toHaveLength(2);
+
+    // React should not have warned about duplicate keys
+    const duplicateKeyWarnings = consoleSpy.mock.calls.filter(
+      (args) =>
+        typeof args[0] === "string" &&
+        args[0].includes("Encountered two children with the same key"),
+    );
+    expect(duplicateKeyWarnings).toHaveLength(0);
+  });
+
+  it("renders back-edges as curved paths instead of straight lines", () => {
+    const cyclicWorkflow: WorkflowDefinition = {
+      initial_state: "implement",
+      states: {
+        implement: {
+          goal: "Implement",
+          transitions: [
+            { state: "test", when: "ready" },
+            { terminal: "failure", when: "blocked" },
+          ],
+        },
+        test: {
+          goal: "Test",
+          transitions: [
+            { state: "implement", when: "failed" },
+            { terminal: "success", when: "passed" },
+          ],
+        },
+      },
+    };
+
+    const { container } = render(
+      <WorkflowStateDiagram
+        definition={cyclicWorkflow}
+        stateExecutions={[]}
+        currentState={null}
+        status="running"
+      />,
+    );
+
+    // The back-edge test→implement should use a <path> element (curve), not <line>
+    const backEdge = container.querySelector(
+      '[data-edge-from="test"][data-edge-to="implement"]',
+    );
+    expect(backEdge).not.toBeNull();
+    expect(backEdge!.querySelector("path")).not.toBeNull();
+    expect(backEdge!.querySelector("line")).toBeNull();
+
+    // The forward edge implement→test should still use a <line>
+    const forwardEdge = container.querySelector(
+      '[data-edge-from="implement"][data-edge-to="test"]',
+    );
+    expect(forwardEdge).not.toBeNull();
+    expect(forwardEdge!.querySelector("line")).not.toBeNull();
   });
 });

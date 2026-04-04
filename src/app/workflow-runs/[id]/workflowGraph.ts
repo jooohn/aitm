@@ -64,8 +64,6 @@ export function buildGraph(definition: WorkflowDefinition): Graph {
 export function computeLayout(graph: Graph): Map<string, NodePosition> {
   const layers = new Map<string, number>();
 
-  // BFS from initial state to assign layers (max distance from root)
-  // Use iterative relaxation to handle converging paths
   const adjacency = new Map<string, string[]>();
   for (const edge of graph.edges) {
     const targets = adjacency.get(edge.from) ?? [];
@@ -73,14 +71,12 @@ export function computeLayout(graph: Graph): Map<string, NodePosition> {
     adjacency.set(edge.from, targets);
   }
 
-  // Initialize all nodes with -1
-  for (const node of graph.nodes) {
-    layers.set(node.id, -1);
-  }
+  const terminalIds = new Set(
+    graph.nodes.filter((n) => n.type === "terminal").map((n) => n.id),
+  );
 
-  // BFS with max-layer assignment (ensures converging nodes get the max layer)
-  // Cap layers at node count to prevent infinite loops on cyclic graphs
-  const maxLayer = graph.nodes.length - 1;
+  // BFS with first-visit-wins (min-layer) for non-terminal nodes.
+  // This prevents cycles from pushing all nodes to the max layer.
   const queue: Array<{ id: string; layer: number }> = [
     { id: graph.initialState, layer: 0 },
   ];
@@ -90,11 +86,19 @@ export function computeLayout(graph: Graph): Map<string, NodePosition> {
     const { id, layer } = queue.shift()!;
     const targets = adjacency.get(id) ?? [];
     for (const target of targets) {
-      const currentLayer = layers.get(target) ?? -1;
-      const newLayer = Math.min(layer + 1, maxLayer);
-      if (newLayer > currentLayer) {
-        layers.set(target, newLayer);
-        queue.push({ id: target, layer: newLayer });
+      if (terminalIds.has(target)) {
+        // Terminal nodes use max-layer: placed after their latest predecessor
+        const currentLayer = layers.get(target) ?? -1;
+        if (layer + 1 > currentLayer) {
+          layers.set(target, layer + 1);
+          queue.push({ id: target, layer: layer + 1 });
+        }
+      } else {
+        // Non-terminal nodes use first-visit-wins (min-layer)
+        if (!layers.has(target)) {
+          layers.set(target, layer + 1);
+          queue.push({ id: target, layer: layer + 1 });
+        }
       }
     }
   }
