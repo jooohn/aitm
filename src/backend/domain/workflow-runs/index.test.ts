@@ -1304,3 +1304,127 @@ describe("rerunWorkflowRunFromFailedState", () => {
     expect(newSession?.goal).not.toContain("Could not proceed");
   });
 });
+
+describe("max steps safe guard", () => {
+  const CYCLING_WORKFLOW_CONFIG = `
+workflows:
+  cycling-flow:
+    initial_step: step_a
+    steps:
+      step_a:
+        goal: "Do step A"
+        transitions:
+          - step: step_b
+            when: "done"
+          - terminal: failure
+            when: "blocked"
+      step_b:
+        goal: "Do step B"
+        transitions:
+          - step: step_a
+            when: "loop back"
+          - terminal: success
+            when: "done"
+          - terminal: failure
+            when: "blocked"
+`;
+
+  const CYCLING_WORKFLOW_WITH_MAX_STEPS_CONFIG = `
+workflows:
+  cycling-flow:
+    max_steps: 5
+    initial_step: step_a
+    steps:
+      step_a:
+        goal: "Do step A"
+        transitions:
+          - step: step_b
+            when: "done"
+          - terminal: failure
+            when: "blocked"
+      step_b:
+        goal: "Do step B"
+        transitions:
+          - step: step_a
+            when: "loop back"
+          - terminal: success
+            when: "done"
+          - terminal: failure
+            when: "blocked"
+`;
+
+  async function setupCyclingRun(config: string) {
+    process.env.AITM_CONFIG_PATH = await writeTempConfig(config);
+    const repoPath = await makeFakeGitRepo();
+    const run = await createWorkflowRun({
+      repository_path: repoPath,
+      worktree_branch: "feat/test",
+      workflow_name: "cycling-flow",
+    });
+    return { run, repoPath };
+  }
+
+  async function advanceOneStep(workflowRunId: string, nextStep: string) {
+    const exec = db
+      .prepare(
+        "SELECT * FROM step_executions WHERE workflow_run_id = ? AND completed_at IS NULL ORDER BY created_at DESC LIMIT 1",
+      )
+      .get(workflowRunId) as { id: string };
+    await completeStepExecution(exec.id, {
+      transition: nextStep,
+      reason: "continuing",
+      handoff_summary: "handoff",
+    });
+  }
+
+  it("terminates workflow run as failure when step count reaches the default limit of 30", async () => {
+    const { run } = await setupCyclingRun(CYCLING_WORKFLOW_CONFIG);
+
+    // The initial createWorkflowRun already created 1 step execution (step_a).
+    // We need to cycle through steps until we hit the limit of 30.
+    // Each advanceOneStep completes the current execution and starts a new one.
+    // The guard checks count before starting a new execution, so we need 30
+    // completed transitions for count to reach 30 and trigger the guard.
+    for (let i = 0; i < 30; i++) {
+      const currentRun = getWorkflowRun(run.id);
+      if (currentRun?.status !== "running") break;
+      const nextStep =
+        currentRun?.current_step === "step_a" ? "step_b" : "step_a";
+      await advanceOneStep(run.id, nextStep);
+    }
+
+    const finalRun = getWorkflowRun(run.id);
+    expect(finalRun?.status).toBe("failure");
+  });
+
+  it("respects per-workflow max_steps override", async () => {
+    const { run } = await setupCyclingRun(
+      CYCLING_WORKFLOW_WITH_MAX_STEPS_CONFIG,
+    );
+
+    // max_steps is 5, so after 5 transitions the guard triggers (count reaches 5).
+    for (let i = 0; i < 5; i++) {
+      const currentRun = getWorkflowRun(run.id);
+      if (currentRun?.status !== "running") break;
+      const nextStep =
+        currentRun?.current_step === "step_a" ? "step_b" : "step_a";
+      await advanceOneStep(run.id, nextStep);
+    }
+
+    const finalRun = getWorkflowRun(run.id);
+    expect(finalRun?.status).toBe("failure");
+  });
+
+  it("allows workflow to complete normally when under the limit", async () => {
+    const { run } = await setupCyclingRun(
+      CYCLING_WORKFLOW_WITH_MAX_STEPS_CONFIG,
+    );
+
+    // Advance step_a -> step_b, then step_b -> success (2 total executions, under limit of 5)
+    await advanceOneStep(run.id, "step_b");
+    await advanceOneStep(run.id, "success");
+
+    const finalRun = getWorkflowRun(run.id);
+    expect(finalRun?.status).toBe("success");
+  });
+});

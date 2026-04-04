@@ -4,6 +4,7 @@ import {
   CommandWorkflowStep,
   getConfigWorkflows,
   resolveAgentConfig,
+  type WorkflowDefinition,
   WorkflowStep,
 } from "@/backend/infra/config";
 import type { EventBus } from "@/backend/infra/event-bus";
@@ -97,6 +98,8 @@ function buildGoal(
 
   return parts.join("\n");
 }
+
+const DEFAULT_MAX_STEP_EXECUTIONS = 30;
 
 function isAlreadyTerminalSessionError(
   err: unknown,
@@ -358,6 +361,14 @@ export class WorkflowRunService {
     const workflows = await getConfigWorkflows();
     const workflow = workflows[run.workflow_name];
     if (!workflow || !workflow.steps?.[transition]) {
+      this.workflowRunRepository.terminateWorkflowRun(run.id, "failure", now);
+      return;
+    }
+
+    // Guard: terminate if step executions exceed the maximum allowed.
+    const maxSteps = workflow.max_steps ?? DEFAULT_MAX_STEP_EXECUTIONS;
+    const stepCount = this.workflowRunRepository.countStepExecutions(run.id);
+    if (stepCount >= maxSteps) {
       this.workflowRunRepository.terminateWorkflowRun(run.id, "failure", now);
       return;
     }
