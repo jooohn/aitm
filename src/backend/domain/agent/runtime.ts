@@ -1,4 +1,7 @@
-import type { WorkflowTransition } from "@/backend/infra/config";
+import type {
+  OutputMetadataFieldDef,
+  WorkflowTransition,
+} from "@/backend/infra/config";
 import type { PermissionMode } from "./permission-mode";
 
 type AssistantContentBlock =
@@ -73,5 +76,8 @@ export interface AgentRuntime {
 
   resume(params: AgentResumeParams): AsyncIterable<AgentMessage>;
 
-  buildTransitionOutputFormat(transitions: SessionTransition[]): OutputFormat;
+  buildTransitionOutputFormat(
+    transitions: SessionTransition[],
+    metadataFields?: Record<string, OutputMetadataFieldDef>,
+  ): OutputFormat;
 }

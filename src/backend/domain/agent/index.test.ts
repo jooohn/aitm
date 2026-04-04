@@ -6,9 +6,10 @@ import { agentService } from "@/backend/container";
 import { db } from "@/backend/infra/db";
 import { eventBus } from "@/backend/infra/event-bus";
 
-const { queryMock, resumeMock } = vi.hoisted(() => ({
+const { queryMock, resumeMock, buildOutputFormatMock } = vi.hoisted(() => ({
   queryMock: vi.fn(),
   resumeMock: vi.fn(),
+  buildOutputFormatMock: vi.fn(),
 }));
 
 const agentConfig = {
@@ -21,10 +22,10 @@ vi.mock("./codex-sdk", () => ({
   codexSDK: {
     query: queryMock,
     resume: resumeMock,
-    buildTransitionOutputFormat: (transitions: unknown[]) => ({
-      type: "json_schema",
-      schema: {},
-    }),
+    buildTransitionOutputFormat: (...args: unknown[]) => {
+      buildOutputFormatMock(...args);
+      return { type: "json_schema", schema: {} };
+    },
   },
 }));
 
@@ -75,6 +76,7 @@ function insertSession(
 beforeEach(() => {
   queryMock.mockReset();
   resumeMock.mockReset();
+  buildOutputFormatMock.mockReset();
   vi.restoreAllMocks();
   db.prepare("DELETE FROM sessions").run();
 });
@@ -83,6 +85,83 @@ const startAgent = agentService.startAgent.bind(agentService);
 const resumeAgent = agentService.resumeAgent.bind(agentService);
 
 describe("startAgent", () => {
+  it("extracts metadata fields from structured output and includes them in the decision", async () => {
+    const repoPath = await makeFakeGitRepo();
+    const sessionId = "session-with-metadata";
+    const logFilePath = join(tmpdir(), `${sessionId}.log`);
+    const onComplete = vi.fn();
+    insertSession(sessionId, repoPath, logFilePath);
+
+    queryMock.mockImplementation(async function* () {
+      yield { type: "system", subtype: "init", session_id: "agent-1" };
+      yield {
+        type: "result",
+        subtype: "success",
+        structured_output: {
+          transition: "success",
+          reason: "done",
+          handoff_summary: "Created PR",
+          pr_url: "https://github.com/org/repo/pull/42",
+          pr_number: "42",
+        },
+      };
+    });
+
+    await startAgent(
+      sessionId,
+      repoPath,
+      "Goal",
+      [{ terminal: "success", when: "done" }],
+      agentConfig,
+      logFilePath,
+      onComplete,
+    );
+
+    expect(onComplete).toHaveBeenCalledWith(
+      expect.objectContaining({
+        transition: "success",
+        metadata: {
+          pr_url: "https://github.com/org/repo/pull/42",
+          pr_number: "42",
+        },
+      }),
+    );
+  });
+
+  it("omits metadata field when structured output has no extra keys", async () => {
+    const repoPath = await makeFakeGitRepo();
+    const sessionId = "session-no-metadata";
+    const logFilePath = join(tmpdir(), `${sessionId}.log`);
+    const onComplete = vi.fn();
+    insertSession(sessionId, repoPath, logFilePath);
+
+    queryMock.mockImplementation(async function* () {
+      yield { type: "system", subtype: "init", session_id: "agent-1" };
+      yield {
+        type: "result",
+        subtype: "success",
+        structured_output: {
+          transition: "success",
+          reason: "done",
+          handoff_summary: "All done",
+        },
+      };
+    });
+
+    await startAgent(
+      sessionId,
+      repoPath,
+      "Goal",
+      [{ terminal: "success", when: "done" }],
+      agentConfig,
+      logFilePath,
+      onComplete,
+    );
+
+    const decision = onComplete.mock.calls[0][0];
+    expect(decision.metadata).toBeUndefined();
+  });
+
   it("sets AWAITING_INPUT and returns when agent selects __REQUIRE_USER_INPUT__", async () => {
     const repoPath = await makeFakeGitRepo();
     const sessionId = "session-user-input";
@@ -206,6 +285,80 @@ describe("startAgent", () => {
     expect(row.status).toBe("SUCCEEDED");
     expect(onComplete).toHaveBeenCalledWith(
       expect.objectContaining({ transition: "success" }),
+    );
+  });
+
+  it("passes metadataFields to buildTransitionOutputFormat when provided", async () => {
+    const repoPath = await makeFakeGitRepo();
+    const sessionId = "session-metadata-fields";
+    const logFilePath = join(tmpdir(), `${sessionId}.log`);
+    insertSession(sessionId, repoPath, logFilePath);
+
+    queryMock.mockImplementation(async function* () {
+      yield { type: "system", subtype: "init", session_id: "agent-1" };
+      yield {
+        type: "result",
+        subtype: "success",
+        structured_output: {
+          transition: "success",
+          reason: "done",
+          handoff_summary: "All done",
+        },
+      };
+    });
+
+    const metadataFields = {
+      pr_url: { type: "string", description: "The pull request URL" },
+    };
+
+    await startAgent(
+      sessionId,
+      repoPath,
+      "Goal",
+      [{ terminal: "success" as const, when: "done" }],
+      agentConfig,
+      logFilePath,
+      undefined,
+      metadataFields,
+    );
+
+    expect(buildOutputFormatMock).toHaveBeenCalledWith(
+      expect.any(Array),
+      metadataFields,
+    );
+  });
+
+  it("calls buildTransitionOutputFormat without metadataFields when not provided", async () => {
+    const repoPath = await makeFakeGitRepo();
+    const sessionId = "session-no-metadata-fields";
+    const logFilePath = join(tmpdir(), `${sessionId}.log`);
+    insertSession(sessionId, repoPath, logFilePath);
+
+    queryMock.mockImplementation(async function* () {
+      yield { type: "system", subtype: "init", session_id: "agent-1" };
+      yield {
+        type: "result",
+        subtype: "success",
+        structured_output: {
+          transition: "success",
+          reason: "done",
+          handoff_summary: "All done",
+        },
+      };
+    });
+
+    await startAgent(
+      sessionId,
+      repoPath,
+      "Goal",
+      [{ terminal: "success" as const, when: "done" }],
+      agentConfig,
+      logFilePath,
+    );
+
+    expect(buildOutputFormatMock).toHaveBeenCalledWith(
+      expect.any(Array),
+      undefined,
     );
   });
 
@@ -369,6 +522,48 @@ describe("resumeAgent", () => {
       .get(sessionId) as { status: string };
     expect(row.status).toBe("AWAITING_INPUT");
     expect(onComplete).not.toHaveBeenCalled();
+  });
+
+  it("passes metadataFields to buildTransitionOutputFormat on resume", async () => {
+    const repoPath = await makeFakeGitRepo();
+    const sessionId = "session-resume-metadata";
+    const logFilePath = join(tmpdir(), `${sessionId}.log`);
+    insertSession(sessionId, repoPath, logFilePath, {
+      status: "AWAITING_INPUT",
+      claude_session_id: "agent-session-meta",
+    });
+
+    resumeMock.mockImplementation(async function* () {
+      yield {
+        type: "result",
+        subtype: "success",
+        structured_output: {
+          transition: "success",
+          reason: "done",
+          handoff_summary: "Done",
+        },
+      };
+    });
+
+    const metadataFields = {
+      pr_url: { type: "string", description: "The pull request URL" },
+    };
+
+    await resumeAgent(
+      sessionId,
+      "User input",
+      repoPath,
+      [{ terminal: "success" as const, when: "done" }],
+      agentConfig,
+      logFilePath,
+      undefined,
+      metadataFields,
+    );
+
+    expect(buildOutputFormatMock).toHaveBeenCalledWith(
+      expect.any(Array),
+      metadataFields,
+    );
   });
 
   it("sets FAILED when resume produces an error result", async () => {

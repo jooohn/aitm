@@ -105,6 +105,7 @@ describe("createSession", () => {
       agentConfig,
       session.log_file_path,
       expect.any(Function),
+      undefined,
     );
   });
 
@@ -149,6 +150,7 @@ workflows: {}
         },
         session.log_file_path,
         expect.any(Function),
+        undefined,
       );
     } finally {
       delete process.env.AITM_CONFIG_PATH;
@@ -333,6 +335,7 @@ describe("replyToSession", () => {
       expect.any(Object),
       session.log_file_path,
       expect.any(Function),
+      undefined,
     );
   });
 
@@ -400,6 +403,7 @@ describe("replyToSession", () => {
       agentConfig,
       session.log_file_path,
       expect.any(Function),
+      undefined,
     );
   });
 });

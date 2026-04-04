@@ -3,6 +3,7 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
+import type { OutputMetadataFieldDef } from "@/backend/infra/config";
 import { logger } from "@/backend/infra/logger";
 import { toCodexConfig } from "./permission-mode";
 import type {
@@ -204,6 +205,7 @@ async function* spawnCodexQuery(
 
 export function buildTransitionOutputFormatForCodex(
   transitions: SessionTransition[],
+  metadataFields?: Record<string, OutputMetadataFieldDef>,
 ): OutputFormat {
   const transitionNames = transitions.map((t) => {
     if ("user_input" in t) return USER_INPUT_TRANSITION_NAME;
@@ -211,18 +213,29 @@ export function buildTransitionOutputFormatForCodex(
     return t.terminal;
   });
 
+  const properties: Record<string, Record<string, unknown>> = {
+    transition: {
+      type: "string",
+      enum: transitionNames,
+    },
+    reason: { type: "string" },
+    handoff_summary: { type: "string" },
+  };
+
+  if (metadataFields) {
+    for (const [key, def] of Object.entries(metadataFields)) {
+      if (key in properties) continue; // never overwrite core fields
+      const prop: Record<string, unknown> = { type: def.type };
+      if (def.description) prop.description = def.description;
+      properties[key] = prop;
+    }
+  }
+
   return {
     type: "json_schema" as const,
     schema: {
       type: "object",
-      properties: {
-        transition: {
-          type: "string",
-          enum: transitionNames,
-        },
-        reason: { type: "string" },
-        handoff_summary: { type: "string" },
-      },
+      properties,
       required: ["transition", "reason", "handoff_summary"],
       additionalProperties: false,
     },
