@@ -15,6 +15,7 @@ import {
   type WorkflowRunDetail,
   type WorkflowRunStatus,
 } from "@/lib/utils/api";
+import { extractPullRequestUrl } from "@/lib/utils/extractPullRequestUrl";
 import { parseWorkflowRunInputs } from "./parseWorkflowRunInputs";
 import styles from "./WorkflowRunDetail.module.css";
 import WorkflowStepDiagram from "./WorkflowStepDiagram";
@@ -163,6 +164,7 @@ export default function WorkflowRunDetail({ run: initial }: Props) {
   const isTerminal = TERMINAL_STATUSES.includes(run.status);
   const inputEntries = parseWorkflowRunInputs(run.inputs);
   const canStop = canStopWorkflowRun(run);
+  const pullRequestUrl = extractPullRequestUrl(run.metadata);
 
   async function handleRerun() {
     setRerunning(true);
@@ -303,6 +305,20 @@ export default function WorkflowRunDetail({ run: initial }: Props) {
             {new Date(run.created_at).toLocaleString()}
           </dd>
         </div>
+        {pullRequestUrl && (
+          <div className={styles.detailRow}>
+            <dt className={styles.detailLabel}>Pull request</dt>
+            <dd className={styles.detailValue}>
+              <a
+                href={pullRequestUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {pullRequestUrl}
+              </a>
+            </dd>
+          </div>
+        )}
         {inputEntries.length > 0 && (
           <div className={styles.detailRow}>
             <dt className={styles.detailLabel}>Inputs</dt>

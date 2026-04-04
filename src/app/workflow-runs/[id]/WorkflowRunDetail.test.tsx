@@ -57,6 +57,7 @@ function makeRun(
     current_step: null,
     status: "success",
     inputs: null,
+    metadata: null,
     created_at: "2024-01-01T00:00:00Z",
     updated_at: "2024-01-01T00:05:00Z",
     step_executions: [],
@@ -118,5 +119,28 @@ describe("WorkflowRunDetail", () => {
     expect(commandOutput).toHaveTextContent("stdout line");
     expect(commandOutput).toHaveTextContent("stderr line");
     expect(within(commandItem!).queryByText("Command succeeded")).toBeNull();
+  });
+
+  it("renders a pull request link when metadata contains a PR URL", () => {
+    const metadata = JSON.stringify({
+      presets__pull_request_url: "https://github.com/org/repo/pull/42",
+    });
+    render(<WorkflowRunDetail run={makeRun({ metadata })} />);
+
+    const prLink = screen.getByRole("link", {
+      name: "https://github.com/org/repo/pull/42",
+    });
+    expect(prLink).toBeInTheDocument();
+    expect(prLink).toHaveAttribute(
+      "href",
+      "https://github.com/org/repo/pull/42",
+    );
+    expect(screen.getByText("Pull request")).toBeInTheDocument();
+  });
+
+  it("does not render a pull request row when metadata is null", () => {
+    render(<WorkflowRunDetail run={makeRun({ metadata: null })} />);
+
+    expect(screen.queryByText("Pull request")).not.toBeInTheDocument();
   });
 });

@@ -63,3 +63,7 @@
 .badge-failure {
   @apply bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300;
 }
+
+.prLink {
+  @apply text-xs text-blue-600 dark:text-blue-400 hover:underline;
+}

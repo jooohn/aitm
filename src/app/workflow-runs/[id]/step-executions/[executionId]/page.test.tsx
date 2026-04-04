@@ -72,6 +72,7 @@ function makeRun(
     current_step: null,
     status: "success",
     inputs: null,
+    metadata: null,
     created_at: "2024-01-01T00:00:00Z",
     updated_at: "2024-01-01T00:05:00Z",
     step_executions: [],
