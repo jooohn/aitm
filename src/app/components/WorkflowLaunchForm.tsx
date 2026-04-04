@@ -107,10 +107,17 @@ export default function WorkflowLaunchForm({
 
       <button
         type="submit"
-        className={styles.submitButton}
+        className={`${styles.submitButton}${isSubmitting ? ` ${styles.submitButtonSubmitting}` : ""}`}
         disabled={isSubmitDisabled}
       >
-        {isSubmitting ? submittingLabel : submitLabel}
+        {isSubmitting ? (
+          <>
+            <span data-testid="submit-spinner" className={styles.spinner} />
+            {submittingLabel}
+          </>
+        ) : (
+          submitLabel
+        )}
       </button>
     </form>
   );
