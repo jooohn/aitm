@@ -4,6 +4,20 @@
   @apply flex flex-col gap-6;
 }
 
+/* Two-pane layout */
+.layout {
+  @apply flex flex-col gap-6 lg:grid lg:gap-8;
+  grid-template-columns: 2fr 1fr;
+}
+
+.leftPane {
+  @apply flex flex-col gap-6 min-w-0;
+}
+
+.rightPane {
+  @apply flex flex-col gap-6 lg:sticky lg:top-6 lg:self-start;
+}
+
 /* Header */
 .header {
   @apply flex items-start justify-between gap-4;

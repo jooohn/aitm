@@ -69,6 +69,53 @@ afterEach(() => {
   cleanup();
 });
 
+describe("WorkflowRunDetail layout", () => {
+  it("renders a two-pane layout with left and right panes", () => {
+    render(<WorkflowRunDetail run={makeRun()} />);
+
+    const container = screen.getByTestId("workflow-run-layout");
+    expect(container).toBeInTheDocument();
+
+    const leftPane = screen.getByTestId("workflow-run-left-pane");
+    const rightPane = screen.getByTestId("workflow-run-right-pane");
+    expect(leftPane).toBeInTheDocument();
+    expect(rightPane).toBeInTheDocument();
+  });
+
+  it("places step executions section in the left pane", () => {
+    render(
+      <WorkflowRunDetail
+        run={makeRun({
+          step_executions: [makeExecution({ step: "plan" })],
+        })}
+      />,
+    );
+
+    const leftPane = screen.getByTestId("workflow-run-left-pane");
+    expect(within(leftPane).getByText("Step executions")).toBeInTheDocument();
+    expect(within(leftPane).getByText("plan")).toBeInTheDocument();
+  });
+
+  it("places header and details in the right pane", () => {
+    render(
+      <WorkflowRunDetail
+        run={makeRun({
+          status: "success",
+          workflow_name: "my-flow",
+          repository_path: "/tmp/repo",
+          worktree_branch: "feat/test",
+        })}
+      />,
+    );
+
+    const rightPane = screen.getByTestId("workflow-run-right-pane");
+    expect(within(rightPane).getByText("my-flow")).toBeInTheDocument();
+    expect(within(rightPane).getByText("Success")).toBeInTheDocument();
+    expect(within(rightPane).getByText("/tmp/repo")).toBeInTheDocument();
+    expect(within(rightPane).getByText("feat/test")).toBeInTheDocument();
+  });
+});
+
 describe("WorkflowRunDetail", () => {
   it("renders command executions in a dedicated output block and leaves agent summaries unchanged", () => {
     const agentExecution = {
