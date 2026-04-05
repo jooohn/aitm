@@ -217,11 +217,10 @@ describe("StepExecutionPage", () => {
 
     render(<StepExecutionPage />);
 
-    // Breadcrumb should show repo, branch, workflow run as links; state as plain text
+    // Breadcrumb should show branch and workflow run as links; state as plain text
     expect(
-      await screen.findByRole("link", { name: "acme/app" }),
+      await screen.findByRole("link", { name: "feat/test" }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "feat/test" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "my-flow" })).toBeInTheDocument();
     // State name appears in both breadcrumb (current, plain text) and as h1
     expect(screen.getAllByText("plan").length).toBeGreaterThanOrEqual(1);

@@ -3,7 +3,6 @@
 import { notFound, useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import SessionSection from "@/app/components/SessionSection";
-import WorkflowBreadcrumb from "@/app/components/WorkflowBreadcrumb";
 import WorkflowSection from "@/app/components/WorkflowSection";
 import {
   fetchRepository,
@@ -52,7 +51,6 @@ export default function WorktreePage() {
 
   return (
     <main className={styles.page}>
-      <WorkflowBreadcrumb repository={{ organization, name }} branch={branch} />
       <h1 className={styles.heading}>{branch || "(bare)"}</h1>
       <dl className={styles.details}>
         <div className={styles.row}>
