@@ -83,7 +83,16 @@ export default function WorkflowKanbanBoard({
 
   if (loading) return <p className={styles.status}>Loading…</p>;
   if (loadError) return <p className={styles.error}>{loadError}</p>;
-  if (!workflows || runs.length === 0) return null;
+  if (!workflows) return null;
+
+  if (runs.length === 0) {
+    return (
+      <section className={styles.section}>
+        <h2 className={styles.heading}>Workflow Runs</h2>
+        <p className={styles.status}>No workflow runs yet.</p>
+      </section>
+    );
+  }
 
   const runsByWorkflow = new Map<string, WorkflowRun[]>();
   for (const run of runs) {

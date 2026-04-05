@@ -66,34 +66,11 @@ afterEach(() => {
 });
 
 describe("RepositoryPage", () => {
-  it("does not render RepositoryWorkflowsSection", async () => {
+  it("renders the workflow kanban board", async () => {
     render(<RepositoryPage />);
 
-    // Wait for the page to load
-    await screen.findByRole("heading", { level: 1, name: "org/repo" });
-
-    // RepositoryWorkflowsSection renders a heading "Workflow runs"
-    // Ensure its section heading is not present
-    expect(screen.queryByText("Workflow runs")).not.toBeInTheDocument();
-  });
-
-  it("does not render standalone QuickLaunchSection", async () => {
-    render(<RepositoryPage />);
-
-    await screen.findByRole("heading", { level: 1, name: "org/repo" });
-
-    // QuickLaunchSection renders a heading "Quick launch"
-    expect(screen.queryByText("Quick launch")).not.toBeInTheDocument();
-  });
-
-  it("renders a 'Launch new Workflow' pane alongside the kanban board", async () => {
-    render(<RepositoryPage />);
-
-    await screen.findByRole("heading", { level: 1, name: "org/repo" });
-
-    // The launch form pane should have a "Launch new Workflow" heading
     expect(
-      screen.getByRole("heading", { name: "Launch new Workflow" }),
+      await screen.findByRole("heading", { name: "Workflow Runs" }),
     ).toBeInTheDocument();
   });
 });

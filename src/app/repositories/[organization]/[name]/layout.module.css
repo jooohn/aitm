@@ -1,0 +1,85 @@
+@reference "tailwindcss";
+
+.shell {
+  @apply w-full flex-1 grid lg:grid-cols-[16rem_minmax(0,1fr)];
+}
+
+.content {
+  @apply min-w-0;
+}
+
+.leftPane {
+  @apply border-r border-zinc-200 dark:border-zinc-800 px-5 py-6 flex flex-col gap-4 sticky top-[var(--header-h,49px)] h-[calc(100vh-var(--header-h,49px))] overflow-y-auto;
+}
+
+.headingRow {
+  @apply flex items-center gap-3 justify-between;
+}
+
+.heading {
+  @apply text-base font-semibold text-zinc-900 dark:text-zinc-50;
+}
+
+.headingLink {
+  @apply no-underline hover:no-underline;
+}
+
+.githubLink {
+  @apply text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors;
+}
+
+.paneSection {
+  @apply flex flex-col gap-2;
+}
+
+.paneHeading {
+  @apply text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide;
+}
+
+.launchButton {
+  @apply text-sm px-3 py-1.5 rounded bg-zinc-900 dark:bg-zinc-100 text-zinc-50 dark:text-zinc-900 hover:bg-zinc-700 dark:hover:bg-zinc-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer;
+}
+
+.runsList {
+  @apply flex flex-col;
+}
+
+.runItem {
+  @apply flex items-center gap-2 py-1.5 px-2 -mx-2 rounded text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 no-underline transition-colors;
+}
+
+.runStatusDot {
+  @apply shrink-0 w-2 h-2 rounded-full;
+}
+
+.runStatusDot-running {
+  @apply bg-blue-500 animate-pulse;
+}
+
+.runStatusDot-success {
+  @apply bg-green-500;
+}
+
+.runStatusDot-failure {
+  @apply bg-red-500;
+}
+
+.runInfo {
+  @apply flex flex-col min-w-0 flex-1;
+}
+
+.runBranch {
+  @apply text-zinc-900 dark:text-zinc-100 truncate;
+}
+
+.runWorkflow {
+  @apply text-xs text-zinc-500 dark:text-zinc-400 truncate;
+}
+
+.runsEmpty {
+  @apply text-sm text-zinc-500 dark:text-zinc-400;
+}
+
+.error {
+  @apply text-sm text-red-600 dark:text-red-400;
+}

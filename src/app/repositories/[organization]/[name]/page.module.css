@@ -1,53 +1,9 @@
 @reference "tailwindcss";
 
 .page {
-  @apply max-w-full mx-auto px-6 py-12 flex flex-col gap-8;
+  @apply w-full flex-1;
 }
 
-.headingRow {
-  @apply flex items-center gap-3;
-}
-
-.heading {
-  @apply text-2xl font-semibold text-zinc-900 dark:text-zinc-50;
-}
-
-.githubLink {
-  @apply text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors;
-}
-
-.details {
-  @apply flex flex-col divide-y divide-zinc-200 dark:divide-zinc-700;
-}
-
-.row {
-  @apply py-4 flex flex-col gap-1 sm:flex-row sm:gap-8;
-}
-
-.label {
-  @apply text-sm font-medium text-zinc-500 sm:w-32 shrink-0;
-}
-
-.value {
-  @apply text-sm font-mono text-zinc-800 dark:text-zinc-200;
-}
-
-.mainLayout {
-  @apply flex gap-6;
-}
-
-.kanbanPane {
-  @apply flex-1 min-w-0;
-}
-
-.launchPane {
-  @apply w-80 shrink-0 flex flex-col gap-4;
-}
-
-.launchHeading {
-  @apply text-lg font-semibold text-zinc-900 dark:text-zinc-50;
-}
-
-.error {
-  @apply text-sm text-red-600 dark:text-red-400;
+.contentPane {
+  @apply min-w-0 px-6 py-6 flex flex-col gap-8;
 }
