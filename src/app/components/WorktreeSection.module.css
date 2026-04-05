@@ -12,8 +12,20 @@
   @apply text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide;
 }
 
-.addButton {
+.menuWrapper {
+  @apply relative;
+}
+
+.menuButton {
   @apply shrink-0 p-1 rounded text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 transition-colors cursor-pointer;
+}
+
+.menu {
+  @apply absolute right-0 top-full mt-1 z-10 min-w-[200px] rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-lg py-1 flex flex-col;
+}
+
+.menuItem {
+  @apply text-left text-sm px-3 py-1.5 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors cursor-pointer;
 }
 
 .overlay {
@@ -34,10 +46,6 @@
 
 .closeButton {
   @apply text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-100 transition-colors cursor-pointer text-xl leading-none;
-}
-
-.cleanMergedButton {
-  @apply shrink-0 text-sm px-3 py-1 rounded border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors;
 }
 
 .status {

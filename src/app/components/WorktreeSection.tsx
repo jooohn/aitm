@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   cleanMergedWorktrees,
   createWorktree,
@@ -28,6 +28,8 @@ export default function WorktreeSection({ organization, name }: Props) {
   const [cleaningMerged, setCleaningMerged] = useState(false);
   const [cleanMergedError, setCleanMergedError] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!showCreateModal) return;
@@ -37,6 +39,24 @@ export default function WorktreeSection({ organization, name }: Props) {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [showCreateModal]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setMenuOpen(false);
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [menuOpen]);
 
   async function load() {
     setLoading(true);
@@ -109,26 +129,55 @@ export default function WorktreeSection({ organization, name }: Props) {
     <section className={styles.section}>
       <div className={styles.headingRow}>
         <h2 className={styles.heading}>Worktrees</h2>
-        <button
-          type="button"
-          className={styles.addButton}
-          onClick={() => {
-            setCreateError(null);
-            setShowCreateModal(true);
-          }}
-          aria-label="New worktree"
-          title="New worktree"
-        >
-          <svg
-            viewBox="0 0 16 16"
-            width="16"
-            height="16"
-            fill="currentColor"
-            aria-hidden="true"
+        <div className={styles.menuWrapper} ref={menuRef}>
+          <button
+            type="button"
+            className={styles.menuButton}
+            onClick={() => setMenuOpen((open) => !open)}
+            aria-label="Worktree actions"
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            title="Worktree actions"
           >
-            <path d="M7.75 2a.75.75 0 0 1 .75.75V7.25h4.5a.75.75 0 0 1 0 1.5h-4.5v4.5a.75.75 0 0 1-1.5 0v-4.5h-4.5a.75.75 0 0 1 0-1.5h4.5V2.75A.75.75 0 0 1 7.75 2Z" />
-          </svg>
-        </button>
+            <svg
+              viewBox="0 0 16 16"
+              width="16"
+              height="16"
+              fill="currentColor"
+              aria-hidden="true"
+            >
+              <path d="M8 9.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3ZM1.5 8a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0Zm10 0a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0Z" />
+            </svg>
+          </button>
+          {menuOpen && (
+            <div className={styles.menu} role="menu">
+              <button
+                type="button"
+                role="menuitem"
+                className={styles.menuItem}
+                onClick={() => {
+                  setMenuOpen(false);
+                  setCreateError(null);
+                  setShowCreateModal(true);
+                }}
+              >
+                Add new worktree
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className={styles.menuItem}
+                disabled={cleaningMerged || loading}
+                onClick={() => {
+                  setMenuOpen(false);
+                  handleCleanMerged();
+                }}
+              >
+                {cleaningMerged ? "Cleaning up…" : "Cleanup merged worktrees"}
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {loading && <p className={styles.status}>Loading…</p>}
@@ -178,15 +227,6 @@ export default function WorktreeSection({ organization, name }: Props) {
       )}
 
       {removeError && <p className={styles.error}>{removeError}</p>}
-
-      <button
-        type="button"
-        className={styles.cleanMergedButton}
-        disabled={cleaningMerged || loading}
-        onClick={handleCleanMerged}
-      >
-        {cleaningMerged ? "Cleaning up…" : "Cleanup merged worktrees"}
-      </button>
       {cleanMergedError && <p className={styles.error}>{cleanMergedError}</p>}
 
       {showCreateModal && (
