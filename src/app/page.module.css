@@ -1,27 +1,37 @@
 @reference "tailwindcss";
 
-.page {
-  @apply max-w-2xl mx-auto px-6 py-12 flex flex-col gap-10;
+.shell {
+  @apply w-full flex-1 grid lg:grid-cols-[16rem_minmax(0,1fr)];
 }
 
-.section {
-  @apply flex flex-col gap-4;
+.sidebar {
+  @apply border-r border-zinc-200 dark:border-zinc-800 px-5 py-6 flex flex-col gap-4 sticky top-[var(--header-h,49px)] h-[calc(100vh-var(--header-h,49px))] overflow-y-auto;
 }
 
-.sectionHeading {
-  @apply text-lg font-semibold text-zinc-900 dark:text-zinc-50;
+.content {
+  @apply min-w-0 px-6 py-6;
 }
 
-.errorBanner {
-  @apply rounded p-3 text-sm border;
-  @apply bg-red-50 border-red-200 text-red-700;
-  @apply dark:bg-red-950 dark:border-red-800 dark:text-red-400;
+.paneSection {
+  @apply flex flex-col gap-2;
+}
+
+.paneHeading {
+  @apply text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide;
+}
+
+.repoList {
+  @apply flex flex-col;
+}
+
+.repoLink {
+  @apply flex items-center py-1.5 px-2 -mx-2 rounded text-sm text-zinc-900 dark:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 no-underline transition-colors;
+}
+
+.error {
+  @apply text-sm text-red-600 dark:text-red-400;
 }
 
 .empty {
   @apply text-sm text-zinc-500;
-}
-
-.list {
-  @apply divide-y divide-zinc-200 dark:divide-zinc-700;
 }

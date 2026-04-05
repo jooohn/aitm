@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
+  fetchAllWorkflowRuns,
   fetchWorkflowRuns,
   fetchWorkflows,
   type WorkflowDefinition,
@@ -10,12 +11,13 @@ import {
   type WorkflowRunStatus,
 } from "@/lib/utils/api";
 import { extractPullRequestUrl } from "@/lib/utils/extractPullRequestUrl";
+import { inferAlias } from "@/lib/utils/inferAlias";
 import { workflowRunPath } from "@/lib/utils/workflowRunPath";
 import { getOrderedSteps } from "@/lib/utils/workflowStepOrder";
 import styles from "./WorkflowKanbanBoard.module.css";
 
 interface Props {
-  repositoryPath: string;
+  repositoryPath?: string;
   activeWorktreeBranches: string[] | null;
 }
 
@@ -45,12 +47,16 @@ export default function WorkflowKanbanBoard({
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
+  const multiRepo = !repositoryPath;
+
   async function load() {
     setLoadError(null);
     try {
       const [wfDefs, wfRuns] = await Promise.all([
         fetchWorkflows(),
-        fetchWorkflowRuns(repositoryPath),
+        repositoryPath
+          ? fetchWorkflowRuns(repositoryPath)
+          : fetchAllWorkflowRuns(),
       ]);
       setWorkflows(wfDefs);
       const branchSet = activeWorktreeBranches
@@ -175,6 +181,11 @@ export default function WorkflowKanbanBoard({
                               .join(" ")}
                             role="row"
                           >
+                            {multiRepo && (
+                              <span className={styles.cardRepo}>
+                                {inferAlias(run.repository_path)}
+                              </span>
+                            )}
                             <Link
                               href={workflowRunPath(run)}
                               className={styles.cardBranch}
