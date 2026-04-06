@@ -76,6 +76,7 @@ function StepExecutionItem({
   const [approvalReason, setApprovalReason] = useState("");
   const decision = parseDecision(execution.transition_decision);
   const isRunning = execution.completed_at === null;
+  const isAwaiting = execution.status === "awaiting";
   const isCommandExecution = execution.step_type === "command";
   const isManualApproval = execution.step_type === "manual-approval";
   const isPendingApproval = isManualApproval && isRunning;
@@ -89,6 +90,10 @@ function StepExecutionItem({
             className={`${styles.badge} ${styles["badge-pending-approval"]}`}
           >
             Awaiting Approval
+          </span>
+        ) : isAwaiting ? (
+          <span className={`${styles.badge} ${styles["badge-awaiting"]}`}>
+            Awaiting Input
           </span>
         ) : isRunning ? (
           <span className={`${styles.badge} ${styles["badge-running"]}`}>

@@ -43,6 +43,7 @@ function makeExecution(
     workflow_run_id: "run-1",
     step: overrides.step,
     step_type: "agent",
+    status: "completed",
     command_output: null,
     session_id: null,
     session_status: null,

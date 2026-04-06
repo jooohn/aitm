@@ -195,6 +195,7 @@ export interface StepExecution {
   workflow_run_id: string;
   step: string;
   step_type: "agent" | "command" | "manual-approval";
+  status: "running" | "awaiting" | "completed" | "failed";
   command_output: string | null;
   session_id: string | null;
   session_status: SessionStatus | null;

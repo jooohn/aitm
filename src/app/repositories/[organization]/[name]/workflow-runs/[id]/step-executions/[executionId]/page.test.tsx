@@ -55,6 +55,7 @@ function makeExecution(
   return {
     workflow_run_id: "run-1",
     step_type: "agent",
+    status: "completed",
     command_output: null,
     session_id: null,
     session_status: null,
