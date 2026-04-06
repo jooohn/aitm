@@ -12,6 +12,7 @@ import {
 } from "@/lib/utils/api";
 import { extractPullRequestUrl } from "@/lib/utils/extractPullRequestUrl";
 import { inferAlias } from "@/lib/utils/inferAlias";
+import { timeAgo } from "@/lib/utils/timeAgo";
 import { workflowRunPath } from "@/lib/utils/workflowRunPath";
 import { getOrderedSteps } from "@/lib/utils/workflowStepOrder";
 import styles from "./WorkflowKanbanBoard.module.css";
@@ -242,15 +243,4 @@ export default function WorkflowKanbanBoard({
       })}
     </section>
   );
-}
-
-function timeAgo(dateStr: string): string {
-  const seconds = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
-  if (seconds < 60) return `${seconds}s ago`;
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
 }

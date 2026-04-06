@@ -1,0 +1,383 @@
+// @vitest-environment jsdom
+import { cleanup, render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import "@testing-library/jest-dom/vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { WorkflowRun, Worktree } from "@/lib/utils/api";
+
+vi.mock("next/link", () => ({
+  default: ({
+    children,
+    href,
+    ...props
+  }: React.AnchorHTMLAttributes<HTMLAnchorElement> & {
+    children: React.ReactNode;
+    href: string;
+  }) => (
+    <a href={href} {...props}>
+      {children}
+    </a>
+  ),
+}));
+
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/repositories/org/name",
+}));
+
+const {
+  fetchWorktreesMock,
+  fetchWorkflowRunsMock,
+  createWorktreeMock,
+  cleanMergedWorktreesMock,
+} = vi.hoisted(() => ({
+  fetchWorktreesMock: vi.fn(),
+  fetchWorkflowRunsMock: vi.fn(),
+  createWorktreeMock: vi.fn(),
+  cleanMergedWorktreesMock: vi.fn(),
+}));
+
+vi.mock("@/lib/utils/api", async () => {
+  const actual = await vi.importActual("@/lib/utils/api");
+  return {
+    ...actual,
+    fetchWorktrees: fetchWorktreesMock,
+    fetchWorkflowRuns: fetchWorkflowRunsMock,
+    createWorktree: createWorktreeMock,
+    cleanMergedWorktrees: cleanMergedWorktreesMock,
+  };
+});
+
+import WorktreeRunsSection from "./WorktreeRunsSection";
+
+function makeWorktree(overrides: Partial<Worktree> = {}): Worktree {
+  return {
+    branch: "main",
+    path: "/repo/main",
+    is_main: true,
+    is_bare: false,
+    head: "abc123",
+    ...overrides,
+  };
+}
+
+function makeRun(overrides: Partial<WorkflowRun> = {}): WorkflowRun {
+  return {
+    id: "run-1",
+    repository_path: "/repos/org/name",
+    worktree_branch: "feature-a",
+    workflow_name: "develop",
+    current_step: "code",
+    status: "running",
+    inputs: null,
+    metadata: null,
+    created_at: "2026-04-01T00:00:00Z",
+    updated_at: "2026-04-01T00:00:00Z",
+    ...overrides,
+  };
+}
+
+beforeEach(() => {
+  fetchWorktreesMock.mockResolvedValue([]);
+  fetchWorkflowRunsMock.mockResolvedValue([]);
+});
+
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+});
+
+describe("WorktreeRunsSection", () => {
+  it("renders worktrees with their workflow runs grouped underneath", async () => {
+    fetchWorktreesMock.mockResolvedValue([
+      makeWorktree({ branch: "main", is_main: true }),
+      makeWorktree({ branch: "feature-a", is_main: false }),
+    ]);
+    fetchWorkflowRunsMock.mockResolvedValue([
+      makeRun({
+        id: "r1",
+        worktree_branch: "feature-a",
+        workflow_name: "develop",
+      }),
+      makeRun({
+        id: "r2",
+        worktree_branch: "feature-a",
+        workflow_name: "maintain-pr",
+        status: "success",
+      }),
+    ]);
+
+    render(
+      <WorktreeRunsSection
+        organization="org"
+        name="name"
+        repositoryPath="/repos/org/name"
+      />,
+    );
+
+    // Wait for data to load
+    await screen.findByText("feature-a");
+
+    // Both worktrees should be visible
+    expect(screen.getByText("main")).toBeInTheDocument();
+    expect(screen.getByText("feature-a")).toBeInTheDocument();
+
+    // Runs should be visible under feature-a
+    expect(screen.getByText("develop")).toBeInTheDocument();
+    expect(screen.getByText("maintain-pr")).toBeInTheDocument();
+  });
+
+  it("shows worktrees with no runs", async () => {
+    fetchWorktreesMock.mockResolvedValue([
+      makeWorktree({ branch: "main", is_main: true }),
+      makeWorktree({ branch: "empty-branch", is_main: false }),
+    ]);
+    fetchWorkflowRunsMock.mockResolvedValue([]);
+
+    render(
+      <WorktreeRunsSection
+        organization="org"
+        name="name"
+        repositoryPath="/repos/org/name"
+      />,
+    );
+
+    await screen.findByText("main");
+    expect(screen.getByText("empty-branch")).toBeInTheDocument();
+  });
+
+  it("shows orphaned runs in a separate group", async () => {
+    fetchWorktreesMock.mockResolvedValue([
+      makeWorktree({ branch: "main", is_main: true }),
+    ]);
+    fetchWorkflowRunsMock.mockResolvedValue([
+      makeRun({ id: "r1", worktree_branch: "deleted-branch" }),
+    ]);
+
+    render(
+      <WorktreeRunsSection
+        organization="org"
+        name="name"
+        repositoryPath="/repos/org/name"
+      />,
+    );
+
+    await screen.findByText("main");
+    // The orphaned group should have a label
+    expect(screen.getByText("Archived")).toBeInTheDocument();
+    expect(screen.getByText("deleted-branch")).toBeInTheDocument();
+  });
+
+  it("expands worktrees with any workflow runs by default", async () => {
+    fetchWorktreesMock.mockResolvedValue([
+      makeWorktree({ branch: "main", is_main: true }),
+      makeWorktree({ branch: "active", is_main: false }),
+      makeWorktree({ branch: "idle", is_main: false }),
+    ]);
+    fetchWorkflowRunsMock.mockResolvedValue([
+      makeRun({
+        id: "r1",
+        worktree_branch: "active",
+        status: "running",
+        workflow_name: "develop",
+      }),
+      makeRun({
+        id: "r2",
+        worktree_branch: "idle",
+        status: "success",
+        workflow_name: "develop",
+      }),
+    ]);
+
+    render(
+      <WorktreeRunsSection
+        organization="org"
+        name="name"
+        repositoryPath="/repos/org/name"
+      />,
+    );
+
+    await screen.findByText("active");
+
+    // Both groups with runs should be expanded
+    const runLinks = screen.getAllByRole("link", { name: /develop/ });
+    for (const link of runLinks) {
+      expect(link).toBeVisible();
+    }
+  });
+
+  it("collapses/expands worktree groups on click", async () => {
+    fetchWorktreesMock.mockResolvedValue([
+      makeWorktree({ branch: "feature-a", is_main: false }),
+    ]);
+    fetchWorkflowRunsMock.mockResolvedValue([
+      makeRun({
+        id: "r1",
+        worktree_branch: "feature-a",
+        status: "running",
+        workflow_name: "develop",
+      }),
+    ]);
+
+    render(
+      <WorktreeRunsSection
+        organization="org"
+        name="name"
+        repositoryPath="/repos/org/name"
+      />,
+    );
+
+    await screen.findByText("feature-a");
+
+    // Should be expanded (has running workflow)
+    expect(screen.getByText("develop")).toBeVisible();
+
+    // Click to collapse
+    const toggle = screen.getByRole("button", { name: /feature-a/ });
+    await userEvent.click(toggle);
+
+    // Run should be hidden
+    expect(screen.queryByText("develop")).not.toBeVisible();
+  });
+
+  it("shows only 3 runs initially with a 'Show all' button for more", async () => {
+    fetchWorktreesMock.mockResolvedValue([
+      makeWorktree({ branch: "feature-a", is_main: false }),
+    ]);
+    fetchWorkflowRunsMock.mockResolvedValue([
+      makeRun({
+        id: "r1",
+        worktree_branch: "feature-a",
+        workflow_name: "run-1",
+      }),
+      makeRun({
+        id: "r2",
+        worktree_branch: "feature-a",
+        workflow_name: "run-2",
+      }),
+      makeRun({
+        id: "r3",
+        worktree_branch: "feature-a",
+        workflow_name: "run-3",
+      }),
+      makeRun({
+        id: "r4",
+        worktree_branch: "feature-a",
+        workflow_name: "run-4",
+      }),
+      makeRun({
+        id: "r5",
+        worktree_branch: "feature-a",
+        workflow_name: "run-5",
+      }),
+    ]);
+
+    render(
+      <WorktreeRunsSection
+        organization="org"
+        name="name"
+        repositoryPath="/repos/org/name"
+      />,
+    );
+
+    await screen.findByText("feature-a");
+
+    // Only first 3 visible
+    expect(screen.getByText("run-1")).toBeVisible();
+    expect(screen.getByText("run-2")).toBeVisible();
+    expect(screen.getByText("run-3")).toBeVisible();
+    expect(screen.queryByText("run-4")).toBeNull();
+    expect(screen.queryByText("run-5")).toBeNull();
+
+    // Show all button present
+    const showAllBtn = screen.getByRole("button", { name: /Show all/ });
+    expect(showAllBtn).toBeVisible();
+
+    // Click to expand
+    await userEvent.click(showAllBtn);
+    expect(screen.getByText("run-4")).toBeVisible();
+    expect(screen.getByText("run-5")).toBeVisible();
+  });
+
+  it("does not show 'Show all' button when runs are 3 or fewer", async () => {
+    fetchWorktreesMock.mockResolvedValue([
+      makeWorktree({ branch: "feature-a", is_main: false }),
+    ]);
+    fetchWorkflowRunsMock.mockResolvedValue([
+      makeRun({
+        id: "r1",
+        worktree_branch: "feature-a",
+        workflow_name: "run-1",
+      }),
+      makeRun({
+        id: "r2",
+        worktree_branch: "feature-a",
+        workflow_name: "run-2",
+      }),
+    ]);
+
+    render(
+      <WorktreeRunsSection
+        organization="org"
+        name="name"
+        repositoryPath="/repos/org/name"
+      />,
+    );
+
+    await screen.findByText("feature-a");
+    expect(screen.queryByRole("button", { name: /Show all/ })).toBeNull();
+  });
+
+  it("shows relative time for each workflow run", async () => {
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    fetchWorktreesMock.mockResolvedValue([
+      makeWorktree({ branch: "feature-a", is_main: false }),
+    ]);
+    fetchWorkflowRunsMock.mockResolvedValue([
+      makeRun({
+        id: "r1",
+        worktree_branch: "feature-a",
+        created_at: oneHourAgo,
+      }),
+    ]);
+
+    render(
+      <WorktreeRunsSection
+        organization="org"
+        name="name"
+        repositoryPath="/repos/org/name"
+      />,
+    );
+
+    await screen.findByText("feature-a");
+    expect(screen.getByText("1h ago")).toBeInTheDocument();
+  });
+
+  it("links workflow runs to their detail pages", async () => {
+    fetchWorktreesMock.mockResolvedValue([
+      makeWorktree({ branch: "feature-a", is_main: false }),
+    ]);
+    fetchWorkflowRunsMock.mockResolvedValue([
+      makeRun({
+        id: "r1",
+        worktree_branch: "feature-a",
+        workflow_name: "develop",
+      }),
+    ]);
+
+    render(
+      <WorktreeRunsSection
+        organization="org"
+        name="name"
+        repositoryPath="/repos/org/name"
+      />,
+    );
+
+    await screen.findByText("feature-a");
+
+    const runLink = screen.getByRole("link", { name: /develop/ });
+    expect(runLink).toHaveAttribute(
+      "href",
+      "/repositories/org/name/workflow-runs/r1",
+    );
+  });
+});

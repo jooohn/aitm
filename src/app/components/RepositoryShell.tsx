@@ -1,30 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import RunWorkflowModal from "@/app/components/RunWorkflowModal";
-import WorktreeSection from "@/app/components/WorktreeSection";
-import {
-  fetchRepository,
-  fetchWorkflowRuns,
-  type RepositoryDetail,
-  type WorkflowRun,
-  type WorkflowRunStatus,
-} from "@/lib/utils/api";
+import WorktreeRunsSection from "@/app/components/WorktreeRunsSection";
+import { fetchRepository, type RepositoryDetail } from "@/lib/utils/api";
 import styles from "./RepositoryShell.module.css";
-
-const RUN_STATUS_LABELS: Record<WorkflowRunStatus, string> = {
-  running: "Running",
-  success: "Success",
-  failure: "Failure",
-};
-
-const runStatusDotClass: Record<WorkflowRunStatus, string> = {
-  running: styles["runStatusDot-running"],
-  success: styles["runStatusDot-success"],
-  failure: styles["runStatusDot-failure"],
-};
 
 interface Props {
   organization: string;
@@ -37,13 +18,8 @@ export default function RepositoryShell({
   name,
   children,
 }: Props) {
-  const pathname = usePathname();
   const alias = `${organization}/${name}`;
   const [repo, setRepo] = useState<RepositoryDetail | null>(null);
-  const [workflowRuns, setWorkflowRuns] = useState<WorkflowRun[] | null>(null);
-  const [workflowRunsError, setWorkflowRunsError] = useState<string | null>(
-    null,
-  );
   const [showLaunchModal, setShowLaunchModal] = useState(false);
 
   useEffect(() => {
@@ -51,17 +27,6 @@ export default function RepositoryShell({
       .then(setRepo)
       .catch(() => setRepo(null));
   }, [organization, name]);
-
-  useEffect(() => {
-    if (!repo) return;
-    fetchWorkflowRuns(repo.path)
-      .then(setWorkflowRuns)
-      .catch((err) => {
-        setWorkflowRunsError(
-          err instanceof Error ? err.message : "Failed to load workflow runs",
-        );
-      });
-  }, [repo]);
 
   return (
     <div className={styles.shell}>
@@ -104,45 +69,13 @@ export default function RepositoryShell({
             Run Workflow
           </button>
         </section>
-        <section className={styles.paneSection}>
-          <h2 className={styles.paneHeading}>Workflow Runs</h2>
-          {workflowRunsError && (
-            <p className={styles.error}>{workflowRunsError}</p>
-          )}
-          {workflowRuns && workflowRuns.length === 0 && (
-            <p className={styles.runsEmpty}>No workflow runs yet.</p>
-          )}
-          {workflowRuns && workflowRuns.length > 0 && (
-            <ul className={styles.runsList}>
-              {workflowRuns.map((run) => {
-                const runHref = `/repositories/${organization}/${name}/workflow-runs/${run.id}`;
-                const isActive = pathname.startsWith(runHref);
-                return (
-                  <li key={run.id}>
-                    <Link
-                      href={runHref}
-                      className={`${styles.runItem} ${isActive ? styles.runItemActive : ""}`}
-                    >
-                      <span
-                        className={`${styles.runStatusDot} ${runStatusDotClass[run.status]}`}
-                        title={RUN_STATUS_LABELS[run.status]}
-                      />
-                      <span className={styles.runInfo}>
-                        <span className={styles.runBranch}>
-                          {run.worktree_branch}
-                        </span>
-                        <span className={styles.runWorkflow}>
-                          {run.workflow_name}
-                        </span>
-                      </span>
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </section>
-        <WorktreeSection organization={organization} name={name} />
+        {repo && (
+          <WorktreeRunsSection
+            organization={organization}
+            name={name}
+            repositoryPath={repo.path}
+          />
+        )}
       </aside>
       <div className={styles.content}>{children}</div>
       {showLaunchModal && (
