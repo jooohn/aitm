@@ -57,7 +57,18 @@
 }
 
 .runStatusDot-running {
-  @apply bg-blue-500 animate-pulse;
+  @apply bg-blue-500;
+  animation: blink-fade 1.5s ease-in-out infinite;
+}
+
+@keyframes blink-fade {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
 }
 
 .runStatusDot-success {
