@@ -13,29 +13,35 @@ A workflow run represents a single execution of a named workflow against a workt
 
 A workflow run has:
 
-| Field | Description |
-|---|---|
-| `id` | Unique identifier |
-| `worktree_branch` | The worktree this run is executing against |
-| `repository_path` | Absolute path to the repository |
-| `workflow_name` | Name of the workflow as defined in `~/.aitm/config.yaml` |
-| `current_step` | Name of the currently active step, or `null` if terminal |
-| `status` | `running` \| `success` \| `failure` |
-| `created_at` | When the run was initiated |
-| `updated_at` | When the run last transitioned |
+| Field | Type | Description |
+|---|---|---|
+| `id` | string | Unique identifier |
+| `worktree_branch` | string | The worktree this run is executing against |
+| `repository_path` | string | Absolute path to the repository |
+| `workflow_name` | string | Name of the workflow as defined in `~/.aitm/config.yaml` |
+| `current_step` | string \| null | Name of the currently active step, or `null` if terminal |
+| `status` | enum | `running` \| `awaiting` \| `success` \| `failure` |
+| `inputs` | JSON \| null | User-provided workflow input values as `Record<string, string>` |
+| `metadata` | JSON \| null | Accumulated metadata extracted from step executions |
+| `created_at` | timestamp | When the run was initiated |
+| `updated_at` | timestamp | When the run last transitioned |
+
+The `awaiting` status is set when the workflow reaches a manual approval step or when a session requires user input.
 
 Each workflow run owns an ordered list of **step executions** — one per session that ran:
 
-| Field | Description |
-|---|---|
-| `id` | Unique identifier |
-| `workflow_run_id` | Parent workflow run |
-| `step` | Name of the step this execution corresponds to |
-| `session_id` | The Claude Code session that executed this step |
-| `transition_decision` | Structured JSON emitted by Claude: `{"transition": <step or terminal>, "reason": "..."}` |
-| `handoff_summary` | Plain-text summary emitted by Claude for the next step's context |
-| `created_at` | When this step execution started |
-| `completed_at` | When Claude's session ended and the transition was recorded |
+| Field | Type | Description |
+|---|---|---|
+| `id` | string | Unique identifier |
+| `workflow_run_id` | string | Parent workflow run |
+| `step` | string | Name of the step this execution corresponds to |
+| `step_type` | enum | `agent` \| `command` \| `manual-approval` — the type of step executed |
+| `session_id` | string \| null | The agent session that executed this step (null for command/manual-approval steps) |
+| `command_output` | string \| null | Captured stdout/stderr for command steps |
+| `transition_decision` | JSON \| null | Structured JSON emitted by the agent: `{"transition": <step or terminal>, "reason": "..."}` |
+| `handoff_summary` | string \| null | Plain-text summary emitted by the agent for the next step's context |
+| `created_at` | timestamp | When this step execution started |
+| `completed_at` | timestamp \| null | When the step completed and the transition was recorded |
 
 ### Lifecycle
 
@@ -43,18 +49,26 @@ Each workflow run owns an ordered list of **step executions** — one per sessio
 initiated
     │
     ▼
-[initial_step] ──► session starts
+[initial_step] ──► step starts
                          │
-                    session ends, Claude emits:
-                    - transition_decision
-                    - handoff_summary
+              ┌──────────┼──────────────────┐
+              ▼          ▼                  ▼
+          agent step  command step    manual-approval step
+              │          │                  │
+         session runs  command executes   status: awaiting
+              │          │                  │
+              │          │           user approves/rejects
+              │          │                  │
+              └──────────┴──────────────────┘
+                         │
+                  transition decided
                          │
               ┌──────────┴──────────┐
               ▼                     ▼
       next step exists         terminal transition
               │                     │
-         new session           workflow run ends
-          starts               status: success | failure
+         new step starts       workflow run ends
+                               status: success | failure
 ```
 
 1. User initiates a workflow run against a worktree, selecting a workflow by name.
@@ -131,12 +145,50 @@ A workflow run detail page shows:
 - Sessions are still viewable independently (existing session detail page).
 - The workflow run detail page links to individual sessions for full log access.
 
+### Operations
+
+#### Stop workflow run
+
+Emergency stop for a running workflow. Terminates the active session (if any) and marks the workflow run as `failure`.
+
+#### Re-run workflow
+
+Creates a new workflow run for the same worktree and workflow, starting from `initial_step`. The original run is preserved for audit.
+
+#### Re-run from failed state
+
+Retries a failed workflow run by re-executing the last step that failed. Reuses the existing workflow run record.
+
+#### Resolve manual approval
+
+Resolves a workflow run that is `awaiting` a manual approval. Accepts an approve/reject decision and an optional reason. On approval, the workflow advances to the next step per the approval step's transitions. On rejection, the corresponding rejection transition fires.
+
+### API surface
+
+| Method | Path | Operation |
+|---|---|---|
+| `GET` | `/api/workflow-runs` | List workflow runs |
+| `GET` | `/api/workflow-runs/:id` | Get workflow run detail |
+| `POST` | `/api/workflow-runs` | Create a new workflow run |
+| `POST` | `/api/workflow-runs/:id/stop` | Stop a running workflow |
+| `POST` | `/api/workflow-runs/:id/rerun` | Re-run a completed workflow |
+| `POST` | `/api/workflow-runs/:id/rerun-from-failed` | Retry from the failed step |
+| `POST` | `/api/workflow-runs/:id/resolve` | Resolve a manual approval |
+
+### Crash recovery
+
+On server startup, `recoverCrashedWorkflowRuns()` handles workflow runs and step executions left in non-terminal states due to a crash or restart:
+
+1. **Pending succeeded executions** — step executions with a stored transition decision but whose workflow run was not advanced. Replays `completeStepExecution()` to advance the workflow.
+2. **Pending failed executions** — step executions whose session failed but the workflow was not updated. Closes the execution and retries the same step.
+3. **Orphaned command executions** — command step executions left running (command steps are synchronous, so a crash means unrecoverable). Marks the workflow run as `failure`.
+4. **Remaining uncompleted executions** — closes any dangling executions if the workflow already reached a terminal state.
+5. **Remaining running workflow runs** — any workflow runs still in `running` status after the above steps are marked as `failure`.
+
 ## Out of scope
 
 - Manually overriding a transition (forcing a specific next step) — future enhancement
-- Pausing or resuming a workflow run mid-execution
 - Parallel step execution (all runs are strictly sequential for now)
-- Human-in-the-loop steps
 
 ## Decisions
 

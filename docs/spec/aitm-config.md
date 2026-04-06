@@ -28,13 +28,13 @@ See spec: repository-management.md for the full field reference.
 
 ### Agent runtime
 
-The top-level `agent` block selects which CLI aitm launches for workflow steps:
+The top-level `agent` block selects which runtime aitm uses for workflow steps:
 
 ```yaml
 agent:
   provider: claude # or codex
   model: sonnet
-  command: claude
+  permission_mode: edit
 ```
 
 | Field | Type | Required | Description |
@@ -42,14 +42,26 @@ agent:
 | `provider` | `claude` \| `codex` | no | Agent runtime to use. Defaults to `claude`. |
 | `model` | string | no | Optional model name passed through to the configured runtime when supported. |
 | `command` | string | no | Optional CLI executable path or command name. |
+| `permission_mode` | `plan` \| `edit` \| `full` | no | Controls what the agent is allowed to do autonomously. Defaults to `edit`. `plan` = read-only, `edit` = can modify files, `full` = unrestricted. |
 
 ### Workflow definition
 
-A workflow is a named directed graph with exactly one `initial_step` and at least one terminal transition.
+A workflow is a named directed graph with exactly one `initial_step` and at least one terminal transition. Workflows may optionally declare `inputs` for parameterized runs.
 
 ```yaml
 workflows:
   development-flow:
+    inputs:
+      task_description:
+        label: Task Description
+        description: Describe the coding task to accomplish
+        required: true
+        type: multiline-text
+      branch_name:
+        label: Branch Name
+        description: Name for the feature branch
+        required: false
+        type: text
     initial_step: plan
     steps:
       plan:
@@ -118,12 +130,26 @@ workflows:
             when: "push failed and cannot be resolved"
 ```
 
+### Workflow inputs
+
+Workflows can declare typed input fields under an `inputs` key. When a user initiates a workflow run, they are prompted to fill in these fields.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `label` | string | yes | Display label shown in the UI |
+| `description` | string | no | Help text describing what the input is for |
+| `required` | boolean | no | Whether the field must be filled. Defaults to `false`. |
+| `type` | `text` \| `multiline-text` | no | Input field type. Defaults to `text`. |
+
+Input values are validated at run creation (required fields must be non-empty) and passed to agents in the step goal wrapped in `<inputs>` tags.
+
 ### Step definition
 
 Each step under `steps` is one of:
 
 1. A goal-based step with `goal` and `transitions`
 2. A command-based step with `command` and `transitions`
+3. A manual approval step with `type: manual-approval` and `transitions`
 
 Goal-based steps have:
 
@@ -171,6 +197,68 @@ Step-level `agent` fields use shallow inheritance from the top-level `agent` con
 
 Command-based steps do not use `agent` config. If `provider` is omitted in a goal-step override, only the supplied fields are replaced and the remaining fields continue to inherit from the top-level `agent` block.
 
+### Command-based steps
+
+A command step runs a shell command instead of an agent session:
+
+```yaml
+steps:
+  run-tests:
+    type: command
+    command: npm test
+    transitions:
+      - step: review
+        when: "command exited successfully"
+      - step: implement
+        when: "command failed"
+```
+
+The `command` string is executed via `sh -c` in the worktree directory. Stdout and stderr are captured and stored as `command_output` on the step execution. The transition is selected based on exit code (success = exit 0, failure = non-zero).
+
+### Manual approval steps
+
+A manual approval step pauses the workflow until a human approves or rejects:
+
+```yaml
+steps:
+  approve-deploy:
+    type: manual-approval
+    transitions:
+      - step: deploy
+        when: "approved"
+      - terminal: failure
+        when: "rejected"
+```
+
+When a manual approval step is reached, the workflow run enters `awaiting` status. The user reviews the work and resolves the approval via the API with an approve/reject decision and optional reason.
+
+### Output configuration
+
+Goal-based steps can declare an `output` block to extract structured metadata from the agent's final output:
+
+```yaml
+steps:
+  push:
+    goal: Push the branch and create a pull request
+    output:
+      presets:
+        - pull_request_url
+      metadata:
+        summary:
+          type: string
+          description: A brief summary of the changes
+    transitions:
+      - terminal: success
+        when: "push succeeded"
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `output.presets` | string[] | Named preset metadata fields (e.g. `pull_request_url`) |
+| `output.metadata` | Record\<string, { type, description? }\> | Custom metadata fields the agent should extract |
+
+Presets are resolved from a built-in registry and merged with explicit metadata fields. Extracted metadata is accumulated on the workflow run's `metadata` JSON field.
+
 ### Transition definition
 
 Each item in `transitions` is one of two forms:
@@ -210,7 +298,6 @@ A terminal transition ends the workflow run for that worktree. The terminal valu
 
 - Per-repository config or overrides (global only for now)
 - Templated goals with variable interpolation (fixed strings only for now)
-- Human-in-the-loop / approval gate steps (all steps are agent sessions for now)
 - Automatic worktree cleanup or merge on workflow completion
 
 ## Open questions
