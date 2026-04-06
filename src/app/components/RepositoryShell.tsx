@@ -21,6 +21,7 @@ export default function RepositoryShell({
   const alias = `${organization}/${name}`;
   const [repo, setRepo] = useState<RepositoryDetail | null>(null);
   const [showLaunchModal, setShowLaunchModal] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     fetchRepository(organization, name)
@@ -74,6 +75,7 @@ export default function RepositoryShell({
             organization={organization}
             name={name}
             repositoryPath={repo.path}
+            refreshKey={refreshKey}
           />
         )}
       </aside>
@@ -82,6 +84,7 @@ export default function RepositoryShell({
         <RunWorkflowModal
           onClose={() => setShowLaunchModal(false)}
           fixedAlias={alias}
+          onCreated={() => setRefreshKey((k) => k + 1)}
         />
       )}
     </div>

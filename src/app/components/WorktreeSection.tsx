@@ -14,9 +14,14 @@ import styles from "./WorktreeSection.module.css";
 interface Props {
   organization: string;
   name: string;
+  refreshKey?: number;
 }
 
-export default function WorktreeSection({ organization, name }: Props) {
+export default function WorktreeSection({
+  organization,
+  name,
+  refreshKey,
+}: Props) {
   const pathname = usePathname();
   const [worktrees, setWorktrees] = useState<Worktree[]>([]);
   const [loading, setLoading] = useState(true);
@@ -71,10 +76,10 @@ export default function WorktreeSection({ organization, name }: Props) {
     }
   }
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: load only on mount
+  // biome-ignore lint/correctness/useExhaustiveDependencies: load on mount and when refreshKey changes
   useEffect(() => {
     load();
-  }, []);
+  }, [refreshKey]);
 
   async function handleCleanMerged() {
     setCleaningMerged(true);

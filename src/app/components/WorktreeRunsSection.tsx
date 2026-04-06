@@ -37,12 +37,14 @@ interface Props {
   organization: string;
   name: string;
   repositoryPath: string;
+  refreshKey?: number;
 }
 
 export default function WorktreeRunsSection({
   organization,
   name,
   repositoryPath,
+  refreshKey,
 }: Props) {
   const pathname = usePathname();
   const [groups, setGroups] = useState<WorktreeGroup[]>([]);
@@ -95,10 +97,10 @@ export default function WorktreeRunsSection({
     }
   }
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: load only on mount
+  // biome-ignore lint/correctness/useExhaustiveDependencies: load on mount and when refreshKey changes
   useEffect(() => {
     loadData();
-  }, []);
+  }, [refreshKey]);
 
   useEffect(() => {
     if (!showCreateModal) return;
