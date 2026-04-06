@@ -6,12 +6,16 @@ import type { Session } from "@/lib/utils/api";
 import TodosLayout from "./layout";
 import TodosPage from "./page";
 
-const { fetchSessionsByStatusMock } = vi.hoisted(() => ({
-  fetchSessionsByStatusMock: vi.fn(),
-}));
+const { fetchSessionsByStatusMock, fetchPendingApprovalsMock } = vi.hoisted(
+  () => ({
+    fetchSessionsByStatusMock: vi.fn(),
+    fetchPendingApprovalsMock: vi.fn(),
+  }),
+);
 
 vi.mock("@/lib/utils/api", () => ({
   fetchSessionsByStatus: fetchSessionsByStatusMock,
+  fetchPendingApprovals: fetchPendingApprovalsMock,
 }));
 
 let capturedCallback: (() => void) | null = null;
@@ -65,6 +69,8 @@ function makeSession(overrides: Partial<Session> = {}): Session {
 
 beforeEach(() => {
   fetchSessionsByStatusMock.mockReset();
+  fetchPendingApprovalsMock.mockReset();
+  fetchPendingApprovalsMock.mockResolvedValue([]);
   capturedCallback = null;
 });
 
@@ -104,7 +110,7 @@ describe("/todos layout", () => {
     );
 
     expect(
-      await screen.findByText("No sessions are waiting for input."),
+      await screen.findByText("No items are waiting for action."),
     ).toBeInTheDocument();
   });
 
@@ -118,7 +124,7 @@ describe("/todos layout", () => {
     );
 
     expect(
-      await screen.findByText("Select a session to inspect its details."),
+      await screen.findByText("Select an item to inspect its details."),
     ).toBeInTheDocument();
   });
 

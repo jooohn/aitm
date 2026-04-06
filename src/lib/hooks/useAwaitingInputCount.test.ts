@@ -3,12 +3,16 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAwaitingInputCount } from "./useAwaitingInputCount";
 
-const { fetchSessionsByStatusMock } = vi.hoisted(() => ({
-  fetchSessionsByStatusMock: vi.fn(),
-}));
+const { fetchSessionsByStatusMock, fetchPendingApprovalsMock } = vi.hoisted(
+  () => ({
+    fetchSessionsByStatusMock: vi.fn(),
+    fetchPendingApprovalsMock: vi.fn(),
+  }),
+);
 
 vi.mock("@/lib/utils/api", () => ({
   fetchSessionsByStatus: fetchSessionsByStatusMock,
+  fetchPendingApprovals: fetchPendingApprovalsMock,
 }));
 
 let capturedCallback: (() => void) | null = null;
@@ -21,6 +25,8 @@ vi.mock("./useNotificationStream", () => ({
 
 beforeEach(() => {
   fetchSessionsByStatusMock.mockReset();
+  fetchPendingApprovalsMock.mockReset();
+  fetchPendingApprovalsMock.mockResolvedValue([]);
   capturedCallback = null;
 });
 

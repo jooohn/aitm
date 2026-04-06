@@ -11,6 +11,10 @@ export interface EventMap {
     sessionId: string;
     status: SessionStatus;
   };
+  "step-execution.awaiting-approval": {
+    stepExecutionId: string;
+    workflowRunId: string;
+  };
 }
 
 type Listener<K extends keyof EventMap> = (payload: EventMap[K]) => void;

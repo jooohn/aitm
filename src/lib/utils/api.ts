@@ -282,3 +282,17 @@ export function resolveManualApproval(
     body: JSON.stringify({ decision, reason }),
   });
 }
+
+export interface PendingApproval {
+  step_execution_id: string;
+  step: string;
+  workflow_run_id: string;
+  workflow_name: string;
+  repository_path: string;
+  worktree_branch: string;
+  created_at: string;
+}
+
+export function fetchPendingApprovals(): Promise<PendingApproval[]> {
+  return apiFetch("/api/pending-approvals");
+}

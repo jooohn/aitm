@@ -323,6 +323,38 @@ export class WorkflowRunRepository {
       .run(step, now, id);
   }
 
+  listPendingApprovals(): Array<{
+    step_execution_id: string;
+    step: string;
+    workflow_run_id: string;
+    workflow_name: string;
+    repository_path: string;
+    worktree_branch: string;
+    created_at: string;
+  }> {
+    return this.db
+      .prepare(
+        `SELECT se.id AS step_execution_id, se.step, se.workflow_run_id,
+                wr.workflow_name, wr.repository_path, wr.worktree_branch,
+                se.created_at
+         FROM step_executions se
+         JOIN workflow_runs wr ON se.workflow_run_id = wr.id
+         WHERE se.step_type = 'manual-approval'
+           AND se.completed_at IS NULL
+           AND wr.status = 'running'
+         ORDER BY se.created_at DESC`,
+      )
+      .all() as Array<{
+      step_execution_id: string;
+      step: string;
+      workflow_run_id: string;
+      workflow_name: string;
+      repository_path: string;
+      worktree_branch: string;
+      created_at: string;
+    }>;
+  }
+
   // Recovery queries
 
   listPendingSucceededExecutions(): Array<{

@@ -120,7 +120,7 @@ export class WorkflowRunService {
     private sessionService: SessionService,
     private worktreeService: WorktreeService,
     private commandStepExecutor: CommandStepExecutor,
-    eventBus: EventBus,
+    private eventBus: EventBus,
   ) {
     eventBus.on("session.completed", ({ sessionId, decision }) => {
       this.handleSessionComplete(sessionId, decision);
@@ -165,6 +165,10 @@ export class WorkflowRunService {
 
     // Manual-approval steps don't need a worktree — they wait for human resolution.
     if (stepDef.type === "manual-approval") {
+      this.eventBus.emit("step-execution.awaiting-approval", {
+        stepExecutionId: executionId,
+        workflowRunId,
+      });
       return this.workflowRunRepository.getStepExecution(executionId)!;
     }
 
@@ -568,6 +572,10 @@ export class WorkflowRunService {
 
   listWorkflowRuns(filter: ListWorkflowRunsFilter): WorkflowRun[] {
     return this.workflowRunRepository.listWorkflowRuns(filter);
+  }
+
+  listPendingApprovals() {
+    return this.workflowRunRepository.listPendingApprovals();
   }
 
   async rerunWorkflowRun(id: string): Promise<WorkflowRun> {
