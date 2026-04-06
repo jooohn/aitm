@@ -21,6 +21,7 @@ import styles from "./WorkflowKanbanBoard.module.css";
 interface Props {
   repositoryPath?: string;
   activeWorktreeBranches: string[] | null;
+  refreshKey?: number;
 }
 
 const STATUS_LABELS: Record<WorkflowRunStatus, string> = {
@@ -42,6 +43,7 @@ const TERMINAL_COLUMNS = ["Success"] as const;
 export default function WorkflowKanbanBoard({
   repositoryPath,
   activeWorktreeBranches,
+  refreshKey,
 }: Props) {
   const [workflows, setWorkflows] = useState<Record<
     string,
@@ -80,10 +82,9 @@ export default function WorkflowKanbanBoard({
     }
   }
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: load only on mount
   useEffect(() => {
     load();
-  }, []);
+  }, [repositoryPath, activeWorktreeBranches, refreshKey]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: load is stable; intentionally omitted
   useEffect(() => {

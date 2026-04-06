@@ -3,6 +3,7 @@
 import { notFound, useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import WorkflowKanbanBoard from "@/app/components/WorkflowKanbanBoard";
+import { useNotificationStream } from "@/lib/hooks/useNotificationStream";
 import {
   fetchRepository,
   fetchWorktrees,
@@ -20,6 +21,9 @@ export default function RepositoryPage() {
     string[] | null
   >(null);
   const [loading, setLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  useNotificationStream(() => setRefreshKey((k) => k + 1));
 
   useEffect(() => {
     Promise.all([
@@ -36,7 +40,7 @@ export default function RepositoryPage() {
       })
       .catch(() => notFound())
       .finally(() => setLoading(false));
-  }, [organization, name]);
+  }, [organization, name, refreshKey]);
 
   if (loading) return null;
   if (!repo) return notFound();
@@ -47,6 +51,7 @@ export default function RepositoryPage() {
         <WorkflowKanbanBoard
           repositoryPath={repo.path}
           activeWorktreeBranches={activeWorktreeBranches}
+          refreshKey={refreshKey}
         />
       </div>
     </main>

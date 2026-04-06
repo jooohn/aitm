@@ -14,7 +14,10 @@ export interface ValidationResult {
 }
 
 async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(url, options);
+  const res = await fetch(url, {
+    cache: "no-store",
+    ...options,
+  });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error(body.error ?? `Request failed: ${res.status}`);

@@ -1,17 +1,25 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockFetchRepository = vi.fn();
 const mockFetchWorktrees = vi.fn();
 const mockFetchWorkflows = vi.fn();
+const mockFetchWorkflowRuns = vi.fn();
 
 vi.mock("@/lib/utils/api", () => ({
   fetchRepository: (...args: unknown[]) => mockFetchRepository(...args),
   fetchWorktrees: (...args: unknown[]) => mockFetchWorktrees(...args),
   fetchWorkflows: (...args: unknown[]) => mockFetchWorkflows(...args),
-  fetchWorkflowRuns: vi.fn().mockResolvedValue([]),
+  fetchWorkflowRuns: (...args: unknown[]) => mockFetchWorkflowRuns(...args),
+}));
+
+let notificationCallback: (() => void) | null = null;
+vi.mock("@/lib/hooks/useNotificationStream", () => ({
+  useNotificationStream: (cb: () => void) => {
+    notificationCallback = cb;
+  },
 }));
 
 vi.mock("next/navigation", () => ({
@@ -58,6 +66,7 @@ beforeEach(() => {
       },
     },
   });
+  mockFetchWorkflowRuns.mockResolvedValue([]);
 });
 
 afterEach(() => {
@@ -72,5 +81,31 @@ describe("RepositoryPage", () => {
     expect(
       await screen.findByRole("heading", { name: "Workflow Runs" }),
     ).toBeInTheDocument();
+  });
+
+  it("re-fetches repository data and workflow runs when notification stream fires", async () => {
+    render(<RepositoryPage />);
+
+    await screen.findByRole("heading", { name: "Workflow Runs" });
+
+    const initialRepositoryCalls = mockFetchRepository.mock.calls.length;
+    const initialWorktreeCalls = mockFetchWorktrees.mock.calls.length;
+    const initialWorkflowRunCalls = mockFetchWorkflowRuns.mock.calls.length;
+
+    act(() => {
+      notificationCallback?.();
+    });
+
+    await waitFor(() => {
+      expect(mockFetchRepository.mock.calls.length).toBeGreaterThan(
+        initialRepositoryCalls,
+      );
+      expect(mockFetchWorktrees.mock.calls.length).toBeGreaterThan(
+        initialWorktreeCalls,
+      );
+      expect(mockFetchWorkflowRuns.mock.calls.length).toBeGreaterThan(
+        initialWorkflowRunCalls,
+      );
+    });
   });
 });
