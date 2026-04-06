@@ -167,7 +167,7 @@ export class WorkflowRunService {
       repositoryPath,
       worktreeBranch,
     );
-    if (!worktree && stepDef.type !== "manual-approval") {
+    if (!worktree) {
       await this.completeStepExecution(executionId, null);
       return this.workflowRunRepository.getStepExecution(executionId)!;
     }
@@ -176,7 +176,7 @@ export class WorkflowRunService {
       executionId,
       workflowRunId,
       repositoryPath,
-      worktree: worktree ?? null,
+      worktree,
       inputs,
       previousExecutions,
     });
@@ -188,7 +188,7 @@ export class WorkflowRunService {
     executionId: string;
     workflowRunId: string;
     repositoryPath: string;
-    worktree: Worktree | null;
+    worktree: Worktree;
     inputs?: Record<string, string>;
     previousExecutions: PreviousExecutionHandoff[];
   }) {
@@ -197,22 +197,34 @@ export class WorkflowRunService {
       case "command":
         return this.startCommandStepExecution({
           stepDef,
-          worktree: worktree!,
+          worktree,
           ...remaining,
         });
       case "agent":
         return this.startAgentStepExecution({
           stepDef,
-          worktree: worktree!,
+          worktree,
           ...remaining,
         });
       case "manual-approval":
-        this.eventBus.emit("step-execution.awaiting-approval", {
-          stepExecutionId: params.executionId,
+        return this.startManualApprovalStepExecution({
+          executionId: params.executionId,
           workflowRunId: params.workflowRunId,
         });
-        return;
     }
+  }
+
+  private startManualApprovalStepExecution({
+    executionId,
+    workflowRunId,
+  }: {
+    executionId: string;
+    workflowRunId: string;
+  }) {
+    this.eventBus.emit("step-execution.awaiting-approval", {
+      stepExecutionId: executionId,
+      workflowRunId,
+    });
   }
 
   private async startCommandStepExecution({
