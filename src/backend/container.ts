@@ -13,13 +13,17 @@ import { db } from "@/backend/infra/db";
 import { eventBus } from "@/backend/infra/event-bus";
 
 export const workflowRunRepository = new WorkflowRunRepository(db, eventBus);
-export const sessionRepository = new SessionRepository(db);
+export const sessionRepository = new SessionRepository(db, eventBus);
 export const worktreeService = new WorktreeService();
 export const repositoryService = new RepositoryService();
-export const agentService = new AgentService({
-  claude: new ClaudeSDK(),
-  codex: new CodexSDK(),
-});
+export const agentService = new AgentService(
+  {
+    claude: new ClaudeSDK(),
+    codex: new CodexSDK(),
+  },
+  sessionRepository,
+  eventBus,
+);
 export const sessionService = new SessionService(
   sessionRepository,
   agentService,

@@ -21,6 +21,10 @@ const agentConfig = {
   model: "test-model",
 };
 
+let agentSessionCompletedListener:
+  | ((payload: { sessionId: string; decision: unknown | null }) => void)
+  | null = null;
+
 async function makeFakeGitRepo(): Promise<string> {
   const dir = join(
     tmpdir(),
@@ -58,8 +62,12 @@ function insertSession(
 }
 
 beforeEach(() => {
+  if (agentSessionCompletedListener) {
+    eventBus.off("agent-session.completed", agentSessionCompletedListener);
+    agentSessionCompletedListener = null;
+  }
   new WorkflowRunRepository(db).ensureTables();
-  new SessionRepository(db).ensureTables();
+  new SessionRepository(db, eventBus).ensureTables();
   queryMock.mockReset();
   resumeMock.mockReset();
   buildOutputFormatMock.mockReset();
@@ -79,10 +87,26 @@ function buildRuntime(): AgentRuntime {
 }
 
 function buildAgentService(): AgentService {
-  return new AgentService({
-    codex: buildRuntime(),
-    claude: buildRuntime(),
-  });
+  const sessionRepository = new SessionRepository(db, eventBus);
+  agentSessionCompletedListener = ({ sessionId, decision }) => {
+    const now = new Date().toISOString();
+    if (decision) {
+      sessionRepository.setSessionSucceeded(sessionId, now);
+      return;
+    }
+
+    sessionRepository.setSessionFailed(sessionId, now);
+  };
+  eventBus.on("agent-session.completed", agentSessionCompletedListener);
+
+  return new AgentService(
+    {
+      codex: buildRuntime(),
+      claude: buildRuntime(),
+    },
+    sessionRepository,
+    eventBus,
+  );
 }
 
 describe("startAgent", () => {
@@ -407,7 +431,7 @@ describe("startAgent", () => {
     await startPromise;
 
     expect(queryMock).not.toHaveBeenCalled();
-    expect(onComplete).toHaveBeenCalledWith(null);
+    expect(onComplete).not.toHaveBeenCalled();
     expect(
       db.prepare("SELECT status FROM sessions WHERE id = ?").get(sessionId),
     ).toEqual({ status: "FAILED" });
@@ -437,7 +461,7 @@ describe("startAgent", () => {
     );
 
     expect(queryMock).not.toHaveBeenCalled();
-    expect(onComplete).toHaveBeenCalledWith(null);
+    expect(onComplete).not.toHaveBeenCalled();
     expect(
       db.prepare("SELECT status FROM sessions WHERE id = ?").get(sessionId),
     ).toEqual({ status: "FAILED" });
@@ -461,10 +485,15 @@ describe("startAgent", () => {
       resume: vi.fn(),
       buildTransitionOutputFormat: () => ({ type: "json_schema", schema: {} }),
     };
-    const agentService = new AgentService({
-      codex: buildRuntime(),
-      claude: claudeRuntime,
-    });
+    const sessionRepository = new SessionRepository(db, eventBus);
+    const agentService = new AgentService(
+      {
+        codex: buildRuntime(),
+        claude: claudeRuntime,
+      },
+      sessionRepository,
+      eventBus,
+    );
     const repoPath = await makeFakeGitRepo();
     const sessionId = "session-claude-runtime";
     const logFilePath = join(tmpdir(), `${sessionId}.log`);

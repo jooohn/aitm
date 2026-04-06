@@ -8,6 +8,7 @@ import {
   worktreeService,
 } from "@/backend/container";
 import { db } from "@/backend/infra/db";
+import { eventBus } from "@/backend/infra/event-bus";
 
 const createSession = sessionService.createSession.bind(sessionService);
 const failSession = sessionService.failSession.bind(sessionService);
@@ -104,7 +105,7 @@ describe("createSession", () => {
       DEFAULT_TRANSITIONS,
       agentConfig,
       session.log_file_path,
-      expect.any(Function),
+      undefined,
       undefined,
     );
   });
@@ -149,7 +150,7 @@ workflows: {}
           command: "/opt/homebrew/bin/codex",
         },
         session.log_file_path,
-        expect.any(Function),
+        undefined,
         undefined,
       );
     } finally {
@@ -277,6 +278,26 @@ describe("failSession", () => {
     expect(failed.status).toBe("FAILED");
   });
 
+  it("emits session.status-changed when a session is failed", async () => {
+    const repoPath = await makeFakeGitRepo();
+    const session = await createSession({
+      repository_path: repoPath,
+      worktree_branch: "feat/a",
+      goal: "A",
+      transitions: DEFAULT_TRANSITIONS,
+    });
+    const listener = vi.fn();
+
+    eventBus.on("session.status-changed", listener);
+    failSession(session.id);
+
+    expect(listener).toHaveBeenCalledWith({
+      sessionId: session.id,
+      status: "FAILED",
+    });
+    eventBus.off("session.status-changed", listener);
+  });
+
   it("throws when session is not found", () => {
     expect(() => failSession("nonexistent")).toThrow("Session not found");
   });
@@ -334,7 +355,7 @@ describe("replyToSession", () => {
       DEFAULT_TRANSITIONS,
       expect.any(Object),
       session.log_file_path,
-      expect.any(Function),
+      undefined,
       undefined,
     );
   });
@@ -421,8 +442,85 @@ describe("replyToSession", () => {
       DEFAULT_TRANSITIONS,
       agentConfig,
       session.log_file_path,
-      expect.any(Function),
+      undefined,
       undefined,
     );
+  });
+});
+
+describe("agent-session.completed subscription", () => {
+  it("marks the session as SUCCEEDED and emits session.completed", async () => {
+    const repoPath = await makeFakeGitRepo();
+    const session = await createSession({
+      repository_path: repoPath,
+      worktree_branch: "feat/a",
+      goal: "A",
+      transitions: DEFAULT_TRANSITIONS,
+    });
+    const completedListener = vi.fn();
+    const statusListener = vi.fn();
+
+    eventBus.on("session.completed", completedListener);
+    eventBus.on("session.status-changed", statusListener);
+    eventBus.emit("agent-session.completed", {
+      sessionId: session.id,
+      decision: {
+        transition: "implement",
+        reason: "done",
+        handoff_summary: "finished",
+      },
+    });
+
+    expect(getSession(session.id)?.status).toBe("SUCCEEDED");
+    expect(statusListener).toHaveBeenCalledWith({
+      sessionId: session.id,
+      status: "SUCCEEDED",
+    });
+    expect(completedListener).toHaveBeenCalledWith({
+      sessionId: session.id,
+      decision: {
+        transition: "implement",
+        reason: "done",
+        handoff_summary: "finished",
+      },
+    });
+    eventBus.off("session.completed", completedListener);
+    eventBus.off("session.status-changed", statusListener);
+  });
+
+  it("emits session.completed only once for a terminal agent completion", async () => {
+    const repoPath = await makeFakeGitRepo();
+    const session = await createSession({
+      repository_path: repoPath,
+      worktree_branch: "feat/a",
+      goal: "A",
+      transitions: DEFAULT_TRANSITIONS,
+    });
+    const completedListener = vi.fn();
+    const decision = {
+      transition: "implement",
+      reason: "done",
+      handoff_summary: "finished",
+    };
+
+    eventBus.on("session.completed", completedListener);
+
+    const onComplete = vi
+      .mocked(agentService.startAgent)
+      .mock.calls.at(-1)?.[6];
+    expect(onComplete).toBeUndefined();
+
+    eventBus.emit("agent-session.completed", {
+      sessionId: session.id,
+      decision,
+    });
+
+    expect(completedListener).toHaveBeenCalledTimes(1);
+    expect(completedListener).toHaveBeenCalledWith({
+      sessionId: session.id,
+      decision,
+    });
+
+    eventBus.off("session.completed", completedListener);
   });
 });

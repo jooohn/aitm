@@ -7,6 +7,10 @@ import type {
 import { logger } from "@/backend/infra/logger";
 
 export interface EventMap {
+  "agent-session.completed": {
+    sessionId: string;
+    decision: TransitionDecision | null;
+  };
   "session.completed": {
     sessionId: string;
     decision: TransitionDecision | null;

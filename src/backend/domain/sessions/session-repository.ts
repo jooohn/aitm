@@ -1,8 +1,40 @@
 import type Database from "better-sqlite3";
-import type { ListSessionsFilter, Session } from "./index";
+import type { TransitionDecision } from "@/backend/domain/agent";
+import type { EventBus } from "@/backend/infra/event-bus";
+import type { ListSessionsFilter, Session, SessionStatus } from "./index";
 
 export class SessionRepository {
-  constructor(private db: Database.Database) {}
+  constructor(
+    private db: Database.Database,
+    private eventBus?: EventBus,
+  ) {}
+
+  private emitStatusChanged(sessionId: string, status: SessionStatus): void {
+    this.eventBus?.emit("session.status-changed", { sessionId, status });
+  }
+
+  private updateSessionStatus(
+    id: string,
+    status: SessionStatus,
+    now: string,
+    whereClause: string,
+    params: unknown[] = [],
+  ): boolean {
+    const result = this.db
+      .prepare(
+        `UPDATE sessions
+         SET status = ?, updated_at = ?
+         WHERE id = ? AND ${whereClause}`,
+      )
+      .run(status, now, id, ...params);
+
+    if (result.changes > 0) {
+      this.emitStatusChanged(id, status);
+      return true;
+    }
+
+    return false;
+  }
 
   ensureTables() {
     this.db.exec(`
@@ -83,6 +115,20 @@ export class SessionRepository {
       .get(id) as Session | undefined;
   }
 
+  getSessionStatus(id: string): SessionStatus | null {
+    const row = this.db
+      .prepare("SELECT status FROM sessions WHERE id = ?")
+      .get(id) as { status: SessionStatus } | undefined;
+    return row?.status ?? null;
+  }
+
+  getAgentSessionId(id: string): string | null {
+    const row = this.db
+      .prepare("SELECT claude_session_id FROM sessions WHERE id = ?")
+      .get(id) as { claude_session_id: string | null } | undefined;
+    return row?.claude_session_id ?? null;
+  }
+
   listSessions(filter: ListSessionsFilter = {}): Session[] {
     const conditions: string[] = [];
     const params: string[] = [];
@@ -114,12 +160,62 @@ export class SessionRepository {
       .all(...params) as Session[];
   }
 
-  setSessionFailed(id: string, now: string): void {
+  setTransitionDecision(id: string, decision: TransitionDecision): void {
+    this.db
+      .prepare("UPDATE sessions SET transition_decision = ? WHERE id = ?")
+      .run(JSON.stringify(decision), id);
+  }
+
+  setAgentSession(
+    id: string,
+    agentSessionId: string | null,
+    attachCommand: string | null,
+  ): void {
     this.db
       .prepare(
-        "UPDATE sessions SET status = 'FAILED', updated_at = ? WHERE id = ?",
+        `UPDATE sessions
+         SET claude_session_id = ?, terminal_attach_command = ?
+         WHERE id = ?`,
       )
-      .run(now, id);
+      .run(agentSessionId, attachCommand, id);
+  }
+
+  setSessionRunning(id: string, now: string): boolean {
+    return this.updateSessionStatus(
+      id,
+      "RUNNING",
+      now,
+      "status NOT IN ('SUCCEEDED', 'FAILED') AND status != ?",
+      ["RUNNING"],
+    );
+  }
+
+  setSessionAwaitingInput(id: string, now: string): boolean {
+    return this.updateSessionStatus(
+      id,
+      "AWAITING_INPUT",
+      now,
+      "status NOT IN ('SUCCEEDED', 'FAILED') AND status != ?",
+      ["AWAITING_INPUT"],
+    );
+  }
+
+  setSessionSucceeded(id: string, now: string): boolean {
+    return this.updateSessionStatus(
+      id,
+      "SUCCEEDED",
+      now,
+      "status NOT IN ('SUCCEEDED', 'FAILED')",
+    );
+  }
+
+  setSessionFailed(id: string, now: string): boolean {
+    return this.updateSessionStatus(
+      id,
+      "FAILED",
+      now,
+      "status NOT IN ('SUCCEEDED', 'FAILED')",
+    );
   }
 
   /**
@@ -167,11 +263,19 @@ export class SessionRepository {
 
   recoverCrashedSessions(): void {
     const now = new Date().toISOString();
+    const runningSessions = this.db
+      .prepare(`SELECT id FROM sessions WHERE status = 'RUNNING'`)
+      .all() as Array<{ id: string }>;
+
     this.db
       .prepare(
         `UPDATE sessions SET status = 'FAILED', updated_at = ?
        WHERE status = 'RUNNING'`,
       )
       .run(now);
+
+    for (const { id } of runningSessions) {
+      this.emitStatusChanged(id, "FAILED");
+    }
   }
 }

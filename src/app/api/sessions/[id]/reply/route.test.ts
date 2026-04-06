@@ -69,11 +69,11 @@ describe("POST /api/sessions/:id/reply", () => {
     expect(agentService.resumeAgent).toHaveBeenCalledWith(
       session.id,
       "Use PostgreSQL",
-      expect.any(String),
-      expect.any(Array),
-      expect.any(Object),
+      session.repository_path,
+      [{ terminal: "success", when: "Done" }],
+      { provider: "claude" },
       session.log_file_path,
-      expect.any(Function),
+      undefined,
       undefined,
     );
   });
