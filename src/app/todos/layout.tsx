@@ -65,6 +65,7 @@ export default function TodosLayout({
                       }`}
                     >
                       <span className={styles.sessionPrimary}>
+                        <span className={styles.statusDot} />
                         {run.worktree_branch}
                       </span>
                       <span className={styles.sessionSecondary}>
