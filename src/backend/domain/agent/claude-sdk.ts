@@ -1,5 +1,8 @@
 import { query } from "@anthropic-ai/claude-agent-sdk";
-import { buildTransitionOutputFormatForClaude } from "@/backend/domain/agent/claude-common";
+import {
+  buildTransitionOutputFormatForClaude,
+  CLAUDE_SDK_TOOLS,
+} from "@/backend/domain/agent/claude-common";
 import { toClaudePermissionMode } from "./permission-mode";
 import type {
   AgentMessage,
@@ -23,6 +26,7 @@ export const claudeSDK: AgentRuntime = {
         permissionMode: toClaudePermissionMode(permissionMode),
         abortController,
         outputFormat,
+        tools: CLAUDE_SDK_TOOLS,
         systemPrompt: { type: "preset", preset: "claude_code" },
       },
     });
@@ -48,6 +52,7 @@ export const claudeSDK: AgentRuntime = {
         abortController,
         outputFormat,
         resume: agentSessionId,
+        tools: CLAUDE_SDK_TOOLS,
         systemPrompt: { type: "preset", preset: "claude_code" },
       },
     });
