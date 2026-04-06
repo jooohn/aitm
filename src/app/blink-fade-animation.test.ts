@@ -14,12 +14,12 @@ describe("blink-fade animation", () => {
     expect(css).not.toContain("@keyframes blink-fade");
   });
 
-  it("applies blink-fade animation to .runStatusDot-running in RepositoryShell", () => {
-    const css = readCss("components/RepositoryShell.module.css");
-    expect(css).not.toMatch(/\.runStatusDot-running[\s\S]*?animate-pulse/);
+  it("applies blink-fade animation to .running in StatusDot", () => {
+    const css = readCss("components/StatusDot.module.css");
+    expect(css).not.toMatch(/\.running[\s\S]*?animate-pulse/);
     expect(css).toContain("@keyframes blink-fade");
     expect(css).toMatch(
-      /\.runStatusDot-running[\s\S]*?blink-fade\s+1\.5s\s+ease-in-out\s+infinite/,
+      /\.running[\s\S]*?blink-fade\s+1\.5s\s+ease-in-out\s+infinite/,
     );
   });
 

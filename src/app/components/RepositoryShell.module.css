@@ -52,33 +52,6 @@
   @apply bg-zinc-100 dark:bg-zinc-800;
 }
 
-.runStatusDot {
-  @apply shrink-0 w-2 h-2 rounded-full;
-}
-
-.runStatusDot-running {
-  @apply bg-blue-500;
-  animation: blink-fade 1.5s ease-in-out infinite;
-}
-
-@keyframes blink-fade {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.3;
-  }
-}
-
-.runStatusDot-success {
-  @apply bg-green-500;
-}
-
-.runStatusDot-failure {
-  @apply bg-red-500;
-}
-
 .runInfo {
   @apply flex flex-col min-w-0 flex-1;
 }

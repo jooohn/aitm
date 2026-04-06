@@ -4,13 +4,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import EllipsisIcon from "@/app/components/icons/EllipsisIcon";
+import StatusDot from "@/app/components/StatusDot";
 import {
   cleanMergedWorktrees,
   createWorktree,
   fetchWorkflowRuns,
   fetchWorktrees,
   type WorkflowRun,
-  type WorkflowRunStatus,
   type Worktree,
 } from "@/lib/utils/api";
 import {
@@ -22,20 +22,6 @@ import PrChip, { extractPrInfos } from "./PrChip";
 import styles from "./WorktreeRunsSection.module.css";
 
 const INITIAL_VISIBLE_RUNS = 3;
-
-const runStatusDotClass: Record<WorkflowRunStatus, string> = {
-  running: styles["runStatusDot-running"],
-  awaiting: styles["runStatusDot-awaiting"],
-  success: styles["runStatusDot-success"],
-  failure: styles["runStatusDot-failure"],
-};
-
-const RUN_STATUS_LABELS: Record<WorkflowRunStatus, string> = {
-  running: "Running",
-  awaiting: "Awaiting",
-  success: "Success",
-  failure: "Failure",
-};
 
 interface Props {
   organization: string;
@@ -248,10 +234,7 @@ export default function WorktreeRunsSection({
                           href={runHref}
                           className={`${styles.runItem} ${isActive ? styles.runItemActive : ""}`}
                         >
-                          <span
-                            className={`${styles.runStatusDot} ${runStatusDotClass[run.status]}`}
-                            title={RUN_STATUS_LABELS[run.status]}
-                          />
+                          <StatusDot variant={run.status} />
                           <span className={styles.runInfo}>
                             <span className={styles.runWorkflow}>
                               {run.workflow_name}

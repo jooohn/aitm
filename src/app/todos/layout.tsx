@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import StatusDot from "@/app/components/StatusDot";
 import { useNotificationStream } from "@/lib/hooks/useNotificationStream";
 import { fetchAllWorkflowRuns, type WorkflowRun } from "@/lib/utils/api";
 import { inferAlias } from "@/lib/utils/inferAlias";
@@ -65,7 +66,7 @@ export default function TodosLayout({
                       }`}
                     >
                       <span className={styles.sessionPrimary}>
-                        <span className={styles.statusDot} />
+                        <StatusDot variant="awaiting" />
                         {run.worktree_branch}
                       </span>
                       <span className={styles.sessionSecondary}>
