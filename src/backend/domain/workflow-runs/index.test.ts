@@ -9,6 +9,7 @@ import {
   worktreeService,
 } from "@/backend/container";
 import { db } from "@/backend/infra/db";
+import { eventBus } from "@/backend/infra/event-bus";
 
 const failSession = sessionService.failSession.bind(sessionService);
 
@@ -1490,6 +1491,27 @@ workflows:
       )
       .all(run.id) as unknown[];
     expect(sessions).toHaveLength(0);
+  });
+
+  it("goes through the normal findWorktree path like other step types", async () => {
+    const findWorktreeSpy = vi.spyOn(worktreeService, "findWorktree");
+    await setupApprovalRun();
+
+    expect(findWorktreeSpy).toHaveBeenCalledOnce();
+  });
+
+  it("emits step-execution.awaiting-approval event", async () => {
+    const emitSpy = vi.spyOn(eventBus, "emit");
+    const { run } = await setupApprovalRun();
+
+    const executions = db
+      .prepare("SELECT * FROM step_executions WHERE workflow_run_id = ?")
+      .all(run.id) as { id: string }[];
+
+    expect(emitSpy).toHaveBeenCalledWith("step-execution.awaiting-approval", {
+      stepExecutionId: executions[0].id,
+      workflowRunId: run.id,
+    });
   });
 
   it("transitions to next step when completed with 'approved' decision", async () => {
