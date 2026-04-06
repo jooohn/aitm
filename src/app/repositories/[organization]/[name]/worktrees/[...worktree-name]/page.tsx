@@ -102,7 +102,7 @@ export default function WorktreePage() {
         {prs.length > 0 && (
           <div className={styles.prChips}>
             {prs.map((pr) => (
-              <PrChip key={pr.url} pr={pr} variant="full" />
+              <PrChip key={pr.url} pr={pr} />
             ))}
           </div>
         )}
