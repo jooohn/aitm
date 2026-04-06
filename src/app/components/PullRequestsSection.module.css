@@ -1,11 +1,11 @@
 @reference "tailwindcss";
 
 .section {
-  @apply flex flex-col gap-1;
+  @apply flex flex-col gap-4;
 }
 
 .heading {
-  @apply text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide;
+  @apply text-lg font-semibold text-zinc-900 dark:text-zinc-50;
 }
 
 .list {
@@ -13,5 +13,5 @@
 }
 
 .link {
-  @apply text-sm text-blue-600 dark:text-blue-400 hover:underline;
+  @apply inline-flex items-center gap-1 text-sm text-blue-600 dark:text-blue-400 hover:underline;
 }
