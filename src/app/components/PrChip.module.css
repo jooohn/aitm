@@ -1,0 +1,5 @@
+@reference "tailwindcss";
+
+.chip {
+  @apply shrink-0 text-xs font-medium px-1.5 py-0.5 rounded bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-300 dark:hover:bg-zinc-600 hover:text-zinc-900 dark:hover:text-zinc-100 no-underline transition-colors;
+}
