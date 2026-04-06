@@ -9,6 +9,7 @@ import {
   worktreeService,
 } from "@/backend/container";
 import { db } from "@/backend/infra/db";
+import { eventBus } from "@/backend/infra/event-bus";
 
 const failSession = sessionService.failSession.bind(sessionService);
 
@@ -1492,6 +1493,27 @@ workflows:
     expect(sessions).toHaveLength(0);
   });
 
+  it("goes through the normal findWorktree path like other step types", async () => {
+    const findWorktreeSpy = vi.spyOn(worktreeService, "findWorktree");
+    await setupApprovalRun();
+
+    expect(findWorktreeSpy).toHaveBeenCalledOnce();
+  });
+
+  it("emits step-execution.awaiting-approval event", async () => {
+    const emitSpy = vi.spyOn(eventBus, "emit");
+    const { run } = await setupApprovalRun();
+
+    const executions = db
+      .prepare("SELECT * FROM step_executions WHERE workflow_run_id = ?")
+      .all(run.id) as { id: string }[];
+
+    expect(emitSpy).toHaveBeenCalledWith("step-execution.awaiting-approval", {
+      stepExecutionId: executions[0].id,
+      workflowRunId: run.id,
+    });
+  });
+
   it("transitions to next step when completed with 'approved' decision", async () => {
     const { run } = await setupApprovalRun();
 
@@ -1660,7 +1682,7 @@ workflows:
     expect(executions[0].completed_at).toBeNull();
   });
 
-  it("succeeds even when the worktree does not exist", async () => {
+  it("fails when the worktree does not exist", async () => {
     process.env.AITM_CONFIG_PATH = await writeTempConfig(
       APPROVAL_WORKFLOW_CONFIG,
     );
@@ -1675,15 +1697,7 @@ workflows:
       workflow_name: "approval-flow",
     });
 
-    // Manual-approval step should still be running, not failed
-    expect(run.status).toBe("running");
-    expect(run.current_step).toBe("review");
-
-    const executions = db
-      .prepare("SELECT * FROM step_executions WHERE workflow_run_id = ?")
-      .all(run.id) as { step_type: string; completed_at: string | null }[];
-    expect(executions).toHaveLength(1);
-    expect(executions[0].step_type).toBe("manual-approval");
-    expect(executions[0].completed_at).toBeNull();
+    // Without a worktree, the workflow should fail like any other step type
+    expect(run.status).toBe("failure");
   });
 });

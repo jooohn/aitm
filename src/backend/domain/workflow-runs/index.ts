@@ -163,15 +163,6 @@ export class WorkflowRunService {
       now,
     });
 
-    // Manual-approval steps don't need a worktree — they wait for human resolution.
-    if (stepDef.type === "manual-approval") {
-      this.eventBus.emit("step-execution.awaiting-approval", {
-        stepExecutionId: executionId,
-        workflowRunId,
-      });
-      return this.workflowRunRepository.getStepExecution(executionId)!;
-    }
-
     const worktree = await this.worktreeService.findWorktree(
       repositoryPath,
       worktreeBranch,
@@ -183,6 +174,7 @@ export class WorkflowRunService {
     await this.executeStep({
       stepDef,
       executionId,
+      workflowRunId,
       repositoryPath,
       worktree,
       inputs,
@@ -194,21 +186,45 @@ export class WorkflowRunService {
   private executeStep(params: {
     stepDef: WorkflowStep;
     executionId: string;
+    workflowRunId: string;
     repositoryPath: string;
     worktree: Worktree;
     inputs?: Record<string, string>;
     previousExecutions: PreviousExecutionHandoff[];
   }) {
-    const { stepDef, ...remaining } = params;
+    const { stepDef, worktree, ...remaining } = params;
     switch (stepDef.type) {
       case "command":
-        return this.startCommandStepExecution({ stepDef, ...remaining });
+        return this.startCommandStepExecution({
+          stepDef,
+          worktree,
+          ...remaining,
+        });
       case "agent":
-        return this.startAgentStepExecution({ stepDef, ...remaining });
+        return this.startAgentStepExecution({
+          stepDef,
+          worktree,
+          ...remaining,
+        });
       case "manual-approval":
-        // No-op: the execution row is already inserted. It waits for manual resolution.
-        return;
+        return this.startManualApprovalStepExecution({
+          executionId: params.executionId,
+          workflowRunId: params.workflowRunId,
+        });
     }
+  }
+
+  private startManualApprovalStepExecution({
+    executionId,
+    workflowRunId,
+  }: {
+    executionId: string;
+    workflowRunId: string;
+  }) {
+    this.eventBus.emit("step-execution.awaiting-approval", {
+      stepExecutionId: executionId,
+      workflowRunId,
+    });
   }
 
   private async startCommandStepExecution({
