@@ -19,12 +19,14 @@ interface Props {
   onClose: () => void;
   fixedAlias?: string;
   fixedBranch?: string;
+  onCreated?: () => void;
 }
 
 export default function RunWorkflowModal({
   onClose,
   fixedAlias,
   fixedBranch,
+  onCreated,
 }: Props) {
   const router = useRouter();
   const [repos, setRepos] = useState<Repository[]>([]);
@@ -97,6 +99,7 @@ export default function RunWorkflowModal({
         workflow_name: selectedWorkflow,
         inputs: Object.keys(inputValues).length > 0 ? inputValues : undefined,
       });
+      onCreated?.();
       onClose();
       router.push(workflowRunPath(run));
     } catch (err) {
