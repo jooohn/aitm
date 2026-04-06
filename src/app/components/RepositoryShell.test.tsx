@@ -23,6 +23,13 @@ vi.mock("@/lib/utils/api", () => ({
   cleanMergedWorktrees: vi.fn().mockResolvedValue(undefined),
 }));
 
+let notificationCallback: (() => void) | null = null;
+vi.mock("@/lib/hooks/useNotificationStream", () => ({
+  useNotificationStream: (cb: () => void) => {
+    notificationCallback = cb;
+  },
+}));
+
 const mockPush = vi.fn();
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: mockPush }),
@@ -104,6 +111,37 @@ describe("RepositoryShell", () => {
     await user.click(screen.getByText("Create & launch"));
 
     // After creation, WorktreeRunsSection should re-fetch due to refreshKey change
+    await waitFor(() => {
+      expect(mockFetchWorkflowRuns.mock.calls.length).toBeGreaterThan(
+        initialWorkflowRunsCalls,
+      );
+      expect(mockFetchWorktrees.mock.calls.length).toBeGreaterThan(
+        initialWorktreesCalls,
+      );
+    });
+  });
+
+  it("re-fetches data when notification stream fires", async () => {
+    render(
+      <RepositoryShell organization="org" name="repo">
+        <div>child</div>
+      </RepositoryShell>,
+    );
+
+    // Wait for initial data load
+    await waitFor(() => {
+      expect(mockFetchWorktrees).toHaveBeenCalledTimes(1);
+    });
+
+    const initialWorkflowRunsCalls = mockFetchWorkflowRuns.mock.calls.length;
+    const initialWorktreesCalls = mockFetchWorktrees.mock.calls.length;
+
+    // Simulate a notification stream event
+    act(() => {
+      notificationCallback?.();
+    });
+
+    // WorktreeRunsSection should re-fetch due to refreshKey change
     await waitFor(() => {
       expect(mockFetchWorkflowRuns.mock.calls.length).toBeGreaterThan(
         initialWorkflowRunsCalls,
