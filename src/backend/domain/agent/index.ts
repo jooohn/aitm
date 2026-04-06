@@ -3,13 +3,12 @@ import { appendFile, writeFile } from "fs/promises";
 import type { SessionStatus } from "@/backend/domain/sessions";
 import type {
   AgentConfig,
+  AgentProvider,
   OutputMetadataFieldDef,
   WorkflowTransition,
 } from "@/backend/infra/config";
 import { db } from "@/backend/infra/db";
 import { eventBus } from "@/backend/infra/event-bus";
-import { claudeSDK } from "./claude-sdk";
-import { codexSDK } from "./codex-sdk";
 import { DEFAULT_PERMISSION_MODE } from "./permission-mode";
 import type { AgentMessage, AgentRuntime, SessionTransition } from "./runtime";
 import { USER_INPUT_TRANSITION, USER_INPUT_TRANSITION_NAME } from "./runtime";
@@ -102,10 +101,6 @@ function buildTransitionsSection(transitions: SessionTransition[]): string {
   ].join("\n");
 }
 
-function selectRuntime(agentConfig: AgentConfig): AgentRuntime {
-  return agentConfig.provider === "codex" ? codexSDK : claudeSDK;
-}
-
 const CORE_DECISION_KEYS = new Set(["transition", "reason", "handoff_summary"]);
 
 /** Process messages from an agent stream. Returns the transition decision if one was produced. */
@@ -146,6 +141,18 @@ function isUserInputTransition(decision: TransitionDecision | null): boolean {
 
 export class AgentService {
   private activeAbortControllers = new Map<string, AbortController>();
+
+  constructor(private runtimes: Record<AgentProvider, AgentRuntime>) {}
+
+  private selectRuntime(agentConfig: AgentConfig): AgentRuntime {
+    const runtime = this.runtimes[agentConfig.provider];
+    if (!runtime) {
+      throw new Error(
+        `No agent runtime configured for provider: ${agentConfig.provider}`,
+      );
+    }
+    return runtime;
+  }
 
   private finishEarly(
     sessionId: string,
@@ -199,14 +206,9 @@ export class AgentService {
       // Non-critical — subsequent append attempts are already best-effort.
     }
 
-    const agentRuntime = selectRuntime(agentConfig);
     const sessionTransitions = buildSessionTransitions(transitions);
     const prompt = [goal, "", buildTransitionsSection(sessionTransitions)].join(
       "\n",
-    );
-    const outputFormat = agentRuntime.buildTransitionOutputFormat(
-      sessionTransitions,
-      metadataFields,
     );
 
     let decision: TransitionDecision | null = null;
@@ -218,6 +220,12 @@ export class AgentService {
         this.finishEarly(sessionId, onComplete);
         return;
       }
+
+      const agentRuntime = this.selectRuntime(agentConfig);
+      const outputFormat = agentRuntime.buildTransitionOutputFormat(
+        sessionTransitions,
+        metadataFields,
+      );
 
       decision = await this.consumeAgentStream(
         agentRuntime.query({
@@ -284,15 +292,16 @@ export class AgentService {
     const abortController = new AbortController();
     this.activeAbortControllers.set(sessionId, abortController);
 
-    const agentRuntime = selectRuntime(agentConfig);
     const sessionTransitions = buildSessionTransitions(transitions);
-    const outputFormat = agentRuntime.buildTransitionOutputFormat(
-      sessionTransitions,
-      metadataFields,
-    );
 
     let decision: TransitionDecision | null = null;
     try {
+      const agentRuntime = this.selectRuntime(agentConfig);
+      const outputFormat = agentRuntime.buildTransitionOutputFormat(
+        sessionTransitions,
+        metadataFields,
+      );
+
       decision = await this.consumeAgentStream(
         agentRuntime.resume({
           sessionId,

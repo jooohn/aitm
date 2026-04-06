@@ -133,15 +133,18 @@ async function* spawnClaude(
   }
 }
 
-export const claudeCLI: AgentRuntime = {
-  query: (params) => spawnClaude(params),
+export class ClaudeCLI implements AgentRuntime {
+  query(params: AgentQueryParams): AsyncIterable<AgentMessage> {
+    return spawnClaude(params);
+  }
 
-  resume: (params) =>
-    spawnClaude({
+  resume(params: AgentResumeParams): AsyncIterable<AgentMessage> {
+    return spawnClaude({
       ...params,
       permissionMode: params.permissionMode,
       resumeSessionId: params.agentSessionId,
-    }),
+    });
+  }
 
-  buildTransitionOutputFormat: buildTransitionOutputFormatForClaude,
-};
+  buildTransitionOutputFormat = buildTransitionOutputFormatForClaude;
+}

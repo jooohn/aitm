@@ -9,6 +9,7 @@ import { toCodexConfig } from "./permission-mode";
 import type {
   AgentMessage,
   AgentQueryParams,
+  AgentResumeParams,
   AgentRuntime,
   OutputFormat,
   SessionTransition,
@@ -244,10 +245,14 @@ export function buildTransitionOutputFormatForCodex(
   };
 }
 
-export const codexCLI: AgentRuntime = {
-  query: spawnCodexQuery,
-  resume: () => {
+export class CodexCLI implements AgentRuntime {
+  query(params: AgentQueryParams): AsyncIterable<AgentMessage> {
+    return spawnCodexQuery(params);
+  }
+
+  resume(_params: AgentResumeParams): AsyncIterable<AgentMessage> {
     throw new Error("codex CLI resume not supported; use codex SDK");
-  },
-  buildTransitionOutputFormat: buildTransitionOutputFormatForCodex,
-};
+  }
+
+  buildTransitionOutputFormat = buildTransitionOutputFormatForCodex;
+}

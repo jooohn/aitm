@@ -11,7 +11,7 @@ import type {
   AgentRuntime,
 } from "./runtime";
 
-export const claudeSDK: AgentRuntime = {
+export class ClaudeSDK implements AgentRuntime {
   async *query({
     prompt,
     cwd,
@@ -34,7 +34,7 @@ export const claudeSDK: AgentRuntime = {
     for await (const message of result) {
       yield message as unknown as AgentMessage;
     }
-  },
+  }
 
   async *resume({
     agentSessionId,
@@ -60,7 +60,7 @@ export const claudeSDK: AgentRuntime = {
     for await (const message of result) {
       yield message as unknown as AgentMessage;
     }
-  },
+  }
 
-  buildTransitionOutputFormat: buildTransitionOutputFormatForClaude,
-};
+  buildTransitionOutputFormat = buildTransitionOutputFormatForClaude;
+}

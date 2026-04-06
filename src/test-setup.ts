@@ -20,34 +20,34 @@ function throwGuard(runtime: string): () => never {
 }
 
 vi.mock("@/backend/domain/agent/claude-cli", () => ({
-  claudeCLI: {
-    query: vi.fn(throwGuard("claude-cli")),
-    resume: vi.fn(throwGuard("claude-cli")),
-    buildTransitionOutputFormat: vi.fn(() => ({
+  ClaudeCLI: class {
+    query = vi.fn(throwGuard("claude-cli"));
+    resume = vi.fn(throwGuard("claude-cli"));
+    buildTransitionOutputFormat = vi.fn(() => ({
       type: "json_schema",
       schema: {},
-    })),
+    }));
   },
 }));
 
 vi.mock("@/backend/domain/agent/claude-sdk", () => ({
-  claudeSDK: {
-    query: vi.fn(throwGuard("claude-sdk")),
-    resume: vi.fn(throwGuard("claude-sdk")),
-    buildTransitionOutputFormat: vi.fn(() => ({
+  ClaudeSDK: class {
+    query = vi.fn(throwGuard("claude-sdk"));
+    resume = vi.fn(throwGuard("claude-sdk"));
+    buildTransitionOutputFormat = vi.fn(() => ({
       type: "json_schema",
       schema: {},
-    })),
+    }));
   },
 }));
 
 vi.mock("@/backend/domain/agent/codex-sdk", () => ({
-  codexSDK: {
-    query: vi.fn(throwGuard("codex-sdk")),
-    resume: vi.fn(throwGuard("codex-sdk")),
-    buildTransitionOutputFormat: vi.fn(() => ({
+  CodexSDK: class {
+    query = vi.fn(throwGuard("codex-sdk"));
+    resume = vi.fn(throwGuard("codex-sdk"));
+    buildTransitionOutputFormat = vi.fn(() => ({
       type: "json_schema",
       schema: {},
-    })),
+    }));
   },
 }));

@@ -17,7 +17,8 @@ vi.mock("@openai/codex-sdk", () => ({
 }));
 
 // Import after mocks are set up
-const { codexSDK } = await import("./codex-sdk");
+const { CodexSDK } = await import("./codex-sdk");
+const codexSDK = new CodexSDK();
 
 function makeQueryParams(
   overrides?: Partial<AgentQueryParams>,

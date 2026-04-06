@@ -159,8 +159,14 @@ function mapEvent(
   }
 }
 
-export const codexSDK: AgentRuntime = {
-  query: streamQuery,
-  resume: streamResume,
-  buildTransitionOutputFormat: buildTransitionOutputFormatForCodex,
-};
+export class CodexSDK implements AgentRuntime {
+  query(params: AgentQueryParams): AsyncIterable<AgentMessage> {
+    return streamQuery(params);
+  }
+
+  resume(params: AgentResumeParams): AsyncIterable<AgentMessage> {
+    return streamResume(params);
+  }
+
+  buildTransitionOutputFormat = buildTransitionOutputFormatForCodex;
+}
