@@ -63,10 +63,12 @@ function makeRun(overrides: Partial<WorkflowRun> = {}): WorkflowRun {
   };
 }
 
-const { fetchWorkflowsMock, fetchWorkflowRunsMock } = vi.hoisted(() => ({
-  fetchWorkflowsMock: vi.fn(),
-  fetchWorkflowRunsMock: vi.fn(),
-}));
+const { fetchWorkflowsMock, fetchWorkflowRunsMock, fetchAllWorkflowRunsMock } =
+  vi.hoisted(() => ({
+    fetchWorkflowsMock: vi.fn(),
+    fetchWorkflowRunsMock: vi.fn(),
+    fetchAllWorkflowRunsMock: vi.fn(),
+  }));
 
 vi.mock("@/lib/utils/api", async () => {
   const actual = await vi.importActual("@/lib/utils/api");
@@ -74,12 +76,14 @@ vi.mock("@/lib/utils/api", async () => {
     ...actual,
     fetchWorkflows: fetchWorkflowsMock,
     fetchWorkflowRuns: fetchWorkflowRunsMock,
+    fetchAllWorkflowRuns: fetchAllWorkflowRunsMock,
   };
 });
 
 beforeEach(() => {
   fetchWorkflowsMock.mockResolvedValue({ default: WORKFLOW_DEF });
   fetchWorkflowRunsMock.mockResolvedValue([]);
+  fetchAllWorkflowRunsMock.mockResolvedValue([]);
 });
 
 afterEach(() => {
@@ -453,6 +457,79 @@ describe("WorkflowKanbanBoard", () => {
 
       const card = screen.getByText("feat-wip").closest("[role='row']")!;
       expect(card.className).toContain("cardRunning");
+    });
+  });
+
+  describe("multi-repo mode (no repositoryPath)", () => {
+    it("fetches all workflow runs when repositoryPath is not provided", async () => {
+      fetchAllWorkflowRunsMock.mockResolvedValue([
+        makeRun({ id: "r1", current_step: "plan" }),
+      ]);
+
+      render(<WorkflowKanbanBoard activeWorktreeBranches={null} />);
+
+      await screen.findByText("feature-branch");
+      expect(fetchAllWorkflowRunsMock).toHaveBeenCalledWith();
+      expect(fetchWorkflowRunsMock).not.toHaveBeenCalled();
+    });
+
+    it("displays runs from multiple repositories", async () => {
+      fetchAllWorkflowRunsMock.mockResolvedValue([
+        makeRun({
+          id: "r1",
+          repository_path: "/repos/org/alpha",
+          worktree_branch: "alpha-feat",
+          current_step: "plan",
+        }),
+        makeRun({
+          id: "r2",
+          repository_path: "/repos/org/beta",
+          worktree_branch: "beta-feat",
+          current_step: "implement",
+        }),
+      ]);
+
+      render(<WorkflowKanbanBoard activeWorktreeBranches={null} />);
+
+      await screen.findByText("alpha-feat");
+      expect(screen.getByText("beta-feat")).toBeInTheDocument();
+    });
+
+    it("shows repository alias on cards in multi-repo mode", async () => {
+      fetchAllWorkflowRunsMock.mockResolvedValue([
+        makeRun({
+          id: "r1",
+          repository_path: "/repos/org/alpha",
+          worktree_branch: "alpha-feat",
+          current_step: "plan",
+        }),
+      ]);
+
+      render(<WorkflowKanbanBoard activeWorktreeBranches={null} />);
+
+      await screen.findByText("alpha-feat");
+      expect(screen.getByText("org/alpha")).toBeInTheDocument();
+    });
+
+    it("does not show repository alias on cards in single-repo mode", async () => {
+      fetchWorkflowRunsMock.mockResolvedValue([
+        makeRun({
+          id: "r1",
+          repository_path: "/repos/org/alpha",
+          worktree_branch: "alpha-feat",
+          current_step: "plan",
+        }),
+      ]);
+
+      render(
+        <WorkflowKanbanBoard
+          repositoryPath="/repos/org/alpha"
+          activeWorktreeBranches={null}
+        />,
+      );
+
+      await screen.findByText("alpha-feat");
+      expect(screen.queryByText("org/alpha")).not.toBeInTheDocument();
     });
   });
 });
