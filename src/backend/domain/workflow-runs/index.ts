@@ -373,6 +373,11 @@ export class WorkflowRunService {
       now,
     });
 
+    this.eventBus.emit("workflow-run.status-changed", {
+      workflowRunId: id,
+      status: "running",
+    });
+
     await this.startStepExecution(
       id,
       workflow.initial_step,
@@ -724,6 +729,11 @@ export class WorkflowRunService {
     const stepCountOffset = this.workflowRunRepository.countStepExecutions(id);
     this.workflowRunRepository.setStepCountOffset(id, stepCountOffset);
     this.workflowRunRepository.setWorkflowRunRunning(id, failedStep, now);
+
+    this.eventBus.emit("workflow-run.status-changed", {
+      workflowRunId: id,
+      status: "running",
+    });
 
     const previousExecutions = this.workflowRunRepository
       .listCompletedExecutionsHandoffExcluding(id, lastExecution.id)

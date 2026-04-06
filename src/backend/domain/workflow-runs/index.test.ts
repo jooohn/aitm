@@ -440,6 +440,25 @@ workflows:
       }),
     ).rejects.toThrow("Missing required input: Feature Description");
   });
+
+  it("emits workflow-run.status-changed with running status on creation", async () => {
+    const emitSpy = vi.spyOn(eventBus, "emit");
+    process.env.AITM_CONFIG_PATH = await writeTempConfig(
+      SIMPLE_WORKFLOW_CONFIG,
+    );
+    const repoPath = await makeFakeGitRepo();
+
+    const run = await createWorkflowRun({
+      repository_path: repoPath,
+      worktree_branch: "feat/test",
+      workflow_name: "my-flow",
+    });
+
+    expect(emitSpy).toHaveBeenCalledWith("workflow-run.status-changed", {
+      workflowRunId: run.id,
+      status: "running",
+    });
+  });
 });
 
 describe("completeStepExecution", () => {
@@ -1494,6 +1513,18 @@ workflows:
     // The workflow should still be running, having advanced to "plan".
     expect(afterRerun?.status).toBe("running");
     expect(afterRerun?.current_step).toBe("plan");
+  });
+
+  it("emits workflow-run.status-changed with running status on rerun", async () => {
+    const { run } = await setupFailedRun();
+    const emitSpy = vi.spyOn(eventBus, "emit");
+
+    await rerunWorkflowRunFromFailedState(run.id);
+
+    expect(emitSpy).toHaveBeenCalledWith("workflow-run.status-changed", {
+      workflowRunId: run.id,
+      status: "running",
+    });
   });
 });
 
