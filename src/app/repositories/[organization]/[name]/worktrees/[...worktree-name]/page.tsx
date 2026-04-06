@@ -2,8 +2,7 @@
 
 import { notFound, useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import SessionSection from "@/app/components/SessionSection";
-import WorkflowSection from "@/app/components/WorkflowSection";
+import WorkflowKanbanBoard from "@/app/components/WorkflowKanbanBoard";
 import {
   fetchRepository,
   fetchWorktrees,
@@ -93,26 +92,10 @@ export default function WorktreePage() {
         )}
       </div>
       {removeError && <p className={styles.error}>{removeError}</p>}
-      <dl className={styles.details}>
-        <div className={styles.row}>
-          <dt className={styles.label}>Path</dt>
-          <dd className={styles.value}>{worktree.path}</dd>
-        </div>
-        <div className={styles.row}>
-          <dt className={styles.label}>HEAD</dt>
-          <dd className={styles.value}>{worktree.head}</dd>
-        </div>
-        <div className={styles.row}>
-          <dt className={styles.label}>Main</dt>
-          <dd className={styles.value}>{worktree.is_main ? "Yes" : "No"}</dd>
-        </div>
-        <div className={styles.row}>
-          <dt className={styles.label}>Bare</dt>
-          <dd className={styles.value}>{worktree.is_bare ? "Yes" : "No"}</dd>
-        </div>
-      </dl>
-      <WorkflowSection repositoryPath={repo.path} branch={branch} />
-      <SessionSection repositoryPath={repo.path} branch={branch} />
+      <WorkflowKanbanBoard
+        repositoryPath={repo.path}
+        activeWorktreeBranches={[branch]}
+      />
     </main>
   );
 }
