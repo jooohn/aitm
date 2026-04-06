@@ -13,15 +13,15 @@ describe("GET /api/notifications/stream", () => {
     expect(res.headers.get("Cache-Control")).toBe("no-cache, no-transform");
   });
 
-  it("streams session.status-changed events as SSE messages", async () => {
+  it("streams workflow-run.status-changed events as SSE messages", async () => {
     const res = await GET(
       new Request("http://localhost/api/notifications/stream"),
     );
 
     // Emit event after the stream is opened
-    eventBus.emit("session.status-changed", {
-      sessionId: "s1",
-      status: "AWAITING_INPUT",
+    eventBus.emit("workflow-run.status-changed", {
+      workflowRunId: "wr1",
+      status: "awaiting",
     });
 
     const reader = res.body!.getReader();
@@ -30,8 +30,8 @@ describe("GET /api/notifications/stream", () => {
     const text = decoder.decode(value);
 
     expect(text).toContain("data:");
-    expect(text).toContain('"sessionId":"s1"');
-    expect(text).toContain('"status":"AWAITING_INPUT"');
+    expect(text).toContain('"workflowRunId":"wr1"');
+    expect(text).toContain('"status":"awaiting"');
 
     // Cancel to clean up
     await reader.cancel();
@@ -48,7 +48,7 @@ describe("GET /api/notifications/stream", () => {
     await reader.cancel();
 
     expect(offSpy).toHaveBeenCalledWith(
-      "session.status-changed",
+      "workflow-run.status-changed",
       expect.any(Function),
     );
 

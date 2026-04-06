@@ -22,6 +22,7 @@ interface Props {
 
 const STATUS_LABELS: Record<WorkflowRunStatus, string> = {
   running: "Running",
+  awaiting: "Awaiting",
   success: "Success",
   failure: "Failure",
 };

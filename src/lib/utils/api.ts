@@ -151,7 +151,7 @@ export async function replyToSession(
   });
 }
 
-export type WorkflowRunStatus = "running" | "success" | "failure";
+export type WorkflowRunStatus = "running" | "awaiting" | "success" | "failure";
 
 export interface WorkflowTransition {
   step?: string;
@@ -210,7 +210,7 @@ export interface WorkflowRunDetail extends WorkflowRun {
 }
 
 export function canStopWorkflowRun(run: WorkflowRunDetail): boolean {
-  if (run.status !== "running") return false;
+  if (run.status !== "running" && run.status !== "awaiting") return false;
   return run.step_executions.some(
     (execution) =>
       execution.completed_at === null && execution.session_id !== null,

@@ -1467,7 +1467,7 @@ workflows:
   it("creates a step execution with step_type 'manual-approval' and no session", async () => {
     const { run } = await setupApprovalRun();
 
-    expect(run.status).toBe("running");
+    expect(run.status).toBe("awaiting");
     expect(run.current_step).toBe("review");
 
     const executions = db
@@ -1604,7 +1604,7 @@ workflows:
 
     const afterPlan = getWorkflowRun(run.id);
     expect(afterPlan?.current_step).toBe("review");
-    expect(afterPlan?.status).toBe("running");
+    expect(afterPlan?.status).toBe("awaiting");
 
     // The review step should be manual-approval with no session
     const reviewExec = db
@@ -1663,15 +1663,15 @@ workflows:
       workflow_name: "approval-flow",
     });
 
-    // Verify the run is in running state with a pending manual-approval execution
-    expect(run.status).toBe("running");
+    // Verify the run is in awaiting state with a pending manual-approval execution
+    expect(run.status).toBe("awaiting");
     expect(run.current_step).toBe("review");
 
     // Run recovery — it should NOT fail the pending manual-approval execution
     await recoverCrashedWorkflowRuns();
 
     const recoveredRun = getWorkflowRun(run.id);
-    expect(recoveredRun?.status).toBe("running");
+    expect(recoveredRun?.status).toBe("awaiting");
     expect(recoveredRun?.current_step).toBe("review");
 
     // The execution should still be pending (not completed)
@@ -1699,5 +1699,399 @@ workflows:
 
     // Without a worktree, the workflow should fail like any other step type
     expect(run.status).toBe("failure");
+  });
+});
+
+describe("awaiting status", () => {
+  const APPROVAL_WORKFLOW_CONFIG = `
+workflows:
+  approval-flow:
+    initial_step: review
+    steps:
+      review:
+        type: manual-approval
+        transitions:
+          - step: deploy
+            when: approved
+          - terminal: failure
+            when: rejected
+      deploy:
+        goal: "Deploy the code"
+        transitions:
+          - terminal: success
+            when: done
+`;
+
+  const MULTI_STEP_WITH_APPROVAL = `
+workflows:
+  approval-flow:
+    initial_step: plan
+    steps:
+      plan:
+        goal: "Write a plan"
+        transitions:
+          - step: review
+            when: "plan is ready"
+      review:
+        type: manual-approval
+        transitions:
+          - step: deploy
+            when: approved
+          - terminal: failure
+            when: rejected
+      deploy:
+        goal: "Deploy the code"
+        transitions:
+          - terminal: success
+            when: done
+`;
+
+  describe("manual-approval sets workflow run to awaiting", () => {
+    it("sets workflow run status to 'awaiting' when manual-approval step starts", async () => {
+      process.env.AITM_CONFIG_PATH = await writeTempConfig(
+        APPROVAL_WORKFLOW_CONFIG,
+      );
+      const repoPath = await makeFakeGitRepo();
+      const run = await createWorkflowRun({
+        repository_path: repoPath,
+        worktree_branch: "feat/test",
+        workflow_name: "approval-flow",
+      });
+
+      expect(run.status).toBe("awaiting");
+      expect(run.current_step).toBe("review");
+    });
+
+    it("sets workflow run status to 'awaiting' when transitioning to a manual-approval step", async () => {
+      process.env.AITM_CONFIG_PATH = await writeTempConfig(
+        MULTI_STEP_WITH_APPROVAL,
+      );
+      const repoPath = await makeFakeGitRepo();
+      const run = await createWorkflowRun({
+        repository_path: repoPath,
+        worktree_branch: "feat/test",
+        workflow_name: "approval-flow",
+      });
+
+      // Complete plan → review (manual-approval)
+      const [planExec] = db
+        .prepare("SELECT * FROM step_executions WHERE workflow_run_id = ?")
+        .all(run.id) as { id: string }[];
+      await completeStepExecution(planExec.id, {
+        transition: "review",
+        reason: "Plan done",
+        handoff_summary: "Wrote PLAN.md",
+      });
+
+      const updatedRun = getWorkflowRun(run.id);
+      expect(updatedRun?.status).toBe("awaiting");
+      expect(updatedRun?.current_step).toBe("review");
+    });
+
+    it("emits workflow-run.status-changed event with 'awaiting' when manual-approval starts", async () => {
+      const emitSpy = vi.spyOn(eventBus, "emit");
+      process.env.AITM_CONFIG_PATH = await writeTempConfig(
+        APPROVAL_WORKFLOW_CONFIG,
+      );
+      const repoPath = await makeFakeGitRepo();
+      const run = await createWorkflowRun({
+        repository_path: repoPath,
+        worktree_branch: "feat/test",
+        workflow_name: "approval-flow",
+      });
+
+      expect(emitSpy).toHaveBeenCalledWith("workflow-run.status-changed", {
+        workflowRunId: run.id,
+        status: "awaiting",
+      });
+    });
+  });
+
+  describe("agent session AWAITING_INPUT sets workflow run to awaiting", () => {
+    it("sets workflow run status to 'awaiting' when agent session enters AWAITING_INPUT", async () => {
+      process.env.AITM_CONFIG_PATH = await writeTempConfig(
+        SIMPLE_WORKFLOW_CONFIG,
+      );
+      const repoPath = await makeFakeGitRepo();
+      const run = await createWorkflowRun({
+        repository_path: repoPath,
+        worktree_branch: "feat/test",
+        workflow_name: "my-flow",
+      });
+
+      // Find the session created for the initial step
+      const execution = db
+        .prepare("SELECT * FROM step_executions WHERE workflow_run_id = ?")
+        .get(run.id) as { id: string };
+      const session = db
+        .prepare("SELECT * FROM sessions WHERE step_execution_id = ?")
+        .get(execution.id) as { id: string };
+
+      // Simulate session entering AWAITING_INPUT
+      db.prepare(
+        "UPDATE sessions SET status = 'AWAITING_INPUT' WHERE id = ?",
+      ).run(session.id);
+      eventBus.emit("session.status-changed", {
+        sessionId: session.id,
+        status: "AWAITING_INPUT",
+      });
+
+      const updatedRun = getWorkflowRun(run.id);
+      expect(updatedRun?.status).toBe("awaiting");
+    });
+
+    it("emits workflow-run.status-changed event when agent session enters AWAITING_INPUT", async () => {
+      process.env.AITM_CONFIG_PATH = await writeTempConfig(
+        SIMPLE_WORKFLOW_CONFIG,
+      );
+      const repoPath = await makeFakeGitRepo();
+      const run = await createWorkflowRun({
+        repository_path: repoPath,
+        worktree_branch: "feat/test",
+        workflow_name: "my-flow",
+      });
+
+      const execution = db
+        .prepare("SELECT * FROM step_executions WHERE workflow_run_id = ?")
+        .get(run.id) as { id: string };
+      const session = db
+        .prepare("SELECT * FROM sessions WHERE step_execution_id = ?")
+        .get(execution.id) as { id: string };
+
+      const emitSpy = vi.spyOn(eventBus, "emit");
+
+      db.prepare(
+        "UPDATE sessions SET status = 'AWAITING_INPUT' WHERE id = ?",
+      ).run(session.id);
+      eventBus.emit("session.status-changed", {
+        sessionId: session.id,
+        status: "AWAITING_INPUT",
+      });
+
+      expect(emitSpy).toHaveBeenCalledWith("workflow-run.status-changed", {
+        workflowRunId: run.id,
+        status: "awaiting",
+      });
+    });
+
+    it("sets workflow run back to 'running' when agent session resumes from AWAITING_INPUT", async () => {
+      process.env.AITM_CONFIG_PATH = await writeTempConfig(
+        SIMPLE_WORKFLOW_CONFIG,
+      );
+      const repoPath = await makeFakeGitRepo();
+      const run = await createWorkflowRun({
+        repository_path: repoPath,
+        worktree_branch: "feat/test",
+        workflow_name: "my-flow",
+      });
+
+      const execution = db
+        .prepare("SELECT * FROM step_executions WHERE workflow_run_id = ?")
+        .get(run.id) as { id: string };
+      const session = db
+        .prepare("SELECT * FROM sessions WHERE step_execution_id = ?")
+        .get(execution.id) as { id: string };
+
+      // Go to AWAITING_INPUT
+      db.prepare(
+        "UPDATE sessions SET status = 'AWAITING_INPUT' WHERE id = ?",
+      ).run(session.id);
+      eventBus.emit("session.status-changed", {
+        sessionId: session.id,
+        status: "AWAITING_INPUT",
+      });
+
+      expect(getWorkflowRun(run.id)?.status).toBe("awaiting");
+
+      // Resume to RUNNING
+      db.prepare("UPDATE sessions SET status = 'RUNNING' WHERE id = ?").run(
+        session.id,
+      );
+      eventBus.emit("session.status-changed", {
+        sessionId: session.id,
+        status: "RUNNING",
+      });
+
+      expect(getWorkflowRun(run.id)?.status).toBe("running");
+    });
+
+    it("does not change status for sessions not linked to a workflow run", async () => {
+      // Create a standalone session not linked to any workflow
+      const repoPath = await makeFakeGitRepo();
+      const standaloneSessionId = "standalone-session";
+      const now = new Date().toISOString();
+      db.prepare(
+        `INSERT INTO sessions (id, repository_path, worktree_branch, goal, transitions, status, log_file_path, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, 'RUNNING', '/tmp/log', ?, ?)`,
+      ).run(
+        standaloneSessionId,
+        repoPath,
+        "feat/test",
+        "Some goal",
+        "[]",
+        now,
+        now,
+      );
+
+      // Should not throw
+      eventBus.emit("session.status-changed", {
+        sessionId: standaloneSessionId,
+        status: "AWAITING_INPUT",
+      });
+    });
+  });
+
+  describe("resolving approval resets status", () => {
+    it("resets status from 'awaiting' to 'running' when approval advances to next step", async () => {
+      process.env.AITM_CONFIG_PATH = await writeTempConfig(
+        APPROVAL_WORKFLOW_CONFIG,
+      );
+      const repoPath = await makeFakeGitRepo();
+      const run = await createWorkflowRun({
+        repository_path: repoPath,
+        worktree_branch: "feat/test",
+        workflow_name: "approval-flow",
+      });
+
+      expect(getWorkflowRun(run.id)?.status).toBe("awaiting");
+
+      // Approve → should transition to deploy and set status to running
+      const [execution] = db
+        .prepare("SELECT * FROM step_executions WHERE workflow_run_id = ?")
+        .all(run.id) as { id: string }[];
+
+      await completeStepExecution(execution.id, {
+        transition: "deploy",
+        reason: "Manually approved",
+        handoff_summary: "",
+      });
+
+      const updatedRun = getWorkflowRun(run.id);
+      expect(updatedRun?.status).toBe("running");
+      expect(updatedRun?.current_step).toBe("deploy");
+    });
+
+    it("sets status to failure when approval is rejected", async () => {
+      process.env.AITM_CONFIG_PATH = await writeTempConfig(
+        APPROVAL_WORKFLOW_CONFIG,
+      );
+      const repoPath = await makeFakeGitRepo();
+      const run = await createWorkflowRun({
+        repository_path: repoPath,
+        worktree_branch: "feat/test",
+        workflow_name: "approval-flow",
+      });
+
+      expect(getWorkflowRun(run.id)?.status).toBe("awaiting");
+
+      const [execution] = db
+        .prepare("SELECT * FROM step_executions WHERE workflow_run_id = ?")
+        .all(run.id) as { id: string }[];
+
+      await completeStepExecution(execution.id, {
+        transition: "failure",
+        reason: "Manually rejected",
+        handoff_summary: "",
+      });
+
+      const updatedRun = getWorkflowRun(run.id);
+      expect(updatedRun?.status).toBe("failure");
+    });
+  });
+
+  describe("stopWorkflowRun with awaiting status", () => {
+    it("allows stopping a workflow run with 'awaiting' status that has an active session", async () => {
+      process.env.AITM_CONFIG_PATH = await writeTempConfig(
+        SIMPLE_WORKFLOW_CONFIG,
+      );
+      const repoPath = await makeFakeGitRepo();
+      const run = await createWorkflowRun({
+        repository_path: repoPath,
+        worktree_branch: "feat/test",
+        workflow_name: "my-flow",
+      });
+
+      const execution = db
+        .prepare("SELECT * FROM step_executions WHERE workflow_run_id = ?")
+        .get(run.id) as { id: string };
+      const session = db
+        .prepare("SELECT * FROM sessions WHERE step_execution_id = ?")
+        .get(execution.id) as { id: string };
+
+      // Simulate session entering AWAITING_INPUT → workflow goes to awaiting
+      db.prepare(
+        "UPDATE sessions SET status = 'AWAITING_INPUT' WHERE id = ?",
+      ).run(session.id);
+      eventBus.emit("session.status-changed", {
+        sessionId: session.id,
+        status: "AWAITING_INPUT",
+      });
+
+      expect(getWorkflowRun(run.id)?.status).toBe("awaiting");
+
+      const stopped = await stopWorkflowRun(run.id);
+      expect(stopped.status).toBe("failure");
+    });
+  });
+
+  describe("recovery with awaiting status", () => {
+    it("does not fail workflow runs with 'awaiting' status during recovery", async () => {
+      process.env.AITM_CONFIG_PATH = await writeTempConfig(
+        APPROVAL_WORKFLOW_CONFIG,
+      );
+      const repoPath = await makeFakeGitRepo();
+      const run = await createWorkflowRun({
+        repository_path: repoPath,
+        worktree_branch: "feat/test",
+        workflow_name: "approval-flow",
+      });
+
+      expect(getWorkflowRun(run.id)?.status).toBe("awaiting");
+
+      // Run recovery — awaiting runs should NOT be failed
+      await recoverCrashedWorkflowRuns();
+
+      const recoveredRun = getWorkflowRun(run.id);
+      expect(recoveredRun?.status).toBe("awaiting");
+      expect(recoveredRun?.current_step).toBe("review");
+    });
+  });
+
+  describe("listWorkflowRuns with awaiting status filter", () => {
+    it("filters workflow runs by 'awaiting' status", async () => {
+      process.env.AITM_CONFIG_PATH = await writeTempConfig(
+        APPROVAL_WORKFLOW_CONFIG,
+      );
+      const repoPath = await makeFakeGitRepo();
+      await createWorkflowRun({
+        repository_path: repoPath,
+        worktree_branch: "feat/test",
+        workflow_name: "approval-flow",
+      });
+
+      const awaitingRuns = listWorkflowRuns({ status: "awaiting" });
+      expect(awaitingRuns).toHaveLength(1);
+      expect(awaitingRuns[0].status).toBe("awaiting");
+
+      const runningRuns = listWorkflowRuns({ status: "running" });
+      expect(runningRuns).toHaveLength(0);
+    });
+  });
+
+  describe("pending approvals query with awaiting status", () => {
+    it("listPendingApprovals matches workflow runs with 'awaiting' status", async () => {
+      process.env.AITM_CONFIG_PATH = await writeTempConfig(
+        APPROVAL_WORKFLOW_CONFIG,
+      );
+      const repoPath = await makeFakeGitRepo();
+      await createWorkflowRun({
+        repository_path: repoPath,
+        worktree_branch: "feat/test",
+        workflow_name: "approval-flow",
+      });
+
+      const approvals = workflowRunService.listPendingApprovals();
+      expect(approvals).toHaveLength(1);
+    });
   });
 });
