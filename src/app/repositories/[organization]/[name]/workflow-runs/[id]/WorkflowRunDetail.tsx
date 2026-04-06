@@ -363,16 +363,10 @@ export default function WorkflowRunDetail({ run: initial }: Props) {
         </a>
       )}
 
+      {inputEntries.length > 0 && (
+        <h2 className={styles.sectionHeading}>Inputs</h2>
+      )}
       <dl className={styles.details}>
-        {run.current_step && (
-          <div className={styles.detailRow}>
-            <dt className={styles.detailLabel}>Current step</dt>
-            <dd className={styles.detailValue}>{run.current_step}</dd>
-          </div>
-        )}
-        {inputEntries.length > 0 && (
-          <h2 className={styles.sectionHeading}>Inputs</h2>
-        )}
         {inputEntries.map((entry) => (
           <div key={entry.key} className={styles.detailRow}>
             <dt className={styles.detailLabel}>
