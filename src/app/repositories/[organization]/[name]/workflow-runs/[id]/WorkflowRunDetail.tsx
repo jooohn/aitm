@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import EllipsisIcon from "@/app/components/icons/EllipsisIcon";
+import ExternalLinkIcon from "@/app/components/icons/ExternalLinkIcon";
 import RunWorkflowModal from "@/app/components/RunWorkflowModal";
 import {
   canStopWorkflowRun,
@@ -441,15 +443,7 @@ export default function WorkflowRunDetail({ run: initial }: Props) {
               aria-expanded={menuOpen}
               title="Actions"
             >
-              <svg
-                viewBox="0 0 16 16"
-                width="16"
-                height="16"
-                fill="currentColor"
-                aria-hidden="true"
-              >
-                <path d="M8 9.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3ZM1.5 8a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0Zm10 0a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0Z" />
-              </svg>
+              <EllipsisIcon />
             </button>
             {menuOpen && (
               <div className={styles.menu} role="menu">
@@ -490,22 +484,7 @@ export default function WorkflowRunDetail({ run: initial }: Props) {
                 ? `${pullRequestUrl.match(/github\.com\/([^/]+\/[^/]+)/)?.[1]}#${pullRequestUrl.match(/\/pull\/(\d+)/)?.[1]}`
                 : pullRequestUrl}
             </span>
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className={styles.prBannerIcon}
-              aria-hidden="true"
-            >
-              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-              <polyline points="15 3 21 3 21 9" />
-              <line x1="10" y1="14" x2="21" y2="3" />
-            </svg>
+            <ExternalLinkIcon size={14} className={styles.prBannerIcon} />
           </span>
         </a>
       )}
