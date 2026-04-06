@@ -9,7 +9,7 @@ A session is a cohesive, purpose-bound unit of coding-agent work attached to a s
 
 ## Background
 
-Each session runs a coding agent (Claude CLI, Claude SDK, or Codex) inside a worktree directory. The agent pursues the goal described at session creation and emits a structured transition decision (JSON) as its final output. Users can observe the agent's output stream in real time. When the agent needs clarification, it selects a special `__REQUIRE_USER_INPUT__` transition, which pauses the session until the user provides input, then resumes the same agent session to preserve conversation context.
+Each session runs a coding agent (Claude SDK as the primary runtime, or Codex SDK) inside a worktree directory. The agent pursues the goal described at session creation and emits a structured transition decision (JSON) as its final output. Users can observe the agent's output stream in real time. When the agent needs clarification, it selects a special `__REQUIRE_USER_INPUT__` transition, which pauses the session until the user provides input, then resumes the same agent session to preserve conversation context.
 
 ## Data model
 
@@ -27,6 +27,8 @@ Sessions are persisted in SQLite.
 | `terminal_attach_command` | string | yes | Shell command to attach to the live agent (e.g. `claude --resume <claude-session-id>`) |
 | `log_file_path` | string | no | Absolute path to the append-only stdout/stderr log file (e.g. `~/.aitm/sessions/<id>.log`) |
 | `claude_session_id` | string | yes | The internal agent session ID (Claude or Codex), set once the agent starts |
+| `agent_config` | string (JSON) | no | Serialised `AgentConfig` — the resolved agent runtime config for this session (`{"provider":"claude"}` by default) |
+| `metadata_fields` | string (JSON) | yes | Serialised `Record<string, OutputMetadataFieldDef>` — metadata fields the agent should extract, resolved from output config |
 | `step_execution_id` | string (FK → step_executions) | yes | The workflow step execution that owns this session |
 | `created_at` | timestamp | no | When the session was created |
 | `updated_at` | timestamp | no | Last status change |
@@ -208,7 +210,6 @@ Sessions are created internally by the workflow engine, not directly by users.
 ## Out of scope
 
 - Direct session creation from the UI (sessions are only started via workflow runs).
-- Frontend UI for the reply flow (backend API only for now).
 - Automated failure detection (e.g. exit codes, timeouts) — failure is user-initiated for now.
 - Multi-worktree sessions or sessions that span repositories.
 - Session re-runs or retries from the UI.
