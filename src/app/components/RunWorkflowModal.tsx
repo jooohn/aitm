@@ -6,6 +6,7 @@ import {
   createWorkflowRun,
   createWorktree,
   fetchRepositories,
+  fetchRepository,
   fetchWorkflows,
   type Repository,
   type WorkflowDefinition,
@@ -16,12 +17,13 @@ import WorkflowLaunchForm from "./WorkflowLaunchForm";
 
 interface Props {
   onClose: () => void;
+  fixedAlias?: string;
 }
 
-export default function RunWorkflowModal({ onClose }: Props) {
+export default function RunWorkflowModal({ onClose, fixedAlias }: Props) {
   const router = useRouter();
   const [repos, setRepos] = useState<Repository[]>([]);
-  const [selectedAlias, setSelectedAlias] = useState("");
+  const [selectedAlias, setSelectedAlias] = useState(fixedAlias ?? "");
   const [branch, setBranch] = useState("");
   const [workflows, setWorkflows] = useState<
     Record<string, WorkflowDefinition>
@@ -39,11 +41,17 @@ export default function RunWorkflowModal({ onClose }: Props) {
       setLoadError(null);
       try {
         const [repoList, wfs] = await Promise.all([
-          fetchRepositories(),
+          fixedAlias
+            ? fetchRepository(
+                ...(fixedAlias.split("/") as [string, string]),
+              ).then((r) => [r])
+            : fetchRepositories(),
           fetchWorkflows(),
         ]);
         setRepos(repoList);
-        if (repoList.length > 0) setSelectedAlias(repoList[0].alias);
+        if (!fixedAlias && repoList.length > 0) {
+          setSelectedAlias(repoList[0].alias);
+        }
         setWorkflows(wfs);
         const names = Object.keys(wfs);
         if (names.length > 0) setSelectedWorkflow(names[0]);
@@ -56,7 +64,7 @@ export default function RunWorkflowModal({ onClose }: Props) {
       }
     }
     load();
-  }, []);
+  }, [fixedAlias]);
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -119,20 +127,20 @@ export default function RunWorkflowModal({ onClose }: Props) {
         {loading && <p className={styles.status}>Loading…</p>}
         {loadError && <p className={styles.error}>{loadError}</p>}
 
-        {!loading && !loadError && repos.length === 0 && (
+        {!loading && !loadError && !fixedAlias && repos.length === 0 && (
           <p className={styles.status}>No repositories configured.</p>
         )}
 
         {!loading &&
           !loadError &&
-          repos.length > 0 &&
+          (fixedAlias || repos.length > 0) &&
           workflowNames.length === 0 && (
             <p className={styles.status}>No workflows configured.</p>
           )}
 
         {!loading &&
           !loadError &&
-          repos.length > 0 &&
+          (fixedAlias || repos.length > 0) &&
           workflowNames.length > 0 && (
             <WorkflowLaunchForm
               workflowNames={workflowNames}
@@ -157,21 +165,25 @@ export default function RunWorkflowModal({ onClose }: Props) {
               <div className={styles.fieldGroup}>
                 <label htmlFor="rwm-repo" className={styles.label}>
                   Repository
-                  <span className={styles.required}>*</span>
+                  {!fixedAlias && <span className={styles.required}>*</span>}
                 </label>
-                <select
-                  id="rwm-repo"
-                  className={styles.select}
-                  value={selectedAlias}
-                  onChange={(e) => setSelectedAlias(e.target.value)}
-                  disabled={submitting}
-                >
-                  {repos.map((repo) => (
-                    <option key={repo.alias} value={repo.alias}>
-                      {repo.alias}
-                    </option>
-                  ))}
-                </select>
+                {fixedAlias ? (
+                  <span className={styles.fixedValue}>{fixedAlias}</span>
+                ) : (
+                  <select
+                    id="rwm-repo"
+                    className={styles.select}
+                    value={selectedAlias}
+                    onChange={(e) => setSelectedAlias(e.target.value)}
+                    disabled={submitting}
+                  >
+                    {repos.map((repo) => (
+                      <option key={repo.alias} value={repo.alias}>
+                        {repo.alias}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
 
               <div className={styles.fieldGroup}>

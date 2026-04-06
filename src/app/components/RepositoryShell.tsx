@@ -140,7 +140,10 @@ export default function RepositoryShell({
       </aside>
       <div className={styles.content}>{children}</div>
       {showLaunchModal && (
-        <RunWorkflowModal onClose={() => setShowLaunchModal(false)} />
+        <RunWorkflowModal
+          onClose={() => setShowLaunchModal(false)}
+          fixedAlias={alias}
+        />
       )}
     </div>
   );
