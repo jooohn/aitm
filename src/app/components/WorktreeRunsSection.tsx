@@ -50,10 +50,6 @@ export default function WorktreeRunsSection({
   const [groups, setGroups] = useState<WorktreeGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [expandedBranches, setExpandedBranches] = useState<Set<string>>(
-    new Set(),
-  );
-  const [initialExpandDone, setInitialExpandDone] = useState(false);
   const [showAllRunsBranches, setShowAllRunsBranches] = useState<Set<string>>(
     new Set(),
   );
@@ -78,18 +74,6 @@ export default function WorktreeRunsSection({
       ]);
       const grouped = groupRunsByWorktree(worktrees, runs);
       setGroups(grouped);
-
-      // Set initial expansion: expand groups that have any runs
-      if (!initialExpandDone) {
-        const toExpand = new Set<string>();
-        for (const group of grouped) {
-          if (group.runs.length > 0) {
-            toExpand.add(group.worktree?.branch ?? "__orphaned__");
-          }
-        }
-        setExpandedBranches(toExpand);
-        setInitialExpandDone(true);
-      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load data");
     } finally {
@@ -128,18 +112,6 @@ export default function WorktreeRunsSection({
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [menuOpen]);
-
-  function toggleBranch(key: string) {
-    setExpandedBranches((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) {
-        next.delete(key);
-      } else {
-        next.add(key);
-      }
-      return next;
-    });
-  }
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -236,7 +208,6 @@ export default function WorktreeRunsSection({
         <ul className={styles.groupList}>
           {groups.map((group) => {
             const key = group.worktree?.branch ?? "__orphaned__";
-            const isExpanded = expandedBranches.has(key);
             const label = group.worktree?.branch ?? "Archived";
             const isWorktreeActive = group.worktree
               ? pathname.startsWith(
@@ -253,27 +224,20 @@ export default function WorktreeRunsSection({
             return (
               <li key={key} className={styles.group}>
                 <div className={styles.groupHeader}>
-                  <button
-                    type="button"
-                    className={`${styles.groupToggle} ${isWorktreeActive ? styles.groupToggleActive : ""}`}
-                    onClick={() => toggleBranch(key)}
-                    aria-expanded={isExpanded}
-                    aria-label={label}
-                  >
-                    <svg
-                      viewBox="0 0 16 16"
-                      width="12"
-                      height="12"
-                      fill="currentColor"
-                      className={`${styles.chevron} ${isExpanded ? styles.chevronExpanded : ""}`}
-                      aria-hidden="true"
+                  {group.worktree ? (
+                    <Link
+                      href={`/repositories/${organization}/${name}/worktrees/${group.worktree.branch}`}
+                      className={`${styles.groupToggle} ${isWorktreeActive ? styles.groupToggleActive : ""}`}
                     >
-                      <path d="M6 12l4-4-4-4" />
-                    </svg>
-                    <span className={styles.groupLabel}>{label}</span>
-                  </button>
+                      <span className={styles.groupLabel}>{label}</span>
+                    </Link>
+                  ) : (
+                    <span className={styles.groupToggle}>
+                      <span className={styles.groupLabel}>{label}</span>
+                    </span>
+                  )}
                 </div>
-                <ul className={styles.runsList} hidden={!isExpanded}>
+                <ul className={styles.runsList}>
                   {visibleRuns.map((run) => {
                     const runHref = `/repositories/${organization}/${name}/workflow-runs/${run.id}`;
                     const isActive = pathname.startsWith(runHref);

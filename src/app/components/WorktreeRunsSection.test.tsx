@@ -167,45 +167,7 @@ describe("WorktreeRunsSection", () => {
     expect(screen.getByText("deleted-branch")).toBeInTheDocument();
   });
 
-  it("expands worktrees with any workflow runs by default", async () => {
-    fetchWorktreesMock.mockResolvedValue([
-      makeWorktree({ branch: "main", is_main: true }),
-      makeWorktree({ branch: "active", is_main: false }),
-      makeWorktree({ branch: "idle", is_main: false }),
-    ]);
-    fetchWorkflowRunsMock.mockResolvedValue([
-      makeRun({
-        id: "r1",
-        worktree_branch: "active",
-        status: "running",
-        workflow_name: "develop",
-      }),
-      makeRun({
-        id: "r2",
-        worktree_branch: "idle",
-        status: "success",
-        workflow_name: "develop",
-      }),
-    ]);
-
-    render(
-      <WorktreeRunsSection
-        organization="org"
-        name="name"
-        repositoryPath="/repos/org/name"
-      />,
-    );
-
-    await screen.findByText("active");
-
-    // Both groups with runs should be expanded
-    const runLinks = screen.getAllByRole("link", { name: /develop/ });
-    for (const link of runLinks) {
-      expect(link).toBeVisible();
-    }
-  });
-
-  it("collapses/expands worktree groups on click", async () => {
+  it("always shows runs without any expand/collapse toggle", async () => {
     fetchWorktreesMock.mockResolvedValue([
       makeWorktree({ branch: "feature-a", is_main: false }),
     ]);
@@ -228,15 +190,68 @@ describe("WorktreeRunsSection", () => {
 
     await screen.findByText("feature-a");
 
-    // Should be expanded (has running workflow)
+    // Runs should always be visible
     expect(screen.getByText("develop")).toBeVisible();
 
-    // Click to collapse
-    const toggle = screen.getByRole("button", { name: /feature-a/ });
-    await userEvent.click(toggle);
+    // No expand/collapse toggle button for the worktree group
+    expect(
+      screen.queryByRole("button", { name: /feature-a/ }),
+    ).not.toBeInTheDocument();
+  });
 
-    // Run should be hidden
-    expect(screen.queryByText("develop")).not.toBeVisible();
+  it("renders worktree names as links to the worktree detail page", async () => {
+    fetchWorktreesMock.mockResolvedValue([
+      makeWorktree({ branch: "feature-a", is_main: false }),
+    ]);
+    fetchWorkflowRunsMock.mockResolvedValue([
+      makeRun({
+        id: "r1",
+        worktree_branch: "feature-a",
+        workflow_name: "develop",
+      }),
+    ]);
+
+    render(
+      <WorktreeRunsSection
+        organization="org"
+        name="name"
+        repositoryPath="/repos/org/name"
+      />,
+    );
+
+    await screen.findByText("feature-a");
+
+    const worktreeLink = screen.getByRole("link", { name: /feature-a/ });
+    expect(worktreeLink).toHaveAttribute(
+      "href",
+      "/repositories/org/name/worktrees/feature-a",
+    );
+  });
+
+  it("renders the Archived group as plain text, not a link", async () => {
+    fetchWorktreesMock.mockResolvedValue([
+      makeWorktree({ branch: "main", is_main: true }),
+    ]);
+    fetchWorkflowRunsMock.mockResolvedValue([
+      makeRun({ id: "r1", worktree_branch: "deleted-branch" }),
+    ]);
+
+    render(
+      <WorktreeRunsSection
+        organization="org"
+        name="name"
+        repositoryPath="/repos/org/name"
+      />,
+    );
+
+    await screen.findByText("Archived");
+
+    // "Archived" should not be a link
+    expect(
+      screen.queryByRole("link", { name: /Archived/ }),
+    ).not.toBeInTheDocument();
+    // But it should still be visible as text
+    expect(screen.getByText("Archived")).toBeVisible();
   });
 
   it("shows only 3 runs initially with a 'Show all' button for more", async () => {

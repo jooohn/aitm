@@ -56,14 +56,6 @@
   @apply bg-zinc-100 dark:bg-zinc-800;
 }
 
-.chevron {
-  @apply shrink-0 text-zinc-400 dark:text-zinc-500 transition-transform duration-150;
-}
-
-.chevronExpanded {
-  @apply rotate-90;
-}
-
 .groupLabel {
   @apply flex-1 text-zinc-900 dark:text-zinc-100 truncate font-medium;
 }
