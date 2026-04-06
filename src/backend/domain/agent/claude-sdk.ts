@@ -23,6 +23,7 @@ export const claudeSDK: AgentRuntime = {
         permissionMode: toClaudePermissionMode(permissionMode),
         abortController,
         outputFormat,
+        systemPrompt: { type: "preset", preset: "claude_code" },
       },
     });
 
@@ -47,6 +48,7 @@ export const claudeSDK: AgentRuntime = {
         abortController,
         outputFormat,
         resume: agentSessionId,
+        systemPrompt: { type: "preset", preset: "claude_code" },
       },
     });
 
