@@ -23,12 +23,14 @@ const INITIAL_VISIBLE_RUNS = 3;
 
 const runStatusDotClass: Record<WorkflowRunStatus, string> = {
   running: styles["runStatusDot-running"],
+  awaiting: styles["runStatusDot-awaiting"],
   success: styles["runStatusDot-success"],
   failure: styles["runStatusDot-failure"],
 };
 
 const RUN_STATUS_LABELS: Record<WorkflowRunStatus, string> = {
   running: "Running",
+  awaiting: "Awaiting",
   success: "Success",
   failure: "Failure",
 };

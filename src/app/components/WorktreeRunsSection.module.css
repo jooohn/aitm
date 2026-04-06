@@ -91,6 +91,11 @@
   }
 }
 
+.runStatusDot-awaiting {
+  @apply bg-amber-500;
+  animation: blink-fade 1.5s ease-in-out infinite;
+}
+
 .runStatusDot-success {
   @apply bg-green-500;
 }

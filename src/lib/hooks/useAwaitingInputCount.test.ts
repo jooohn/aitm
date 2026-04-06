@@ -3,16 +3,12 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAwaitingInputCount } from "./useAwaitingInputCount";
 
-const { fetchSessionsByStatusMock, fetchPendingApprovalsMock } = vi.hoisted(
-  () => ({
-    fetchSessionsByStatusMock: vi.fn(),
-    fetchPendingApprovalsMock: vi.fn(),
-  }),
-);
+const { fetchAllWorkflowRunsMock } = vi.hoisted(() => ({
+  fetchAllWorkflowRunsMock: vi.fn(),
+}));
 
 vi.mock("@/lib/utils/api", () => ({
-  fetchSessionsByStatus: fetchSessionsByStatusMock,
-  fetchPendingApprovals: fetchPendingApprovalsMock,
+  fetchAllWorkflowRuns: fetchAllWorkflowRunsMock,
 }));
 
 let capturedCallback: (() => void) | null = null;
@@ -24,15 +20,17 @@ vi.mock("./useNotificationStream", () => ({
 }));
 
 beforeEach(() => {
-  fetchSessionsByStatusMock.mockReset();
-  fetchPendingApprovalsMock.mockReset();
-  fetchPendingApprovalsMock.mockResolvedValue([]);
+  fetchAllWorkflowRunsMock.mockReset();
+  fetchAllWorkflowRunsMock.mockResolvedValue([]);
   capturedCallback = null;
 });
 
 describe("useAwaitingInputCount", () => {
-  it("fetches initial count on mount", async () => {
-    fetchSessionsByStatusMock.mockResolvedValue([{ id: "s1" }, { id: "s2" }]);
+  it("fetches workflow runs with 'awaiting' status on mount", async () => {
+    fetchAllWorkflowRunsMock.mockResolvedValue([
+      { id: "wr1", status: "awaiting" },
+      { id: "wr2", status: "awaiting" },
+    ]);
 
     const { result } = renderHook(() => useAwaitingInputCount());
 
@@ -40,12 +38,10 @@ describe("useAwaitingInputCount", () => {
       expect(result.current.count).toBe(2);
     });
 
-    expect(fetchSessionsByStatusMock).toHaveBeenCalledWith("AWAITING_INPUT");
+    expect(fetchAllWorkflowRunsMock).toHaveBeenCalledWith("awaiting");
   });
 
   it("uses useNotificationStream for SSE events", async () => {
-    fetchSessionsByStatusMock.mockResolvedValue([]);
-
     renderHook(() => useAwaitingInputCount());
 
     await waitFor(() => {
@@ -54,9 +50,12 @@ describe("useAwaitingInputCount", () => {
   });
 
   it("re-fetches count when notification stream fires", async () => {
-    fetchSessionsByStatusMock
-      .mockResolvedValueOnce([{ id: "s1" }])
-      .mockResolvedValueOnce([{ id: "s1" }, { id: "s2" }]);
+    fetchAllWorkflowRunsMock
+      .mockResolvedValueOnce([{ id: "wr1", status: "awaiting" }])
+      .mockResolvedValueOnce([
+        { id: "wr1", status: "awaiting" },
+        { id: "wr2", status: "awaiting" },
+      ]);
 
     const { result } = renderHook(() => useAwaitingInputCount());
 
@@ -75,13 +74,13 @@ describe("useAwaitingInputCount", () => {
   });
 
   it("handles initial fetch error without crashing", async () => {
-    fetchSessionsByStatusMock.mockRejectedValue(new Error("network error"));
+    fetchAllWorkflowRunsMock.mockRejectedValue(new Error("network error"));
 
     const { result } = renderHook(() => useAwaitingInputCount());
 
     // Should stay at 0 and not throw
     await waitFor(() => {
-      expect(fetchSessionsByStatusMock).toHaveBeenCalled();
+      expect(fetchAllWorkflowRunsMock).toHaveBeenCalled();
     });
 
     expect(result.current.count).toBe(0);

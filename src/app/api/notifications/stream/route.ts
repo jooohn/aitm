@@ -3,11 +3,8 @@ import { eventBus } from "@/backend/infra/event-bus";
 export async function GET(_request: Request): Promise<Response> {
   const encoder = new TextEncoder();
 
-  let sessionListener:
-    | ((payload: { sessionId: string; status: string }) => void)
-    | null = null;
-  let approvalListener:
-    | ((payload: { stepExecutionId: string; workflowRunId: string }) => void)
+  let statusChangedListener:
+    | ((payload: { workflowRunId: string; status: string }) => void)
     | null = null;
 
   const stream = new ReadableStream({
@@ -22,18 +19,13 @@ export async function GET(_request: Request): Promise<Response> {
         }
       };
 
-      sessionListener = enqueue;
-      approvalListener = enqueue;
+      statusChangedListener = enqueue;
 
-      eventBus.on("session.status-changed", sessionListener);
-      eventBus.on("step-execution.awaiting-approval", approvalListener);
+      eventBus.on("workflow-run.status-changed", statusChangedListener);
     },
     cancel() {
-      if (sessionListener) {
-        eventBus.off("session.status-changed", sessionListener);
-      }
-      if (approvalListener) {
-        eventBus.off("step-execution.awaiting-approval", approvalListener);
+      if (statusChangedListener) {
+        eventBus.off("workflow-run.status-changed", statusChangedListener);
       }
     },
   });

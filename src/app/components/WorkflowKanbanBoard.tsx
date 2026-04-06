@@ -24,6 +24,7 @@ interface Props {
 
 const STATUS_LABELS: Record<WorkflowRunStatus, string> = {
   running: "Running",
+  awaiting: "Awaiting",
   success: "Success",
   failure: "Failure",
 };
@@ -32,6 +33,7 @@ const statusCardClass: Partial<Record<WorkflowRunStatus, string>> = {
   failure: styles.cardFailure,
   success: styles.cardSuccess,
   running: styles.cardRunning,
+  awaiting: styles.cardAwaiting,
 };
 
 const TERMINAL_COLUMNS = ["Success"] as const;

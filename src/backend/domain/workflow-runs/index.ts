@@ -20,7 +20,7 @@ import type {
   WorkflowRunRepository,
 } from "./workflow-run-repository";
 
-export type WorkflowRunStatus = "running" | "success" | "failure";
+export type WorkflowRunStatus = "running" | "awaiting" | "success" | "failure";
 
 export interface WorkflowRun {
   id: string;
@@ -125,6 +125,9 @@ export class WorkflowRunService {
     eventBus.on("session.completed", ({ sessionId, decision }) => {
       this.handleSessionComplete(sessionId, decision);
     });
+    eventBus.on("session.status-changed", ({ sessionId, status }) => {
+      this.handleSessionStatusChanged(sessionId, status);
+    });
   }
 
   private async handleSessionComplete(
@@ -134,6 +137,38 @@ export class WorkflowRunService {
     const session = this.sessionService.getSession(sessionId);
     if (!session?.step_execution_id) return;
     await this.completeStepExecution(session.step_execution_id, decision);
+  }
+
+  private handleSessionStatusChanged(
+    sessionId: string,
+    status: SessionStatus,
+  ): void {
+    const workflowRunId =
+      this.workflowRunRepository.findWorkflowRunIdBySessionId(sessionId);
+    if (!workflowRunId) return;
+
+    const run = this.workflowRunRepository.getWorkflowRunById(workflowRunId);
+    if (!run) return;
+
+    const now = new Date().toISOString();
+
+    if (status === "AWAITING_INPUT" && run.status === "running") {
+      this.workflowRunRepository.setWorkflowRunAwaiting(workflowRunId, now);
+      this.eventBus.emit("workflow-run.status-changed", {
+        workflowRunId,
+        status: "awaiting",
+      });
+    } else if (status === "RUNNING" && run.status === "awaiting") {
+      this.workflowRunRepository.setWorkflowRunRunning(
+        workflowRunId,
+        run.current_step!,
+        now,
+      );
+      this.eventBus.emit("workflow-run.status-changed", {
+        workflowRunId,
+        status: "running",
+      });
+    }
   }
 
   private async startStepExecution(
@@ -221,9 +256,15 @@ export class WorkflowRunService {
     executionId: string;
     workflowRunId: string;
   }) {
+    const now = new Date().toISOString();
+    this.workflowRunRepository.setWorkflowRunAwaiting(workflowRunId, now);
     this.eventBus.emit("step-execution.awaiting-approval", {
       stepExecutionId: executionId,
       workflowRunId,
+    });
+    this.eventBus.emit("workflow-run.status-changed", {
+      workflowRunId,
+      status: "awaiting",
     });
   }
 
@@ -355,7 +396,7 @@ export class WorkflowRunService {
     const run = this.workflowRunRepository.getWorkflowRunById(
       execution.workflow_run_id,
     );
-    if (!run || run.status !== "running") return;
+    if (!run || (run.status !== "running" && run.status !== "awaiting")) return;
 
     const now = new Date().toISOString();
 
@@ -403,11 +444,20 @@ export class WorkflowRunService {
     }
 
     // Advance to next state.
-    this.workflowRunRepository.updateWorkflowRunCurrentStep(
-      run.id,
-      transition,
-      now,
-    );
+    if (run.status === "awaiting") {
+      // Reset status to running when advancing from an awaiting state.
+      this.workflowRunRepository.setWorkflowRunRunning(run.id, transition, now);
+      this.eventBus.emit("workflow-run.status-changed", {
+        workflowRunId: run.id,
+        status: "running",
+      });
+    } else {
+      this.workflowRunRepository.updateWorkflowRunCurrentStep(
+        run.id,
+        transition,
+        now,
+      );
+    }
 
     // Collect all completed executions (including the current one, now committed) for handoff.
     const previousExecutions = this.workflowRunRepository
@@ -431,7 +481,7 @@ export class WorkflowRunService {
   ): Promise<WorkflowRunWithExecutions> {
     const run = this.workflowRunRepository.getWorkflowRunById(id);
     if (!run) throw new Error("Workflow run not found");
-    if (run.status !== "running") {
+    if (run.status !== "running" && run.status !== "awaiting") {
       throw new Error("Workflow run is not running");
     }
 
@@ -477,7 +527,7 @@ export class WorkflowRunService {
   async stopWorkflowRun(id: string): Promise<WorkflowRunWithExecutions> {
     const run = this.workflowRunRepository.getWorkflowRunById(id);
     if (!run) throw new Error("Workflow run not found");
-    if (run.status !== "running") {
+    if (run.status !== "running" && run.status !== "awaiting") {
       throw new Error("Workflow run is already in a terminal state");
     }
 

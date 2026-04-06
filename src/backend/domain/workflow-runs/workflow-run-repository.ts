@@ -315,12 +315,32 @@ export class WorkflowRunRepository {
     }
   }
 
+  setWorkflowRunAwaiting(id: string, now: string): void {
+    this.db
+      .prepare(
+        "UPDATE workflow_runs SET status = 'awaiting', updated_at = ? WHERE id = ?",
+      )
+      .run(now, id);
+  }
+
   setWorkflowRunRunning(id: string, step: string, now: string): void {
     this.db
       .prepare(
         "UPDATE workflow_runs SET status = 'running', current_step = ?, updated_at = ? WHERE id = ?",
       )
       .run(step, now, id);
+  }
+
+  findWorkflowRunIdBySessionId(sessionId: string): string | undefined {
+    const row = this.db
+      .prepare(
+        `SELECT se.workflow_run_id
+         FROM step_executions se
+         JOIN sessions s ON s.step_execution_id = se.id
+         WHERE s.id = ?`,
+      )
+      .get(sessionId) as { workflow_run_id: string } | undefined;
+    return row?.workflow_run_id;
   }
 
   listPendingApprovals(): Array<{
@@ -341,7 +361,7 @@ export class WorkflowRunRepository {
          JOIN workflow_runs wr ON se.workflow_run_id = wr.id
          WHERE se.step_type = 'manual-approval'
            AND se.completed_at IS NULL
-           AND wr.status = 'running'
+           AND wr.status IN ('running', 'awaiting')
          ORDER BY se.created_at DESC`,
       )
       .all() as Array<{
