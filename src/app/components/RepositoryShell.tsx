@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import RunWorkflowModal from "@/app/components/RunWorkflowModal";
 import WorktreeSection from "@/app/components/WorktreeSection";
@@ -36,6 +37,7 @@ export default function RepositoryShell({
   name,
   children,
 }: Props) {
+  const pathname = usePathname();
   const alias = `${organization}/${name}`;
   const [repo, setRepo] = useState<RepositoryDetail | null>(null);
   const [workflowRuns, setWorkflowRuns] = useState<WorkflowRun[] | null>(null);
@@ -112,27 +114,31 @@ export default function RepositoryShell({
           )}
           {workflowRuns && workflowRuns.length > 0 && (
             <ul className={styles.runsList}>
-              {workflowRuns.map((run) => (
-                <li key={run.id}>
-                  <Link
-                    href={`/repositories/${organization}/${name}/workflow-runs/${run.id}`}
-                    className={styles.runItem}
-                  >
-                    <span
-                      className={`${styles.runStatusDot} ${runStatusDotClass[run.status]}`}
-                      title={RUN_STATUS_LABELS[run.status]}
-                    />
-                    <span className={styles.runInfo}>
-                      <span className={styles.runBranch}>
-                        {run.worktree_branch}
+              {workflowRuns.map((run) => {
+                const runHref = `/repositories/${organization}/${name}/workflow-runs/${run.id}`;
+                const isActive = pathname.startsWith(runHref);
+                return (
+                  <li key={run.id}>
+                    <Link
+                      href={runHref}
+                      className={`${styles.runItem} ${isActive ? styles.runItemActive : ""}`}
+                    >
+                      <span
+                        className={`${styles.runStatusDot} ${runStatusDotClass[run.status]}`}
+                        title={RUN_STATUS_LABELS[run.status]}
+                      />
+                      <span className={styles.runInfo}>
+                        <span className={styles.runBranch}>
+                          {run.worktree_branch}
+                        </span>
+                        <span className={styles.runWorkflow}>
+                          {run.workflow_name}
+                        </span>
                       </span>
-                      <span className={styles.runWorkflow}>
-                        {run.workflow_name}
-                      </span>
-                    </span>
-                  </Link>
-                </li>
-              ))}
+                    </Link>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </section>

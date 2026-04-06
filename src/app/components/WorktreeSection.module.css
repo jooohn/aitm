@@ -64,6 +64,10 @@
   @apply flex items-center gap-2 py-1.5 px-2 -mx-2 rounded text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 no-underline transition-colors;
 }
 
+.itemActive {
+  @apply bg-zinc-100 dark:bg-zinc-800;
+}
+
 .branch {
   @apply text-zinc-900 dark:text-zinc-100 truncate;
 }

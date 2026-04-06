@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import {
   cleanMergedWorktrees,
@@ -16,6 +17,7 @@ interface Props {
 }
 
 export default function WorktreeSection({ organization, name }: Props) {
+  const pathname = usePathname();
   const [worktrees, setWorktrees] = useState<Worktree[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -167,16 +169,20 @@ export default function WorktreeSection({ organization, name }: Props) {
 
       {!loading && !loadError && (
         <ul className={styles.list}>
-          {worktrees.map((w) => (
-            <li key={w.branch || w.path}>
-              <Link
-                href={`/repositories/${organization}/${name}/worktrees/${w.branch}`}
-                className={styles.item}
-              >
-                <span className={styles.branch}>{w.branch || "(bare)"}</span>
-              </Link>
-            </li>
-          ))}
+          {worktrees.map((w) => {
+            const wtHref = `/repositories/${organization}/${name}/worktrees/${w.branch}`;
+            const isActive = pathname.startsWith(wtHref);
+            return (
+              <li key={w.branch || w.path}>
+                <Link
+                  href={wtHref}
+                  className={`${styles.item} ${isActive ? styles.itemActive : ""}`}
+                >
+                  <span className={styles.branch}>{w.branch || "(bare)"}</span>
+                </Link>
+              </li>
+            );
+          })}
         </ul>
       )}
 
