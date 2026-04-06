@@ -1,9 +1,26 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
 import type { Session } from "@/lib/utils/api";
 import SessionDetail from "./SessionDetail";
+
+class MockEventSource {
+  static instances: MockEventSource[] = [];
+
+  onmessage: ((event: MessageEvent) => void) | null = null;
+  onerror: (() => void) | null = null;
+  addEventListener = vi.fn();
+  close = vi.fn();
+
+  constructor(_url: string) {
+    MockEventSource.instances.push(this);
+  }
+
+  simulateMessage(data: unknown) {
+    this.onmessage?.({ data: JSON.stringify(data) } as MessageEvent);
+  }
+}
 
 vi.mock("next/link", () => ({
   default: ({
@@ -44,15 +61,8 @@ function makeSession(overrides: Partial<Session> = {}): Session {
 }
 
 beforeEach(() => {
-  vi.stubGlobal(
-    "EventSource",
-    class {
-      onmessage = null;
-      onerror = null;
-      addEventListener = vi.fn();
-      close = vi.fn();
-    },
-  );
+  MockEventSource.instances = [];
+  vi.stubGlobal("EventSource", MockEventSource);
 });
 
 afterEach(() => {
@@ -118,5 +128,27 @@ describe("SessionDetail – status and updates", () => {
     expect(screen.getByText("Second goal")).toBeInTheDocument();
     expect(screen.getByText("Failed")).toBeInTheDocument();
     expect(screen.queryByText("Awaiting input")).not.toBeInTheDocument();
+  });
+
+  it("renders replayed user input from the session output stream", async () => {
+    render(
+      <SessionDetail
+        session={makeSession({
+          id: "session-1",
+          status: "AWAITING_INPUT",
+        })}
+      />,
+    );
+
+    await act(async () => {
+      MockEventSource.instances[0].simulateMessage({
+        type: "user_input",
+        message: "Use PostgreSQL",
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("You: Use PostgreSQL")).toBeInTheDocument();
+    });
   });
 });

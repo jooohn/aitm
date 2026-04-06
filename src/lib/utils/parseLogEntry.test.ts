@@ -32,6 +32,15 @@ describe("parseLogEntry", () => {
     });
   });
 
+  it("formats accepted user input", () => {
+    expect(
+      parseLogEntry({ type: "user_input", message: "Use PostgreSQL" }),
+    ).toEqual({
+      kind: "text",
+      content: "You: Use PostgreSQL",
+    });
+  });
+
   it("formats generic event with message", () => {
     expect(
       parseLogEntry({

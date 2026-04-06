@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { access, constants, mkdir, unlink } from "fs/promises";
+import { access, appendFile, constants, mkdir, unlink } from "fs/promises";
 import { homedir, tmpdir } from "os";
 import { join } from "path";
 import {
@@ -74,6 +74,17 @@ async function sessionsLogDir(): Promise<string> {
   }
 
   throw new Error("Unable to create a writable session log directory");
+}
+
+async function appendSessionLogEntry(
+  logFilePath: string,
+  entry: unknown,
+): Promise<void> {
+  try {
+    await appendFile(logFilePath, `${JSON.stringify(entry)}\n`, "utf8");
+  } catch {
+    // Non-critical — ignore log write errors.
+  }
 }
 
 export class SessionService {
@@ -214,6 +225,11 @@ export class SessionService {
         `Failed to resolve worktree: ${err instanceof Error ? err.message : err}`,
       );
     }
+
+    await appendSessionLogEntry(session.log_file_path, {
+      type: "user_input",
+      message,
+    });
 
     this.agentService
       .resumeAgent(

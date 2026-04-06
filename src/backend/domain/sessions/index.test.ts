@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from "fs/promises";
+import { mkdir, readFile, writeFile } from "fs/promises";
 import { tmpdir } from "os";
 import { join } from "path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -336,6 +336,25 @@ describe("replyToSession", () => {
       session.log_file_path,
       expect.any(Function),
       undefined,
+    );
+  });
+
+  it("appends the accepted user reply to the session log before resuming", async () => {
+    const repoPath = await makeFakeGitRepo();
+    const session = await createSession({
+      repository_path: repoPath,
+      worktree_branch: "feat/a",
+      goal: "A",
+      transitions: DEFAULT_TRANSITIONS,
+    });
+    db.prepare(
+      "UPDATE sessions SET status = 'AWAITING_INPUT' WHERE id = ?",
+    ).run(session.id);
+
+    await replyToSession(session.id, "Use PostgreSQL");
+
+    await expect(readFile(session.log_file_path, "utf8")).resolves.toContain(
+      `${JSON.stringify({ type: "user_input", message: "Use PostgreSQL" })}\n`,
     );
   });
 

@@ -38,6 +38,9 @@ export function parseLogEntry(
     case "awaiting_input":
       return text(`⏳ Awaiting input: ${entry.message ?? ""}`);
 
+    case "user_input":
+      return text(`You: ${entry.message ?? ""}`);
+
     case "error":
       return text(`! Error: ${entry.message}`);
 
