@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { act, cleanup, render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom/vitest";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { StepExecution, WorkflowRunDetail } from "@/lib/utils/api";
@@ -31,6 +32,16 @@ vi.mock("next/navigation", () => ({
     id: "run-1",
   }),
 }));
+
+vi.mock("@/lib/utils/api", async (importOriginal) => {
+  const actual = (await importOriginal()) as Record<string, unknown>;
+  return {
+    ...actual,
+    resolveManualApproval: vi.fn(),
+    fetchWorkflowRun: vi.fn().mockResolvedValue({}),
+    fetchWorkflows: vi.fn().mockResolvedValue({}),
+  };
+});
 
 function makeExecution(
   overrides: Partial<StepExecution> & { step: string },
@@ -171,5 +182,77 @@ describe("WorkflowRunDetail", () => {
     render(<WorkflowRunDetail run={makeRun({ metadata: null })} />);
 
     expect(screen.queryByText(/Pull request created/)).not.toBeInTheDocument();
+  });
+
+  it("only disables the approval buttons for the execution being resolved", async () => {
+    const user = userEvent.setup();
+
+    // Create a promise we can control to keep resolving state active
+    let resolvePromise!: (value: unknown) => void;
+    const pendingPromise = new Promise((resolve) => {
+      resolvePromise = resolve;
+    });
+
+    const { resolveManualApproval } = await import("@/lib/utils/api");
+    vi.mocked(resolveManualApproval).mockReturnValue(
+      pendingPromise as ReturnType<typeof resolveManualApproval>,
+    );
+
+    const exec1 = makeExecution({
+      id: "exec-1",
+      step: "review-1",
+      step_type: "manual-approval",
+      completed_at: null,
+    });
+    const exec2 = makeExecution({
+      id: "exec-2",
+      step: "review-2",
+      step_type: "manual-approval",
+      completed_at: null,
+    });
+
+    render(
+      <WorkflowRunDetail
+        run={makeRun({
+          status: "running",
+          step_executions: [exec1, exec2],
+        })}
+      />,
+    );
+
+    // Both executions should have enabled Approve buttons
+    const approveButtons = screen.getAllByRole("button", { name: "Approve" });
+    expect(approveButtons).toHaveLength(2);
+    expect(approveButtons[0]).not.toBeDisabled();
+    expect(approveButtons[1]).not.toBeDisabled();
+
+    // Click Approve on the first execution (rendered last due to reverse order)
+    await user.click(approveButtons[0]);
+
+    // Get all buttons in approval action areas
+    const allButtons = screen.getAllByRole("button");
+    const approvalButtons = allButtons.filter(
+      (b) =>
+        b.textContent === "Approve" ||
+        b.textContent === "Reject" ||
+        b.textContent === "…",
+    );
+    // 4 total buttons: 2 per execution (Approve + Reject for non-resolving, … + … for resolving)
+    expect(approvalButtons).toHaveLength(4);
+    const disabledCount = approvalButtons.filter((b) =>
+      b.hasAttribute("disabled"),
+    ).length;
+    const enabledCount = approvalButtons.filter(
+      (b) => !b.hasAttribute("disabled"),
+    ).length;
+    expect(disabledCount).toBe(2); // … + … for the resolving execution
+    expect(enabledCount).toBe(2); // Approve + Reject for the other execution
+
+    // Clean up
+    await act(async () => {
+      resolvePromise(
+        makeRun({ status: "running", step_executions: [exec1, exec2] }),
+      );
+    });
   });
 });

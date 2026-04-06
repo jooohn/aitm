@@ -119,6 +119,10 @@
   @apply bg-zinc-100 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300;
 }
 
+.badge-pending-approval {
+  @apply bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300;
+}
+
 /* Details */
 .details {
   @apply flex flex-col divide-y divide-zinc-200 dark:divide-zinc-700;
@@ -245,4 +249,21 @@
 
 .transition-state {
   @apply bg-zinc-100 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-200;
+}
+
+/* Manual approval actions */
+.approvalActions {
+  @apply flex items-center gap-2;
+}
+
+.approvalButton {
+  @apply text-sm font-medium px-3 py-1.5 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+.approvalButton-approve {
+  @apply border border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300 hover:bg-green-100 dark:hover:bg-green-900;
+}
+
+.approvalButton-reject {
+  @apply border border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900;
 }

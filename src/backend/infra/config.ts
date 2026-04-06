@@ -52,7 +52,15 @@ export interface CommandWorkflowStep {
   transitions: WorkflowTransition[];
 }
 
-export type WorkflowStep = AgentWorkflowStep | CommandWorkflowStep;
+export interface ManualApprovalWorkflowStep {
+  type: "manual-approval";
+  transitions: WorkflowTransition[];
+}
+
+export type WorkflowStep =
+  | AgentWorkflowStep
+  | CommandWorkflowStep
+  | ManualApprovalWorkflowStep;
 
 export interface WorkflowInput {
   name: string;
@@ -169,9 +177,16 @@ function normalizeWorkflowStep(
     };
   }
 
+  if ("command" in raw) {
+    return {
+      type: "command",
+      command: raw.command,
+      transitions: raw.transitions,
+    };
+  }
+
   return {
-    type: "command",
-    command: raw.command,
+    type: "manual-approval",
     transitions: raw.transitions,
   };
 }

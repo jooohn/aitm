@@ -17,6 +17,7 @@ const {
   createWorkflowRun,
   getWorkflowRun,
   listWorkflowRuns,
+  recoverCrashedWorkflowRuns,
   rerunWorkflowRunFromFailedState,
   stopWorkflowRun,
 } = {
@@ -27,6 +28,8 @@ const {
   getWorkflowRun: workflowRunService.getWorkflowRun.bind(workflowRunService),
   listWorkflowRuns:
     workflowRunService.listWorkflowRuns.bind(workflowRunService),
+  recoverCrashedWorkflowRuns:
+    workflowRunService.recoverCrashedWorkflowRuns.bind(workflowRunService),
   rerunWorkflowRunFromFailedState:
     workflowRunService.rerunWorkflowRunFromFailedState.bind(workflowRunService),
   stopWorkflowRun: workflowRunService.stopWorkflowRun.bind(workflowRunService),
@@ -1426,5 +1429,261 @@ workflows:
 
     const finalRun = getWorkflowRun(run.id);
     expect(finalRun?.status).toBe("success");
+  });
+});
+
+describe("manual-approval step execution", () => {
+  const APPROVAL_WORKFLOW_CONFIG = `
+workflows:
+  approval-flow:
+    initial_step: review
+    steps:
+      review:
+        type: manual-approval
+        transitions:
+          - step: deploy
+            when: approved
+          - terminal: failure
+            when: rejected
+      deploy:
+        goal: "Deploy the code"
+        transitions:
+          - terminal: success
+            when: done
+`;
+
+  async function setupApprovalRun(config = APPROVAL_WORKFLOW_CONFIG) {
+    process.env.AITM_CONFIG_PATH = await writeTempConfig(config);
+    const repoPath = await makeFakeGitRepo();
+    const run = await createWorkflowRun({
+      repository_path: repoPath,
+      worktree_branch: "feat/test",
+      workflow_name: "approval-flow",
+    });
+    return { run, repoPath };
+  }
+
+  it("creates a step execution with step_type 'manual-approval' and no session", async () => {
+    const { run } = await setupApprovalRun();
+
+    expect(run.status).toBe("running");
+    expect(run.current_step).toBe("review");
+
+    const executions = db
+      .prepare("SELECT * FROM step_executions WHERE workflow_run_id = ?")
+      .all(run.id) as {
+      step: string;
+      step_type: string;
+      completed_at: string | null;
+    }[];
+    expect(executions).toHaveLength(1);
+    expect(executions[0].step).toBe("review");
+    expect(executions[0].step_type).toBe("manual-approval");
+    expect(executions[0].completed_at).toBeNull();
+
+    // No session should be created for manual-approval steps
+    const sessions = db
+      .prepare(
+        `SELECT * FROM sessions s
+         JOIN step_executions se ON s.step_execution_id = se.id
+         WHERE se.workflow_run_id = ?`,
+      )
+      .all(run.id) as unknown[];
+    expect(sessions).toHaveLength(0);
+  });
+
+  it("transitions to next step when completed with 'approved' decision", async () => {
+    const { run } = await setupApprovalRun();
+
+    const [execution] = db
+      .prepare("SELECT * FROM step_executions WHERE workflow_run_id = ?")
+      .all(run.id) as { id: string }[];
+
+    await completeStepExecution(execution.id, {
+      transition: "deploy",
+      reason: "Manually approved",
+      handoff_summary: "",
+    });
+
+    const updatedRun = getWorkflowRun(run.id);
+    expect(updatedRun?.current_step).toBe("deploy");
+    expect(updatedRun?.status).toBe("running");
+
+    const executions = db
+      .prepare(
+        "SELECT * FROM step_executions WHERE workflow_run_id = ? ORDER BY created_at ASC",
+      )
+      .all(run.id) as { step: string; completed_at: string | null }[];
+    expect(executions).toHaveLength(2);
+    expect(executions[0].step).toBe("review");
+    expect(executions[0].completed_at).not.toBeNull();
+    expect(executions[1].step).toBe("deploy");
+  });
+
+  it("terminates as failure when completed with 'rejected' decision", async () => {
+    const { run } = await setupApprovalRun();
+
+    const [execution] = db
+      .prepare("SELECT * FROM step_executions WHERE workflow_run_id = ?")
+      .all(run.id) as { id: string }[];
+
+    await completeStepExecution(execution.id, {
+      transition: "failure",
+      reason: "Manually rejected",
+      handoff_summary: "",
+    });
+
+    const updatedRun = getWorkflowRun(run.id);
+    expect(updatedRun?.status).toBe("failure");
+    expect(updatedRun?.current_step).toBe("review");
+  });
+
+  it("works as an intermediate step in a multi-step workflow", async () => {
+    const multiStepConfig = `
+workflows:
+  approval-flow:
+    initial_step: plan
+    steps:
+      plan:
+        goal: "Write a plan"
+        transitions:
+          - step: review
+            when: "plan is ready"
+      review:
+        type: manual-approval
+        transitions:
+          - step: deploy
+            when: approved
+          - terminal: failure
+            when: rejected
+      deploy:
+        goal: "Deploy the code"
+        transitions:
+          - terminal: success
+            when: done
+`;
+    process.env.AITM_CONFIG_PATH = await writeTempConfig(multiStepConfig);
+    const repoPath = await makeFakeGitRepo();
+    const run = await createWorkflowRun({
+      repository_path: repoPath,
+      worktree_branch: "feat/test",
+      workflow_name: "approval-flow",
+    });
+
+    // Complete plan → review
+    const [planExec] = db
+      .prepare("SELECT * FROM step_executions WHERE workflow_run_id = ?")
+      .all(run.id) as { id: string }[];
+    await completeStepExecution(planExec.id, {
+      transition: "review",
+      reason: "Plan done",
+      handoff_summary: "Wrote PLAN.md",
+    });
+
+    const afterPlan = getWorkflowRun(run.id);
+    expect(afterPlan?.current_step).toBe("review");
+    expect(afterPlan?.status).toBe("running");
+
+    // The review step should be manual-approval with no session
+    const reviewExec = db
+      .prepare(
+        "SELECT * FROM step_executions WHERE workflow_run_id = ? AND step = 'review'",
+      )
+      .get(run.id) as {
+      id: string;
+      step_type: string;
+      completed_at: string | null;
+    };
+    expect(reviewExec.step_type).toBe("manual-approval");
+    expect(reviewExec.completed_at).toBeNull();
+
+    // Approve → deploy
+    await completeStepExecution(reviewExec.id, {
+      transition: "deploy",
+      reason: "Manually approved",
+      handoff_summary: "",
+    });
+
+    const afterApproval = getWorkflowRun(run.id);
+    expect(afterApproval?.current_step).toBe("deploy");
+    expect(afterApproval?.status).toBe("running");
+  });
+});
+
+describe("recovery does not fail pending manual-approval executions", () => {
+  const APPROVAL_WORKFLOW_CONFIG = `
+workflows:
+  approval-flow:
+    initial_step: review
+    steps:
+      review:
+        type: manual-approval
+        transitions:
+          - step: deploy
+            when: approved
+          - terminal: failure
+            when: rejected
+      deploy:
+        goal: "Deploy the code"
+        transitions:
+          - terminal: success
+            when: done
+`;
+
+  it("does not fail a workflow run with a pending manual-approval step on recovery", async () => {
+    process.env.AITM_CONFIG_PATH = await writeTempConfig(
+      APPROVAL_WORKFLOW_CONFIG,
+    );
+    const repoPath = await makeFakeGitRepo();
+    const run = await createWorkflowRun({
+      repository_path: repoPath,
+      worktree_branch: "feat/test",
+      workflow_name: "approval-flow",
+    });
+
+    // Verify the run is in running state with a pending manual-approval execution
+    expect(run.status).toBe("running");
+    expect(run.current_step).toBe("review");
+
+    // Run recovery — it should NOT fail the pending manual-approval execution
+    await recoverCrashedWorkflowRuns();
+
+    const recoveredRun = getWorkflowRun(run.id);
+    expect(recoveredRun?.status).toBe("running");
+    expect(recoveredRun?.current_step).toBe("review");
+
+    // The execution should still be pending (not completed)
+    const executions = db
+      .prepare("SELECT * FROM step_executions WHERE workflow_run_id = ?")
+      .all(run.id) as { completed_at: string | null }[];
+    expect(executions).toHaveLength(1);
+    expect(executions[0].completed_at).toBeNull();
+  });
+
+  it("succeeds even when the worktree does not exist", async () => {
+    process.env.AITM_CONFIG_PATH = await writeTempConfig(
+      APPROVAL_WORKFLOW_CONFIG,
+    );
+    const repoPath = await makeFakeGitRepo();
+
+    // Override mock to return no worktrees for this branch
+    vi.spyOn(worktreeService, "listWorktrees").mockResolvedValueOnce([]);
+
+    const run = await createWorkflowRun({
+      repository_path: repoPath,
+      worktree_branch: "feat/no-worktree",
+      workflow_name: "approval-flow",
+    });
+
+    // Manual-approval step should still be running, not failed
+    expect(run.status).toBe("running");
+    expect(run.current_step).toBe("review");
+
+    const executions = db
+      .prepare("SELECT * FROM step_executions WHERE workflow_run_id = ?")
+      .all(run.id) as { step_type: string; completed_at: string | null }[];
+    expect(executions).toHaveLength(1);
+    expect(executions[0].step_type).toBe("manual-approval");
+    expect(executions[0].completed_at).toBeNull();
   });
 });

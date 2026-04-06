@@ -3,6 +3,7 @@ import {
   AgentWorkflowStep,
   CommandWorkflowStep,
   getConfigWorkflows,
+  ManualApprovalWorkflowStep,
   resolveAgentConfig,
   type WorkflowDefinition,
   WorkflowStep,
@@ -38,7 +39,7 @@ export interface StepExecution {
   id: string;
   workflow_run_id: string;
   step: string;
-  step_type: "agent" | "command";
+  step_type: "agent" | "command" | "manual-approval";
   command_output: string | null;
   session_id: string | null;
   session_status: SessionStatus | null;
@@ -162,6 +163,11 @@ export class WorkflowRunService {
       now,
     });
 
+    // Manual-approval steps don't need a worktree — they wait for human resolution.
+    if (stepDef.type === "manual-approval") {
+      return this.workflowRunRepository.getStepExecution(executionId)!;
+    }
+
     const worktree = await this.worktreeService.findWorktree(
       repositoryPath,
       worktreeBranch,
@@ -195,6 +201,9 @@ export class WorkflowRunService {
         return this.startCommandStepExecution({ stepDef, ...remaining });
       case "agent":
         return this.startAgentStepExecution({ stepDef, ...remaining });
+      case "manual-approval":
+        // No-op: the execution row is already inserted. It waits for manual resolution.
+        return;
     }
   }
 
@@ -393,6 +402,55 @@ export class WorkflowRunService {
       run.workflow_name,
       previousExecutions,
     );
+  }
+
+  async resolveManualApproval(
+    id: string,
+    decision: "approved" | "rejected",
+  ): Promise<WorkflowRunWithExecutions> {
+    const run = this.workflowRunRepository.getWorkflowRunById(id);
+    if (!run) throw new Error("Workflow run not found");
+    if (run.status !== "running") {
+      throw new Error("Workflow run is not running");
+    }
+
+    const activeExecution =
+      this.workflowRunRepository.getActiveStepExecution(id);
+    if (!activeExecution || activeExecution.step_type !== "manual-approval") {
+      throw new Error("Active step execution is not a manual-approval step");
+    }
+
+    const workflows = await getConfigWorkflows();
+    const workflow = workflows[run.workflow_name];
+    if (!workflow) throw new Error(`Workflow not found: ${run.workflow_name}`);
+
+    const stepDef = workflow.steps?.[activeExecution.step];
+    if (!stepDef) {
+      throw new Error(`Step not found: ${activeExecution.step}`);
+    }
+
+    const matchedTransition = stepDef.transitions.find(
+      (t) => t.when === decision,
+    );
+
+    let transitionDecision: TransitionDecision | null;
+    if (!matchedTransition) {
+      transitionDecision = null;
+    } else {
+      const transitionName =
+        "step" in matchedTransition
+          ? matchedTransition.step
+          : matchedTransition.terminal;
+      transitionDecision = {
+        transition: transitionName,
+        reason: `Manually ${decision}`,
+        handoff_summary: "",
+      };
+    }
+
+    await this.completeStepExecution(activeExecution.id, transitionDecision);
+
+    return this.getWorkflowRun(id)!;
   }
 
   async stopWorkflowRun(id: string): Promise<WorkflowRunWithExecutions> {
