@@ -66,6 +66,10 @@
   @apply text-2xl font-semibold text-zinc-900 dark:text-zinc-50;
 }
 
+.headerMeta {
+  @apply flex items-center gap-2;
+}
+
 .headerTimestamps {
   @apply text-xs text-zinc-400 dark:text-zinc-500 tabular-nums;
 }

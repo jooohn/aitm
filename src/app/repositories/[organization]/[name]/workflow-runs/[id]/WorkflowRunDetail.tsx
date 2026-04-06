@@ -19,6 +19,7 @@ import {
 } from "@/lib/utils/api";
 import { extractPullRequestUrl } from "@/lib/utils/extractPullRequestUrl";
 import { inferAlias } from "@/lib/utils/inferAlias";
+import { timeAgo } from "@/lib/utils/timeAgo";
 import { workflowRunPath } from "@/lib/utils/workflowRunPath";
 import { parseWorkflowRunInputs } from "./parseWorkflowRunInputs";
 import styles from "./WorkflowRunDetail.module.css";
@@ -381,9 +382,6 @@ export default function WorkflowRunDetail({ run: initial }: Props) {
     <div className={styles.container}>
       <div className={styles.header}>
         <div className={styles.headerLeft}>
-          <span className={`${styles.badge} ${styles[`badge-${run.status}`]}`}>
-            {STATUS_LABELS[run.status]}
-          </span>
           <h1 className={styles.title}>
             <Link
               href={`/repositories/${inferAlias(run.repository_path)}/worktrees/${run.worktree_branch}`}
@@ -395,10 +393,17 @@ export default function WorkflowRunDetail({ run: initial }: Props) {
             {run.workflow_name}
             <span className={styles.titleRunId}>({run.id})</span>
           </h1>
-          <p className={styles.headerTimestamps}>
-            Created at {new Date(run.created_at).toLocaleString()}, Last
-            modified at {new Date(run.updated_at).toLocaleString()}
-          </p>
+          <div className={styles.headerMeta}>
+            <span
+              className={`${styles.badge} ${styles[`badge-${run.status}`]}`}
+            >
+              {STATUS_LABELS[run.status]}
+            </span>
+            <p className={styles.headerTimestamps}>
+              Created {timeAgo(run.created_at)}, Last modified{" "}
+              {timeAgo(run.updated_at)}
+            </p>
+          </div>
         </div>
         <div className={styles.headerRight}>
           {run.status === "failure" && (
@@ -505,18 +510,20 @@ export default function WorkflowRunDetail({ run: initial }: Props) {
       )}
 
       {inputEntries.length > 0 && (
-        <h2 className={styles.sectionHeading}>Inputs</h2>
+        <section>
+          <h2 className={styles.sectionHeading}>Inputs</h2>
+          <dl className={styles.details}>
+            {inputEntries.map((entry) => (
+              <div key={entry.key} className={styles.detailRow}>
+                <dt className={styles.detailLabel}>
+                  {inputLabelMap.get(entry.key) ?? entry.key}
+                </dt>
+                <dd className={styles.detailValue}>{entry.value}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
       )}
-      <dl className={styles.details}>
-        {inputEntries.map((entry) => (
-          <div key={entry.key} className={styles.detailRow}>
-            <dt className={styles.detailLabel}>
-              {inputLabelMap.get(entry.key) ?? entry.key}
-            </dt>
-            <dd className={styles.detailValue}>{entry.value}</dd>
-          </div>
-        ))}
-      </dl>
 
       {workflowDefinition && (
         <section>
