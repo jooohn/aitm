@@ -18,13 +18,18 @@ import WorkflowLaunchForm from "./WorkflowLaunchForm";
 interface Props {
   onClose: () => void;
   fixedAlias?: string;
+  fixedBranch?: string;
 }
 
-export default function RunWorkflowModal({ onClose, fixedAlias }: Props) {
+export default function RunWorkflowModal({
+  onClose,
+  fixedAlias,
+  fixedBranch,
+}: Props) {
   const router = useRouter();
   const [repos, setRepos] = useState<Repository[]>([]);
   const [selectedAlias, setSelectedAlias] = useState(fixedAlias ?? "");
-  const [branch, setBranch] = useState("");
+  const [branch, setBranch] = useState(fixedBranch ?? "");
   const [workflows, setWorkflows] = useState<
     Record<string, WorkflowDefinition>
   >({});
@@ -83,7 +88,9 @@ export default function RunWorkflowModal({ onClose, fixedAlias }: Props) {
     setSubmitting(true);
     setSubmitError(null);
     try {
-      await createWorktree(organization, name, { branch });
+      if (!fixedBranch) {
+        await createWorktree(organization, name, { branch });
+      }
       const run = await createWorkflowRun({
         repository_path: repo.path,
         worktree_branch: branch,
@@ -189,18 +196,22 @@ export default function RunWorkflowModal({ onClose, fixedAlias }: Props) {
               <div className={styles.fieldGroup}>
                 <label htmlFor="rwm-branch" className={styles.label}>
                   Branch name
-                  <span className={styles.required}>*</span>
+                  {!fixedBranch && <span className={styles.required}>*</span>}
                 </label>
-                <input
-                  id="rwm-branch"
-                  type="text"
-                  className={styles.input}
-                  placeholder="e.g. feature/my-change"
-                  value={branch}
-                  onChange={(e) => setBranch(e.target.value)}
-                  disabled={submitting}
-                  required
-                />
+                {fixedBranch ? (
+                  <span className={styles.fixedValue}>{fixedBranch}</span>
+                ) : (
+                  <input
+                    id="rwm-branch"
+                    type="text"
+                    className={styles.input}
+                    placeholder="e.g. feature/my-change"
+                    value={branch}
+                    onChange={(e) => setBranch(e.target.value)}
+                    disabled={submitting}
+                    required
+                  />
+                )}
               </div>
             </WorkflowLaunchForm>
           )}

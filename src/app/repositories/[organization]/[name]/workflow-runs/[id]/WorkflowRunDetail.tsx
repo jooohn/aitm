@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import RunWorkflowModal from "@/app/components/RunWorkflowModal";
 import {
   canStopWorkflowRun,
   fetchWorkflowRun,
@@ -172,6 +173,13 @@ export default function WorkflowRunDetail({ run: initial }: Props) {
   const [workflowDefinition, setWorkflowDefinition] =
     useState<WorkflowDefinition | null>(null);
 
+  // Action menu state
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Launch workflow modal state
+  const [showLaunchModal, setShowLaunchModal] = useState(false);
+
   const isTerminal = TERMINAL_STATUSES.includes(run.status);
   const inputEntries = parseWorkflowRunInputs(run.inputs);
   const inputLabelMap = new Map(
@@ -239,6 +247,29 @@ export default function WorkflowRunDetail({ run: initial }: Props) {
   }
 
   useEffect(() => {
+    if (!menuOpen) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setMenuOpen(false);
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [menuOpen]);
+
+  function openLaunchModal() {
+    setMenuOpen(false);
+    setShowLaunchModal(true);
+  }
+
+  useEffect(() => {
     if (isTerminal) return;
 
     const interval = setInterval(async () => {
@@ -291,28 +322,65 @@ export default function WorkflowRunDetail({ run: initial }: Props) {
             modified at {new Date(run.updated_at).toLocaleString()}
           </p>
         </div>
-        {run.status === "failure" && (
-          <div className={styles.headerActions}>
+        <div className={styles.headerRight}>
+          {run.status === "failure" && (
+            <div className={styles.headerActions}>
+              <button
+                className={styles.rerunButton}
+                onClick={handleRerun}
+                disabled={rerunning}
+              >
+                {rerunning ? "Re-running…" : "Re-run"}
+              </button>
+              <button
+                className={styles.rerunButton}
+                onClick={handleRerunFromFailed}
+                disabled={rerunningFromFailed}
+              >
+                {rerunningFromFailed
+                  ? "Re-running…"
+                  : "Re-run from failed step"}
+              </button>
+              {rerunError && <p className={styles.rerunError}>{rerunError}</p>}
+              {rerunFromFailedError && (
+                <p className={styles.rerunError}>{rerunFromFailedError}</p>
+              )}
+            </div>
+          )}
+          <div className={styles.menuWrapper} ref={menuRef}>
             <button
-              className={styles.rerunButton}
-              onClick={handleRerun}
-              disabled={rerunning}
+              type="button"
+              className={styles.menuButton}
+              onClick={() => setMenuOpen((open) => !open)}
+              aria-label="Actions"
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              title="Actions"
             >
-              {rerunning ? "Re-running…" : "Re-run"}
+              <svg
+                viewBox="0 0 16 16"
+                width="16"
+                height="16"
+                fill="currentColor"
+                aria-hidden="true"
+              >
+                <path d="M8 9.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3ZM1.5 8a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0Zm10 0a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0Z" />
+              </svg>
             </button>
-            <button
-              className={styles.rerunButton}
-              onClick={handleRerunFromFailed}
-              disabled={rerunningFromFailed}
-            >
-              {rerunningFromFailed ? "Re-running…" : "Re-run from failed step"}
-            </button>
-            {rerunError && <p className={styles.rerunError}>{rerunError}</p>}
-            {rerunFromFailedError && (
-              <p className={styles.rerunError}>{rerunFromFailedError}</p>
+            {menuOpen && (
+              <div className={styles.menu} role="menu">
+                <button
+                  type="button"
+                  role="menuitem"
+                  className={styles.menuItem}
+                  onClick={openLaunchModal}
+                >
+                  Run another workflow
+                </button>
+              </div>
             )}
           </div>
-        )}
+        </div>
       </div>
 
       {pullRequestUrl && (
@@ -402,6 +470,14 @@ export default function WorkflowRunDetail({ run: initial }: Props) {
           </ul>
         )}
       </section>
+
+      {showLaunchModal && (
+        <RunWorkflowModal
+          onClose={() => setShowLaunchModal(false)}
+          fixedAlias={inferAlias(run.repository_path)}
+          fixedBranch={run.worktree_branch}
+        />
+      )}
     </div>
   );
 }
