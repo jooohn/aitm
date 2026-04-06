@@ -458,6 +458,14 @@ workflows:
       workflowRunId: run.id,
       status: "running",
     });
+    expect(
+      emitSpy.mock.calls.filter(
+        ([eventName, payload]) =>
+          eventName === "workflow-run.status-changed" &&
+          payload.workflowRunId === run.id &&
+          payload.status === "running",
+      ),
+    ).toHaveLength(1);
   });
 });
 
@@ -2045,6 +2053,14 @@ workflows:
         workflowRunId: run.id,
         status: "awaiting",
       });
+      expect(
+        emitSpy.mock.calls.filter(
+          ([eventName, payload]) =>
+            eventName === "workflow-run.status-changed" &&
+            payload.workflowRunId === run.id &&
+            payload.status === "awaiting",
+        ),
+      ).toHaveLength(1);
     });
   });
 
@@ -2662,6 +2678,15 @@ workflows:
         workflowRunId: run.id,
         status: "awaiting",
       });
+      expect(
+        emitSpy.mock.calls.filter(
+          ([eventName, payload]) =>
+            eventName === "step-execution.status-changed" &&
+            payload.stepExecutionId === execution.id &&
+            payload.workflowRunId === run.id &&
+            payload.status === "awaiting",
+        ),
+      ).toHaveLength(1);
     });
 
     it("emits 'awaiting' when agent session enters AWAITING_INPUT", async () => {

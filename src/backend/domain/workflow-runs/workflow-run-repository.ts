@@ -1,10 +1,12 @@
 import type Database from "better-sqlite3";
+import type { EventBus } from "@/backend/infra/event-bus";
 import type { SessionStatus } from "../sessions";
 import type {
   ListWorkflowRunsFilter,
   StepExecution,
   StepExecutionStatus,
   WorkflowRun,
+  WorkflowRunStatus,
   WorkflowRunWithExecutions,
 } from "./index";
 
@@ -15,7 +17,38 @@ export type PreviousExecutionHandoff = {
 };
 
 export class WorkflowRunRepository {
-  constructor(private db: Database.Database) {}
+  constructor(
+    private db: Database.Database,
+    private eventBus?: EventBus,
+  ) {}
+
+  private emitStepExecutionStatusChanged(
+    stepExecutionId: string,
+    status: StepExecutionStatus,
+  ): void {
+    if (!this.eventBus) return;
+
+    const row = this.db
+      .prepare("SELECT workflow_run_id FROM step_executions WHERE id = ?")
+      .get(stepExecutionId) as { workflow_run_id: string } | undefined;
+    if (!row) return;
+
+    this.eventBus.emit("step-execution.status-changed", {
+      stepExecutionId,
+      workflowRunId: row.workflow_run_id,
+      status,
+    });
+  }
+
+  private emitWorkflowRunStatusChanged(
+    workflowRunId: string,
+    status: WorkflowRunStatus,
+  ): void {
+    this.eventBus?.emit("workflow-run.status-changed", {
+      workflowRunId,
+      status,
+    });
+  }
 
   ensureTables() {
     this.db.exec(`
@@ -90,6 +123,8 @@ export class WorkflowRunRepository {
         params.stepType,
         params.now,
       );
+
+    this.emitStepExecutionStatusChanged(params.id, "running");
   }
 
   getStepExecution(id: string): StepExecution | undefined {
@@ -99,9 +134,14 @@ export class WorkflowRunRepository {
   }
 
   setStepExecutionStatus(id: string, status: StepExecutionStatus): void {
-    this.db
-      .prepare("UPDATE step_executions SET status = ? WHERE id = ?")
-      .run(status, id);
+    const result = this.db
+      .prepare(
+        "UPDATE step_executions SET status = ? WHERE id = ? AND status != ?",
+      )
+      .run(status, id, status);
+    if (result.changes > 0) {
+      this.emitStepExecutionStatusChanged(id, status);
+    }
   }
 
   setStepExecutionCommandOutput(
@@ -120,19 +160,48 @@ export class WorkflowRunRepository {
     now: string,
     status: StepExecutionStatus,
   ): void {
-    this.db
+    const result = this.db
       .prepare(
-        `UPDATE step_executions SET transition_decision = ?, handoff_summary = ?, completed_at = ?, status = ? WHERE id = ?`,
+        `UPDATE step_executions
+         SET transition_decision = ?, handoff_summary = ?, completed_at = ?, status = ?
+         WHERE id = ?
+           AND (
+             transition_decision IS NOT ?
+             OR handoff_summary IS NOT ?
+             OR completed_at IS NOT ?
+             OR status != ?
+           )`,
       )
-      .run(decisionJson, handoffSummary, now, status, id);
+      .run(
+        decisionJson,
+        handoffSummary,
+        now,
+        status,
+        id,
+        decisionJson,
+        handoffSummary,
+        now,
+        status,
+      );
+
+    if (result.changes > 0) {
+      this.emitStepExecutionStatusChanged(id, status);
+    }
   }
 
   closeStepExecution(id: string, now: string): void {
-    this.db
+    const result = this.db
       .prepare(
-        "UPDATE step_executions SET completed_at = ?, status = 'failed' WHERE id = ?",
+        `UPDATE step_executions
+         SET completed_at = ?, status = 'failed'
+         WHERE id = ?
+           AND (completed_at IS NOT ? OR status != 'failed')`,
       )
-      .run(now, id);
+      .run(now, id, now);
+
+    if (result.changes > 0) {
+      this.emitStepExecutionStatusChanged(id, "failed");
+    }
   }
 
   getActiveStepExecution(workflowRunId: string):
@@ -243,6 +312,8 @@ export class WorkflowRunRepository {
         params.now,
         params.now,
       );
+
+    this.emitWorkflowRunStatusChanged(params.id, "running");
   }
 
   getWorkflowRunById(id: string): WorkflowRun | undefined {
@@ -326,35 +397,53 @@ export class WorkflowRunRepository {
     now: string,
   ): void {
     if (terminal === "success") {
-      this.db
+      const result = this.db
         .prepare(
-          "UPDATE workflow_runs SET status = ?, current_step = NULL, updated_at = ? WHERE id = ?",
+          `UPDATE workflow_runs
+           SET status = ?, current_step = NULL, updated_at = ?
+           WHERE id = ?
+             AND (status != ? OR current_step IS NOT NULL)`,
         )
-        .run(terminal, now, id);
+        .run(terminal, now, id, terminal);
+      if (result.changes > 0) {
+        this.emitWorkflowRunStatusChanged(id, terminal);
+      }
     } else {
       // On failure, preserve current_step so the UI knows which step failed
-      this.db
+      const result = this.db
         .prepare(
-          "UPDATE workflow_runs SET status = ?, updated_at = ? WHERE id = ?",
+          "UPDATE workflow_runs SET status = ?, updated_at = ? WHERE id = ? AND status != ?",
         )
-        .run(terminal, now, id);
+        .run(terminal, now, id, terminal);
+      if (result.changes > 0) {
+        this.emitWorkflowRunStatusChanged(id, terminal);
+      }
     }
   }
 
   setWorkflowRunAwaiting(id: string, now: string): void {
-    this.db
+    const result = this.db
       .prepare(
-        "UPDATE workflow_runs SET status = 'awaiting', updated_at = ? WHERE id = ?",
+        "UPDATE workflow_runs SET status = 'awaiting', updated_at = ? WHERE id = ? AND status != 'awaiting'",
       )
       .run(now, id);
+    if (result.changes > 0) {
+      this.emitWorkflowRunStatusChanged(id, "awaiting");
+    }
   }
 
   setWorkflowRunRunning(id: string, step: string, now: string): void {
-    this.db
+    const result = this.db
       .prepare(
-        "UPDATE workflow_runs SET status = 'running', current_step = ?, updated_at = ? WHERE id = ?",
+        `UPDATE workflow_runs
+         SET status = 'running', current_step = ?, updated_at = ?
+         WHERE id = ?
+           AND (status != 'running' OR current_step IS NOT ?)`,
       )
-      .run(step, now, id);
+      .run(step, now, id, step);
+    if (result.changes > 0) {
+      this.emitWorkflowRunStatusChanged(id, "running");
+    }
   }
 
   setStepCountOffset(id: string, offset: number): void {
@@ -490,15 +579,29 @@ export class WorkflowRunRepository {
   }
 
   failRemainingRunningWorkflowRuns(now: string): void {
+    const affectedRuns = this.db
+      .prepare(
+        `SELECT id FROM workflow_runs
+         WHERE status = 'running'
+           AND id NOT IN (
+             SELECT workflow_run_id FROM step_executions WHERE completed_at IS NULL
+           )`,
+      )
+      .all() as Array<{ id: string }>;
+
     this.db
       .prepare(
         `UPDATE workflow_runs
-     SET status = 'failure', updated_at = ?
-     WHERE status = 'running'
-       AND id NOT IN (
-         SELECT workflow_run_id FROM step_executions WHERE completed_at IS NULL
-       )`,
+         SET status = 'failure', updated_at = ?
+         WHERE status = 'running'
+           AND id NOT IN (
+             SELECT workflow_run_id FROM step_executions WHERE completed_at IS NULL
+           )`,
       )
       .run(now);
+
+    for (const { id } of affectedRuns) {
+      this.emitWorkflowRunStatusChanged(id, "failure");
+    }
   }
 }

@@ -15,14 +15,15 @@ Concretely:
 
 - `sessions/session-repository.ts` owns reads and writes to the `sessions` and `session_messages` tables.
 - `workflow-runs/workflow-run-repository.ts` owns reads and writes to the `workflow_runs` and `state_executions` tables.
-- Repository functions are thin wrappers around SQL — they accept plain parameters and return typed results. They contain no business logic, no side effects beyond the database, and no calls to other domain functions.
-- Domain modules (`sessions/index.ts`, `workflow-runs/index.ts`) handle orchestration, validation, and side effects (e.g. spawning agents, deleting log files) by calling repository functions for persistence.
+- Repository functions are thin wrappers around SQL plus persistence-adjacent publication of DB-change events. They accept plain parameters and return typed results. They do not call other domain functions, but they may publish event-bus notifications when a write actually changes persisted state.
+- Domain modules (`sessions/index.ts`, `workflow-runs/index.ts`) handle orchestration, validation, and non-persistence side effects (e.g. spawning agents, deleting log files) by calling repository functions for persistence.
 
 Cross-table transactions (e.g. `deleteWorktreeData` which touches all four tables) live in the repository that initiates the operation, keeping the transaction boundary explicit and atomic.
 
 ## Consequences
 
 - Adding or changing a column requires updating only the repository module and its types — domain logic is unaffected as long as the repository function signature stays the same.
+- Event publication for persisted status changes is co-located with the write path, reducing the risk that a service updates the DB but forgets to emit the matching event.
 - Repository functions can be easily substituted in tests if needed, since all DB access flows through a single import.
 - New domain modules should follow the same pattern: create a co-located `*-repository.ts` for all database access.
 
