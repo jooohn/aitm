@@ -573,8 +573,8 @@ export class WorkflowRunService {
     const run = this.workflowRunRepository.getWorkflowRunById(id);
     if (!run) throw new Error("Workflow run not found");
 
-    if (run.status !== "failure") {
-      throw new Error("Only failed workflow runs can be re-run");
+    if (run.status !== "failure" && run.status !== "success") {
+      throw new Error("Only completed workflow runs can be re-run");
     }
 
     const worktrees = await this.worktreeService.listWorktrees(

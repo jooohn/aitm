@@ -318,6 +318,11 @@ export default function WorkflowRunDetail({ run: initial }: Props) {
     setShowLaunchModal(true);
   }
 
+  function handleMenuRerun() {
+    setMenuOpen(false);
+    handleRerun();
+  }
+
   useEffect(() => {
     if (isTerminal) return;
 
@@ -418,6 +423,15 @@ export default function WorkflowRunDetail({ run: initial }: Props) {
             </button>
             {menuOpen && (
               <div className={styles.menu} role="menu">
+                <button
+                  type="button"
+                  role="menuitem"
+                  className={styles.menuItem}
+                  onClick={handleMenuRerun}
+                  disabled={rerunning}
+                >
+                  {rerunning ? "Re-running…" : "Re-run"}
+                </button>
                 <button
                   type="button"
                   role="menuitem"
