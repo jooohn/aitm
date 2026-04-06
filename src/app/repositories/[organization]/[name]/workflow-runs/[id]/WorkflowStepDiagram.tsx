@@ -63,19 +63,26 @@ export default function WorkflowStepDiagram({
     executedSteps.add("success");
   }
 
-  // Check if there are back-edges (cycles) that need extra vertical space
-  const hasBackEdges = graph.edges.some((edge) => {
-    const fromPos = layout.get(edge.from);
-    const toPos = layout.get(edge.to);
-    return fromPos && toPos && fromPos.layer >= toPos.layer;
-  });
-
   // Compute SVG dimensions
   const maxLayer = Math.max(...Array.from(layout.values()).map((p) => p.layer));
   const maxIndex = Math.max(...Array.from(layout.values()).map((p) => p.index));
   const svgWidth = (maxLayer + 1) * LAYER_GAP + PADDING * 2;
-  const backEdgeExtra = hasBackEdges ? ROW_GAP * 0.6 + PADDING : 0;
-  const svgHeight = (maxIndex + 1) * ROW_GAP + PADDING * 2 + backEdgeExtra;
+  const baseHeight = (maxIndex + 1) * ROW_GAP + PADDING * 2;
+
+  // Compute extra height needed for back-edge curves that extend below the base
+  let maxBelowY = 0;
+  for (const edge of graph.edges) {
+    const fromPos = layout.get(edge.from);
+    const toPos = layout.get(edge.to);
+    if (fromPos && toPos && fromPos.layer >= toPos.layer) {
+      const fromCenterY = PADDING + fromPos.index * ROW_GAP + NODE_HEIGHT / 2;
+      const toCenterY = PADDING + toPos.index * ROW_GAP + NODE_HEIGHT / 2;
+      const belowY =
+        Math.max(fromCenterY, toCenterY) + NODE_HEIGHT / 2 + ROW_GAP * 0.6;
+      maxBelowY = Math.max(maxBelowY, belowY);
+    }
+  }
+  const svgHeight = Math.max(baseHeight, maxBelowY + PADDING);
 
   function nodeCenter(nodeId: string): { x: number; y: number } {
     const pos = layout.get(nodeId);
