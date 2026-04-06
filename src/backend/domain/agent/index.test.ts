@@ -2,9 +2,12 @@ import { mkdir } from "fs/promises";
 import { tmpdir } from "os";
 import { join } from "path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { agentService } from "@/backend/container";
+import { SessionRepository } from "@/backend/domain/sessions/session-repository";
+import { WorkflowRunRepository } from "@/backend/domain/workflow-runs/workflow-run-repository";
 import { db } from "@/backend/infra/db";
 import { eventBus } from "@/backend/infra/event-bus";
+import { AgentService } from ".";
+import type { AgentRuntime, OutputFormat } from "./runtime";
 
 const { queryMock, resumeMock, buildOutputFormatMock } = vi.hoisted(() => ({
   queryMock: vi.fn(),
@@ -17,25 +20,6 @@ const agentConfig = {
   command: "codex",
   model: "test-model",
 };
-
-vi.mock("./codex-sdk", () => ({
-  codexSDK: {
-    query: queryMock,
-    resume: resumeMock,
-    buildTransitionOutputFormat: (...args: unknown[]) => {
-      buildOutputFormatMock(...args);
-      return { type: "json_schema", schema: {} };
-    },
-  },
-}));
-
-vi.mock("./claude-cli", () => ({
-  claudeCLI: {
-    query: vi.fn(),
-    resume: vi.fn(),
-    buildTransitionOutputFormat: () => ({ type: "json_schema", schema: {} }),
-  },
-}));
 
 async function makeFakeGitRepo(): Promise<string> {
   const dir = join(
@@ -74,6 +58,8 @@ function insertSession(
 }
 
 beforeEach(() => {
+  new WorkflowRunRepository(db).ensureTables();
+  new SessionRepository(db).ensureTables();
   queryMock.mockReset();
   resumeMock.mockReset();
   buildOutputFormatMock.mockReset();
@@ -81,11 +67,27 @@ beforeEach(() => {
   db.prepare("DELETE FROM sessions").run();
 });
 
-const startAgent = agentService.startAgent.bind(agentService);
-const resumeAgent = agentService.resumeAgent.bind(agentService);
+function buildRuntime(): AgentRuntime {
+  return {
+    query: queryMock,
+    resume: resumeMock,
+    buildTransitionOutputFormat: (...args): OutputFormat => {
+      buildOutputFormatMock(...args);
+      return { type: "json_schema", schema: {} };
+    },
+  };
+}
+
+function buildAgentService(): AgentService {
+  return new AgentService({
+    codex: buildRuntime(),
+    claude: buildRuntime(),
+  });
+}
 
 describe("startAgent", () => {
   it("extracts metadata fields from structured output and includes them in the decision", async () => {
+    const agentService = buildAgentService();
     const repoPath = await makeFakeGitRepo();
     const sessionId = "session-with-metadata";
     const logFilePath = join(tmpdir(), `${sessionId}.log`);
@@ -107,7 +109,7 @@ describe("startAgent", () => {
       };
     });
 
-    await startAgent(
+    await agentService.startAgent(
       sessionId,
       repoPath,
       "Goal",
@@ -129,6 +131,7 @@ describe("startAgent", () => {
   });
 
   it("omits metadata field when structured output has no extra keys", async () => {
+    const agentService = buildAgentService();
     const repoPath = await makeFakeGitRepo();
     const sessionId = "session-no-metadata";
     const logFilePath = join(tmpdir(), `${sessionId}.log`);
@@ -148,7 +151,7 @@ describe("startAgent", () => {
       };
     });
 
-    await startAgent(
+    await agentService.startAgent(
       sessionId,
       repoPath,
       "Goal",
@@ -163,6 +166,7 @@ describe("startAgent", () => {
   });
 
   it("sets AWAITING_INPUT and returns when agent selects __REQUIRE_USER_INPUT__", async () => {
+    const agentService = buildAgentService();
     const repoPath = await makeFakeGitRepo();
     const sessionId = "session-user-input";
     const logFilePath = join(tmpdir(), `${sessionId}.log`);
@@ -186,7 +190,7 @@ describe("startAgent", () => {
       };
     });
 
-    await startAgent(
+    await agentService.startAgent(
       sessionId,
       repoPath,
       "Goal",
@@ -207,6 +211,7 @@ describe("startAgent", () => {
   });
 
   it("emits session.status-changed event when agent sets AWAITING_INPUT", async () => {
+    const agentService = buildAgentService();
     const repoPath = await makeFakeGitRepo();
     const sessionId = "session-status-changed-event";
     const logFilePath = join(tmpdir(), `${sessionId}.log`);
@@ -232,7 +237,7 @@ describe("startAgent", () => {
       };
     });
 
-    await startAgent(
+    await agentService.startAgent(
       sessionId,
       repoPath,
       "Goal",
@@ -250,6 +255,7 @@ describe("startAgent", () => {
   });
 
   it("sets SUCCEEDED when agent completes with a real transition", async () => {
+    const agentService = buildAgentService();
     const repoPath = await makeFakeGitRepo();
     const sessionId = "session-success";
     const logFilePath = join(tmpdir(), `${sessionId}.log`);
@@ -269,7 +275,7 @@ describe("startAgent", () => {
       };
     });
 
-    await startAgent(
+    await agentService.startAgent(
       sessionId,
       repoPath,
       "Goal",
@@ -289,6 +295,7 @@ describe("startAgent", () => {
   });
 
   it("passes metadataFields to buildTransitionOutputFormat when provided", async () => {
+    const agentService = buildAgentService();
     const repoPath = await makeFakeGitRepo();
     const sessionId = "session-metadata-fields";
     const logFilePath = join(tmpdir(), `${sessionId}.log`);
@@ -311,7 +318,7 @@ describe("startAgent", () => {
       pr_url: { type: "string", description: "The pull request URL" },
     };
 
-    await startAgent(
+    await agentService.startAgent(
       sessionId,
       repoPath,
       "Goal",
@@ -329,6 +336,7 @@ describe("startAgent", () => {
   });
 
   it("calls buildTransitionOutputFormat without metadataFields when not provided", async () => {
+    const agentService = buildAgentService();
     const repoPath = await makeFakeGitRepo();
     const sessionId = "session-no-metadata-fields";
     const logFilePath = join(tmpdir(), `${sessionId}.log`);
@@ -347,7 +355,7 @@ describe("startAgent", () => {
       };
     });
 
-    await startAgent(
+    await agentService.startAgent(
       sessionId,
       repoPath,
       "Goal",
@@ -363,6 +371,7 @@ describe("startAgent", () => {
   });
 
   it("does not launch the runtime when the session is already terminal before startup continues", async () => {
+    const agentService = buildAgentService();
     const repoPath = await makeFakeGitRepo();
     const sessionId = "session-stopped-before-start";
     const logFilePath = join(tmpdir(), `${sessionId}.log`);
@@ -381,7 +390,7 @@ describe("startAgent", () => {
       };
     });
 
-    const startPromise = startAgent(
+    const startPromise = agentService.startAgent(
       sessionId,
       repoPath,
       "Goal",
@@ -405,6 +414,7 @@ describe("startAgent", () => {
   });
 
   it("completes the session when it becomes terminal after cwd is set but before runtime launch", async () => {
+    const agentService = buildAgentService();
     const repoPath = await makeFakeGitRepo();
     const sessionId = "session-stopped-before-runtime";
     const logFilePath = join(tmpdir(), `${sessionId}.log`);
@@ -416,7 +426,7 @@ describe("startAgent", () => {
       sessionId,
     );
 
-    await startAgent(
+    await agentService.startAgent(
       sessionId,
       repoPath,
       "Goal",
@@ -432,10 +442,77 @@ describe("startAgent", () => {
       db.prepare("SELECT status FROM sessions WHERE id = ?").get(sessionId),
     ).toEqual({ status: "FAILED" });
   });
+
+  it("uses the injected claude runtime when the provider is claude", async () => {
+    const claudeQueryMock = vi.fn(async function* () {
+      yield { type: "system", subtype: "init", session_id: "claude-agent-1" };
+      yield {
+        type: "result",
+        subtype: "success",
+        structured_output: {
+          transition: "success",
+          reason: "done",
+          handoff_summary: "All done",
+        },
+      };
+    });
+    const claudeRuntime: AgentRuntime = {
+      query: claudeQueryMock,
+      resume: vi.fn(),
+      buildTransitionOutputFormat: () => ({ type: "json_schema", schema: {} }),
+    };
+    const agentService = new AgentService({
+      codex: buildRuntime(),
+      claude: claudeRuntime,
+    });
+    const repoPath = await makeFakeGitRepo();
+    const sessionId = "session-claude-runtime";
+    const logFilePath = join(tmpdir(), `${sessionId}.log`);
+    insertSession(sessionId, repoPath, logFilePath);
+
+    await agentService.startAgent(
+      sessionId,
+      repoPath,
+      "Goal",
+      [{ terminal: "success", when: "done" }],
+      { ...agentConfig, provider: "claude" },
+      logFilePath,
+    );
+
+    expect(claudeQueryMock).toHaveBeenCalledOnce();
+    expect(queryMock).not.toHaveBeenCalled();
+  });
+
+  it("marks the session failed when the provider does not map to an injected runtime", async () => {
+    const agentService = buildAgentService();
+    const repoPath = await makeFakeGitRepo();
+    const sessionId = "session-invalid-provider";
+    const logFilePath = join(tmpdir(), `${sessionId}.log`);
+    const onComplete = vi.fn();
+    insertSession(sessionId, repoPath, logFilePath);
+
+    await agentService.startAgent(
+      sessionId,
+      repoPath,
+      "Goal",
+      [{ terminal: "success", when: "done" }],
+      { ...agentConfig, provider: "invalid" as never },
+      logFilePath,
+      onComplete,
+    );
+
+    const row = db
+      .prepare("SELECT status FROM sessions WHERE id = ?")
+      .get(sessionId) as { status: string };
+    expect(row.status).toBe("FAILED");
+    expect(onComplete).toHaveBeenCalledWith(null);
+    expect(queryMock).not.toHaveBeenCalled();
+  });
 });
 
 describe("resumeAgent", () => {
   it("resumes agent and sets SUCCEEDED when agent completes with a real transition", async () => {
+    const agentService = buildAgentService();
     const repoPath = await makeFakeGitRepo();
     const sessionId = "session-resume-success";
     const logFilePath = join(tmpdir(), `${sessionId}.log`);
@@ -457,7 +534,7 @@ describe("resumeAgent", () => {
       };
     });
 
-    await resumeAgent(
+    await agentService.resumeAgent(
       sessionId,
       "Use PostgreSQL",
       repoPath,
@@ -486,6 +563,7 @@ describe("resumeAgent", () => {
   });
 
   it("sets AWAITING_INPUT again when agent requests more input", async () => {
+    const agentService = buildAgentService();
     const repoPath = await makeFakeGitRepo();
     const sessionId = "session-resume-more-input";
     const logFilePath = join(tmpdir(), `${sessionId}.log`);
@@ -507,7 +585,7 @@ describe("resumeAgent", () => {
       };
     });
 
-    await resumeAgent(
+    await agentService.resumeAgent(
       sessionId,
       "PostgreSQL",
       repoPath,
@@ -525,6 +603,7 @@ describe("resumeAgent", () => {
   });
 
   it("passes metadataFields to buildTransitionOutputFormat on resume", async () => {
+    const agentService = buildAgentService();
     const repoPath = await makeFakeGitRepo();
     const sessionId = "session-resume-metadata";
     const logFilePath = join(tmpdir(), `${sessionId}.log`);
@@ -549,7 +628,7 @@ describe("resumeAgent", () => {
       pr_url: { type: "string", description: "The pull request URL" },
     };
 
-    await resumeAgent(
+    await agentService.resumeAgent(
       sessionId,
       "User input",
       repoPath,
@@ -567,6 +646,7 @@ describe("resumeAgent", () => {
   });
 
   it("sets FAILED when resume produces an error result", async () => {
+    const agentService = buildAgentService();
     const repoPath = await makeFakeGitRepo();
     const sessionId = "session-resume-error";
     const logFilePath = join(tmpdir(), `${sessionId}.log`);
@@ -584,7 +664,7 @@ describe("resumeAgent", () => {
       };
     });
 
-    await resumeAgent(
+    await agentService.resumeAgent(
       sessionId,
       "PostgreSQL",
       repoPath,
@@ -599,5 +679,34 @@ describe("resumeAgent", () => {
       .get(sessionId) as { status: string };
     expect(row.status).toBe("FAILED");
     expect(onComplete).toHaveBeenCalledWith(null);
+  });
+
+  it("marks the session failed when resume uses an unknown provider", async () => {
+    const agentService = buildAgentService();
+    const repoPath = await makeFakeGitRepo();
+    const sessionId = "session-resume-invalid-provider";
+    const logFilePath = join(tmpdir(), `${sessionId}.log`);
+    const onComplete = vi.fn();
+    insertSession(sessionId, repoPath, logFilePath, {
+      status: "AWAITING_INPUT",
+      claude_session_id: "agent-session-invalid-provider",
+    });
+
+    await agentService.resumeAgent(
+      sessionId,
+      "PostgreSQL",
+      repoPath,
+      [{ terminal: "success", when: "done" }],
+      { ...agentConfig, provider: "invalid" as never },
+      logFilePath,
+      onComplete,
+    );
+
+    const row = db
+      .prepare("SELECT status FROM sessions WHERE id = ?")
+      .get(sessionId) as { status: string };
+    expect(row.status).toBe("FAILED");
+    expect(onComplete).toHaveBeenCalledWith(null);
+    expect(resumeMock).not.toHaveBeenCalled();
   });
 });

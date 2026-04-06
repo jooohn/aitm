@@ -1,4 +1,6 @@
 import { AgentService } from "@/backend/domain/agent";
+import { ClaudeSDK } from "@/backend/domain/agent/claude-sdk";
+import { CodexSDK } from "@/backend/domain/agent/codex-sdk";
 import { HouseKeepingService } from "@/backend/domain/house-keeping";
 import { RepositoryService } from "@/backend/domain/repositories";
 import { SessionService } from "@/backend/domain/sessions";
@@ -14,7 +16,10 @@ export const workflowRunRepository = new WorkflowRunRepository(db);
 export const sessionRepository = new SessionRepository(db);
 export const worktreeService = new WorktreeService();
 export const repositoryService = new RepositoryService();
-export const agentService = new AgentService();
+export const agentService = new AgentService({
+  claude: new ClaudeSDK(),
+  codex: new CodexSDK(),
+});
 export const sessionService = new SessionService(
   sessionRepository,
   agentService,
