@@ -27,7 +27,7 @@ describe("buildTransitionOutputFormatForCodex", () => {
     });
   });
 
-  it("includes metadata fields as optional properties in the schema", () => {
+  it("includes metadata fields in required to satisfy Codex json_schema validation", () => {
     const outputFormat = buildTransitionOutputFormatForCodex(
       [{ terminal: "success", when: "done" }],
       {
@@ -45,11 +45,12 @@ describe("buildTransitionOutputFormatForCodex", () => {
     });
     expect(properties.pr_number).toEqual({ type: "string" });
 
-    // Metadata fields should NOT be required
     expect(schema.required).toEqual([
       "transition",
       "reason",
       "handoff_summary",
+      "pr_url",
+      "pr_number",
     ]);
   });
 

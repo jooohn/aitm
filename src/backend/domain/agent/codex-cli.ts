@@ -231,12 +231,14 @@ export function buildTransitionOutputFormatForCodex(
     }
   }
 
+  const required = Object.keys(properties);
+
   return {
     type: "json_schema" as const,
     schema: {
       type: "object",
       properties,
-      required: ["transition", "reason", "handoff_summary"],
+      required,
       additionalProperties: false,
     },
   };
