@@ -51,6 +51,7 @@ export default function WorkflowKanbanBoard({
   > | null>(null);
   const [runs, setRuns] = useState<WorkflowRun[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const multiRepo = !repositoryPath;
@@ -78,6 +79,7 @@ export default function WorkflowKanbanBoard({
         err instanceof Error ? err.message : "Failed to load kanban data",
       );
     } finally {
+      setHasLoadedOnce(true);
       setLoading(false);
     }
   }
@@ -93,7 +95,9 @@ export default function WorkflowKanbanBoard({
     return () => clearInterval(id);
   }, [runs]);
 
-  if (loading) return <p className={styles.status}>Loading…</p>;
+  if (!hasLoadedOnce && loading) {
+    return <p className={styles.status}>Loading…</p>;
+  }
   if (loadError) return <p className={styles.error}>{loadError}</p>;
   if (!workflows) return null;
 

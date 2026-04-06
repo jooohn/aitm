@@ -49,6 +49,14 @@ vi.mock("@/lib/utils/api", async () => {
 
 import WorktreeRunsSection from "./WorktreeRunsSection";
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((res) => {
+    resolve = res;
+  });
+  return { promise, resolve };
+}
+
 function makeWorktree(overrides: Partial<Worktree> = {}): Worktree {
   return {
     branch: "main",
@@ -87,6 +95,60 @@ afterEach(() => {
 });
 
 describe("WorktreeRunsSection", () => {
+  it("keeps rendered runs visible during refreshes after the first load", async () => {
+    const nextWorktrees = deferred<Worktree[]>();
+    const nextRuns = deferred<WorkflowRun[]>();
+
+    fetchWorktreesMock
+      .mockResolvedValueOnce([
+        makeWorktree({ branch: "feature-a", is_main: false }),
+      ])
+      .mockReturnValueOnce(nextWorktrees.promise);
+    fetchWorkflowRunsMock
+      .mockResolvedValueOnce([
+        makeRun({
+          id: "r1",
+          worktree_branch: "feature-a",
+          workflow_name: "develop",
+        }),
+      ])
+      .mockReturnValueOnce(nextRuns.promise);
+
+    const { rerender } = render(
+      <WorktreeRunsSection
+        organization="org"
+        name="name"
+        repositoryPath="/repos/org/name"
+        refreshKey={0}
+      />,
+    );
+
+    await screen.findByText("develop");
+
+    rerender(
+      <WorktreeRunsSection
+        organization="org"
+        name="name"
+        repositoryPath="/repos/org/name"
+        refreshKey={1}
+      />,
+    );
+
+    expect(screen.getByText("develop")).toBeInTheDocument();
+    expect(screen.queryByText("Loading…")).not.toBeInTheDocument();
+
+    nextWorktrees.resolve([
+      makeWorktree({ branch: "feature-a", is_main: false }),
+    ]);
+    nextRuns.resolve([
+      makeRun({
+        id: "r1",
+        worktree_branch: "feature-a",
+        workflow_name: "develop",
+      }),
+    ]);
+  });
+
   it("renders worktrees with their workflow runs grouped underneath", async () => {
     fetchWorktreesMock.mockResolvedValue([
       makeWorktree({ branch: "main", is_main: true }),

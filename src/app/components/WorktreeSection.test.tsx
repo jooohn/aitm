@@ -32,6 +32,14 @@ vi.mock("next/link", () => ({
 
 import WorktreeSection from "./WorktreeSection";
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((res) => {
+    resolve = res;
+  });
+  return { promise, resolve };
+}
+
 beforeEach(() => {
   mockFetchWorktrees.mockResolvedValue([]);
 });
@@ -77,5 +85,25 @@ describe("WorktreeSection", () => {
 
     // Should not trigger another fetch
     expect(mockFetchWorktrees).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps rendered worktrees visible during refreshes after the first load", async () => {
+    const nextLoad = deferred<Array<{ branch: string; path: string }>>();
+    mockFetchWorktrees
+      .mockResolvedValueOnce([{ branch: "main", path: "/p/main" }])
+      .mockReturnValueOnce(nextLoad.promise);
+
+    const { rerender } = render(
+      <WorktreeSection organization="org" name="repo" refreshKey={0} />,
+    );
+
+    await screen.findByText("main");
+
+    rerender(<WorktreeSection organization="org" name="repo" refreshKey={1} />);
+
+    expect(screen.getByText("main")).toBeInTheDocument();
+    expect(screen.queryByText("Loading…")).not.toBeInTheDocument();
+
+    nextLoad.resolve([{ branch: "main", path: "/p/main" }]);
   });
 });

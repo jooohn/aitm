@@ -5,6 +5,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { WorkflowDefinition, WorkflowRun } from "@/lib/utils/api";
 import WorkflowKanbanBoard from "./WorkflowKanbanBoard";
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((res) => {
+    resolve = res;
+  });
+  return { promise, resolve };
+}
+
 vi.mock("next/link", () => ({
   default: ({
     children,
@@ -290,6 +298,40 @@ describe("WorkflowKanbanBoard", () => {
     );
 
     expect(screen.getByText("Loading…")).toBeInTheDocument();
+  });
+
+  it("keeps the board visible during refreshes after the first load", async () => {
+    const nextRuns = deferred<WorkflowRun[]>();
+    fetchWorkflowRunsMock
+      .mockResolvedValueOnce([
+        makeRun({ id: "r1", workflow_name: "default", current_step: "plan" }),
+      ])
+      .mockReturnValueOnce(nextRuns.promise);
+
+    const { rerender } = render(
+      <WorkflowKanbanBoard
+        repositoryPath="/repos/org/name"
+        activeWorktreeBranches={null}
+        refreshKey={0}
+      />,
+    );
+
+    await screen.findByText("feature-branch");
+
+    rerender(
+      <WorkflowKanbanBoard
+        repositoryPath="/repos/org/name"
+        activeWorktreeBranches={null}
+        refreshKey={1}
+      />,
+    );
+
+    expect(screen.getByText("feature-branch")).toBeInTheDocument();
+    expect(screen.queryByText("Loading…")).not.toBeInTheDocument();
+
+    nextRuns.resolve([
+      makeRun({ id: "r1", workflow_name: "default", current_step: "plan" }),
+    ]);
   });
 
   it("renders a PR link when metadata contains a pull request URL", async () => {

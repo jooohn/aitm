@@ -39,6 +39,7 @@ export default function WorktreeRunsSection({
   const pathname = usePathname();
   const [groups, setGroups] = useState<WorktreeGroup[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showAllRunsBranches, setShowAllRunsBranches] = useState<Set<string>>(
     new Set(),
@@ -67,6 +68,7 @@ export default function WorktreeRunsSection({
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load data");
     } finally {
+      setHasLoadedOnce(true);
       setLoading(false);
     }
   }
@@ -183,10 +185,10 @@ export default function WorktreeRunsSection({
         </div>
       </div>
 
-      {loading && <p className={styles.status}>Loading…</p>}
+      {!hasLoadedOnce && loading && <p className={styles.status}>Loading…</p>}
       {error && <p className={styles.error}>{error}</p>}
 
-      {!loading && !error && (
+      {(hasLoadedOnce || !loading) && !error && (
         <ul className={styles.groupList}>
           {groups.map((group) => {
             const key = group.worktree?.branch ?? "__orphaned__";

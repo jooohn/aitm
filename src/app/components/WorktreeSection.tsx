@@ -26,6 +26,7 @@ export default function WorktreeSection({
   const pathname = usePathname();
   const [worktrees, setWorktrees] = useState<Worktree[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [branch, setBranch] = useState("");
   const [creating, setCreating] = useState(false);
@@ -73,6 +74,7 @@ export default function WorktreeSection({
         err instanceof Error ? err.message : "Failed to load worktrees",
       );
     } finally {
+      setHasLoadedOnce(true);
       setLoading(false);
     }
   }
@@ -162,10 +164,10 @@ export default function WorktreeSection({
         </div>
       </div>
 
-      {loading && <p className={styles.status}>Loading…</p>}
+      {!hasLoadedOnce && loading && <p className={styles.status}>Loading…</p>}
       {loadError && <p className={styles.error}>{loadError}</p>}
 
-      {!loading && !loadError && (
+      {(hasLoadedOnce || !loading) && !loadError && (
         <ul className={styles.list}>
           {worktrees.map((w) => {
             const wtHref = `/repositories/${organization}/${name}/worktrees/${w.branch}`;
