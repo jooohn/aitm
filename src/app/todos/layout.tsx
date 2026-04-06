@@ -4,18 +4,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { useNotificationStream } from "@/lib/hooks/useNotificationStream";
-import {
-  fetchPendingApprovals,
-  fetchSessionsByStatus,
-  type PendingApproval,
-  type Session,
-} from "@/lib/utils/api";
+import { fetchAllWorkflowRuns, type WorkflowRun } from "@/lib/utils/api";
 import { inferAlias } from "@/lib/utils/inferAlias";
+import { timeAgo } from "@/lib/utils/timeAgo";
 import styles from "./page.module.css";
-
-type TodoItem =
-  | { kind: "session"; session: Session }
-  | { kind: "approval"; approval: PendingApproval };
 
 export default function TodosLayout({
   children,
@@ -23,33 +15,15 @@ export default function TodosLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const [items, setItems] = useState<TodoItem[]>([]);
+  const [items, setItems] = useState<WorkflowRun[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(() => {
-    Promise.all([
-      fetchSessionsByStatus("AWAITING_INPUT"),
-      fetchPendingApprovals(),
-    ])
-      .then(([sessions, approvals]) => {
+    fetchAllWorkflowRuns("awaiting")
+      .then((runs) => {
         setError(null);
-        const todoItems: TodoItem[] = [
-          ...sessions.map(
-            (session): TodoItem => ({ kind: "session", session }),
-          ),
-          ...approvals.map(
-            (approval): TodoItem => ({ kind: "approval", approval }),
-          ),
-        ];
-        todoItems.sort((a, b) => {
-          const aTime =
-            a.kind === "session" ? a.session.updated_at : a.approval.created_at;
-          const bTime =
-            b.kind === "session" ? b.session.updated_at : b.approval.created_at;
-          return bTime.localeCompare(aTime);
-        });
-        setItems(todoItems);
+        setItems(runs);
       })
       .catch((err) => {
         setError(err instanceof Error ? err.message : "Failed to load todos");
@@ -79,47 +53,11 @@ export default function TodosLayout({
             <p className={styles.status}>No items are waiting for action.</p>
           ) : (
             <ul className={styles.list}>
-              {items.map((item) => {
-                if (item.kind === "session") {
-                  const { session } = item;
-                  const href = `/todos/session-${session.id}`;
-                  const isActive = pathname === href;
-                  return (
-                    <li key={`session-${session.id}`}>
-                      <Link
-                        href={href}
-                        className={`${styles.sessionLink} ${
-                          isActive ? styles.sessionLinkActive : ""
-                        }`}
-                      >
-                        <span className={styles.sessionPrimary}>
-                          {inferAlias(session.repository_path)}
-                          {" - "}
-                          {session.worktree_branch}
-                        </span>
-                        <span className={styles.sessionSecondary}>
-                          <span className={styles.todoBadgeInput}>
-                            Awaiting Input
-                          </span>
-                          {session.step_name && (
-                            <span>{session.step_name}</span>
-                          )}
-                          {session.workflow_name && (
-                            <span>{session.workflow_name}</span>
-                          )}
-                          <span>
-                            {new Date(session.updated_at).toLocaleString()}
-                          </span>
-                        </span>
-                      </Link>
-                    </li>
-                  );
-                }
-                const { approval } = item;
-                const href = `/todos/approval-${approval.workflow_run_id}`;
+              {items.map((run) => {
+                const href = `/todos/${run.id}`;
                 const isActive = pathname === href;
                 return (
-                  <li key={`approval-${approval.step_execution_id}`}>
+                  <li key={run.id}>
                     <Link
                       href={href}
                       className={`${styles.sessionLink} ${
@@ -127,19 +65,11 @@ export default function TodosLayout({
                       }`}
                     >
                       <span className={styles.sessionPrimary}>
-                        {inferAlias(approval.repository_path)}
-                        {" - "}
-                        {approval.worktree_branch}
+                        {run.worktree_branch}
                       </span>
                       <span className={styles.sessionSecondary}>
-                        <span className={styles.todoBadgeApproval}>
-                          Awaiting Approval
-                        </span>
-                        <span>{approval.step}</span>
-                        <span>{approval.workflow_name}</span>
-                        <span>
-                          {new Date(approval.created_at).toLocaleString()}
-                        </span>
+                        <span>{inferAlias(run.repository_path)}</span>
+                        <span>{timeAgo(run.updated_at)}</span>
                       </span>
                     </Link>
                   </li>

@@ -5,7 +5,7 @@
 }
 
 .shell {
-  @apply grid lg:grid-cols-[22rem_minmax(0,1fr)];
+  @apply grid lg:grid-cols-[16rem_minmax(0,1fr)];
 }
 
 .listPane {
@@ -46,14 +46,6 @@
 
 .sessionSecondary {
   @apply flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400;
-}
-
-.todoBadgeInput {
-  @apply inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase leading-none bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300;
-}
-
-.todoBadgeApproval {
-  @apply inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase leading-none bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300;
 }
 
 .detailPane {

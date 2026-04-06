@@ -1,29 +1,15 @@
 "use client";
 
-import { notFound, useParams } from "next/navigation";
-import { useEffect, useState } from "react";
-import { fetchWorkflowRun, type WorkflowRunDetail } from "@/lib/utils/api";
+import { useParams } from "next/navigation";
+import WorkflowRunPage from "@/app/components/WorkflowRunPage";
 import styles from "./page.module.css";
-import WorkflowRunDetailView from "./WorkflowRunDetail";
 
-export default function WorkflowRunPage() {
+export default function WorkflowRunRoute() {
   const { id } = useParams<{ id: string }>();
-  const [run, setRun] = useState<WorkflowRunDetail | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchWorkflowRun(id)
-      .then(setRun)
-      .catch(() => notFound())
-      .finally(() => setLoading(false));
-  }, [id]);
-
-  if (loading) return null;
-  if (!run) return notFound();
 
   return (
     <main className={styles.page}>
-      <WorkflowRunDetailView run={run} />
+      <WorkflowRunPage workflowRunId={id} />
     </main>
   );
 }

@@ -2,20 +2,16 @@
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Session } from "@/lib/utils/api";
+import type { WorkflowRun } from "@/lib/utils/api";
 import TodosLayout from "./layout";
 import TodosPage from "./page";
 
-const { fetchSessionsByStatusMock, fetchPendingApprovalsMock } = vi.hoisted(
-  () => ({
-    fetchSessionsByStatusMock: vi.fn(),
-    fetchPendingApprovalsMock: vi.fn(),
-  }),
-);
+const { fetchAllWorkflowRunsMock } = vi.hoisted(() => ({
+  fetchAllWorkflowRunsMock: vi.fn(),
+}));
 
 vi.mock("@/lib/utils/api", () => ({
-  fetchSessionsByStatus: fetchSessionsByStatusMock,
-  fetchPendingApprovals: fetchPendingApprovalsMock,
+  fetchAllWorkflowRuns: fetchAllWorkflowRunsMock,
 }));
 
 let capturedCallback: (() => void) | null = null;
@@ -46,21 +42,16 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/todos",
 }));
 
-function makeSession(overrides: Partial<Session> = {}): Session {
+function makeWorkflowRun(overrides: Partial<WorkflowRun> = {}): WorkflowRun {
   return {
-    id: "session-1",
+    id: "run-1",
     repository_path: "/tmp/acme/widgets",
     worktree_branch: "feat/todo-list",
-    goal: "Handle awaiting input",
-    transitions: "[]",
-    transition_decision: null,
-    status: "AWAITING_INPUT",
-    terminal_attach_command: null,
-    log_file_path: "/tmp/session.log",
-    claude_session_id: null,
-    state_name: "Need review",
-    workflow_name: null,
-    workflow_run_id: null,
+    workflow_name: "default",
+    current_step: "implement",
+    status: "awaiting",
+    inputs: null,
+    metadata: null,
     created_at: "2026-04-02T00:00:00.000Z",
     updated_at: "2026-04-02T00:00:00.000Z",
     ...overrides,
@@ -68,9 +59,7 @@ function makeSession(overrides: Partial<Session> = {}): Session {
 }
 
 beforeEach(() => {
-  fetchSessionsByStatusMock.mockReset();
-  fetchPendingApprovalsMock.mockReset();
-  fetchPendingApprovalsMock.mockResolvedValue([]);
+  fetchAllWorkflowRunsMock.mockReset();
   capturedCallback = null;
 });
 
@@ -79,10 +68,10 @@ afterEach(() => {
 });
 
 describe("/todos layout", () => {
-  it("loads awaiting-input sessions and renders them as links", async () => {
-    fetchSessionsByStatusMock.mockResolvedValue([
-      makeSession({ id: "session-1", state_name: "First task" }),
-      makeSession({ id: "session-2", state_name: "Second task" }),
+  it("loads awaiting workflow runs and renders them as links", async () => {
+    fetchAllWorkflowRunsMock.mockResolvedValue([
+      makeWorkflowRun({ id: "run-1", current_step: "implement" }),
+      makeWorkflowRun({ id: "run-2", current_step: "review" }),
     ]);
 
     render(
@@ -92,16 +81,16 @@ describe("/todos layout", () => {
     );
 
     await waitFor(() => {
-      expect(fetchSessionsByStatusMock).toHaveBeenCalledWith("AWAITING_INPUT");
+      expect(fetchAllWorkflowRunsMock).toHaveBeenCalledWith("awaiting");
     });
 
     const links = screen.getAllByRole("link");
-    expect(links[0]).toHaveAttribute("href", "/todos/session-session-1");
-    expect(links[1]).toHaveAttribute("href", "/todos/session-session-2");
+    expect(links[0]).toHaveAttribute("href", "/todos/run-1");
+    expect(links[1]).toHaveAttribute("href", "/todos/run-2");
   });
 
-  it("shows an empty state when there are no awaiting-input sessions", async () => {
-    fetchSessionsByStatusMock.mockResolvedValue([]);
+  it("shows an empty state when there are no awaiting workflow runs", async () => {
+    fetchAllWorkflowRunsMock.mockResolvedValue([]);
 
     render(
       <TodosLayout>
@@ -115,7 +104,7 @@ describe("/todos layout", () => {
   });
 
   it("shows the children in the detail pane", async () => {
-    fetchSessionsByStatusMock.mockResolvedValue([]);
+    fetchAllWorkflowRunsMock.mockResolvedValue([]);
 
     render(
       <TodosLayout>
@@ -128,14 +117,14 @@ describe("/todos layout", () => {
     ).toBeInTheDocument();
   });
 
-  it("re-fetches session list when notification stream fires", async () => {
-    fetchSessionsByStatusMock
+  it("re-fetches workflow runs when notification stream fires", async () => {
+    fetchAllWorkflowRunsMock
       .mockResolvedValueOnce([
-        makeSession({ id: "session-1", state_name: "First task" }),
+        makeWorkflowRun({ id: "run-1", current_step: "implement" }),
       ])
       .mockResolvedValueOnce([
-        makeSession({ id: "session-1", state_name: "First task" }),
-        makeSession({ id: "session-2", state_name: "Second task" }),
+        makeWorkflowRun({ id: "run-1", current_step: "implement" }),
+        makeWorkflowRun({ id: "run-2", current_step: "review" }),
       ]);
 
     render(

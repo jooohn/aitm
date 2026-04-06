@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import EllipsisIcon from "@/app/components/icons/EllipsisIcon";
 import ExternalLinkIcon from "@/app/components/icons/ExternalLinkIcon";
@@ -29,6 +29,7 @@ import WorkflowStepDiagram from "./WorkflowStepDiagram";
 
 interface Props {
   run: WorkflowRunDetail;
+  basePath?: string;
 }
 
 const STATUS_LABELS: Record<WorkflowRunStatus, string> = {
@@ -57,6 +58,7 @@ function parseDecision(raw: string | null): TransitionDecision | null {
 
 interface StepExecutionItemProps {
   execution: StepExecution;
+  runBasePath: string;
   onResolve?: (
     executionId: string,
     decision: "approved" | "rejected",
@@ -67,18 +69,10 @@ interface StepExecutionItemProps {
 
 function StepExecutionItem({
   execution,
+  runBasePath,
   onResolve,
   resolvingId,
 }: StepExecutionItemProps) {
-  const {
-    organization,
-    name,
-    id: runId,
-  } = useParams<{
-    organization: string;
-    name: string;
-    id: string;
-  }>();
   const [approvalReason, setApprovalReason] = useState("");
   const decision = parseDecision(execution.transition_decision);
   const isRunning = execution.completed_at === null;
@@ -109,7 +103,7 @@ function StepExecutionItem({
       <div className={styles.executionMeta}>
         {execution.session_id && (
           <Link
-            href={`/repositories/${organization}/${name}/workflow-runs/${runId}/sessions/${execution.session_id}`}
+            href={`${runBasePath}/sessions/${execution.session_id}`}
             className={styles.sessionLink}
           >
             Session {execution.session_id.slice(0, 8)}…
@@ -215,7 +209,7 @@ function StepExecutionItem({
   );
 }
 
-export default function WorkflowRunDetail({ run: initial }: Props) {
+export default function WorkflowRunDetail({ run: initial, basePath }: Props) {
   const router = useRouter();
   const [run, setRun] = useState<WorkflowRunDetail>(initial);
   const [rerunning, setRerunning] = useState(false);
@@ -542,6 +536,10 @@ export default function WorkflowRunDetail({ run: initial }: Props) {
               <StepExecutionItem
                 key={execution.id}
                 execution={execution}
+                runBasePath={
+                  basePath ??
+                  `/repositories/${inferAlias(run.repository_path)}/workflow-runs/${run.id}`
+                }
                 onResolve={handleResolve}
                 resolvingId={resolvingId}
               />
