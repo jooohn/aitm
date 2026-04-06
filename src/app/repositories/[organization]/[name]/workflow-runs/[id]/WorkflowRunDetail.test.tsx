@@ -70,33 +70,7 @@ afterEach(() => {
 });
 
 describe("WorkflowRunDetail layout", () => {
-  it("renders a two-pane layout with left and right panes", () => {
-    render(<WorkflowRunDetail run={makeRun()} />);
-
-    const container = screen.getByTestId("workflow-run-layout");
-    expect(container).toBeInTheDocument();
-
-    const leftPane = screen.getByTestId("workflow-run-left-pane");
-    const rightPane = screen.getByTestId("workflow-run-right-pane");
-    expect(leftPane).toBeInTheDocument();
-    expect(rightPane).toBeInTheDocument();
-  });
-
-  it("places step executions section in the left pane", () => {
-    render(
-      <WorkflowRunDetail
-        run={makeRun({
-          step_executions: [makeExecution({ step: "plan" })],
-        })}
-      />,
-    );
-
-    const leftPane = screen.getByTestId("workflow-run-left-pane");
-    expect(within(leftPane).getByText("Step executions")).toBeInTheDocument();
-    expect(within(leftPane).getByText("plan")).toBeInTheDocument();
-  });
-
-  it("places header and details in the right pane", () => {
+  it("renders header, details, and step executions in a single column", () => {
     render(
       <WorkflowRunDetail
         run={makeRun({
@@ -104,15 +78,18 @@ describe("WorkflowRunDetail layout", () => {
           workflow_name: "my-flow",
           repository_path: "/tmp/repo",
           worktree_branch: "feat/test",
+          step_executions: [makeExecution({ step: "plan" })],
         })}
       />,
     );
 
-    const rightPane = screen.getByTestId("workflow-run-right-pane");
-    expect(within(rightPane).getByText("my-flow")).toBeInTheDocument();
-    expect(within(rightPane).getByText("Success")).toBeInTheDocument();
-    expect(within(rightPane).getByText("/tmp/repo")).toBeInTheDocument();
-    expect(within(rightPane).getByText("feat/test")).toBeInTheDocument();
+    const heading = screen.getByRole("heading", { level: 1 });
+    expect(heading).toHaveTextContent("feat/test");
+    expect(heading).toHaveTextContent("my-flow");
+    expect(heading).toHaveTextContent("(run-1)");
+    expect(screen.getByText("Success")).toBeInTheDocument();
+    expect(screen.getByText("Step executions")).toBeInTheDocument();
+    expect(screen.getByText("plan")).toBeInTheDocument();
   });
 });
 
@@ -168,26 +145,26 @@ describe("WorkflowRunDetail", () => {
     expect(within(commandItem!).queryByText("Command succeeded")).toBeNull();
   });
 
-  it("renders a pull request link when metadata contains a PR URL", () => {
+  it("renders a pull request banner when metadata contains a PR URL", () => {
     const metadata = JSON.stringify({
       presets__pull_request_url: "https://github.com/org/repo/pull/42",
     });
     render(<WorkflowRunDetail run={makeRun({ metadata })} />);
 
     const prLink = screen.getByRole("link", {
-      name: "https://github.com/org/repo/pull/42",
+      name: /Pull request created/,
     });
     expect(prLink).toBeInTheDocument();
     expect(prLink).toHaveAttribute(
       "href",
       "https://github.com/org/repo/pull/42",
     );
-    expect(screen.getByText("Pull request")).toBeInTheDocument();
+    expect(prLink).toHaveTextContent("org/repo#42");
   });
 
-  it("does not render a pull request row when metadata is null", () => {
+  it("does not render a pull request banner when metadata is null", () => {
     render(<WorkflowRunDetail run={makeRun({ metadata: null })} />);
 
-    expect(screen.queryByText("Pull request")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Pull request created/)).not.toBeInTheDocument();
   });
 });

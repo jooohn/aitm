@@ -10,6 +10,7 @@ import {
   type Repository,
   type WorkflowDefinition,
 } from "@/lib/utils/api";
+import { workflowRunPath } from "@/lib/utils/workflowRunPath";
 import styles from "./HomeQuickLaunchSection.module.css";
 import WorkflowLaunchForm from "./WorkflowLaunchForm";
 
@@ -69,7 +70,7 @@ export default function HomeQuickLaunchSection() {
         workflow_name: selectedWorkflow,
         inputs: Object.keys(inputValues).length > 0 ? inputValues : undefined,
       });
-      router.push(`/workflow-runs/${run.id}`);
+      router.push(workflowRunPath(run));
     } catch (err) {
       setSubmitError(
         err instanceof Error

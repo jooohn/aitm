@@ -10,6 +10,7 @@ import {
   type WorkflowRun,
   type WorkflowRunStatus,
 } from "@/lib/utils/api";
+import { workflowRunPath } from "@/lib/utils/workflowRunPath";
 import WorkflowLaunchForm from "./WorkflowLaunchForm";
 
 import styles from "./WorkflowSection.module.css";
@@ -114,7 +115,7 @@ export default function WorkflowSection({ repositoryPath, branch }: Props) {
                     {STATUS_LABELS[run.status]}
                   </span>
                   <Link
-                    href={`/workflow-runs/${run.id}`}
+                    href={workflowRunPath(run)}
                     className={styles.branchName}
                   >
                     {run.worktree_branch}

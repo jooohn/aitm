@@ -133,7 +133,7 @@ describe("SessionDetail – breadcrumb with step_execution_id", () => {
     const stateLink = screen.getByRole("link", { name: "build" });
     expect(stateLink).toHaveAttribute(
       "href",
-      "/workflow-runs/run-123/step-executions/exec-456",
+      "/repositories/acme/app/workflow-runs/run-123/step-executions/exec-456",
     );
   });
 

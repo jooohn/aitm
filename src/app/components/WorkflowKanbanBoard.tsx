@@ -10,6 +10,7 @@ import {
   type WorkflowRunStatus,
 } from "@/lib/utils/api";
 import { extractPullRequestUrl } from "@/lib/utils/extractPullRequestUrl";
+import { workflowRunPath } from "@/lib/utils/workflowRunPath";
 import { getOrderedSteps } from "@/lib/utils/workflowStepOrder";
 import styles from "./WorkflowKanbanBoard.module.css";
 
@@ -175,7 +176,7 @@ export default function WorkflowKanbanBoard({
                             role="row"
                           >
                             <Link
-                              href={`/workflow-runs/${run.id}`}
+                              href={workflowRunPath(run)}
                               className={styles.cardBranch}
                             >
                               {run.worktree_branch}

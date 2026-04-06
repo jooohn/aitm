@@ -9,7 +9,6 @@ import {
   type StepExecution,
   type WorkflowRunDetail,
 } from "@/lib/utils/api";
-import { inferAlias } from "@/lib/utils/inferAlias";
 import styles from "./page.module.css";
 
 interface TransitionDecision {
@@ -28,7 +27,12 @@ function parseDecision(raw: string | null): TransitionDecision | null {
 }
 
 export default function StepExecutionPage() {
-  const { id, executionId } = useParams<{ id: string; executionId: string }>();
+  const { id, executionId, organization, name } = useParams<{
+    id: string;
+    executionId: string;
+    organization: string;
+    name: string;
+  }>();
   const [run, setRun] = useState<WorkflowRunDetail | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -45,15 +49,13 @@ export default function StepExecutionPage() {
   const execution = run.step_executions.find((e) => e.id === executionId);
   if (!execution) return notFound();
 
-  const repoAlias = inferAlias(run.repository_path);
-  const [organization, repoName] = repoAlias.split("/");
   const decision = parseDecision(execution.transition_decision);
   const isRunning = execution.completed_at === null;
 
   return (
     <main className={styles.page}>
       <WorkflowBreadcrumb
-        repository={{ organization, name: repoName }}
+        repository={{ organization, name }}
         branch={run.worktree_branch}
         workflowRun={{ id: run.id, name: run.workflow_name }}
         stepExecution={{

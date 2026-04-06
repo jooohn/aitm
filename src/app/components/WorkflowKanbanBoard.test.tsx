@@ -146,7 +146,10 @@ describe("WorkflowKanbanBoard", () => {
 
     // The card should link to the workflow run detail page
     const link = screen.getByRole("link", { name: "feat-a" });
-    expect(link).toHaveAttribute("href", "/workflow-runs/r1");
+    expect(link).toHaveAttribute(
+      "href",
+      "/repositories/org/name/workflow-runs/r1",
+    );
   });
 
   it("places successful runs in the Success column", async () => {

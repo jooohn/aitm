@@ -43,7 +43,7 @@ export default function WorkflowBreadcrumb({
           <span className={styles.breadcrumbSep}>/</span>
           {hasStepExecution || hasSession ? (
             <Link
-              href={`/workflow-runs/${workflowRun.id}`}
+              href={`${repoHref}/workflow-runs/${workflowRun.id}`}
               className={styles.breadcrumbLink}
             >
               {workflowRun.name}
@@ -60,7 +60,7 @@ export default function WorkflowBreadcrumb({
           <span className={styles.breadcrumbSep}>/</span>
           {hasSession ? (
             <Link
-              href={`/workflow-runs/${stepExecution.workflowRunId}/step-executions/${stepExecution.id}`}
+              href={`${repoHref}/workflow-runs/${stepExecution.workflowRunId}/step-executions/${stepExecution.id}`}
               className={styles.breadcrumbLink}
             >
               {stepExecution.stepName}

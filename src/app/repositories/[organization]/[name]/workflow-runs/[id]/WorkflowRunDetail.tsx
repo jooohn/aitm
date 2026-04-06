@@ -16,6 +16,8 @@ import {
   type WorkflowRunStatus,
 } from "@/lib/utils/api";
 import { extractPullRequestUrl } from "@/lib/utils/extractPullRequestUrl";
+import { inferAlias } from "@/lib/utils/inferAlias";
+import { workflowRunPath } from "@/lib/utils/workflowRunPath";
 import { parseWorkflowRunInputs } from "./parseWorkflowRunInputs";
 import styles from "./WorkflowRunDetail.module.css";
 import WorkflowStepDiagram from "./WorkflowStepDiagram";
@@ -163,6 +165,9 @@ export default function WorkflowRunDetail({ run: initial }: Props) {
 
   const isTerminal = TERMINAL_STATUSES.includes(run.status);
   const inputEntries = parseWorkflowRunInputs(run.inputs);
+  const inputLabelMap = new Map(
+    workflowDefinition?.inputs?.map((i) => [i.name, i.label]),
+  );
   const canStop = canStopWorkflowRun(run);
   const pullRequestUrl = extractPullRequestUrl(run.metadata);
 
@@ -171,7 +176,7 @@ export default function WorkflowRunDetail({ run: initial }: Props) {
     setRerunError(null);
     try {
       const newRun = await rerunWorkflowRun(run.id);
-      router.push(`/workflow-runs/${newRun.id}`);
+      router.push(workflowRunPath(newRun));
     } catch (err) {
       setRerunError(err instanceof Error ? err.message : "Re-run failed");
     } finally {
@@ -241,137 +246,141 @@ export default function WorkflowRunDetail({ run: initial }: Props) {
 
   return (
     <div className={styles.container}>
-      <div className={styles.layout} data-testid="workflow-run-layout">
-        <div className={styles.leftPane} data-testid="workflow-run-left-pane">
-          {workflowDefinition && (
-            <section>
-              <h2 className={styles.sectionHeading}>Step diagram</h2>
-              <WorkflowStepDiagram
-                definition={workflowDefinition}
-                stepExecutions={run.step_executions}
-                currentStep={run.current_step}
-                status={run.status}
-              />
-            </section>
-          )}
-
-          <section>
-            <h2 className={styles.sectionHeading}>Step executions</h2>
-            {run.step_executions.length === 0 ? (
-              <p className={styles.empty}>No step executions yet.</p>
-            ) : (
-              <ul className={styles.executions}>
-                {[...run.step_executions].reverse().map((execution) => (
-                  <StepExecutionItem key={execution.id} execution={execution} />
-                ))}
-              </ul>
-            )}
-          </section>
+      <div className={styles.header}>
+        <div className={styles.headerLeft}>
+          <span className={`${styles.badge} ${styles[`badge-${run.status}`]}`}>
+            {STATUS_LABELS[run.status]}
+          </span>
+          <h1 className={styles.title}>
+            <Link
+              href={`/repositories/${inferAlias(run.repository_path)}/worktrees/${run.worktree_branch}`}
+              className={styles.titleBranchLink}
+            >
+              {run.worktree_branch}
+            </Link>
+            <span className={styles.titleSeparator}>/</span>
+            {run.workflow_name}
+            <span className={styles.titleRunId}>({run.id})</span>
+          </h1>
+          <p className={styles.headerTimestamps}>
+            Created at {new Date(run.created_at).toLocaleString()}, Last
+            modified at {new Date(run.updated_at).toLocaleString()}
+          </p>
         </div>
-
-        <div className={styles.rightPane} data-testid="workflow-run-right-pane">
-          <div className={styles.header}>
-            <div className={styles.headerLeft}>
-              <span
-                className={`${styles.badge} ${styles[`badge-${run.status}`]}`}
-              >
-                {STATUS_LABELS[run.status]}
-              </span>
-              <h1 className={styles.title}>{run.workflow_name}</h1>
-            </div>
-            {canStop && (
-              <div className={styles.headerActions}>
-                <button
-                  className={styles.stopButton}
-                  onClick={handleStop}
-                  disabled={stopping}
-                >
-                  {stopping ? "Stopping…" : "Emergency stop"}
-                </button>
-                {stopError && <p className={styles.rerunError}>{stopError}</p>}
-              </div>
-            )}
-            {run.status === "failure" && (
-              <div className={styles.headerActions}>
-                <button
-                  className={styles.rerunButton}
-                  onClick={handleRerun}
-                  disabled={rerunning}
-                >
-                  {rerunning ? "Re-running…" : "Re-run"}
-                </button>
-                <button
-                  className={styles.rerunButton}
-                  onClick={handleRerunFromFailed}
-                  disabled={rerunningFromFailed}
-                >
-                  {rerunningFromFailed
-                    ? "Re-running…"
-                    : "Re-run from failed step"}
-                </button>
-                {rerunError && (
-                  <p className={styles.rerunError}>{rerunError}</p>
-                )}
-                {rerunFromFailedError && (
-                  <p className={styles.rerunError}>{rerunFromFailedError}</p>
-                )}
-              </div>
+        {canStop && (
+          <div className={styles.headerActions}>
+            <button
+              className={styles.stopButton}
+              onClick={handleStop}
+              disabled={stopping}
+            >
+              {stopping ? "Stopping…" : "Emergency stop"}
+            </button>
+            {stopError && <p className={styles.rerunError}>{stopError}</p>}
+          </div>
+        )}
+        {run.status === "failure" && (
+          <div className={styles.headerActions}>
+            <button
+              className={styles.rerunButton}
+              onClick={handleRerun}
+              disabled={rerunning}
+            >
+              {rerunning ? "Re-running…" : "Re-run"}
+            </button>
+            <button
+              className={styles.rerunButton}
+              onClick={handleRerunFromFailed}
+              disabled={rerunningFromFailed}
+            >
+              {rerunningFromFailed ? "Re-running…" : "Re-run from failed step"}
+            </button>
+            {rerunError && <p className={styles.rerunError}>{rerunError}</p>}
+            {rerunFromFailedError && (
+              <p className={styles.rerunError}>{rerunFromFailedError}</p>
             )}
           </div>
-
-          <dl className={styles.details}>
-            <div className={styles.detailRow}>
-              <dt className={styles.detailLabel}>Repository</dt>
-              <dd className={styles.detailValue}>{run.repository_path}</dd>
-            </div>
-            <div className={styles.detailRow}>
-              <dt className={styles.detailLabel}>Branch</dt>
-              <dd className={styles.detailValue}>{run.worktree_branch}</dd>
-            </div>
-            {run.current_step && (
-              <div className={styles.detailRow}>
-                <dt className={styles.detailLabel}>Current step</dt>
-                <dd className={styles.detailValue}>{run.current_step}</dd>
-              </div>
-            )}
-            <div className={styles.detailRow}>
-              <dt className={styles.detailLabel}>Started</dt>
-              <dd className={styles.detailValue}>
-                {new Date(run.created_at).toLocaleString()}
-              </dd>
-            </div>
-            {pullRequestUrl && (
-              <div className={styles.detailRow}>
-                <dt className={styles.detailLabel}>Pull request</dt>
-                <dd className={styles.detailValue}>
-                  <a
-                    href={pullRequestUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    {pullRequestUrl}
-                  </a>
-                </dd>
-              </div>
-            )}
-            {inputEntries.length > 0 && (
-              <div className={styles.detailRow}>
-                <dt className={styles.detailLabel}>Inputs</dt>
-                <dd className={styles.detailValue}>
-                  <dl className={styles.inputsList}>
-                    {inputEntries.map((entry) => (
-                      <div key={entry.key} className={styles.inputItem}>
-                        <dt className={styles.inputKey}>{entry.key}</dt>
-                        <dd className={styles.inputValue}>{entry.value}</dd>
-                      </div>
-                    ))}
-                  </dl>
-                </dd>
-              </div>
-            )}
-          </dl>
-        </div>
+        )}
       </div>
+
+      {pullRequestUrl && (
+        <a
+          href={pullRequestUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={styles.prBanner}
+        >
+          <span className={styles.prBannerText}>
+            Pull request created:{" "}
+            <span className={styles.prBannerUrl}>
+              {pullRequestUrl.match(/\/pull\/(\d+)/)
+                ? `${pullRequestUrl.match(/github\.com\/([^/]+\/[^/]+)/)?.[1]}#${pullRequestUrl.match(/\/pull\/(\d+)/)?.[1]}`
+                : pullRequestUrl}
+            </span>
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className={styles.prBannerIcon}
+              aria-hidden="true"
+            >
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+              <polyline points="15 3 21 3 21 9" />
+              <line x1="10" y1="14" x2="21" y2="3" />
+            </svg>
+          </span>
+        </a>
+      )}
+
+      <dl className={styles.details}>
+        {run.current_step && (
+          <div className={styles.detailRow}>
+            <dt className={styles.detailLabel}>Current step</dt>
+            <dd className={styles.detailValue}>{run.current_step}</dd>
+          </div>
+        )}
+        {inputEntries.length > 0 && (
+          <h2 className={styles.sectionHeading}>Inputs</h2>
+        )}
+        {inputEntries.map((entry) => (
+          <div key={entry.key} className={styles.detailRow}>
+            <dt className={styles.detailLabel}>
+              {inputLabelMap.get(entry.key) ?? entry.key}
+            </dt>
+            <dd className={styles.detailValue}>{entry.value}</dd>
+          </div>
+        ))}
+      </dl>
+
+      {workflowDefinition && (
+        <section>
+          <h2 className={styles.sectionHeading}>Step diagram</h2>
+          <WorkflowStepDiagram
+            definition={workflowDefinition}
+            stepExecutions={run.step_executions}
+            currentStep={run.current_step}
+            status={run.status}
+          />
+        </section>
+      )}
+
+      <section>
+        <h2 className={styles.sectionHeading}>Step executions</h2>
+        {run.step_executions.length === 0 ? (
+          <p className={styles.empty}>No step executions yet.</p>
+        ) : (
+          <ul className={styles.executions}>
+            {[...run.step_executions].reverse().map((execution) => (
+              <StepExecutionItem key={execution.id} execution={execution} />
+            ))}
+          </ul>
+        )}
+      </section>
     </div>
   );
 }

@@ -70,7 +70,7 @@ describe("WorkflowBreadcrumb", () => {
     expect(screen.getByRole("link", { name: "feat/new" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "deploy" })).toHaveAttribute(
       "href",
-      "/workflow-runs/run-123",
+      "/repositories/acme/app/workflow-runs/run-123",
     );
 
     // Step execution is current page → plain text
@@ -97,7 +97,7 @@ describe("WorkflowBreadcrumb", () => {
     expect(screen.getByRole("link", { name: "deploy" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "build" })).toHaveAttribute(
       "href",
-      "/workflow-runs/run-123/step-executions/exec-456",
+      "/repositories/acme/app/workflow-runs/run-123/step-executions/exec-456",
     );
 
     // Session label is current page → plain text

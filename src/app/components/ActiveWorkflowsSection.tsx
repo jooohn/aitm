@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { fetchAllWorkflowRuns, type WorkflowRun } from "@/lib/utils/api";
+import { workflowRunPath } from "@/lib/utils/workflowRunPath";
 import styles from "./ActiveWorkflowsSection.module.css";
 
 function repoAlias(repositoryPath: string): string {
@@ -64,7 +65,7 @@ export default function ActiveWorkflowsSection() {
                     {repoAlias(run.repository_path)}
                   </span>
                   <Link
-                    href={`/workflow-runs/${run.id}`}
+                    href={workflowRunPath(run)}
                     className={styles.branchName}
                   >
                     {run.worktree_branch}
