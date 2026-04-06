@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  failSession,
   fetchSession,
   replyToSession,
   type Session,
@@ -64,8 +63,6 @@ export default function SessionDetail({
 }: Props) {
   const [session, setSession] = useState<Session>(initial);
   const [outputItems, setOutputItems] = useState<OutputItem[]>([]);
-  const [failing, setFailing] = useState(false);
-  const [failError, setFailError] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
   const [replying, setReplying] = useState(false);
   const [replyError, setReplyError] = useState<string | null>(null);
@@ -82,8 +79,6 @@ export default function SessionDetail({
   // biome-ignore lint/correctness/useExhaustiveDependencies: reset UI state when a different session is passed in
   useEffect(() => {
     setOutputItems([]);
-    setFailing(false);
-    setFailError(null);
     setReplyText("");
     setReplying(false);
     setReplyError(null);
@@ -166,21 +161,6 @@ export default function SessionDetail({
     autoScrollRef.current = scrollTop + clientHeight >= scrollHeight - 10;
   }
 
-  async function handleFail() {
-    setFailing(true);
-    setFailError(null);
-    try {
-      const updated = await failSession(session.id);
-      applySessionUpdate(updated);
-    } catch (err) {
-      setFailError(
-        err instanceof Error ? err.message : "Failed to mark session as failed",
-      );
-    } finally {
-      setFailing(false);
-    }
-  }
-
   async function handleReply(e: React.FormEvent) {
     e.preventDefault();
     if (!replyText.trim()) return;
@@ -209,18 +189,7 @@ export default function SessionDetail({
             {STATUS_LABELS[session.status]}
           </span>
         </div>
-        {!isTerminal && (
-          <button
-            type="button"
-            className={styles.failButton}
-            disabled={failing}
-            onClick={handleFail}
-          >
-            {failing ? "Failing…" : "Mark as failed"}
-          </button>
-        )}
       </div>
-      {failError && <p className={styles.error}>{failError}</p>}
 
       <section>
         <h2 className={styles.sectionHeading}>Goal</h2>
