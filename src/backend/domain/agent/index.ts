@@ -8,7 +8,7 @@ import type {
 } from "@/backend/infra/config";
 import { db } from "@/backend/infra/db";
 import { eventBus } from "@/backend/infra/event-bus";
-import { claudeCLI } from "./claude-cli";
+import { claudeSDK } from "./claude-sdk";
 import { codexSDK } from "./codex-sdk";
 import { DEFAULT_PERMISSION_MODE } from "./permission-mode";
 import type { AgentMessage, AgentRuntime, SessionTransition } from "./runtime";
@@ -103,7 +103,7 @@ function buildTransitionsSection(transitions: SessionTransition[]): string {
 }
 
 function selectRuntime(agentConfig: AgentConfig): AgentRuntime {
-  return agentConfig.provider === "codex" ? codexSDK : claudeCLI;
+  return agentConfig.provider === "codex" ? codexSDK : claudeSDK;
 }
 
 const CORE_DECISION_KEYS = new Set(["transition", "reason", "handoff_summary"]);
