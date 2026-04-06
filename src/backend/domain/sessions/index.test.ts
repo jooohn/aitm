@@ -294,6 +294,7 @@ describe("failSession", () => {
     expect(listener).toHaveBeenCalledWith({
       sessionId: session.id,
       status: "FAILED",
+      decision: null,
     });
     eventBus.off("session.status-changed", listener);
   });
@@ -449,7 +450,7 @@ describe("replyToSession", () => {
 });
 
 describe("agent-session.completed subscription", () => {
-  it("marks the session as SUCCEEDED and emits session.completed", async () => {
+  it("marks the session as SUCCEEDED and emits terminal session.status-changed", async () => {
     const repoPath = await makeFakeGitRepo();
     const session = await createSession({
       repository_path: repoPath,
@@ -457,10 +458,8 @@ describe("agent-session.completed subscription", () => {
       goal: "A",
       transitions: DEFAULT_TRANSITIONS,
     });
-    const completedListener = vi.fn();
     const statusListener = vi.fn();
 
-    eventBus.on("session.completed", completedListener);
     eventBus.on("session.status-changed", statusListener);
     eventBus.emit("agent-session.completed", {
       sessionId: session.id,
@@ -475,20 +474,16 @@ describe("agent-session.completed subscription", () => {
     expect(statusListener).toHaveBeenCalledWith({
       sessionId: session.id,
       status: "SUCCEEDED",
-    });
-    expect(completedListener).toHaveBeenCalledWith({
-      sessionId: session.id,
       decision: {
         transition: "implement",
         reason: "done",
         handoff_summary: "finished",
       },
     });
-    eventBus.off("session.completed", completedListener);
     eventBus.off("session.status-changed", statusListener);
   });
 
-  it("emits session.completed only once for a terminal agent completion", async () => {
+  it("emits terminal session.status-changed only once for a terminal agent completion", async () => {
     const repoPath = await makeFakeGitRepo();
     const session = await createSession({
       repository_path: repoPath,
@@ -496,14 +491,14 @@ describe("agent-session.completed subscription", () => {
       goal: "A",
       transitions: DEFAULT_TRANSITIONS,
     });
-    const completedListener = vi.fn();
+    const statusListener = vi.fn();
     const decision = {
       transition: "implement",
       reason: "done",
       handoff_summary: "finished",
     };
 
-    eventBus.on("session.completed", completedListener);
+    eventBus.on("session.status-changed", statusListener);
 
     const onComplete = vi
       .mocked(agentService.startAgent)
@@ -515,12 +510,13 @@ describe("agent-session.completed subscription", () => {
       decision,
     });
 
-    expect(completedListener).toHaveBeenCalledTimes(1);
-    expect(completedListener).toHaveBeenCalledWith({
+    expect(statusListener).toHaveBeenCalledTimes(1);
+    expect(statusListener).toHaveBeenCalledWith({
       sessionId: session.id,
+      status: "SUCCEEDED",
       decision,
     });
 
-    eventBus.off("session.completed", completedListener);
+    eventBus.off("session.status-changed", statusListener);
   });
 });

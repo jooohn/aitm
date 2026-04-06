@@ -9,8 +9,40 @@ export class SessionRepository {
     private eventBus?: EventBus,
   ) {}
 
-  private emitStatusChanged(sessionId: string, status: SessionStatus): void {
-    this.eventBus?.emit("session.status-changed", { sessionId, status });
+  private emitStatusChanged(
+    sessionId: string,
+    status: SessionStatus,
+    decision?: TransitionDecision | null,
+  ): void {
+    if (!this.eventBus) return;
+
+    if (status === "SUCCEEDED") {
+      if (!decision) {
+        throw new Error(
+          `session.status-changed requires a decision for SUCCEEDED sessions: ${sessionId}`,
+        );
+      }
+      this.eventBus.emit("session.status-changed", {
+        sessionId,
+        status,
+        decision,
+      });
+      return;
+    }
+
+    if (status === "FAILED") {
+      this.eventBus.emit("session.status-changed", {
+        sessionId,
+        status,
+        decision: null,
+      });
+      return;
+    }
+
+    this.eventBus.emit("session.status-changed", {
+      sessionId,
+      status,
+    });
   }
 
   private updateSessionStatus(
@@ -19,6 +51,7 @@ export class SessionRepository {
     now: string,
     whereClause: string,
     params: unknown[] = [],
+    decision?: TransitionDecision | null,
   ): boolean {
     const result = this.db
       .prepare(
@@ -29,7 +62,7 @@ export class SessionRepository {
       .run(status, now, id, ...params);
 
     if (result.changes > 0) {
-      this.emitStatusChanged(id, status);
+      this.emitStatusChanged(id, status, decision);
       return true;
     }
 
@@ -200,21 +233,33 @@ export class SessionRepository {
     );
   }
 
-  setSessionSucceeded(id: string, now: string): boolean {
+  setSessionSucceeded(
+    id: string,
+    now: string,
+    decision?: TransitionDecision | null,
+  ): boolean {
     return this.updateSessionStatus(
       id,
       "SUCCEEDED",
       now,
       "status NOT IN ('SUCCEEDED', 'FAILED')",
+      [],
+      decision,
     );
   }
 
-  setSessionFailed(id: string, now: string): boolean {
+  setSessionFailed(
+    id: string,
+    now: string,
+    decision?: TransitionDecision | null,
+  ): boolean {
     return this.updateSessionStatus(
       id,
       "FAILED",
       now,
       "status NOT IN ('SUCCEEDED', 'FAILED')",
+      [],
+      decision,
     );
   }
 

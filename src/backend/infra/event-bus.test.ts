@@ -8,14 +8,16 @@ describe("EventBus", () => {
     const eventBus = new EventBus();
     const listener = vi.fn();
 
-    eventBus.on("session.completed", listener);
-    eventBus.emit("session.completed", {
+    eventBus.on("session.status-changed", listener);
+    eventBus.emit("session.status-changed", {
       sessionId: "s1",
+      status: "SUCCEEDED",
       decision: { transition: "success", reason: "done", handoff_summary: "" },
     });
 
     expect(listener).toHaveBeenCalledWith({
       sessionId: "s1",
+      status: "SUCCEEDED",
       decision: { transition: "success", reason: "done", handoff_summary: "" },
     });
   });
@@ -41,9 +43,13 @@ describe("EventBus", () => {
     const listener1 = vi.fn();
     const listener2 = vi.fn();
 
-    eventBus.on("session.completed", listener1);
-    eventBus.on("session.completed", listener2);
-    eventBus.emit("session.completed", { sessionId: "s1", decision: null });
+    eventBus.on("session.status-changed", listener1);
+    eventBus.on("session.status-changed", listener2);
+    eventBus.emit("session.status-changed", {
+      sessionId: "s1",
+      status: "FAILED",
+      decision: null,
+    });
 
     expect(listener1).toHaveBeenCalledOnce();
     expect(listener2).toHaveBeenCalledOnce();
@@ -53,7 +59,7 @@ describe("EventBus", () => {
     const eventBus = new EventBus();
     const listener = vi.fn();
 
-    eventBus.on("session.completed", listener);
+    eventBus.on("session.status-changed", listener);
     // No other events to emit in the current EventMap, but if there were,
     // listeners would not be cross-called. Verify no call without emit.
     expect(listener).not.toHaveBeenCalled();
@@ -67,14 +73,18 @@ describe("EventBus", () => {
     });
     const goodListener = vi.fn();
 
-    eventBus.on("session.completed", badListener);
-    eventBus.on("session.completed", goodListener);
-    eventBus.emit("session.completed", { sessionId: "s1", decision: null });
+    eventBus.on("session.status-changed", badListener);
+    eventBus.on("session.status-changed", goodListener);
+    eventBus.emit("session.status-changed", {
+      sessionId: "s1",
+      status: "FAILED",
+      decision: null,
+    });
 
     expect(badListener).toHaveBeenCalledOnce();
     expect(goodListener).toHaveBeenCalledOnce();
     expect(errorSpy).toHaveBeenCalledWith(
-      expect.objectContaining({ eventName: "session.completed" }),
+      expect.objectContaining({ eventName: "session.status-changed" }),
       "Event listener error",
     );
 
@@ -85,7 +95,11 @@ describe("EventBus", () => {
     const eventBus = new EventBus();
     // Should not throw
     expect(() =>
-      eventBus.emit("session.completed", { sessionId: "s1", decision: null }),
+      eventBus.emit("session.status-changed", {
+        sessionId: "s1",
+        status: "FAILED",
+        decision: null,
+      }),
     ).not.toThrow();
   });
 
@@ -105,30 +119,34 @@ describe("EventBus", () => {
     });
   });
 
-  it("does not cross-call listeners between session.completed and session.status-changed", () => {
+  it("does not cross-call listeners between session.status-changed and workflow-run.status-changed", () => {
     const eventBus = new EventBus();
-    const completedListener = vi.fn();
+    const sessionListener = vi.fn();
     const statusChangedListener = vi.fn();
 
-    eventBus.on("session.completed", completedListener);
-    eventBus.on("session.status-changed", statusChangedListener);
+    eventBus.on("session.status-changed", sessionListener);
+    eventBus.on("workflow-run.status-changed", statusChangedListener);
 
-    eventBus.emit("session.status-changed", {
-      sessionId: "s1",
-      status: "AWAITING_INPUT",
+    eventBus.emit("workflow-run.status-changed", {
+      workflowRunId: "wr1",
+      status: "awaiting",
     });
 
     expect(statusChangedListener).toHaveBeenCalledOnce();
-    expect(completedListener).not.toHaveBeenCalled();
+    expect(sessionListener).not.toHaveBeenCalled();
   });
 
   it("removes a listener with off()", () => {
     const eventBus = new EventBus();
     const listener = vi.fn();
 
-    eventBus.on("session.completed", listener);
-    eventBus.off("session.completed", listener);
-    eventBus.emit("session.completed", { sessionId: "s1", decision: null });
+    eventBus.on("session.status-changed", listener);
+    eventBus.off("session.status-changed", listener);
+    eventBus.emit("session.status-changed", {
+      sessionId: "s1",
+      status: "FAILED",
+      decision: null,
+    });
 
     expect(listener).not.toHaveBeenCalled();
   });
@@ -138,10 +156,14 @@ describe("EventBus", () => {
     const listenerA = vi.fn();
     const listenerB = vi.fn();
 
-    eventBus.on("session.completed", listenerA);
-    eventBus.on("session.completed", listenerB);
-    eventBus.off("session.completed", listenerA);
-    eventBus.emit("session.completed", { sessionId: "s1", decision: null });
+    eventBus.on("session.status-changed", listenerA);
+    eventBus.on("session.status-changed", listenerB);
+    eventBus.off("session.status-changed", listenerA);
+    eventBus.emit("session.status-changed", {
+      sessionId: "s1",
+      status: "FAILED",
+      decision: null,
+    });
 
     expect(listenerA).not.toHaveBeenCalled();
     expect(listenerB).toHaveBeenCalledOnce();
@@ -152,6 +174,8 @@ describe("EventBus", () => {
     const listener = vi.fn();
 
     // Should not throw
-    expect(() => eventBus.off("session.completed", listener)).not.toThrow();
+    expect(() =>
+      eventBus.off("session.status-changed", listener),
+    ).not.toThrow();
   });
 });

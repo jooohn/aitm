@@ -17,12 +17,11 @@ Direct service-to-service calls create tight coupling. For example, `SessionServ
 
 Use a typed in-process `EventBus` (`src/backend/infra/event-bus.ts`) for inter-service communication. The EventBus provides a strongly-typed publish/subscribe mechanism with the following events:
 
-- `session.completed` — emitted when a session reaches a real workflow transition (not `__REQUIRE_USER_INPUT__`)
-- `session.status-changed` — emitted on any session status change
+- `session.status-changed` — emitted on session status changes as a discriminated union; `SUCCEEDED` includes a transition decision and `FAILED` includes `decision: null`
 - `step-execution.awaiting-approval` — emitted when a manual approval step is reached
 - `workflow-run.status-changed` — emitted when a workflow run's status changes
 
-Services subscribe to events in their constructors. For example, `WorkflowRunService` subscribes to `session.completed` to advance the workflow when a session finishes.
+Services subscribe to events in their constructors. For example, `WorkflowRunService` subscribes to `session.status-changed` to track pauses/resumes and advance the workflow when a session finishes.
 
 ## Consequences
 

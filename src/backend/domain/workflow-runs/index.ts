@@ -129,11 +129,14 @@ export class WorkflowRunService {
     private commandStepExecutor: CommandStepExecutor,
     private eventBus: EventBus,
   ) {
-    eventBus.on("session.completed", ({ sessionId, decision }) => {
-      this.handleSessionComplete(sessionId, decision);
-    });
-    eventBus.on("session.status-changed", ({ sessionId, status }) => {
-      this.handleSessionStatusChanged(sessionId, status);
+    eventBus.on("session.status-changed", ({ sessionId, status, decision }) => {
+      void this.handleSessionStatusChanged(sessionId, status, decision).catch(
+        (err) =>
+          logger.error(
+            { err, sessionId, status },
+            "Failed to handle session status change",
+          ),
+      );
     });
     eventBus.on(
       "step-execution.status-changed",
@@ -143,19 +146,11 @@ export class WorkflowRunService {
     );
   }
 
-  private async handleSessionComplete(
-    sessionId: string,
-    decision: TransitionDecision | null,
-  ): Promise<void> {
-    const session = this.sessionService.getSession(sessionId);
-    if (!session?.step_execution_id) return;
-    await this.completeStepExecution(session.step_execution_id, decision);
-  }
-
-  private handleSessionStatusChanged(
+  private async handleSessionStatusChanged(
     sessionId: string,
     status: SessionStatus,
-  ): void {
+    decision?: TransitionDecision | null,
+  ): Promise<void> {
     const activeExecution =
       this.workflowRunRepository.findActiveExecutionBySessionId(sessionId);
     if (!activeExecution) return;
@@ -170,6 +165,10 @@ export class WorkflowRunService {
         activeExecution.id,
         "running",
       );
+    } else if (status === "SUCCEEDED") {
+      await this.completeStepExecution(activeExecution.id, decision);
+    } else if (status === "FAILED") {
+      await this.completeStepExecution(activeExecution.id, null);
     }
   }
 

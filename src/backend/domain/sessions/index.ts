@@ -105,12 +105,10 @@ export class SessionService {
   ): void {
     const now = new Date().toISOString();
     const didUpdate = decision
-      ? this.sessionRepository.setSessionSucceeded(sessionId, now)
-      : this.sessionRepository.setSessionFailed(sessionId, now);
+      ? this.sessionRepository.setSessionSucceeded(sessionId, now, decision)
+      : this.sessionRepository.setSessionFailed(sessionId, now, null);
 
     if (!didUpdate) return;
-
-    this.eventBus.emit("session.completed", { sessionId, decision });
   }
 
   async createSession(input: CreateSessionInput): Promise<Session> {
@@ -152,12 +150,7 @@ export class SessionService {
         { err, sessionId: id },
         "Failed to resolve worktree for session",
       );
-      if (this.sessionRepository.setSessionFailed(id, now)) {
-        this.eventBus.emit("session.completed", {
-          sessionId: id,
-          decision: null,
-        });
-      }
+      this.sessionRepository.setSessionFailed(id, now, null);
       return this.getSession(id) as Session;
     }
 
@@ -199,14 +192,8 @@ export class SessionService {
     }
 
     const now = new Date().toISOString();
-    const didUpdate = this.sessionRepository.setSessionFailed(id, now);
     this.agentService.cancelAgent(id);
-    if (didUpdate) {
-      this.eventBus.emit("session.completed", {
-        sessionId: id,
-        decision: null,
-      });
-    }
+    this.sessionRepository.setSessionFailed(id, now, null);
 
     return this.getSession(id) as Session;
   }

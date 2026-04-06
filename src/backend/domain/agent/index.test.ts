@@ -91,7 +91,7 @@ function buildAgentService(): AgentService {
   agentSessionCompletedListener = ({ sessionId, decision }) => {
     const now = new Date().toISOString();
     if (decision) {
-      sessionRepository.setSessionSucceeded(sessionId, now);
+      sessionRepository.setSessionSucceeded(sessionId, now, decision);
       return;
     }
 
@@ -629,6 +629,48 @@ describe("resumeAgent", () => {
       .get(sessionId) as { status: string };
     expect(row.status).toBe("AWAITING_INPUT");
     expect(onComplete).not.toHaveBeenCalled();
+  });
+
+  it("emits session.status-changed with RUNNING when resuming", async () => {
+    const agentService = buildAgentService();
+    const repoPath = await makeFakeGitRepo();
+    const sessionId = "session-resume-running-event";
+    const logFilePath = join(tmpdir(), `${sessionId}.log`);
+    insertSession(sessionId, repoPath, logFilePath, {
+      status: "AWAITING_INPUT",
+      claude_session_id: "agent-session-running",
+    });
+
+    const statusChangedListener = vi.fn();
+    eventBus.on("session.status-changed", statusChangedListener);
+
+    resumeMock.mockImplementation(async function* () {
+      yield {
+        type: "result",
+        subtype: "success",
+        structured_output: {
+          transition: "__REQUIRE_USER_INPUT__",
+          reason: "Need more detail",
+          handoff_summary: "Still need clarification",
+        },
+      };
+    });
+
+    await agentService.resumeAgent(
+      sessionId,
+      "Continue",
+      repoPath,
+      [{ terminal: "success", when: "done" }],
+      agentConfig,
+      logFilePath,
+    );
+
+    expect(statusChangedListener).toHaveBeenNthCalledWith(1, {
+      sessionId,
+      status: "RUNNING",
+    });
+
+    eventBus.off("session.status-changed", statusChangedListener);
   });
 
   it("passes metadataFields to buildTransitionOutputFormat on resume", async () => {

@@ -2065,6 +2065,44 @@ workflows:
   });
 
   describe("agent session AWAITING_INPUT sets workflow run to awaiting", () => {
+    it("advances the workflow when agent session emits terminal session.status-changed", async () => {
+      process.env.AITM_CONFIG_PATH = await writeTempConfig(
+        SIMPLE_WORKFLOW_CONFIG,
+      );
+      const repoPath = await makeFakeGitRepo();
+      const run = await createWorkflowRun({
+        repository_path: repoPath,
+        worktree_branch: "feat/test",
+        workflow_name: "my-flow",
+      });
+
+      const execution = db
+        .prepare("SELECT * FROM step_executions WHERE workflow_run_id = ?")
+        .get(run.id) as { id: string };
+      const session = db
+        .prepare("SELECT * FROM sessions WHERE step_execution_id = ?")
+        .get(execution.id) as { id: string };
+
+      db.prepare("UPDATE sessions SET status = 'SUCCEEDED' WHERE id = ?").run(
+        session.id,
+      );
+      eventBus.emit("session.status-changed", {
+        sessionId: session.id,
+        status: "SUCCEEDED",
+        decision: {
+          transition: "implement",
+          reason: "Plan complete",
+          handoff_summary: "Ready for implementation",
+        },
+      });
+
+      await vi.waitFor(() => {
+        const updatedRun = getWorkflowRun(run.id);
+        expect(updatedRun?.status).toBe("running");
+        expect(updatedRun?.current_step).toBe("implement");
+      });
+    });
+
     it("sets workflow run status to 'awaiting' when agent session enters AWAITING_INPUT", async () => {
       process.env.AITM_CONFIG_PATH = await writeTempConfig(
         SIMPLE_WORKFLOW_CONFIG,

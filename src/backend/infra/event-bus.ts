@@ -6,19 +6,28 @@ import type {
 } from "@/backend/domain/workflow-runs";
 import { logger } from "@/backend/infra/logger";
 
+export type SessionStatusChangedEvent =
+  | {
+      sessionId: string;
+      status: "RUNNING" | "AWAITING_INPUT";
+    }
+  | {
+      sessionId: string;
+      status: "FAILED";
+      decision: null;
+    }
+  | {
+      sessionId: string;
+      status: "SUCCEEDED";
+      decision: TransitionDecision;
+    };
+
 export interface EventMap {
   "agent-session.completed": {
     sessionId: string;
     decision: TransitionDecision | null;
   };
-  "session.completed": {
-    sessionId: string;
-    decision: TransitionDecision | null;
-  };
-  "session.status-changed": {
-    sessionId: string;
-    status: SessionStatus;
-  };
+  "session.status-changed": SessionStatusChangedEvent;
   "step-execution.awaiting-approval": {
     stepExecutionId: string;
     workflowRunId: string;
