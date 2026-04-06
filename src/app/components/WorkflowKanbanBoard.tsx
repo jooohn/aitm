@@ -109,7 +109,12 @@ export default function WorkflowKanbanBoard({
     runsByWorkflow.set(run.workflow_name, list);
   }
 
-  const workflowNames = [...runsByWorkflow.keys()];
+  const configOrder = Object.keys(workflows);
+  const workflowNames = [...runsByWorkflow.keys()].sort((a, b) => {
+    const ai = configOrder.indexOf(a);
+    const bi = configOrder.indexOf(b);
+    return (ai === -1 ? Infinity : ai) - (bi === -1 ? Infinity : bi);
+  });
 
   return (
     <section className={styles.section}>
