@@ -8,6 +8,7 @@ import {
   type Session,
   type SessionStatus,
 } from "@/lib/utils/api";
+import { inferAlias } from "@/lib/utils/inferAlias";
 import styles from "./SessionSection.module.css";
 
 interface Props {
@@ -80,7 +81,14 @@ export default function SessionSection({ repositoryPath, branch }: Props) {
           {sessions.map((session) => (
             <li key={session.id} className={styles.item}>
               <div className={styles.info}>
-                <Link href={`/sessions/${session.id}`} className={styles.goal}>
+                <Link
+                  href={
+                    session.workflow_run_id
+                      ? `/repositories/${inferAlias(session.repository_path)}/workflow-runs/${session.workflow_run_id}/sessions/${session.id}`
+                      : `/sessions/${session.id}`
+                  }
+                  className={styles.goal}
+                >
                   {session.step_name ?? session.goal}
                 </Link>
                 <div className={styles.meta}>

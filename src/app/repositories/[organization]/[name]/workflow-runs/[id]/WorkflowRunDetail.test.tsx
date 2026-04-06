@@ -25,6 +25,11 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({
     push: vi.fn(),
   }),
+  useParams: () => ({
+    organization: "my-org",
+    name: "my-repo",
+    id: "run-1",
+  }),
 }));
 
 function makeExecution(

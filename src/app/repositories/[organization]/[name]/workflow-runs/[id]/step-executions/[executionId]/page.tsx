@@ -104,7 +104,7 @@ export default function StepExecutionPage() {
             <dt className={styles.detailLabel}>Session</dt>
             <dd className={styles.detailValue}>
               <Link
-                href={`/sessions/${execution.session_id}`}
+                href={`/repositories/${organization}/${name}/workflow-runs/${id}/sessions/${execution.session_id}`}
                 className={styles.sessionLink}
               >
                 Session {execution.session_id.slice(0, 8)}…

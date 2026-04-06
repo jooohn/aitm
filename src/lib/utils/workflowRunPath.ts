@@ -13,3 +13,10 @@ export function stepExecutionPath(
 ): string {
   return `${workflowRunPath(run)}/step-executions/${executionId}`;
 }
+
+export function sessionPath(
+  run: { id: string; repository_path: string },
+  sessionId: string,
+): string {
+  return `${workflowRunPath(run)}/sessions/${sessionId}`;
+}

@@ -67,21 +67,13 @@ describe("SessionDetail – goal section", () => {
     expect(screen.getByText("Build the feature")).toBeInTheDocument();
   });
 
-  it("renders stateName as h1 when present", () => {
+  it("renders goal text in the goal section", () => {
     const session = makeSession({
       goal: "The full goal text",
       step_name: "Implementing",
     });
     render(<SessionDetail session={session} />);
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
-      "Implementing",
-    );
-  });
-
-  it("does not render h1 when stateName is absent", () => {
-    const session = makeSession({ step_name: null });
-    render(<SessionDetail session={session} />);
-    expect(screen.queryByRole("heading", { level: 1 })).toBeNull();
+    expect(screen.getByText("The full goal text")).toBeInTheDocument();
   });
 });
 
@@ -109,45 +101,8 @@ describe("SessionDetail – status and updates", () => {
       />,
     );
 
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
-      "Second state",
-    );
+    expect(screen.getByText("Second goal")).toBeInTheDocument();
     expect(screen.getByText("Failed")).toBeInTheDocument();
     expect(screen.queryByText("Awaiting input")).not.toBeInTheDocument();
-  });
-});
-
-describe("SessionDetail – breadcrumb with step_execution_id", () => {
-  it("renders state name as a link to state-execution page when step_execution_id is present", () => {
-    const session = makeSession({
-      repository_path: "/tmp/repos/acme/app",
-      worktree_branch: "feat/new",
-      workflow_name: "deploy",
-      workflow_run_id: "run-123",
-      step_name: "build",
-      step_execution_id: "exec-456",
-    });
-    render(<SessionDetail session={session} />);
-
-    // State name should be a link in the breadcrumb (not current page – session is current)
-    const stateLink = screen.getByRole("link", { name: "build" });
-    expect(stateLink).toHaveAttribute(
-      "href",
-      "/repositories/acme/app/workflow-runs/run-123/step-executions/exec-456",
-    );
-  });
-
-  it("renders state name as plain text when step_execution_id is absent", () => {
-    const session = makeSession({
-      workflow_name: "deploy",
-      workflow_run_id: "run-123",
-      step_name: "build",
-      step_execution_id: null,
-    });
-    render(<SessionDetail session={session} />);
-
-    // step_name should appear but not as a link in the breadcrumb
-    expect(screen.getAllByText("build").length).toBeGreaterThanOrEqual(1);
-    expect(screen.queryByRole("link", { name: "build" })).toBeNull();
   });
 });

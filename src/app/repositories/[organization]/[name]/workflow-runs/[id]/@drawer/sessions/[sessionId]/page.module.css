@@ -1,0 +1,75 @@
+@reference "tailwindcss";
+
+.overlay {
+  @apply fixed inset-0 z-50 flex justify-end;
+}
+
+.backdrop {
+  @apply absolute inset-0 bg-black/30 dark:bg-black/50;
+  animation: fadeIn 200ms ease-out;
+}
+
+.drawer {
+  @apply relative w-full max-w-2xl h-full bg-white dark:bg-zinc-900 border-l border-zinc-200 dark:border-zinc-700 shadow-2xl flex flex-col;
+  animation: slideIn 250ms ease-out;
+}
+
+.drawerHeader {
+  @apply flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-zinc-700 shrink-0;
+}
+
+.drawerTitle {
+  @apply text-lg font-semibold text-zinc-900 dark:text-zinc-50 truncate;
+}
+
+.closeButton {
+  @apply shrink-0 p-1 rounded text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer;
+}
+
+.drawerBody {
+  @apply flex-1 overflow-y-auto px-6 py-6;
+}
+
+.backdropClosing {
+  animation: fadeOut 200ms ease-in forwards;
+}
+
+.drawerClosing {
+  animation: slideOut 200ms ease-in forwards;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideOut {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}

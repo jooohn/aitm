@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import {
   canStopWorkflowRun,
@@ -54,6 +54,15 @@ interface StepExecutionItemProps {
 }
 
 function StepExecutionItem({ execution }: StepExecutionItemProps) {
+  const {
+    organization,
+    name,
+    id: runId,
+  } = useParams<{
+    organization: string;
+    name: string;
+    id: string;
+  }>();
   const decision = parseDecision(execution.transition_decision);
   const isRunning = execution.completed_at === null;
   const isCommandExecution = execution.step_type === "command";
@@ -75,7 +84,7 @@ function StepExecutionItem({ execution }: StepExecutionItemProps) {
       <div className={styles.executionMeta}>
         {execution.session_id && (
           <Link
-            href={`/sessions/${execution.session_id}`}
+            href={`/repositories/${organization}/${name}/workflow-runs/${runId}/sessions/${execution.session_id}`}
             className={styles.sessionLink}
           >
             Session {execution.session_id.slice(0, 8)}…

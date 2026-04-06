@@ -20,7 +20,12 @@ vi.mock("next/link", () => ({
   ),
 }));
 
-let mockParams = { id: "run-1", executionId: "exec-1" };
+let mockParams = {
+  id: "run-1",
+  executionId: "exec-1",
+  organization: "my-org",
+  name: "my-repo",
+};
 let mockRunData: WorkflowRunDetail | null = null;
 let mockFetchError = false;
 
@@ -88,7 +93,12 @@ afterEach(() => {
 
 describe("StepExecutionPage", () => {
   it("renders state name and type for an agent execution", async () => {
-    mockParams = { id: "run-1", executionId: "exec-1" };
+    mockParams = {
+      id: "run-1",
+      executionId: "exec-1",
+      organization: "my-org",
+      name: "my-repo",
+    };
     mockRunData = makeRun({
       step_executions: [
         makeExecution({
@@ -109,7 +119,12 @@ describe("StepExecutionPage", () => {
   });
 
   it("renders a link to the session for agent-type executions", async () => {
-    mockParams = { id: "run-1", executionId: "exec-1" };
+    mockParams = {
+      id: "run-1",
+      executionId: "exec-1",
+      organization: "my-org",
+      name: "my-repo",
+    };
     mockRunData = makeRun({
       step_executions: [
         makeExecution({
@@ -125,11 +140,19 @@ describe("StepExecutionPage", () => {
     const sessionLink = await screen.findByRole("link", {
       name: /session/i,
     });
-    expect(sessionLink).toHaveAttribute("href", "/sessions/session-abc");
+    expect(sessionLink).toHaveAttribute(
+      "href",
+      "/repositories/my-org/my-repo/workflow-runs/run-1/sessions/session-abc",
+    );
   });
 
   it("renders command output for command-type executions", async () => {
-    mockParams = { id: "run-1", executionId: "exec-cmd" };
+    mockParams = {
+      id: "run-1",
+      executionId: "exec-cmd",
+      organization: "my-org",
+      name: "my-repo",
+    };
     mockRunData = makeRun({
       step_executions: [
         makeExecution({
@@ -147,7 +170,12 @@ describe("StepExecutionPage", () => {
   });
 
   it("renders transition decision when available", async () => {
-    mockParams = { id: "run-1", executionId: "exec-1" };
+    mockParams = {
+      id: "run-1",
+      executionId: "exec-1",
+      organization: "my-org",
+      name: "my-repo",
+    };
     mockRunData = makeRun({
       step_executions: [
         makeExecution({
@@ -171,7 +199,12 @@ describe("StepExecutionPage", () => {
   });
 
   it("renders completed status when completed_at is set", async () => {
-    mockParams = { id: "run-1", executionId: "exec-1" };
+    mockParams = {
+      id: "run-1",
+      executionId: "exec-1",
+      organization: "my-org",
+      name: "my-repo",
+    };
     mockRunData = makeRun({
       step_executions: [
         makeExecution({
@@ -190,7 +223,12 @@ describe("StepExecutionPage", () => {
   });
 
   it("renders running status when completed_at is null", async () => {
-    mockParams = { id: "run-1", executionId: "exec-1" };
+    mockParams = {
+      id: "run-1",
+      executionId: "exec-1",
+      organization: "my-org",
+      name: "my-repo",
+    };
     mockRunData = makeRun({
       step_executions: [
         makeExecution({
@@ -206,7 +244,12 @@ describe("StepExecutionPage", () => {
   });
 
   it("renders WorkflowBreadcrumb with correct segments", async () => {
-    mockParams = { id: "run-1", executionId: "exec-1" };
+    mockParams = {
+      id: "run-1",
+      executionId: "exec-1",
+      organization: "my-org",
+      name: "my-repo",
+    };
     mockRunData = makeRun({
       id: "run-1",
       repository_path: "/tmp/repos/acme/app",

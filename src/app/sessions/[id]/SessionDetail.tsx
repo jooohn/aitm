@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import WorkflowBreadcrumb from "@/app/components/WorkflowBreadcrumb";
 import {
   failSession,
   fetchSession,
@@ -9,7 +8,6 @@ import {
   type Session,
   type SessionStatus,
 } from "@/lib/utils/api";
-import { inferAlias } from "@/lib/utils/inferAlias";
 import type { OutputItem, ToolGroupItem } from "@/lib/utils/outputItem";
 import { parseLogEntry } from "@/lib/utils/parseLogEntry";
 import OutputItemView from "./OutputItemView";
@@ -201,32 +199,8 @@ export default function SessionDetail({
     }
   }
 
-  const repoAlias = inferAlias(session.repository_path);
-  const [organization, repoName] = repoAlias.split("/");
-
   return (
     <div className={styles.container}>
-      <WorkflowBreadcrumb
-        repository={{ organization, name: repoName }}
-        branch={session.worktree_branch}
-        workflowRun={
-          session.workflow_run_id && session.workflow_name
-            ? { id: session.workflow_run_id, name: session.workflow_name }
-            : undefined
-        }
-        stepExecution={
-          session.step_name &&
-          session.step_execution_id &&
-          session.workflow_run_id
-            ? {
-                id: session.step_execution_id,
-                workflowRunId: session.workflow_run_id,
-                stepName: session.step_name,
-              }
-            : undefined
-        }
-        sessionLabel={session.step_name ?? session.id.slice(0, 8)}
-      />
       <div className={styles.header}>
         <div className={styles.headerLeft}>
           <span
@@ -234,9 +208,6 @@ export default function SessionDetail({
           >
             {STATUS_LABELS[session.status]}
           </span>
-          {session.step_name && (
-            <h1 className={styles.goal}>{session.step_name}</h1>
-          )}
         </div>
         {!isTerminal && (
           <button
