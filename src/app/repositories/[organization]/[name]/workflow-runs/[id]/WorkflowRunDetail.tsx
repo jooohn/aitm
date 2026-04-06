@@ -217,9 +217,7 @@ export default function WorkflowRunDetail({ run: initial }: Props) {
       const updated = await stopWorkflowRun(run.id);
       setRun(updated);
     } catch (err) {
-      setStopError(
-        err instanceof Error ? err.message : "Emergency stop failed",
-      );
+      setStopError(err instanceof Error ? err.message : "Stop failed");
     } finally {
       setStopping(false);
     }
@@ -293,18 +291,6 @@ export default function WorkflowRunDetail({ run: initial }: Props) {
             modified at {new Date(run.updated_at).toLocaleString()}
           </p>
         </div>
-        {canStop && (
-          <div className={styles.headerActions}>
-            <button
-              className={styles.stopButton}
-              onClick={handleStop}
-              disabled={stopping}
-            >
-              {stopping ? "Stopping…" : "Emergency stop"}
-            </button>
-            {stopError && <p className={styles.rerunError}>{stopError}</p>}
-          </div>
-        )}
         {run.status === "failure" && (
           <div className={styles.headerActions}>
             <button
@@ -379,7 +365,21 @@ export default function WorkflowRunDetail({ run: initial }: Props) {
 
       {workflowDefinition && (
         <section>
-          <h2 className={styles.sectionHeading}>Step diagram</h2>
+          <div className={styles.sectionHeader}>
+            <h2 className={styles.sectionHeading}>Step diagram</h2>
+            {canStop && (
+              <div className={styles.stopActions}>
+                <button
+                  className={styles.stopButton}
+                  onClick={handleStop}
+                  disabled={stopping}
+                >
+                  {stopping ? "Stopping…" : "Stop Immediately"}
+                </button>
+                {stopError && <p className={styles.rerunError}>{stopError}</p>}
+              </div>
+            )}
+          </div>
           <WorkflowStepDiagram
             definition={workflowDefinition}
             stepExecutions={run.step_executions}
