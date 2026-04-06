@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   canStopWorkflowRun,
   fetchWorkflowRun,
@@ -59,7 +59,7 @@ function StepExecutionItem({ execution }: StepExecutionItemProps) {
   const isCommandExecution = execution.step_type === "command";
 
   return (
-    <li className={styles.execution}>
+    <li id={`step-execution-${execution.id}`} className={styles.execution}>
       <div className={styles.executionHeader}>
         <span className={styles.stateName}>{execution.step}</span>
         {isRunning ? (
@@ -170,6 +170,23 @@ export default function WorkflowRunDetail({ run: initial }: Props) {
   );
   const canStop = canStopWorkflowRun(run);
   const pullRequestUrl = extractPullRequestUrl(run.metadata);
+
+  const handleStepClick = useCallback(
+    (stepId: string) => {
+      // Find the latest execution for this step
+      const latest = [...run.step_executions]
+        .reverse()
+        .find((e) => e.step === stepId);
+      if (!latest) return;
+      const el = document.getElementById(`step-execution-${latest.id}`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        el.classList.add(styles.highlight);
+        setTimeout(() => el.classList.remove(styles.highlight), 1500);
+      }
+    },
+    [run.step_executions],
+  );
 
   async function handleRerun() {
     setRerunning(true);
@@ -365,6 +382,7 @@ export default function WorkflowRunDetail({ run: initial }: Props) {
             stepExecutions={run.step_executions}
             currentStep={run.current_step}
             status={run.status}
+            onStepClick={handleStepClick}
           />
         </section>
       )}

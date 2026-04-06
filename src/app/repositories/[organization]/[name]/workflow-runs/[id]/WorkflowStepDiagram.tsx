@@ -13,14 +13,15 @@ interface Props {
   stepExecutions: StepExecution[];
   currentStep: string | null;
   status: WorkflowRunStatus;
+  onStepClick?: (stepId: string) => void;
 }
 
 const NODE_WIDTH = 140;
 const NODE_HEIGHT = 44;
 const LAYER_GAP = 180;
-const ROW_GAP = 80;
-const PADDING = 40;
-const TERMINAL_RADIUS = 22;
+const ROW_GAP = 64;
+const PADDING = 24;
+const TERMINAL_RADIUS = 30;
 
 function parseTransitionTarget(execution: StepExecution): string | null {
   if (!execution.transition_decision) return null;
@@ -37,6 +38,7 @@ export default function WorkflowStepDiagram({
   stepExecutions,
   currentStep,
   status,
+  onStepClick,
 }: Props) {
   const graph = buildGraph(definition);
   const layout = computeLayout(graph);
@@ -147,9 +149,6 @@ export default function WorkflowStepDiagram({
             const belowY =
               Math.max(from.y, to.y) + NODE_HEIGHT / 2 + ROW_GAP * 0.6;
             const d = `M ${startX} ${from.y} C ${startX - LAYER_GAP * 0.3} ${belowY}, ${endX + LAYER_GAP * 0.3} ${belowY}, ${endX} ${to.y}`;
-            const midX = (startX + endX) / 2;
-            const labelY = belowY + 4;
-
             return (
               <g
                 key={edgeKey}
@@ -164,24 +163,12 @@ export default function WorkflowStepDiagram({
                     isExecuted ? "url(#arrowhead-executed)" : "url(#arrowhead)"
                   }
                 />
-                <text
-                  x={midX}
-                  y={labelY}
-                  textAnchor="middle"
-                  className={styles.edgeLabel}
-                >
-                  {edge.label}
-                </text>
               </g>
             );
           }
 
           const startX = from.x + fromOffset;
           const endX = to.x - toOffset;
-
-          // Compute label position at midpoint
-          const midX = (startX + endX) / 2;
-          const midY = (from.y + to.y) / 2;
 
           return (
             <g
@@ -200,14 +187,6 @@ export default function WorkflowStepDiagram({
                   isExecuted ? "url(#arrowhead-executed)" : "url(#arrowhead)"
                 }
               />
-              <text
-                x={midX}
-                y={midY - 8}
-                textAnchor="middle"
-                className={styles.edgeLabel}
-              >
-                {edge.label}
-              </text>
             </g>
           );
         })}
@@ -253,6 +232,8 @@ export default function WorkflowStepDiagram({
           const x = center.x - NODE_WIDTH / 2;
           const y = center.y - NODE_HEIGHT / 2;
           const isFailed = status === "failure" && currentStep === node.id;
+          const isClickable =
+            onStepClick && (isExecuted || isCurrent || isFailed);
 
           return (
             <g
@@ -261,6 +242,8 @@ export default function WorkflowStepDiagram({
               data-executed={isExecuted ? "true" : "false"}
               data-current={isCurrent ? "true" : "false"}
               data-failed={isFailed ? "true" : "false"}
+              className={isClickable ? styles.clickable : undefined}
+              onClick={isClickable ? () => onStepClick(node.id) : undefined}
             >
               <rect
                 x={x}

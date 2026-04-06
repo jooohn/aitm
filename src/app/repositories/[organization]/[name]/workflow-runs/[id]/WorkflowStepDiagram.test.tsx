@@ -265,17 +265,11 @@ describe("WorkflowStepDiagram", () => {
     // For terminal: centerX_terminal - 22; for state: centerX_state - 70
     // The edges go to different layers, so we check the offset from the target center
     // by computing center positions from the layout constants.
-    // NODE_WIDTH=140, LAYER_GAP=180, PADDING=40, TERMINAL_RADIUS=22
+    // NODE_WIDTH=140, LAYER_GAP=180, PADDING=24, TERMINAL_RADIUS=30
 
-    // plan(layer0) -> implement(layer1): startX = 40 + 0*180 + 140 = 180, endX = 40 + 1*180 = 220
-    // implement(layer1) -> success(layer2): startX = 40 + 1*180 + 140 = 360, endX = 40 + 2*180 + 70 - 22 = 448
-    // If bug exists, endX for terminal would be 40 + 2*180 = 400 (using NODE_WIDTH/2=70)
-    // After fix, endX for terminal would be 40 + 2*180 + 70 - 22 = 448
-
-    // implement center x = 40 + 1*180 + 70 = 290
-    // success center x = 40 + 2*180 + 70 = 470
-    // Edge to terminal should end at: 470 - 22 = 448
-    expect(terminalEndX).toBe(448);
+    // success center x = 24 + 2*180 + 70 = 454
+    // Edge to terminal should end at: 454 - 30 = 424
+    expect(terminalEndX).toBe(424);
   });
 
   it("uses terminal radius for edge start from terminal nodes if applicable", () => {
@@ -294,12 +288,12 @@ describe("WorkflowStepDiagram", () => {
     const edge = container.querySelector(
       '[data-edge-from="plan"][data-edge-to="implement"] line',
     );
-    // plan center x = 40 + 0*180 + 70 = 110
-    // startX = 110 + 70 = 180
-    expect(Number(edge!.getAttribute("x1"))).toBe(180);
+    // plan center x = 24 + 0*180 + 70 = 94
+    // startX = 94 + 70 = 164
+    expect(Number(edge!.getAttribute("x1"))).toBe(164);
   });
 
-  it("renders edge labels with transition conditions", () => {
+  it("does not render edge labels", () => {
     render(
       <WorkflowStepDiagram
         definition={linearWorkflow()}
@@ -309,10 +303,10 @@ describe("WorkflowStepDiagram", () => {
       />,
     );
 
-    expect(screen.getByText("plan is ready")).toBeInTheDocument();
-    expect(screen.getByText("implementation complete")).toBeInTheDocument();
-    // "planning failed" edge (to failure terminal) should not be rendered
-    expect(screen.queryByText("planning failed")).not.toBeInTheDocument();
+    expect(screen.queryByText("plan is ready")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("implementation complete"),
+    ).not.toBeInTheDocument();
   });
 
   it("renders unique keys when multiple transitions share the same from and to", () => {

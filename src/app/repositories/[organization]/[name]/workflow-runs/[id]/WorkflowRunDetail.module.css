@@ -134,7 +134,11 @@
 }
 
 .execution {
-  @apply flex flex-col gap-2 rounded-lg border border-zinc-200 dark:border-zinc-700 px-4 py-3;
+  @apply flex flex-col gap-2 rounded-lg border border-zinc-200 dark:border-zinc-700 px-4 py-3 transition-colors duration-500;
+}
+
+.highlight {
+  @apply border-blue-400 dark:border-blue-500 bg-blue-50 dark:bg-blue-950;
 }
 
 .executionHeader {

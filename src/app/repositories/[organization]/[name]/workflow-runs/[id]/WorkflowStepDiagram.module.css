@@ -34,6 +34,18 @@
   opacity: 0.5;
 }
 
+.clickable {
+  cursor: pointer;
+}
+
+.clickable:hover rect {
+  filter: brightness(0.95);
+}
+
+:global(.dark) .clickable:hover rect {
+  filter: brightness(1.15);
+}
+
 .stateLabel {
   @apply fill-zinc-700 dark:fill-zinc-200 text-xs;
   font-family: ui-monospace, monospace;
