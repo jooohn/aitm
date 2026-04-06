@@ -108,7 +108,7 @@ describe("fetchSessionsByStatus", () => {
 
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/sessions?status=AWAITING_INPUT",
-      undefined,
+      { cache: "no-store" },
     );
   });
 });

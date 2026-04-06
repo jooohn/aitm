@@ -93,13 +93,24 @@ export class SessionService {
     private agentService: AgentService,
     private worktreeService: WorktreeService,
     private eventBus: EventBus,
-  ) {}
+  ) {
+    this.eventBus.on("agent-session.completed", ({ sessionId, decision }) => {
+      this.handleAgentSessionCompleted(sessionId, decision);
+    });
+  }
 
-  private buildOnComplete(
+  private handleAgentSessionCompleted(
     sessionId: string,
-  ): (decision: TransitionDecision | null) => void {
-    return (decision) =>
-      this.eventBus.emit("session.completed", { sessionId, decision });
+    decision: TransitionDecision | null,
+  ): void {
+    const now = new Date().toISOString();
+    const didUpdate = decision
+      ? this.sessionRepository.setSessionSucceeded(sessionId, now)
+      : this.sessionRepository.setSessionFailed(sessionId, now);
+
+    if (!didUpdate) return;
+
+    this.eventBus.emit("session.completed", { sessionId, decision });
   }
 
   async createSession(input: CreateSessionInput): Promise<Session> {
@@ -141,11 +152,12 @@ export class SessionService {
         { err, sessionId: id },
         "Failed to resolve worktree for session",
       );
-      this.sessionRepository.setSessionFailed(id, now);
-      this.eventBus.emit("session.completed", {
-        sessionId: id,
-        decision: null,
-      });
+      if (this.sessionRepository.setSessionFailed(id, now)) {
+        this.eventBus.emit("session.completed", {
+          sessionId: id,
+          decision: null,
+        });
+      }
       return this.getSession(id) as Session;
     }
 
@@ -157,7 +169,7 @@ export class SessionService {
         input.transitions,
         agentConfig,
         log_file_path,
-        this.buildOnComplete(id),
+        undefined,
         input.metadata_fields,
       )
       .catch((err) =>
@@ -186,10 +198,15 @@ export class SessionService {
       );
     }
 
-    this.agentService.cancelAgent(id);
-
     const now = new Date().toISOString();
-    this.sessionRepository.setSessionFailed(id, now);
+    const didUpdate = this.sessionRepository.setSessionFailed(id, now);
+    this.agentService.cancelAgent(id);
+    if (didUpdate) {
+      this.eventBus.emit("session.completed", {
+        sessionId: id,
+        decision: null,
+      });
+    }
 
     return this.getSession(id) as Session;
   }
@@ -239,7 +256,7 @@ export class SessionService {
         transitions,
         agentConfig,
         session.log_file_path,
-        this.buildOnComplete(id),
+        undefined,
         metadataFields,
       )
       .catch((err) =>

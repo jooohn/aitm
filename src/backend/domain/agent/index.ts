@@ -1,14 +1,14 @@
 import { AbortError } from "@anthropic-ai/claude-agent-sdk";
 import { appendFile, writeFile } from "fs/promises";
 import type { SessionStatus } from "@/backend/domain/sessions";
+import type { SessionRepository } from "@/backend/domain/sessions/session-repository";
 import type {
   AgentConfig,
   AgentProvider,
   OutputMetadataFieldDef,
   WorkflowTransition,
 } from "@/backend/infra/config";
-import { db } from "@/backend/infra/db";
-import { eventBus } from "@/backend/infra/event-bus";
+import type { EventBus } from "@/backend/infra/event-bus";
 import { DEFAULT_PERMISSION_MODE } from "./permission-mode";
 import type { AgentMessage, AgentRuntime, SessionTransition } from "./runtime";
 import { USER_INPUT_TRANSITION, USER_INPUT_TRANSITION_NAME } from "./runtime";
@@ -30,41 +30,6 @@ async function appendToLog(logFilePath: string, entry: unknown): Promise<void> {
   } catch {
     // Non-critical — ignore log write errors.
   }
-}
-
-function setStatus(sessionId: string, status: SessionStatus): void {
-  const now = new Date().toISOString();
-  // Guard against races: never overwrite a terminal status set by another path.
-  db.prepare(
-    `UPDATE sessions SET status = ?, updated_at = ?
-     WHERE id = ? AND status NOT IN ('SUCCEEDED', 'FAILED')`,
-  ).run(status, now, sessionId);
-}
-
-function setAgentSession(
-  sessionId: string,
-  agentSessionId: string | null,
-  attachCommand: string | null,
-): void {
-  db.prepare(
-    `UPDATE sessions
-     SET claude_session_id = ?, terminal_attach_command = ?
-     WHERE id = ?`,
-  ).run(agentSessionId, attachCommand, sessionId);
-}
-
-function getSessionStatus(sessionId: string): SessionStatus | null {
-  const row = db
-    .prepare("SELECT status FROM sessions WHERE id = ?")
-    .get(sessionId) as { status: SessionStatus } | undefined;
-  return row?.status ?? null;
-}
-
-function getAgentSessionId(sessionId: string): string | null {
-  const row = db
-    .prepare("SELECT claude_session_id FROM sessions WHERE id = ?")
-    .get(sessionId) as { claude_session_id: string | null } | undefined;
-  return row?.claude_session_id ?? null;
 }
 
 function isTerminalSessionStatus(status: SessionStatus | null): boolean {
@@ -103,38 +68,6 @@ function buildTransitionsSection(transitions: SessionTransition[]): string {
 
 const CORE_DECISION_KEYS = new Set(["transition", "reason", "handoff_summary"]);
 
-/** Process messages from an agent stream. Returns the transition decision if one was produced. */
-function processResultMessage(
-  sessionId: string,
-  message: AgentMessage & { type: "result" },
-): TransitionDecision | null {
-  let decision: TransitionDecision | null = null;
-  if (message.subtype === "success" && message.structured_output) {
-    const raw = message.structured_output as Record<string, unknown>;
-    decision = {
-      transition: raw.transition as string,
-      reason: raw.reason as string,
-      handoff_summary: raw.handoff_summary as string,
-    };
-
-    // Extract metadata: any keys beyond the three core fields
-    const metadataEntries = Object.entries(raw).filter(
-      ([key]) => !CORE_DECISION_KEYS.has(key),
-    );
-    if (metadataEntries.length > 0) {
-      decision.metadata = Object.fromEntries(
-        metadataEntries.map(([k, v]) => [k, String(v)]),
-      );
-    }
-
-    db.prepare("UPDATE sessions SET transition_decision = ? WHERE id = ?").run(
-      JSON.stringify(decision),
-      sessionId,
-    );
-  }
-  return decision;
-}
-
 function isUserInputTransition(decision: TransitionDecision | null): boolean {
   return decision?.transition === USER_INPUT_TRANSITION_NAME;
 }
@@ -142,7 +75,11 @@ function isUserInputTransition(decision: TransitionDecision | null): boolean {
 export class AgentService {
   private activeAbortControllers = new Map<string, AbortController>();
 
-  constructor(private runtimes: Record<AgentProvider, AgentRuntime>) {}
+  constructor(
+    private runtimes: Record<AgentProvider, AgentRuntime>,
+    private sessionRepository: SessionRepository,
+    private eventBus: EventBus,
+  ) {}
 
   private selectRuntime(agentConfig: AgentConfig): AgentRuntime {
     const runtime = this.runtimes[agentConfig.provider];
@@ -154,26 +91,50 @@ export class AgentService {
     return runtime;
   }
 
-  private finishEarly(
-    sessionId: string,
-    onComplete?: (decision: TransitionDecision | null) => void,
-  ): void {
+  private finishEarly(sessionId: string): void {
     this.activeAbortControllers.delete(sessionId);
-    onComplete?.(null);
+  }
+
+  /** Process messages from an agent stream. Returns the transition decision if one was produced. */
+  private processResultMessage(
+    sessionId: string,
+    message: AgentMessage & { type: "result" },
+  ): TransitionDecision | null {
+    let decision: TransitionDecision | null = null;
+    if (message.subtype === "success" && message.structured_output) {
+      const raw = message.structured_output as Record<string, unknown>;
+      decision = {
+        transition: raw.transition as string,
+        reason: raw.reason as string,
+        handoff_summary: raw.handoff_summary as string,
+      };
+
+      // Extract metadata: any keys beyond the three core fields
+      const metadataEntries = Object.entries(raw).filter(
+        ([key]) => !CORE_DECISION_KEYS.has(key),
+      );
+      if (metadataEntries.length > 0) {
+        decision.metadata = Object.fromEntries(
+          metadataEntries.map(([k, v]) => [k, String(v)]),
+        );
+      }
+
+      this.sessionRepository.setTransitionDecision(sessionId, decision);
+    }
+    return decision;
   }
 
   /**
    * Start a configured agent runtime for a session. Fire-and-forget — call without
-   * awaiting. All errors are handled internally; the session is marked FAILED
-   * if anything goes wrong.
+   * awaiting. All errors are handled internally; terminal persistence is delegated
+   * to the consumer of the emitted agent-session.completed event.
    *
    * If the agent selects __REQUIRE_USER_INPUT__, the session is set to
    * AWAITING_INPUT and the function returns without calling onComplete.
    * Call resumeAgent() when the user provides input.
    *
-   * onComplete is called with the structured transition decision when the
-   * session ends with a real transition (not __REQUIRE_USER_INPUT__), or null
-   * on failure.
+   * onComplete is an optional notification hook that mirrors the emitted
+   * completion event for callers that need an in-process callback.
    */
   async startAgent(
     sessionId: string,
@@ -194,9 +155,11 @@ export class AgentService {
 
     if (
       abortController.signal.aborted ||
-      isTerminalSessionStatus(getSessionStatus(sessionId))
+      isTerminalSessionStatus(
+        this.sessionRepository.getSessionStatus(sessionId),
+      )
     ) {
-      this.finishEarly(sessionId, onComplete);
+      this.finishEarly(sessionId);
       return;
     }
 
@@ -215,9 +178,11 @@ export class AgentService {
     try {
       if (
         abortController.signal.aborted ||
-        isTerminalSessionStatus(getSessionStatus(sessionId))
+        isTerminalSessionStatus(
+          this.sessionRepository.getSessionStatus(sessionId),
+        )
       ) {
-        this.finishEarly(sessionId, onComplete);
+        this.finishEarly(sessionId);
         return;
       }
 
@@ -250,8 +215,18 @@ export class AgentService {
           message: err instanceof Error ? err.message : String(err),
         });
       }
-      setStatus(sessionId, "FAILED");
       this.activeAbortControllers.delete(sessionId);
+      if (
+        isTerminalSessionStatus(
+          this.sessionRepository.getSessionStatus(sessionId),
+        )
+      ) {
+        return;
+      }
+      this.eventBus.emit("agent-session.completed", {
+        sessionId,
+        decision: null,
+      });
       onComplete?.(null);
       return;
     }
@@ -264,7 +239,8 @@ export class AgentService {
    * Resume a session that is awaiting user input. Fire-and-forget — call
    * without awaiting. Behaves like startAgent for the result handling:
    * if the agent selects __REQUIRE_USER_INPUT__ again, AWAITING_INPUT is
-   * set and onComplete is not called. Otherwise the session completes.
+   * set and onComplete is not called. Otherwise an agent-session.completed
+   * event is emitted and any terminal persistence happens in that subscriber.
    */
   async resumeAgent(
     sessionId: string,
@@ -276,18 +252,24 @@ export class AgentService {
     onComplete?: (decision: TransitionDecision | null) => void,
     metadataFields?: Record<string, OutputMetadataFieldDef>,
   ): Promise<void> {
-    const agentSessionId = getAgentSessionId(sessionId);
+    const agentSessionId = this.sessionRepository.getAgentSessionId(sessionId);
     if (!agentSessionId) {
       await appendToLog(logFilePath, {
         type: "error",
         message: "Cannot resume: no agent session ID available",
       });
-      setStatus(sessionId, "FAILED");
+      this.eventBus.emit("agent-session.completed", {
+        sessionId,
+        decision: null,
+      });
       onComplete?.(null);
       return;
     }
 
-    setStatus(sessionId, "RUNNING");
+    this.sessionRepository.setSessionRunning(
+      sessionId,
+      new Date().toISOString(),
+    );
 
     const abortController = new AbortController();
     this.activeAbortControllers.set(sessionId, abortController);
@@ -326,8 +308,18 @@ export class AgentService {
           message: err instanceof Error ? err.message : String(err),
         });
       }
-      setStatus(sessionId, "FAILED");
       this.activeAbortControllers.delete(sessionId);
+      if (
+        isTerminalSessionStatus(
+          this.sessionRepository.getSessionStatus(sessionId),
+        )
+      ) {
+        return;
+      }
+      this.eventBus.emit("agent-session.completed", {
+        sessionId,
+        decision: null,
+      });
       onComplete?.(null);
       return;
     }
@@ -359,14 +351,15 @@ export class AgentService {
               ? `codex resume ${message.session_id}`
               : `claude --resume ${message.session_id}`
             : null);
-        setAgentSession(sessionId, message.session_id ?? null, attachCommand);
+        this.sessionRepository.setAgentSession(
+          sessionId,
+          message.session_id ?? null,
+          attachCommand,
+        );
       }
 
       if (message.type === "result") {
-        decision = processResultMessage(sessionId, message);
-        if (message.subtype !== "success") {
-          setStatus(sessionId, "FAILED");
-        }
+        decision = this.processResultMessage(sessionId, message);
       }
     }
 
@@ -375,7 +368,8 @@ export class AgentService {
 
   /**
    * Handle the transition decision after an agent stream completes.
-   * Sets AWAITING_INPUT or terminal status accordingly.
+   * Sets AWAITING_INPUT directly, or emits agent-session.completed for
+   * terminal outcomes so higher-level services can persist the final state.
    */
   private async handleDecision(
     sessionId: string,
@@ -384,11 +378,10 @@ export class AgentService {
     onComplete?: (decision: TransitionDecision | null) => void,
   ): Promise<void> {
     if (isUserInputTransition(decision)) {
-      setStatus(sessionId, "AWAITING_INPUT");
-      eventBus.emit("session.status-changed", {
+      this.sessionRepository.setSessionAwaitingInput(
         sessionId,
-        status: "AWAITING_INPUT",
-      });
+        new Date().toISOString(),
+      );
       await appendToLog(logFilePath, {
         type: "awaiting_input",
         message: decision!.handoff_summary,
@@ -397,15 +390,7 @@ export class AgentService {
       return;
     }
 
-    if (decision) {
-      setStatus(sessionId, "SUCCEEDED");
-    } else {
-      setStatus(sessionId, "FAILED");
-    }
-
-    // Ensure the session always reaches a terminal state.
-    // The guard in setStatus prevents overwriting SUCCEEDED or FAILED.
-    setStatus(sessionId, "FAILED");
+    this.eventBus.emit("agent-session.completed", { sessionId, decision });
 
     onComplete?.(decision);
   }

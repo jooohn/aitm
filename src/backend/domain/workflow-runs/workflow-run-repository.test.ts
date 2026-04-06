@@ -13,7 +13,7 @@ describe("WorkflowRunRepository event emission", () => {
   beforeEach(() => {
     db = new Database(":memory:");
     eventBus = new EventBus();
-    sessionRepository = new SessionRepository(db);
+    sessionRepository = new SessionRepository(db, eventBus);
     workflowRunRepository = new WorkflowRunRepository(db, eventBus);
 
     workflowRunRepository.ensureTables();

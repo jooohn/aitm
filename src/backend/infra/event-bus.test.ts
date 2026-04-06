@@ -20,6 +20,22 @@ describe("EventBus", () => {
     });
   });
 
+  it("calls listener for agent-session.completed event", () => {
+    const eventBus = new EventBus();
+    const listener = vi.fn();
+
+    eventBus.on("agent-session.completed", listener);
+    eventBus.emit("agent-session.completed", {
+      sessionId: "s1",
+      decision: null,
+    });
+
+    expect(listener).toHaveBeenCalledWith({
+      sessionId: "s1",
+      decision: null,
+    });
+  });
+
   it("calls multiple listeners for the same event", () => {
     const eventBus = new EventBus();
     const listener1 = vi.fn();
