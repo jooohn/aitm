@@ -7,6 +7,14 @@ export async function GET(_request: Request): Promise<Response> {
     | ((payload: { workflowRunId: string; status: string }) => void)
     | null = null;
 
+  let stepExecutionStatusChangedListener:
+    | ((payload: {
+        stepExecutionId: string;
+        workflowRunId: string;
+        status: string;
+      }) => void)
+    | null = null;
+
   const stream = new ReadableStream({
     start(controller) {
       const enqueue = (payload: unknown) => {
@@ -20,12 +28,23 @@ export async function GET(_request: Request): Promise<Response> {
       };
 
       statusChangedListener = enqueue;
+      stepExecutionStatusChangedListener = enqueue;
 
       eventBus.on("workflow-run.status-changed", statusChangedListener);
+      eventBus.on(
+        "step-execution.status-changed",
+        stepExecutionStatusChangedListener,
+      );
     },
     cancel() {
       if (statusChangedListener) {
         eventBus.off("workflow-run.status-changed", statusChangedListener);
+      }
+      if (stepExecutionStatusChangedListener) {
+        eventBus.off(
+          "step-execution.status-changed",
+          stepExecutionStatusChangedListener,
+        );
       }
     },
   });

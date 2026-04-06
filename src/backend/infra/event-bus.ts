@@ -1,6 +1,9 @@
 import type { TransitionDecision } from "@/backend/domain/agent";
 import type { SessionStatus } from "@/backend/domain/sessions";
-import type { WorkflowRunStatus } from "@/backend/domain/workflow-runs";
+import type {
+  StepExecutionStatus,
+  WorkflowRunStatus,
+} from "@/backend/domain/workflow-runs";
 import { logger } from "@/backend/infra/logger";
 
 export interface EventMap {
@@ -15,6 +18,11 @@ export interface EventMap {
   "step-execution.awaiting-approval": {
     stepExecutionId: string;
     workflowRunId: string;
+  };
+  "step-execution.status-changed": {
+    stepExecutionId: string;
+    workflowRunId: string;
+    status: StepExecutionStatus;
   };
   "workflow-run.status-changed": {
     workflowRunId: string;

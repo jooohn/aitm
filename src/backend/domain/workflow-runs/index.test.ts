@@ -2336,3 +2336,541 @@ workflows:
     });
   });
 });
+
+describe("step-execution status", () => {
+  describe("status field is persisted on step executions", () => {
+    it("sets status to 'running' when an agent step execution starts", async () => {
+      process.env.AITM_CONFIG_PATH = await writeTempConfig(
+        SIMPLE_WORKFLOW_CONFIG,
+      );
+      const repoPath = await makeFakeGitRepo();
+      const run = await createWorkflowRun({
+        repository_path: repoPath,
+        worktree_branch: "feat/test",
+        workflow_name: "my-flow",
+      });
+
+      const execution = db
+        .prepare("SELECT * FROM step_executions WHERE workflow_run_id = ?")
+        .get(run.id) as { id: string; status: string };
+      expect(execution.status).toBe("running");
+    });
+
+    it("sets status to 'awaiting' when a manual-approval step execution starts", async () => {
+      const APPROVAL_CONFIG = `
+workflows:
+  approval-flow:
+    initial_step: review
+    steps:
+      review:
+        type: manual-approval
+        transitions:
+          - step: deploy
+            when: approved
+          - terminal: failure
+            when: rejected
+      deploy:
+        goal: "Deploy the code"
+        transitions:
+          - terminal: success
+            when: done
+`;
+      process.env.AITM_CONFIG_PATH = await writeTempConfig(APPROVAL_CONFIG);
+      const repoPath = await makeFakeGitRepo();
+      const run = await createWorkflowRun({
+        repository_path: repoPath,
+        worktree_branch: "feat/test",
+        workflow_name: "approval-flow",
+      });
+
+      const execution = db
+        .prepare("SELECT * FROM step_executions WHERE workflow_run_id = ?")
+        .get(run.id) as { id: string; status: string };
+      expect(execution.status).toBe("awaiting");
+    });
+
+    it("sets status to 'awaiting' when an agent session enters AWAITING_INPUT", async () => {
+      process.env.AITM_CONFIG_PATH = await writeTempConfig(
+        SIMPLE_WORKFLOW_CONFIG,
+      );
+      const repoPath = await makeFakeGitRepo();
+      const run = await createWorkflowRun({
+        repository_path: repoPath,
+        worktree_branch: "feat/test",
+        workflow_name: "my-flow",
+      });
+
+      const execution = db
+        .prepare("SELECT * FROM step_executions WHERE workflow_run_id = ?")
+        .get(run.id) as { id: string };
+      const session = db
+        .prepare("SELECT * FROM sessions WHERE step_execution_id = ?")
+        .get(execution.id) as { id: string };
+
+      // Simulate session entering AWAITING_INPUT
+      db.prepare(
+        "UPDATE sessions SET status = 'AWAITING_INPUT' WHERE id = ?",
+      ).run(session.id);
+      eventBus.emit("session.status-changed", {
+        sessionId: session.id,
+        status: "AWAITING_INPUT",
+      });
+
+      const updatedExecution = db
+        .prepare("SELECT * FROM step_executions WHERE id = ?")
+        .get(execution.id) as { status: string };
+      expect(updatedExecution.status).toBe("awaiting");
+    });
+
+    it("sets status back to 'running' when an agent session resumes from AWAITING_INPUT", async () => {
+      process.env.AITM_CONFIG_PATH = await writeTempConfig(
+        SIMPLE_WORKFLOW_CONFIG,
+      );
+      const repoPath = await makeFakeGitRepo();
+      const run = await createWorkflowRun({
+        repository_path: repoPath,
+        worktree_branch: "feat/test",
+        workflow_name: "my-flow",
+      });
+
+      const execution = db
+        .prepare("SELECT * FROM step_executions WHERE workflow_run_id = ?")
+        .get(run.id) as { id: string };
+      const session = db
+        .prepare("SELECT * FROM sessions WHERE step_execution_id = ?")
+        .get(execution.id) as { id: string };
+
+      // Go to AWAITING_INPUT
+      db.prepare(
+        "UPDATE sessions SET status = 'AWAITING_INPUT' WHERE id = ?",
+      ).run(session.id);
+      eventBus.emit("session.status-changed", {
+        sessionId: session.id,
+        status: "AWAITING_INPUT",
+      });
+
+      // Resume to RUNNING
+      db.prepare("UPDATE sessions SET status = 'RUNNING' WHERE id = ?").run(
+        session.id,
+      );
+      eventBus.emit("session.status-changed", {
+        sessionId: session.id,
+        status: "RUNNING",
+      });
+
+      const updatedExecution = db
+        .prepare("SELECT * FROM step_executions WHERE id = ?")
+        .get(execution.id) as { status: string };
+      expect(updatedExecution.status).toBe("running");
+    });
+
+    it("sets status to 'completed' when step execution completes with a transition", async () => {
+      process.env.AITM_CONFIG_PATH = await writeTempConfig(
+        SIMPLE_WORKFLOW_CONFIG,
+      );
+      const repoPath = await makeFakeGitRepo();
+      const run = await createWorkflowRun({
+        repository_path: repoPath,
+        worktree_branch: "feat/test",
+        workflow_name: "my-flow",
+      });
+
+      const execution = db
+        .prepare("SELECT * FROM step_executions WHERE workflow_run_id = ?")
+        .get(run.id) as { id: string };
+
+      await completeStepExecution(execution.id, {
+        transition: "implement",
+        reason: "Plan done",
+        handoff_summary: "Wrote PLAN.md",
+      });
+
+      const updatedExecution = db
+        .prepare("SELECT * FROM step_executions WHERE id = ?")
+        .get(execution.id) as { status: string };
+      expect(updatedExecution.status).toBe("completed");
+    });
+
+    it("sets status to 'failed' when step execution completes with no decision", async () => {
+      process.env.AITM_CONFIG_PATH = await writeTempConfig(
+        SIMPLE_WORKFLOW_CONFIG,
+      );
+      const repoPath = await makeFakeGitRepo();
+      const run = await createWorkflowRun({
+        repository_path: repoPath,
+        worktree_branch: "feat/test",
+        workflow_name: "my-flow",
+      });
+
+      const execution = db
+        .prepare("SELECT * FROM step_executions WHERE workflow_run_id = ?")
+        .get(run.id) as { id: string };
+
+      await completeStepExecution(execution.id, null);
+
+      const updatedExecution = db
+        .prepare("SELECT * FROM step_executions WHERE id = ?")
+        .get(execution.id) as { status: string };
+      expect(updatedExecution.status).toBe("failed");
+    });
+
+    it("sets status to 'failed' when step execution completes with terminal failure", async () => {
+      process.env.AITM_CONFIG_PATH = await writeTempConfig(
+        SIMPLE_WORKFLOW_CONFIG,
+      );
+      const repoPath = await makeFakeGitRepo();
+      const run = await createWorkflowRun({
+        repository_path: repoPath,
+        worktree_branch: "feat/test",
+        workflow_name: "my-flow",
+      });
+
+      const execution = db
+        .prepare("SELECT * FROM step_executions WHERE workflow_run_id = ?")
+        .get(run.id) as { id: string };
+
+      await completeStepExecution(execution.id, {
+        transition: "failure",
+        reason: "Blocked",
+        handoff_summary: "Cannot proceed",
+      });
+
+      const updatedExecution = db
+        .prepare("SELECT * FROM step_executions WHERE id = ?")
+        .get(execution.id) as { status: string };
+      expect(updatedExecution.status).toBe("failed");
+    });
+
+    it("sets status to 'completed' when step execution completes with terminal success", async () => {
+      process.env.AITM_CONFIG_PATH = await writeTempConfig(
+        SIMPLE_WORKFLOW_CONFIG,
+      );
+      const repoPath = await makeFakeGitRepo();
+      const run = await createWorkflowRun({
+        repository_path: repoPath,
+        worktree_branch: "feat/test",
+        workflow_name: "my-flow",
+      });
+
+      const execution = db
+        .prepare("SELECT * FROM step_executions WHERE workflow_run_id = ?")
+        .get(run.id) as { id: string };
+
+      await completeStepExecution(execution.id, {
+        transition: "success",
+        reason: "Done",
+        handoff_summary: "All done",
+      });
+
+      const updatedExecution = db
+        .prepare("SELECT * FROM step_executions WHERE id = ?")
+        .get(execution.id) as { status: string };
+      expect(updatedExecution.status).toBe("completed");
+    });
+
+    it("sets status to 'failed' on recovery when closing orphaned executions", async () => {
+      process.env.AITM_CONFIG_PATH = await writeTempConfig(
+        SIMPLE_WORKFLOW_CONFIG,
+      );
+      const repoPath = await makeFakeGitRepo();
+      const run = await createWorkflowRun({
+        repository_path: repoPath,
+        worktree_branch: "feat/test",
+        workflow_name: "my-flow",
+      });
+
+      // Simulate a crash: mark the session as FAILED without completing the step execution
+      const execution = db
+        .prepare("SELECT * FROM step_executions WHERE workflow_run_id = ?")
+        .get(run.id) as { id: string };
+      const session = db
+        .prepare("SELECT * FROM sessions WHERE step_execution_id = ?")
+        .get(execution.id) as { id: string };
+      db.prepare("UPDATE sessions SET status = 'FAILED' WHERE id = ?").run(
+        session.id,
+      );
+
+      await recoverCrashedWorkflowRuns();
+
+      // The original crashed execution should be closed with 'failed' status
+      const closedExecution = db
+        .prepare("SELECT * FROM step_executions WHERE id = ?")
+        .get(execution.id) as { status: string; completed_at: string | null };
+      expect(closedExecution.status).toBe("failed");
+      expect(closedExecution.completed_at).not.toBeNull();
+    });
+  });
+
+  describe("step-execution.status-changed events are emitted", () => {
+    it("emits 'running' when an agent step execution starts", async () => {
+      const emitSpy = vi.spyOn(eventBus, "emit");
+      process.env.AITM_CONFIG_PATH = await writeTempConfig(
+        SIMPLE_WORKFLOW_CONFIG,
+      );
+      const repoPath = await makeFakeGitRepo();
+      const run = await createWorkflowRun({
+        repository_path: repoPath,
+        worktree_branch: "feat/test",
+        workflow_name: "my-flow",
+      });
+
+      const execution = db
+        .prepare("SELECT * FROM step_executions WHERE workflow_run_id = ?")
+        .get(run.id) as { id: string };
+
+      expect(emitSpy).toHaveBeenCalledWith("step-execution.status-changed", {
+        stepExecutionId: execution.id,
+        workflowRunId: run.id,
+        status: "running",
+      });
+    });
+
+    it("emits 'awaiting' when a manual-approval step execution starts", async () => {
+      const emitSpy = vi.spyOn(eventBus, "emit");
+      const APPROVAL_CONFIG = `
+workflows:
+  approval-flow:
+    initial_step: review
+    steps:
+      review:
+        type: manual-approval
+        transitions:
+          - step: deploy
+            when: approved
+          - terminal: failure
+            when: rejected
+      deploy:
+        goal: "Deploy the code"
+        transitions:
+          - terminal: success
+            when: done
+`;
+      process.env.AITM_CONFIG_PATH = await writeTempConfig(APPROVAL_CONFIG);
+      const repoPath = await makeFakeGitRepo();
+      const run = await createWorkflowRun({
+        repository_path: repoPath,
+        worktree_branch: "feat/test",
+        workflow_name: "approval-flow",
+      });
+
+      const execution = db
+        .prepare("SELECT * FROM step_executions WHERE workflow_run_id = ?")
+        .get(run.id) as { id: string };
+
+      expect(emitSpy).toHaveBeenCalledWith("step-execution.status-changed", {
+        stepExecutionId: execution.id,
+        workflowRunId: run.id,
+        status: "awaiting",
+      });
+    });
+
+    it("emits 'awaiting' when agent session enters AWAITING_INPUT", async () => {
+      process.env.AITM_CONFIG_PATH = await writeTempConfig(
+        SIMPLE_WORKFLOW_CONFIG,
+      );
+      const repoPath = await makeFakeGitRepo();
+      const run = await createWorkflowRun({
+        repository_path: repoPath,
+        worktree_branch: "feat/test",
+        workflow_name: "my-flow",
+      });
+
+      const execution = db
+        .prepare("SELECT * FROM step_executions WHERE workflow_run_id = ?")
+        .get(run.id) as { id: string };
+      const session = db
+        .prepare("SELECT * FROM sessions WHERE step_execution_id = ?")
+        .get(execution.id) as { id: string };
+
+      const emitSpy = vi.spyOn(eventBus, "emit");
+
+      db.prepare(
+        "UPDATE sessions SET status = 'AWAITING_INPUT' WHERE id = ?",
+      ).run(session.id);
+      eventBus.emit("session.status-changed", {
+        sessionId: session.id,
+        status: "AWAITING_INPUT",
+      });
+
+      expect(emitSpy).toHaveBeenCalledWith("step-execution.status-changed", {
+        stepExecutionId: execution.id,
+        workflowRunId: run.id,
+        status: "awaiting",
+      });
+    });
+
+    it("emits 'running' when agent session resumes from AWAITING_INPUT", async () => {
+      process.env.AITM_CONFIG_PATH = await writeTempConfig(
+        SIMPLE_WORKFLOW_CONFIG,
+      );
+      const repoPath = await makeFakeGitRepo();
+      const run = await createWorkflowRun({
+        repository_path: repoPath,
+        worktree_branch: "feat/test",
+        workflow_name: "my-flow",
+      });
+
+      const execution = db
+        .prepare("SELECT * FROM step_executions WHERE workflow_run_id = ?")
+        .get(run.id) as { id: string };
+      const session = db
+        .prepare("SELECT * FROM sessions WHERE step_execution_id = ?")
+        .get(execution.id) as { id: string };
+
+      // Go to AWAITING_INPUT first
+      db.prepare(
+        "UPDATE sessions SET status = 'AWAITING_INPUT' WHERE id = ?",
+      ).run(session.id);
+      eventBus.emit("session.status-changed", {
+        sessionId: session.id,
+        status: "AWAITING_INPUT",
+      });
+
+      const emitSpy = vi.spyOn(eventBus, "emit");
+
+      // Resume
+      db.prepare("UPDATE sessions SET status = 'RUNNING' WHERE id = ?").run(
+        session.id,
+      );
+      eventBus.emit("session.status-changed", {
+        sessionId: session.id,
+        status: "RUNNING",
+      });
+
+      expect(emitSpy).toHaveBeenCalledWith("step-execution.status-changed", {
+        stepExecutionId: execution.id,
+        workflowRunId: run.id,
+        status: "running",
+      });
+    });
+
+    it("emits 'completed' when step execution completes successfully", async () => {
+      process.env.AITM_CONFIG_PATH = await writeTempConfig(
+        SIMPLE_WORKFLOW_CONFIG,
+      );
+      const repoPath = await makeFakeGitRepo();
+      const run = await createWorkflowRun({
+        repository_path: repoPath,
+        worktree_branch: "feat/test",
+        workflow_name: "my-flow",
+      });
+
+      const execution = db
+        .prepare("SELECT * FROM step_executions WHERE workflow_run_id = ?")
+        .get(run.id) as { id: string };
+
+      const emitSpy = vi.spyOn(eventBus, "emit");
+
+      await completeStepExecution(execution.id, {
+        transition: "implement",
+        reason: "Plan done",
+        handoff_summary: "Wrote PLAN.md",
+      });
+
+      expect(emitSpy).toHaveBeenCalledWith("step-execution.status-changed", {
+        stepExecutionId: execution.id,
+        workflowRunId: run.id,
+        status: "completed",
+      });
+    });
+
+    it("emits 'failed' when step execution completes with no decision", async () => {
+      process.env.AITM_CONFIG_PATH = await writeTempConfig(
+        SIMPLE_WORKFLOW_CONFIG,
+      );
+      const repoPath = await makeFakeGitRepo();
+      const run = await createWorkflowRun({
+        repository_path: repoPath,
+        worktree_branch: "feat/test",
+        workflow_name: "my-flow",
+      });
+
+      const execution = db
+        .prepare("SELECT * FROM step_executions WHERE workflow_run_id = ?")
+        .get(run.id) as { id: string };
+
+      const emitSpy = vi.spyOn(eventBus, "emit");
+
+      await completeStepExecution(execution.id, null);
+
+      expect(emitSpy).toHaveBeenCalledWith("step-execution.status-changed", {
+        stepExecutionId: execution.id,
+        workflowRunId: run.id,
+        status: "failed",
+      });
+    });
+  });
+
+  describe("workflow-run status is driven by step-execution status changes", () => {
+    it("sets workflow run to 'awaiting' when step-execution status changes to 'awaiting'", async () => {
+      process.env.AITM_CONFIG_PATH = await writeTempConfig(
+        SIMPLE_WORKFLOW_CONFIG,
+      );
+      const repoPath = await makeFakeGitRepo();
+      const run = await createWorkflowRun({
+        repository_path: repoPath,
+        worktree_branch: "feat/test",
+        workflow_name: "my-flow",
+      });
+
+      const execution = db
+        .prepare("SELECT * FROM step_executions WHERE workflow_run_id = ?")
+        .get(run.id) as { id: string };
+      const session = db
+        .prepare("SELECT * FROM sessions WHERE step_execution_id = ?")
+        .get(execution.id) as { id: string };
+
+      // Simulate session entering AWAITING_INPUT → triggers step-execution status → triggers workflow-run status
+      db.prepare(
+        "UPDATE sessions SET status = 'AWAITING_INPUT' WHERE id = ?",
+      ).run(session.id);
+      eventBus.emit("session.status-changed", {
+        sessionId: session.id,
+        status: "AWAITING_INPUT",
+      });
+
+      const updatedRun = getWorkflowRun(run.id);
+      expect(updatedRun?.status).toBe("awaiting");
+    });
+
+    it("sets workflow run back to 'running' when step-execution status changes to 'running'", async () => {
+      process.env.AITM_CONFIG_PATH = await writeTempConfig(
+        SIMPLE_WORKFLOW_CONFIG,
+      );
+      const repoPath = await makeFakeGitRepo();
+      const run = await createWorkflowRun({
+        repository_path: repoPath,
+        worktree_branch: "feat/test",
+        workflow_name: "my-flow",
+      });
+
+      const execution = db
+        .prepare("SELECT * FROM step_executions WHERE workflow_run_id = ?")
+        .get(run.id) as { id: string };
+      const session = db
+        .prepare("SELECT * FROM sessions WHERE step_execution_id = ?")
+        .get(execution.id) as { id: string };
+
+      // Go to awaiting
+      db.prepare(
+        "UPDATE sessions SET status = 'AWAITING_INPUT' WHERE id = ?",
+      ).run(session.id);
+      eventBus.emit("session.status-changed", {
+        sessionId: session.id,
+        status: "AWAITING_INPUT",
+      });
+      expect(getWorkflowRun(run.id)?.status).toBe("awaiting");
+
+      // Resume
+      db.prepare("UPDATE sessions SET status = 'RUNNING' WHERE id = ?").run(
+        session.id,
+      );
+      eventBus.emit("session.status-changed", {
+        sessionId: session.id,
+        status: "RUNNING",
+      });
+
+      expect(getWorkflowRun(run.id)?.status).toBe("running");
+    });
+  });
+});
