@@ -12,12 +12,26 @@ import {
   type WorkflowRunStatus,
   type Worktree,
 } from "@/lib/utils/api";
+import { extractPullRequestUrl } from "@/lib/utils/extractPullRequestUrl";
 import {
   groupRunsByWorktree,
   type WorktreeGroup,
 } from "@/lib/utils/groupRunsByWorktree";
 import { timeAgo } from "@/lib/utils/timeAgo";
 import styles from "./WorktreeRunsSection.module.css";
+
+function extractPrNumber(
+  runs: WorkflowRun[],
+): { number: string; url: string } | null {
+  for (const run of runs) {
+    const url = extractPullRequestUrl(run.metadata);
+    if (url) {
+      const match = url.match(/\/pull\/(\d+)/);
+      if (match) return { number: match[1], url };
+    }
+  }
+  return null;
+}
 
 const INITIAL_VISIBLE_RUNS = 3;
 
@@ -223,6 +237,8 @@ export default function WorktreeRunsSection({
               : group.runs.slice(0, INITIAL_VISIBLE_RUNS);
             const hiddenCount = group.runs.length - INITIAL_VISIBLE_RUNS;
 
+            const pr = extractPrNumber(group.runs);
+
             return (
               <li key={key} className={styles.group}>
                 <div className={styles.groupHeader}>
@@ -237,6 +253,16 @@ export default function WorktreeRunsSection({
                     <span className={styles.groupToggle}>
                       <span className={styles.groupLabel}>{label}</span>
                     </span>
+                  )}
+                  {pr && (
+                    <a
+                      href={pr.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={styles.prChip}
+                    >
+                      #{pr.number}
+                    </a>
                   )}
                 </div>
                 <ul className={styles.runsList}>
