@@ -21,6 +21,11 @@ import type {
 } from "./workflow-run-repository";
 
 export type WorkflowRunStatus = "running" | "awaiting" | "success" | "failure";
+export type StepExecutionStatus =
+  | "running"
+  | "awaiting"
+  | "completed"
+  | "failed";
 
 export interface WorkflowRun {
   id: string;
@@ -41,6 +46,7 @@ export interface StepExecution {
   workflow_run_id: string;
   step: string;
   step_type: "agent" | "command" | "manual-approval";
+  status: StepExecutionStatus;
   command_output: string | null;
   session_id: string | null;
   session_status: SessionStatus | null;
@@ -129,6 +135,12 @@ export class WorkflowRunService {
     eventBus.on("session.status-changed", ({ sessionId, status }) => {
       this.handleSessionStatusChanged(sessionId, status);
     });
+    eventBus.on(
+      "step-execution.status-changed",
+      ({ workflowRunId, status }) => {
+        this.handleStepExecutionStatusChanged(workflowRunId, status);
+      },
+    );
   }
 
   private async handleSessionComplete(
@@ -144,22 +156,49 @@ export class WorkflowRunService {
     sessionId: string,
     status: SessionStatus,
   ): void {
-    const workflowRunId =
-      this.workflowRunRepository.findWorkflowRunIdBySessionId(sessionId);
-    if (!workflowRunId) return;
+    const activeExecution =
+      this.workflowRunRepository.findActiveExecutionBySessionId(sessionId);
+    if (!activeExecution) return;
 
+    if (status === "AWAITING_INPUT") {
+      this.workflowRunRepository.setStepExecutionStatus(
+        activeExecution.id,
+        "awaiting",
+      );
+      this.eventBus.emit("step-execution.status-changed", {
+        stepExecutionId: activeExecution.id,
+        workflowRunId: activeExecution.workflow_run_id,
+        status: "awaiting",
+      });
+    } else if (status === "RUNNING") {
+      this.workflowRunRepository.setStepExecutionStatus(
+        activeExecution.id,
+        "running",
+      );
+      this.eventBus.emit("step-execution.status-changed", {
+        stepExecutionId: activeExecution.id,
+        workflowRunId: activeExecution.workflow_run_id,
+        status: "running",
+      });
+    }
+  }
+
+  private handleStepExecutionStatusChanged(
+    workflowRunId: string,
+    status: StepExecutionStatus,
+  ): void {
     const run = this.workflowRunRepository.getWorkflowRunById(workflowRunId);
     if (!run) return;
 
     const now = new Date().toISOString();
 
-    if (status === "AWAITING_INPUT" && run.status === "running") {
+    if (status === "awaiting" && run.status === "running") {
       this.workflowRunRepository.setWorkflowRunAwaiting(workflowRunId, now);
       this.eventBus.emit("workflow-run.status-changed", {
         workflowRunId,
         status: "awaiting",
       });
-    } else if (status === "RUNNING" && run.status === "awaiting") {
+    } else if (status === "running" && run.status === "awaiting") {
       this.workflowRunRepository.setWorkflowRunRunning(
         workflowRunId,
         run.current_step!,
@@ -197,6 +236,12 @@ export class WorkflowRunService {
       stepName,
       stepType: stepDef.type,
       now,
+    });
+
+    this.eventBus.emit("step-execution.status-changed", {
+      stepExecutionId: executionId,
+      workflowRunId,
+      status: "running",
     });
 
     const worktree = await this.worktreeService.findWorktree(
@@ -257,13 +302,13 @@ export class WorkflowRunService {
     executionId: string;
     workflowRunId: string;
   }) {
-    const now = new Date().toISOString();
-    this.workflowRunRepository.setWorkflowRunAwaiting(workflowRunId, now);
+    this.workflowRunRepository.setStepExecutionStatus(executionId, "awaiting");
     this.eventBus.emit("step-execution.awaiting-approval", {
       stepExecutionId: executionId,
       workflowRunId,
     });
-    this.eventBus.emit("workflow-run.status-changed", {
+    this.eventBus.emit("step-execution.status-changed", {
+      stepExecutionId: executionId,
       workflowRunId,
       status: "awaiting",
     });
@@ -406,12 +451,23 @@ export class WorkflowRunService {
 
     const now = new Date().toISOString();
 
+    // Determine step-execution terminal status
+    const stepStatus: StepExecutionStatus =
+      !decision || decision.transition === "failure" ? "failed" : "completed";
+
     this.workflowRunRepository.completeStepExecution(
       stepExecutionId,
       decision ? JSON.stringify(decision) : null,
       decision?.handoff_summary ?? null,
       now,
+      stepStatus,
     );
+
+    this.eventBus.emit("step-execution.status-changed", {
+      stepExecutionId,
+      workflowRunId: run.id,
+      status: stepStatus,
+    });
 
     if (decision?.metadata && Object.keys(decision.metadata).length > 0) {
       this.workflowRunRepository.mergeWorkflowRunMetadata(

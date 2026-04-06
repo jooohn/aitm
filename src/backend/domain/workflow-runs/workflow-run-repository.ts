@@ -3,6 +3,7 @@ import type { SessionStatus } from "../sessions";
 import type {
   ListWorkflowRunsFilter,
   StepExecution,
+  StepExecutionStatus,
   WorkflowRun,
   WorkflowRunWithExecutions,
 } from "./index";
@@ -57,6 +58,16 @@ export class WorkflowRunRepository {
         "ALTER TABLE workflow_runs ADD COLUMN step_count_offset INTEGER NOT NULL DEFAULT 0",
       );
     }
+
+    const seColumns = this.db
+      .prepare("PRAGMA table_info(step_executions)")
+      .all() as Array<{ name: string }>;
+    const seColumnNames = new Set(seColumns.map((c) => c.name));
+    if (!seColumnNames.has("status")) {
+      this.db.exec(
+        "ALTER TABLE step_executions ADD COLUMN status TEXT NOT NULL DEFAULT 'running'",
+      );
+    }
   }
 
   insertStepExecution(params: {
@@ -87,6 +98,12 @@ export class WorkflowRunRepository {
       .get(id) as StepExecution | undefined;
   }
 
+  setStepExecutionStatus(id: string, status: StepExecutionStatus): void {
+    this.db
+      .prepare("UPDATE step_executions SET status = ? WHERE id = ?")
+      .run(status, id);
+  }
+
   setStepExecutionCommandOutput(
     id: string,
     commandOutput: string | null,
@@ -101,17 +118,20 @@ export class WorkflowRunRepository {
     decisionJson: string | null,
     handoffSummary: string | null,
     now: string,
+    status: StepExecutionStatus,
   ): void {
     this.db
       .prepare(
-        `UPDATE step_executions SET transition_decision = ?, handoff_summary = ?, completed_at = ? WHERE id = ?`,
+        `UPDATE step_executions SET transition_decision = ?, handoff_summary = ?, completed_at = ?, status = ? WHERE id = ?`,
       )
-      .run(decisionJson, handoffSummary, now, id);
+      .run(decisionJson, handoffSummary, now, status, id);
   }
 
   closeStepExecution(id: string, now: string): void {
     this.db
-      .prepare("UPDATE step_executions SET completed_at = ? WHERE id = ?")
+      .prepare(
+        "UPDATE step_executions SET completed_at = ?, status = 'failed' WHERE id = ?",
+      )
       .run(now, id);
   }
 
@@ -353,6 +373,19 @@ export class WorkflowRunRepository {
       )
       .get(sessionId) as { workflow_run_id: string } | undefined;
     return row?.workflow_run_id;
+  }
+
+  findActiveExecutionBySessionId(
+    sessionId: string,
+  ): { id: string; workflow_run_id: string } | undefined {
+    return this.db
+      .prepare(
+        `SELECT se.id, se.workflow_run_id
+         FROM step_executions se
+         JOIN sessions s ON s.step_execution_id = se.id
+         WHERE s.id = ? AND se.completed_at IS NULL`,
+      )
+      .get(sessionId) as { id: string; workflow_run_id: string } | undefined;
   }
 
   listPendingApprovals(): Array<{
