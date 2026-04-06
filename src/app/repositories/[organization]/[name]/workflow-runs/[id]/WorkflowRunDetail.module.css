@@ -100,7 +100,7 @@
 }
 
 .detailValue {
-  @apply text-sm text-zinc-800 dark:text-zinc-200;
+  @apply text-sm text-zinc-800 dark:text-zinc-200 whitespace-pre-wrap break-words;
 }
 
 .inputsList {
