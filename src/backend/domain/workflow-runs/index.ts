@@ -176,7 +176,7 @@ export class WorkflowRunService {
       executionId,
       workflowRunId,
       repositoryPath,
-      worktree,
+      worktree: worktree ?? null,
       inputs,
       previousExecutions,
     });
