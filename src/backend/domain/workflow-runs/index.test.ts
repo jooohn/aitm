@@ -2897,6 +2897,39 @@ workflows:
       expect(updatedRun?.status).toBe("awaiting");
     });
 
+    it("sets workflow run to 'awaiting' from session event even when step execution is already awaiting", async () => {
+      process.env.AITM_CONFIG_PATH = await writeTempConfig(
+        SIMPLE_WORKFLOW_CONFIG,
+      );
+      const repoPath = await makeFakeGitRepo();
+      const run = await createWorkflowRun({
+        repository_path: repoPath,
+        worktree_branch: "feat/test",
+        workflow_name: "my-flow",
+      });
+
+      const execution = db
+        .prepare("SELECT * FROM step_executions WHERE workflow_run_id = ?")
+        .get(run.id) as { id: string };
+      const session = db
+        .prepare("SELECT * FROM sessions WHERE step_execution_id = ?")
+        .get(execution.id) as { id: string };
+
+      db.prepare(
+        "UPDATE step_executions SET status = 'awaiting' WHERE id = ?",
+      ).run(execution.id);
+      db.prepare(
+        "UPDATE sessions SET status = 'AWAITING_INPUT' WHERE id = ?",
+      ).run(session.id);
+
+      eventBus.emit("session.status-changed", {
+        sessionId: session.id,
+        status: "AWAITING_INPUT",
+      });
+
+      expect(getWorkflowRun(run.id)?.status).toBe("awaiting");
+    });
+
     it("sets workflow run back to 'running' when step-execution status changes to 'running'", async () => {
       process.env.AITM_CONFIG_PATH = await writeTempConfig(
         SIMPLE_WORKFLOW_CONFIG,

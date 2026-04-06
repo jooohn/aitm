@@ -15,17 +15,24 @@ export default function WorkflowRunPage({ workflowRunId, basePath }: Props) {
   const [run, setRun] = useState<WorkflowRunDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFoundError, setNotFoundError] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0);
 
-  useNotificationStream(() => setRefreshKey((k) => k + 1));
-
-  useEffect(() => {
+  useNotificationStream(() => {
+    setLoading(true);
     setNotFoundError(false);
-    fetchWorkflowRun(workflowRunId)
+    void fetchWorkflowRun(workflowRunId)
       .then(setRun)
       .catch(() => setNotFoundError(true))
       .finally(() => setLoading(false));
-  }, [workflowRunId, refreshKey]);
+  });
+
+  useEffect(() => {
+    setLoading(true);
+    setNotFoundError(false);
+    void fetchWorkflowRun(workflowRunId)
+      .then(setRun)
+      .catch(() => setNotFoundError(true))
+      .finally(() => setLoading(false));
+  }, [workflowRunId]);
 
   if (loading) return null;
   if (notFoundError || !run) return notFound();

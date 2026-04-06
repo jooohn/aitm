@@ -56,44 +56,86 @@ export default function WorkflowKanbanBoard({
 
   const multiRepo = !repositoryPath;
 
-  async function load() {
-    setLoadError(null);
-    try {
-      const [wfDefs, wfRuns] = await Promise.all([
-        fetchWorkflows(),
-        repositoryPath
-          ? fetchWorkflowRuns(repositoryPath)
-          : fetchAllWorkflowRuns(),
-      ]);
-      setWorkflows(wfDefs);
-      const branchSet = activeWorktreeBranches
-        ? new Set(activeWorktreeBranches)
-        : null;
-      setRuns(
-        branchSet
-          ? wfRuns.filter((r) => branchSet.has(r.worktree_branch))
-          : wfRuns,
-      );
-    } catch (err) {
-      setLoadError(
-        err instanceof Error ? err.message : "Failed to load kanban data",
-      );
-    } finally {
-      setHasLoadedOnce(true);
-      setLoading(false);
-    }
-  }
-
   useEffect(() => {
-    load();
+    let cancelled = false;
+
+    if (refreshKey !== undefined) {
+      setLoading(true);
+    }
+
+    async function load() {
+      setLoadError(null);
+      try {
+        const [wfDefs, wfRuns] = await Promise.all([
+          fetchWorkflows(),
+          repositoryPath
+            ? fetchWorkflowRuns(repositoryPath)
+            : fetchAllWorkflowRuns(),
+        ]);
+        if (cancelled) return;
+        setWorkflows(wfDefs);
+        const branchSet = activeWorktreeBranches
+          ? new Set(activeWorktreeBranches)
+          : null;
+        setRuns(
+          branchSet
+            ? wfRuns.filter((r) => branchSet.has(r.worktree_branch))
+            : wfRuns,
+        );
+      } catch (err) {
+        if (cancelled) return;
+        setLoadError(
+          err instanceof Error ? err.message : "Failed to load kanban data",
+        );
+      } finally {
+        if (cancelled) return;
+        setHasLoadedOnce(true);
+        setLoading(false);
+      }
+    }
+
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
   }, [repositoryPath, activeWorktreeBranches, refreshKey]);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: load is stable; intentionally omitted
   useEffect(() => {
     if (!runs.some((r) => r.status === "running")) return;
-    const id = setInterval(load, 2000);
+
+    const id = setInterval(() => {
+      void (async () => {
+        setLoadError(null);
+        try {
+          const [wfDefs, wfRuns] = await Promise.all([
+            fetchWorkflows(),
+            repositoryPath
+              ? fetchWorkflowRuns(repositoryPath)
+              : fetchAllWorkflowRuns(),
+          ]);
+          setWorkflows(wfDefs);
+          const branchSet = activeWorktreeBranches
+            ? new Set(activeWorktreeBranches)
+            : null;
+          setRuns(
+            branchSet
+              ? wfRuns.filter((r) => branchSet.has(r.worktree_branch))
+              : wfRuns,
+          );
+        } catch (err) {
+          setLoadError(
+            err instanceof Error ? err.message : "Failed to load kanban data",
+          );
+        } finally {
+          setHasLoadedOnce(true);
+          setLoading(false);
+        }
+      })();
+    }, 2000);
+
     return () => clearInterval(id);
-  }, [runs]);
+  }, [runs, repositoryPath, activeWorktreeBranches]);
 
   if (!hasLoadedOnce && loading) {
     return <p className={styles.status}>Loading…</p>;

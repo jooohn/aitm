@@ -21,12 +21,10 @@ export default function RepositoryPage() {
     string[] | null
   >(null);
   const [loading, setLoading] = useState(true);
-  const [refreshKey, setRefreshKey] = useState(0);
 
-  useNotificationStream(() => setRefreshKey((k) => k + 1));
-
-  useEffect(() => {
-    Promise.all([
+  useNotificationStream(() => {
+    setLoading(true);
+    void Promise.all([
       fetchRepository(organization, name),
       fetchWorktrees(organization, name).catch(() => null),
     ])
@@ -40,7 +38,25 @@ export default function RepositoryPage() {
       })
       .catch(() => notFound())
       .finally(() => setLoading(false));
-  }, [organization, name, refreshKey]);
+  });
+
+  useEffect(() => {
+    setLoading(true);
+    void Promise.all([
+      fetchRepository(organization, name),
+      fetchWorktrees(organization, name).catch(() => null),
+    ])
+      .then(([r, worktrees]) => {
+        setRepo(r);
+        if (worktrees) {
+          setActiveWorktreeBranches(
+            worktrees.map((w) => w.branch).filter(Boolean),
+          );
+        }
+      })
+      .catch(() => notFound())
+      .finally(() => setLoading(false));
+  }, [organization, name]);
 
   if (loading) return null;
   if (!repo) return notFound();
@@ -51,7 +67,6 @@ export default function RepositoryPage() {
         <WorkflowKanbanBoard
           repositoryPath={repo.path}
           activeWorktreeBranches={activeWorktreeBranches}
-          refreshKey={refreshKey}
         />
       </div>
     </main>

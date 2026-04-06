@@ -8,7 +8,10 @@ import {
   type WorkflowDefinition,
   WorkflowStep,
 } from "@/backend/infra/config";
-import type { EventBus } from "@/backend/infra/event-bus";
+import type {
+  EventBus,
+  SessionStatusChangedEvent,
+} from "@/backend/infra/event-bus";
 import { logger } from "@/backend/infra/logger";
 import { spawnAsync } from "@/backend/utils/process";
 import { type TransitionDecision } from "../agent";
@@ -129,13 +132,12 @@ export class WorkflowRunService {
     private commandStepExecutor: CommandStepExecutor,
     private eventBus: EventBus,
   ) {
-    eventBus.on("session.status-changed", ({ sessionId, status, decision }) => {
-      void this.handleSessionStatusChanged(sessionId, status, decision).catch(
-        (err) =>
-          logger.error(
-            { err, sessionId, status },
-            "Failed to handle session status change",
-          ),
+    eventBus.on("session.status-changed", (event) => {
+      void this.handleSessionStatusChanged(event).catch((err) =>
+        logger.error(
+          { err, sessionId: event.sessionId, status: event.status },
+          "Failed to handle session status change",
+        ),
       );
     });
     eventBus.on(
@@ -147,28 +149,52 @@ export class WorkflowRunService {
   }
 
   private async handleSessionStatusChanged(
-    sessionId: string,
-    status: SessionStatus,
-    decision?: TransitionDecision | null,
+    event: SessionStatusChangedEvent,
   ): Promise<void> {
     const activeExecution =
-      this.workflowRunRepository.findActiveExecutionBySessionId(sessionId);
+      this.workflowRunRepository.findActiveExecutionBySessionId(
+        event.sessionId,
+      );
     if (!activeExecution) return;
 
-    if (status === "AWAITING_INPUT") {
-      this.workflowRunRepository.setStepExecutionStatus(
-        activeExecution.id,
-        "awaiting",
-      );
-    } else if (status === "RUNNING") {
-      this.workflowRunRepository.setStepExecutionStatus(
-        activeExecution.id,
-        "running",
-      );
-    } else if (status === "SUCCEEDED") {
-      await this.completeStepExecution(activeExecution.id, decision);
-    } else if (status === "FAILED") {
-      await this.completeStepExecution(activeExecution.id, null);
+    const run = this.workflowRunRepository.getWorkflowRunById(
+      activeExecution.workflow_run_id,
+    );
+    const now = new Date().toISOString();
+
+    switch (event.status) {
+      case "AWAITING_INPUT": {
+        this.workflowRunRepository.setStepExecutionStatus(
+          activeExecution.id,
+          "awaiting",
+        );
+        if (run?.status === "running") {
+          this.workflowRunRepository.setWorkflowRunAwaiting(run.id, now);
+        }
+        break;
+      }
+      case "RUNNING": {
+        this.workflowRunRepository.setStepExecutionStatus(
+          activeExecution.id,
+          "running",
+        );
+        if (run?.status === "awaiting" && run.current_step) {
+          this.workflowRunRepository.setWorkflowRunRunning(
+            run.id,
+            run.current_step,
+            now,
+          );
+        }
+        break;
+      }
+      case "SUCCEEDED": {
+        await this.completeStepExecution(activeExecution.id, event.decision);
+        break;
+      }
+      case "FAILED": {
+        await this.completeStepExecution(activeExecution.id, null);
+        break;
+      }
     }
   }
 
