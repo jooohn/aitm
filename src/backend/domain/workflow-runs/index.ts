@@ -165,21 +165,11 @@ export class WorkflowRunService {
         activeExecution.id,
         "awaiting",
       );
-      this.eventBus.emit("step-execution.status-changed", {
-        stepExecutionId: activeExecution.id,
-        workflowRunId: activeExecution.workflow_run_id,
-        status: "awaiting",
-      });
     } else if (status === "RUNNING") {
       this.workflowRunRepository.setStepExecutionStatus(
         activeExecution.id,
         "running",
       );
-      this.eventBus.emit("step-execution.status-changed", {
-        stepExecutionId: activeExecution.id,
-        workflowRunId: activeExecution.workflow_run_id,
-        status: "running",
-      });
     }
   }
 
@@ -194,20 +184,12 @@ export class WorkflowRunService {
 
     if (status === "awaiting" && run.status === "running") {
       this.workflowRunRepository.setWorkflowRunAwaiting(workflowRunId, now);
-      this.eventBus.emit("workflow-run.status-changed", {
-        workflowRunId,
-        status: "awaiting",
-      });
     } else if (status === "running" && run.status === "awaiting") {
       this.workflowRunRepository.setWorkflowRunRunning(
         workflowRunId,
         run.current_step!,
         now,
       );
-      this.eventBus.emit("workflow-run.status-changed", {
-        workflowRunId,
-        status: "running",
-      });
     }
   }
 
@@ -236,12 +218,6 @@ export class WorkflowRunService {
       stepName,
       stepType: stepDef.type,
       now,
-    });
-
-    this.eventBus.emit("step-execution.status-changed", {
-      stepExecutionId: executionId,
-      workflowRunId,
-      status: "running",
     });
 
     const worktree = await this.worktreeService.findWorktree(
@@ -306,11 +282,6 @@ export class WorkflowRunService {
     this.eventBus.emit("step-execution.awaiting-approval", {
       stepExecutionId: executionId,
       workflowRunId,
-    });
-    this.eventBus.emit("step-execution.status-changed", {
-      stepExecutionId: executionId,
-      workflowRunId,
-      status: "awaiting",
     });
   }
 
@@ -418,11 +389,6 @@ export class WorkflowRunService {
       now,
     });
 
-    this.eventBus.emit("workflow-run.status-changed", {
-      workflowRunId: id,
-      status: "running",
-    });
-
     await this.startStepExecution(
       id,
       workflow.initial_step,
@@ -463,12 +429,6 @@ export class WorkflowRunService {
       stepStatus,
     );
 
-    this.eventBus.emit("step-execution.status-changed", {
-      stepExecutionId,
-      workflowRunId: run.id,
-      status: stepStatus,
-    });
-
     if (decision?.metadata && Object.keys(decision.metadata).length > 0) {
       this.workflowRunRepository.mergeWorkflowRunMetadata(
         run.id,
@@ -479,10 +439,6 @@ export class WorkflowRunService {
     if (!decision) {
       // No structured output → mark as failure.
       this.workflowRunRepository.terminateWorkflowRun(run.id, "failure", now);
-      this.eventBus.emit("workflow-run.status-changed", {
-        workflowRunId: run.id,
-        status: "failure",
-      });
       return;
     }
 
@@ -490,10 +446,6 @@ export class WorkflowRunService {
 
     if (transition === "success" || transition === "failure") {
       this.workflowRunRepository.terminateWorkflowRun(run.id, transition, now);
-      this.eventBus.emit("workflow-run.status-changed", {
-        workflowRunId: run.id,
-        status: transition,
-      });
       return;
     }
 
@@ -502,10 +454,6 @@ export class WorkflowRunService {
     const workflow = workflows[run.workflow_name];
     if (!workflow || !workflow.steps?.[transition]) {
       this.workflowRunRepository.terminateWorkflowRun(run.id, "failure", now);
-      this.eventBus.emit("workflow-run.status-changed", {
-        workflowRunId: run.id,
-        status: "failure",
-      });
       return;
     }
 
@@ -517,10 +465,6 @@ export class WorkflowRunService {
       (run.step_count_offset ?? 0);
     if (stepCount >= maxSteps) {
       this.workflowRunRepository.terminateWorkflowRun(run.id, "failure", now);
-      this.eventBus.emit("workflow-run.status-changed", {
-        workflowRunId: run.id,
-        status: "failure",
-      });
       return;
     }
 
@@ -528,10 +472,6 @@ export class WorkflowRunService {
     if (run.status === "awaiting") {
       // Reset status to running when advancing from an awaiting state.
       this.workflowRunRepository.setWorkflowRunRunning(run.id, transition, now);
-      this.eventBus.emit("workflow-run.status-changed", {
-        workflowRunId: run.id,
-        status: "running",
-      });
     } else {
       this.workflowRunRepository.updateWorkflowRunCurrentStep(
         run.id,
@@ -785,11 +725,6 @@ export class WorkflowRunService {
     const stepCountOffset = this.workflowRunRepository.countStepExecutions(id);
     this.workflowRunRepository.setStepCountOffset(id, stepCountOffset);
     this.workflowRunRepository.setWorkflowRunRunning(id, failedStep, now);
-
-    this.eventBus.emit("workflow-run.status-changed", {
-      workflowRunId: id,
-      status: "running",
-    });
 
     const previousExecutions = this.workflowRunRepository
       .listCompletedExecutionsHandoffExcluding(id, lastExecution.id)

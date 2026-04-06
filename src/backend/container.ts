@@ -10,7 +10,7 @@ import { WorktreeService } from "@/backend/domain/worktrees";
 import { db } from "@/backend/infra/db";
 import { eventBus } from "@/backend/infra/event-bus";
 
-export const workflowRunRepository = new WorkflowRunRepository(db);
+export const workflowRunRepository = new WorkflowRunRepository(db, eventBus);
 export const sessionRepository = new SessionRepository(db);
 export const worktreeService = new WorktreeService();
 export const repositoryService = new RepositoryService();
