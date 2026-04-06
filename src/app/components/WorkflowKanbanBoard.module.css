@@ -109,6 +109,17 @@
 
 .badge-running {
   @apply bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300;
+  animation: blink-fade 1.5s ease-in-out infinite;
+}
+
+@keyframes blink-fade {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
 }
 
 .badge-success {
