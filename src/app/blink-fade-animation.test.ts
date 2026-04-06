@@ -23,48 +23,38 @@ describe("blink-fade animation", () => {
     );
   });
 
-  it("applies blink-fade animation to .badge-running in WorkflowKanbanBoard", () => {
+  it("does NOT apply blink-fade animation to .badge-running in WorkflowKanbanBoard", () => {
     const css = readCss("components/WorkflowKanbanBoard.module.css");
-    expect(css).toContain("@keyframes blink-fade");
-    expect(css).toMatch(
-      /\.badge-running[\s\S]*?blink-fade\s+1\.5s\s+ease-in-out\s+infinite/,
-    );
+    expect(css).not.toContain("@keyframes blink-fade");
+    expect(css).not.toMatch(/\.badge-running[\s\S]*?blink-fade/);
   });
 
-  it("applies blink-fade animation to .badge-running in WorkflowSection", () => {
+  it("does NOT apply blink-fade animation to .badge-running in WorkflowSection", () => {
     const css = readCss("components/WorkflowSection.module.css");
-    expect(css).toContain("@keyframes blink-fade");
-    expect(css).toMatch(
-      /\.badge-running[\s\S]*?blink-fade\s+1\.5s\s+ease-in-out\s+infinite/,
-    );
+    expect(css).not.toContain("@keyframes blink-fade");
+    expect(css).not.toMatch(/\.badge-running[\s\S]*?blink-fade/);
   });
 
-  it("applies blink-fade animation to .badge in ActiveWorkflowsSection", () => {
+  it("does NOT apply blink-fade animation to .badge in ActiveWorkflowsSection", () => {
     const css = readCss("components/ActiveWorkflowsSection.module.css");
-    expect(css).toContain("@keyframes blink-fade");
-    expect(css).toMatch(
-      /\.badge[\s\S]*?blink-fade\s+1\.5s\s+ease-in-out\s+infinite/,
-    );
+    expect(css).not.toContain("@keyframes blink-fade");
+    expect(css).not.toMatch(/\.badge[\s\S]*?blink-fade/);
   });
 
-  it("applies blink-fade animation to .badge-running in WorkflowRunDetail", () => {
+  it("does NOT apply blink-fade animation to .badge-running in WorkflowRunDetail", () => {
     const css = readCss(
       "repositories/[organization]/[name]/workflow-runs/[id]/WorkflowRunDetail.module.css",
     );
-    expect(css).toContain("@keyframes blink-fade");
-    expect(css).toMatch(
-      /\.badge-running[\s\S]*?blink-fade\s+1\.5s\s+ease-in-out\s+infinite/,
-    );
+    expect(css).not.toContain("@keyframes blink-fade");
+    expect(css).not.toMatch(/\.badge-running[\s\S]*?blink-fade/);
   });
 
-  it("applies blink-fade animation to .badge-running in step-executions page", () => {
+  it("does NOT apply blink-fade animation to .badge-running in step-executions page", () => {
     const css = readCss(
       "repositories/[organization]/[name]/workflow-runs/[id]/step-executions/[executionId]/page.module.css",
     );
-    expect(css).toContain("@keyframes blink-fade");
-    expect(css).toMatch(
-      /\.badge-running[\s\S]*?blink-fade\s+1\.5s\s+ease-in-out\s+infinite/,
-    );
+    expect(css).not.toContain("@keyframes blink-fade");
+    expect(css).not.toMatch(/\.badge-running[\s\S]*?blink-fade/);
   });
 
   it("does NOT change .nodeCurrent animation in WorkflowStepDiagram", () => {
