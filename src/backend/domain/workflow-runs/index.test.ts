@@ -1749,7 +1749,7 @@ workflows:
     expect(findWorktreeSpy).toHaveBeenCalledOnce();
   });
 
-  it("emits step-execution.awaiting-approval event", async () => {
+  it("emits step-execution.status-changed with awaiting status", async () => {
     const emitSpy = vi.spyOn(eventBus, "emit");
     const { run } = await setupApprovalRun();
 
@@ -1757,9 +1757,10 @@ workflows:
       .prepare("SELECT * FROM step_executions WHERE workflow_run_id = ?")
       .all(run.id) as { id: string }[];
 
-    expect(emitSpy).toHaveBeenCalledWith("step-execution.awaiting-approval", {
+    expect(emitSpy).toHaveBeenCalledWith("step-execution.status-changed", {
       stepExecutionId: executions[0].id,
       workflowRunId: run.id,
+      status: "awaiting",
     });
   });
 

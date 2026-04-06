@@ -28,10 +28,6 @@ export interface EventMap {
     decision: TransitionDecision | null;
   };
   "session.status-changed": SessionStatusChangedEvent;
-  "step-execution.awaiting-approval": {
-    stepExecutionId: string;
-    workflowRunId: string;
-  };
   "step-execution.status-changed": {
     stepExecutionId: string;
     workflowRunId: string;

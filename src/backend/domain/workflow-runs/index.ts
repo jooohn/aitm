@@ -278,10 +278,6 @@ export class WorkflowRunService {
     workflowRunId: string;
   }) {
     this.workflowRunRepository.setStepExecutionStatus(executionId, "awaiting");
-    this.eventBus.emit("step-execution.awaiting-approval", {
-      stepExecutionId: executionId,
-      workflowRunId,
-    });
   }
 
   private async startCommandStepExecution({
