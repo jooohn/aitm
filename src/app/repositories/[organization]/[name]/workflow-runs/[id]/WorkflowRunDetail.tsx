@@ -53,7 +53,11 @@ function parseDecision(raw: string | null): TransitionDecision | null {
 
 interface StepExecutionItemProps {
   execution: StepExecution;
-  onResolve?: (executionId: string, decision: "approved" | "rejected") => void;
+  onResolve?: (
+    executionId: string,
+    decision: "approved" | "rejected",
+    reason: string,
+  ) => void;
   resolvingId?: string | null;
 }
 
@@ -71,6 +75,7 @@ function StepExecutionItem({
     name: string;
     id: string;
   }>();
+  const [approvalReason, setApprovalReason] = useState("");
   const decision = parseDecision(execution.transition_decision);
   const isRunning = execution.completed_at === null;
   const isCommandExecution = execution.step_type === "command";
@@ -111,21 +116,35 @@ function StepExecutionItem({
         </span>
       </div>
       {isPendingApproval && onResolve && (
-        <div className={styles.approvalActions}>
-          <button
-            className={`${styles.approvalButton} ${styles["approvalButton-approve"]}`}
-            onClick={() => onResolve(execution.id, "approved")}
+        <div className={styles.approvalSection}>
+          <textarea
+            className={styles.approvalReason}
+            placeholder="Comment"
+            value={approvalReason}
+            onChange={(e) => setApprovalReason(e.target.value)}
             disabled={resolvingId === execution.id}
-          >
-            {resolvingId === execution.id ? "…" : "Approve"}
-          </button>
-          <button
-            className={`${styles.approvalButton} ${styles["approvalButton-reject"]}`}
-            onClick={() => onResolve(execution.id, "rejected")}
-            disabled={resolvingId === execution.id}
-          >
-            {resolvingId === execution.id ? "…" : "Reject"}
-          </button>
+            rows={3}
+          />
+          <div className={styles.approvalActions}>
+            <button
+              className={`${styles.approvalButton} ${styles["approvalButton-approve"]}`}
+              onClick={() =>
+                onResolve(execution.id, "approved", approvalReason)
+              }
+              disabled={resolvingId === execution.id}
+            >
+              {resolvingId === execution.id ? "…" : "Approve"}
+            </button>
+            <button
+              className={`${styles.approvalButton} ${styles["approvalButton-reject"]}`}
+              onClick={() =>
+                onResolve(execution.id, "rejected", approvalReason)
+              }
+              disabled={resolvingId === execution.id}
+            >
+              {resolvingId === execution.id ? "…" : "Reject"}
+            </button>
+          </div>
         </div>
       )}
       {(decision || isCommandExecution) && (
@@ -268,10 +287,15 @@ export default function WorkflowRunDetail({ run: initial }: Props) {
   async function handleResolve(
     executionId: string,
     decision: "approved" | "rejected",
+    reason: string,
   ) {
     setResolvingId(executionId);
     try {
-      const updated = await resolveManualApproval(run.id, decision);
+      const updated = await resolveManualApproval(
+        run.id,
+        decision,
+        reason || undefined,
+      );
       setRun(updated);
     } catch {
       // ignore resolve errors — the poll will pick up the state

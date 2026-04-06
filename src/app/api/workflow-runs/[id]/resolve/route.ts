@@ -22,7 +22,7 @@ export async function POST(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { decision } = body;
+    const { decision, reason } = body;
 
     if (decision !== "approved" && decision !== "rejected") {
       return NextResponse.json(
@@ -31,7 +31,11 @@ export async function POST(
       );
     }
 
-    const run = await workflowRunService.resolveManualApproval(id, decision);
+    const run = await workflowRunService.resolveManualApproval(
+      id,
+      decision,
+      typeof reason === "string" ? reason : undefined,
+    );
     return NextResponse.json(run, { status: 200 });
   } catch (err) {
     return errorResponse(err);

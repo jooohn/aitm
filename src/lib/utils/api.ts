@@ -274,10 +274,11 @@ export function rerunWorkflowRunFromFailedState(
 export function resolveManualApproval(
   id: string,
   decision: "approved" | "rejected",
+  reason?: string,
 ): Promise<WorkflowRunDetail> {
   return apiFetch(`/api/workflow-runs/${id}/resolve`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ decision }),
+    body: JSON.stringify({ decision, reason }),
   });
 }

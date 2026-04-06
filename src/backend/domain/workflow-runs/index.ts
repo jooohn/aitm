@@ -407,6 +407,7 @@ export class WorkflowRunService {
   async resolveManualApproval(
     id: string,
     decision: "approved" | "rejected",
+    reason?: string,
   ): Promise<WorkflowRunWithExecutions> {
     const run = this.workflowRunRepository.getWorkflowRunById(id);
     if (!run) throw new Error("Workflow run not found");
@@ -443,8 +444,8 @@ export class WorkflowRunService {
           : matchedTransition.terminal;
       transitionDecision = {
         transition: transitionName,
-        reason: `Manually ${decision}`,
-        handoff_summary: "",
+        reason: reason || `Manually ${decision}`,
+        handoff_summary: reason || "",
       };
     }
 
