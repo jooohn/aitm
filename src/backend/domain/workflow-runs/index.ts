@@ -418,6 +418,10 @@ export class WorkflowRunService {
     if (!decision) {
       // No structured output → mark as failure.
       this.workflowRunRepository.terminateWorkflowRun(run.id, "failure", now);
+      this.eventBus.emit("workflow-run.status-changed", {
+        workflowRunId: run.id,
+        status: "failure",
+      });
       return;
     }
 
@@ -425,6 +429,10 @@ export class WorkflowRunService {
 
     if (transition === "success" || transition === "failure") {
       this.workflowRunRepository.terminateWorkflowRun(run.id, transition, now);
+      this.eventBus.emit("workflow-run.status-changed", {
+        workflowRunId: run.id,
+        status: transition,
+      });
       return;
     }
 
@@ -433,6 +441,10 @@ export class WorkflowRunService {
     const workflow = workflows[run.workflow_name];
     if (!workflow || !workflow.steps?.[transition]) {
       this.workflowRunRepository.terminateWorkflowRun(run.id, "failure", now);
+      this.eventBus.emit("workflow-run.status-changed", {
+        workflowRunId: run.id,
+        status: "failure",
+      });
       return;
     }
 
@@ -444,6 +456,10 @@ export class WorkflowRunService {
       (run.step_count_offset ?? 0);
     if (stepCount >= maxSteps) {
       this.workflowRunRepository.terminateWorkflowRun(run.id, "failure", now);
+      this.eventBus.emit("workflow-run.status-changed", {
+        workflowRunId: run.id,
+        status: "failure",
+      });
       return;
     }
 

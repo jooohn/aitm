@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import RunWorkflowModal from "@/app/components/RunWorkflowModal";
 import WorktreeRunsSection from "@/app/components/WorktreeRunsSection";
+import { useNotificationStream } from "@/lib/hooks/useNotificationStream";
 import { fetchRepository, type RepositoryDetail } from "@/lib/utils/api";
 import styles from "./RepositoryShell.module.css";
 
@@ -22,6 +23,8 @@ export default function RepositoryShell({
   const [repo, setRepo] = useState<RepositoryDetail | null>(null);
   const [showLaunchModal, setShowLaunchModal] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+
+  useNotificationStream(() => setRefreshKey((k) => k + 1));
 
   useEffect(() => {
     fetchRepository(organization, name)

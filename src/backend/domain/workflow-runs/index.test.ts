@@ -676,6 +676,84 @@ describe("completeStepExecution", () => {
     const updatedRun = getWorkflowRun(run.id);
     expect(updatedRun?.metadata).toBeNull();
   });
+
+  it("emits workflow-run.status-changed when decision is null (no structured output)", async () => {
+    const emitSpy = vi.spyOn(eventBus, "emit");
+    const { run, execution } = await setupRunAtPlan();
+
+    const session = db
+      .prepare("SELECT * FROM sessions WHERE step_execution_id = ?")
+      .get(execution.id) as { id: string };
+    failSession(session.id);
+
+    await completeStepExecution(execution.id, null);
+
+    expect(emitSpy).toHaveBeenCalledWith("workflow-run.status-changed", {
+      workflowRunId: run.id,
+      status: "failure",
+    });
+  });
+
+  it("emits workflow-run.status-changed on terminal success transition", async () => {
+    const { run, execution } = await setupRunAtPlan();
+
+    await completeStepExecution(execution.id, {
+      transition: "implement",
+      reason: "Ready",
+      handoff_summary: "Plan done",
+    });
+
+    const [_, implementExec] = db
+      .prepare(
+        "SELECT * FROM step_executions WHERE workflow_run_id = ? ORDER BY created_at ASC",
+      )
+      .all(run.id) as { id: string }[];
+
+    const emitSpy = vi.spyOn(eventBus, "emit");
+
+    await completeStepExecution(implementExec.id, {
+      transition: "success",
+      reason: "Code is done",
+      handoff_summary: "All done",
+    });
+
+    expect(emitSpy).toHaveBeenCalledWith("workflow-run.status-changed", {
+      workflowRunId: run.id,
+      status: "success",
+    });
+  });
+
+  it("emits workflow-run.status-changed on terminal failure transition", async () => {
+    const emitSpy = vi.spyOn(eventBus, "emit");
+    const { run, execution } = await setupRunAtPlan();
+
+    await completeStepExecution(execution.id, {
+      transition: "failure",
+      reason: "Blocked",
+      handoff_summary: "Could not proceed",
+    });
+
+    expect(emitSpy).toHaveBeenCalledWith("workflow-run.status-changed", {
+      workflowRunId: run.id,
+      status: "failure",
+    });
+  });
+
+  it("emits workflow-run.status-changed when transition name is not valid", async () => {
+    const emitSpy = vi.spyOn(eventBus, "emit");
+    const { run, execution } = await setupRunAtPlan();
+
+    await completeStepExecution(execution.id, {
+      transition: "nonexistent-state",
+      reason: "??",
+      handoff_summary: "",
+    });
+
+    expect(emitSpy).toHaveBeenCalledWith("workflow-run.status-changed", {
+      workflowRunId: run.id,
+      status: "failure",
+    });
+  });
 });
 
 describe("stopWorkflowRun", () => {
@@ -1540,6 +1618,28 @@ workflows:
 
     const finalRun = getWorkflowRun(run.id);
     expect(finalRun?.status).toBe("success");
+  });
+
+  it("emits workflow-run.status-changed when max steps exceeded", async () => {
+    const { run } = await setupCyclingRun(
+      CYCLING_WORKFLOW_WITH_MAX_STEPS_CONFIG,
+    );
+
+    const emitSpy = vi.spyOn(eventBus, "emit");
+
+    // max_steps is 5, so after 5 transitions the guard triggers.
+    for (let i = 0; i < 5; i++) {
+      const currentRun = getWorkflowRun(run.id);
+      if (currentRun?.status !== "running") break;
+      const nextStep =
+        currentRun?.current_step === "step_a" ? "step_b" : "step_a";
+      await advanceOneStep(run.id, nextStep);
+    }
+
+    expect(emitSpy).toHaveBeenCalledWith("workflow-run.status-changed", {
+      workflowRunId: run.id,
+      status: "failure",
+    });
   });
 });
 
