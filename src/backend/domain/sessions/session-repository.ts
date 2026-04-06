@@ -320,7 +320,7 @@ export class SessionRepository {
       .run(now);
 
     for (const { id } of runningSessions) {
-      this.emitStatusChanged(id, "FAILED");
+      this.emitStatusChanged(id, "FAILED", null);
     }
   }
 }
