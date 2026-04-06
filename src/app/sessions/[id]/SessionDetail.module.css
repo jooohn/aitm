@@ -41,10 +41,6 @@
   @apply max-h-48 overflow-y-auto rounded-lg bg-zinc-900 dark:bg-zinc-950 p-4 font-mono text-xs text-zinc-200 leading-relaxed whitespace-pre-wrap break-words;
 }
 
-.failButton {
-  @apply shrink-0 text-sm px-3 py-1.5 rounded border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors;
-}
-
 /* Details */
 .details {
   @apply flex flex-col divide-y divide-zinc-200 dark:divide-zinc-700;

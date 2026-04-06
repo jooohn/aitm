@@ -60,10 +60,6 @@
   @apply mt-1 text-xs font-mono bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 px-2 py-0.5 rounded break-all;
 }
 
-.failButton {
-  @apply shrink-0 text-sm px-3 py-1 rounded border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors;
-}
-
 .form {
   @apply flex flex-col gap-3 pt-2;
 }

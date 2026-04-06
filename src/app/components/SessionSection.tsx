@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
-  failSession,
   fetchSessions,
   type Session,
   type SessionStatus,
@@ -23,15 +22,10 @@ const STATUS_LABELS: Record<SessionStatus, string> = {
   FAILED: "Failed",
 };
 
-const TERMINAL_STATUSES: SessionStatus[] = ["SUCCEEDED", "FAILED"];
-
 export default function SessionSection({ repositoryPath, branch }: Props) {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [failingId, setFailingId] = useState<string | null>(null);
-  const [failError, setFailError] = useState<string | null>(null);
-
   async function load() {
     setLoading(true);
     setLoadError(null);
@@ -50,21 +44,6 @@ export default function SessionSection({ repositoryPath, branch }: Props) {
   useEffect(() => {
     load();
   }, []);
-
-  async function handleFail(session: Session) {
-    setFailingId(session.id);
-    setFailError(null);
-    try {
-      await failSession(session.id);
-      await load();
-    } catch (err) {
-      setFailError(
-        err instanceof Error ? err.message : "Failed to mark session as failed",
-      );
-    } finally {
-      setFailingId(null);
-    }
-  }
 
   return (
     <section className={styles.section}>
@@ -108,22 +87,10 @@ export default function SessionSection({ repositoryPath, branch }: Props) {
                   </code>
                 )}
               </div>
-              {!TERMINAL_STATUSES.includes(session.status) && (
-                <button
-                  type="button"
-                  className={styles.failButton}
-                  disabled={failingId === session.id}
-                  onClick={() => handleFail(session)}
-                >
-                  {failingId === session.id ? "Failing…" : "Fail"}
-                </button>
-              )}
             </li>
           ))}
         </ul>
       )}
-
-      {failError && <p className={styles.error}>{failError}</p>}
     </section>
   );
 }

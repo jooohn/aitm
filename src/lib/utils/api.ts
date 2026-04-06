@@ -136,10 +136,6 @@ export function fetchSessionsByStatus(
   return apiFetch(`/api/sessions?${params}`);
 }
 
-export async function failSession(id: string): Promise<Session> {
-  return apiFetch(`/api/sessions/${id}/fail`, { method: "POST" });
-}
-
 export async function replyToSession(
   id: string,
   message: string,

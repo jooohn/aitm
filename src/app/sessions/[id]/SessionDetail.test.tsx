@@ -77,6 +77,20 @@ describe("SessionDetail – goal section", () => {
   });
 });
 
+describe("SessionDetail – mark as failed removal", () => {
+  it("does not render a 'Mark as failed' button for running sessions", () => {
+    const session = makeSession({ status: "RUNNING" });
+    render(<SessionDetail session={session} />);
+    expect(screen.queryByText("Mark as failed")).not.toBeInTheDocument();
+  });
+
+  it("does not render a 'Mark as failed' button for awaiting input sessions", () => {
+    const session = makeSession({ status: "AWAITING_INPUT" });
+    render(<SessionDetail session={session} />);
+    expect(screen.queryByText("Mark as failed")).not.toBeInTheDocument();
+  });
+});
+
 describe("SessionDetail – status and updates", () => {
   it("updates the rendered session when the parent provides a different session", () => {
     const { rerender } = render(
