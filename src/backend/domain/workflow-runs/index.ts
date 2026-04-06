@@ -31,6 +31,7 @@ export interface WorkflowRun {
   status: WorkflowRunStatus;
   inputs: string | null;
   metadata: string | null;
+  step_count_offset: number;
   created_at: string;
   updated_at: string;
 }
@@ -436,8 +437,11 @@ export class WorkflowRunService {
     }
 
     // Guard: terminate if step executions exceed the maximum allowed.
+    // Use the offset so re-runs from failed state get a fresh budget.
     const maxSteps = workflow.max_steps ?? DEFAULT_MAX_STEP_EXECUTIONS;
-    const stepCount = this.workflowRunRepository.countStepExecutions(run.id);
+    const stepCount =
+      this.workflowRunRepository.countStepExecutions(run.id) -
+      (run.step_count_offset ?? 0);
     if (stepCount >= maxSteps) {
       this.workflowRunRepository.terminateWorkflowRun(run.id, "failure", now);
       return;
@@ -699,6 +703,10 @@ export class WorkflowRunService {
     const failedStep = lastExecution.step;
     const now = new Date().toISOString();
 
+    // Record current step count as offset so the max_steps guard only applies
+    // to executions created during this re-run, not the entire history.
+    const stepCountOffset = this.workflowRunRepository.countStepExecutions(id);
+    this.workflowRunRepository.setStepCountOffset(id, stepCountOffset);
     this.workflowRunRepository.setWorkflowRunRunning(id, failedStep, now);
 
     const previousExecutions = this.workflowRunRepository

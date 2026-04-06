@@ -1307,6 +1307,116 @@ describe("rerunWorkflowRunFromFailedState", () => {
     // but it is the last/failed one and should be excluded
     expect(newSession?.goal).not.toContain("Could not proceed");
   });
+
+  it("resets effective step count so max_steps guard does not block the rerun", async () => {
+    // Workflow with max_steps: 4 and a non-terminal transition (implement → plan).
+    // The bug: after accumulating step executions that hit the limit, re-running
+    // from failed state still counts ALL past executions, so a non-terminal
+    // transition gets blocked by the max_steps guard even though the user
+    // explicitly chose to continue.
+    const MAX_STEPS_WORKFLOW = `
+workflows:
+  my-flow:
+    max_steps: 4
+    initial_step: plan
+    steps:
+      plan:
+        goal: "Write a plan"
+        transitions:
+          - step: implement
+            when: "plan is ready"
+          - terminal: failure
+            when: "cannot proceed"
+      implement:
+        goal: "Write the code"
+        transitions:
+          - step: plan
+            when: "needs re-planning"
+          - terminal: success
+            when: "code is done"
+          - terminal: failure
+            when: "blocked"
+`;
+    process.env.AITM_CONFIG_PATH = await writeTempConfig(MAX_STEPS_WORKFLOW);
+    const repoPath = await makeFakeGitRepo();
+    const run = await createWorkflowRun({
+      repository_path: repoPath,
+      worktree_branch: "feat/test",
+      workflow_name: "my-flow",
+    });
+
+    // createWorkflowRun created exec #1 (plan).
+    // Cycle: plan→implement→plan→implement (4 execs, hitting max_steps).
+    // Exec #1: plan → implement
+    const exec1 = db
+      .prepare(
+        "SELECT * FROM step_executions WHERE workflow_run_id = ? AND completed_at IS NULL ORDER BY rowid DESC LIMIT 1",
+      )
+      .get(run.id) as { id: string };
+    await completeStepExecution(exec1.id, {
+      transition: "implement",
+      reason: "plan done",
+      handoff_summary: "plan handoff",
+    });
+    // Exec #2: implement → plan (needs re-planning)
+    const exec2 = db
+      .prepare(
+        "SELECT * FROM step_executions WHERE workflow_run_id = ? AND completed_at IS NULL ORDER BY rowid DESC LIMIT 1",
+      )
+      .get(run.id) as { id: string };
+    await completeStepExecution(exec2.id, {
+      transition: "plan",
+      reason: "needs re-planning",
+      handoff_summary: "re-plan",
+    });
+    // Exec #3: plan → implement
+    const exec3 = db
+      .prepare(
+        "SELECT * FROM step_executions WHERE workflow_run_id = ? AND completed_at IS NULL ORDER BY rowid DESC LIMIT 1",
+      )
+      .get(run.id) as { id: string };
+    await completeStepExecution(exec3.id, {
+      transition: "implement",
+      reason: "plan done again",
+      handoff_summary: "plan handoff 2",
+    });
+    // Exec #4: implement — count is now 4 = max_steps. Any non-terminal
+    // transition would be blocked. Force a terminal failure to end the run.
+    const exec4 = db
+      .prepare(
+        "SELECT * FROM step_executions WHERE workflow_run_id = ? AND completed_at IS NULL ORDER BY rowid DESC LIMIT 1",
+      )
+      .get(run.id) as { id: string };
+    await completeStepExecution(exec4.id, {
+      transition: "failure",
+      reason: "blocked",
+      handoff_summary: "failed",
+    });
+    expect(getWorkflowRun(run.id)?.status).toBe("failure");
+
+    // Now re-run from failed state. The total step count is 4 (= max_steps).
+    // The re-run creates exec #5 for "implement". Without the fix, any
+    // non-terminal transition from exec #5 would see count=5 ≥ max_steps=4
+    // and terminate. With the fix, the effective count resets.
+    await rerunWorkflowRunFromFailedState(run.id);
+    const exec5 = db
+      .prepare(
+        "SELECT * FROM step_executions WHERE workflow_run_id = ? AND completed_at IS NULL ORDER BY rowid DESC LIMIT 1",
+      )
+      .get(run.id) as { id: string };
+    // Transition to "plan" — a non-terminal step transition.
+    // Without the fix this would be blocked by max_steps.
+    await completeStepExecution(exec5.id, {
+      transition: "plan",
+      reason: "needs re-planning",
+      handoff_summary: "re-plan after rerun",
+    });
+
+    const afterRerun = getWorkflowRun(run.id);
+    // The workflow should still be running, having advanced to "plan".
+    expect(afterRerun?.status).toBe("running");
+    expect(afterRerun?.current_step).toBe("plan");
+  });
 });
 
 describe("max steps safe guard", () => {

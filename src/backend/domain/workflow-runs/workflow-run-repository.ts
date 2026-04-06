@@ -19,16 +19,17 @@ export class WorkflowRunRepository {
   ensureTables() {
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS workflow_runs (
-        id               TEXT    PRIMARY KEY,
-        repository_path  TEXT    NOT NULL,
-        worktree_branch  TEXT    NOT NULL,
-        workflow_name    TEXT    NOT NULL,
-        current_step     TEXT,
-        status           TEXT    NOT NULL DEFAULT 'running',
-        inputs           TEXT,
-        metadata         TEXT,
-        created_at       TEXT    NOT NULL,
-        updated_at       TEXT    NOT NULL
+        id                 TEXT    PRIMARY KEY,
+        repository_path    TEXT    NOT NULL,
+        worktree_branch    TEXT    NOT NULL,
+        workflow_name      TEXT    NOT NULL,
+        current_step       TEXT,
+        status             TEXT    NOT NULL DEFAULT 'running',
+        inputs             TEXT,
+        metadata           TEXT,
+        step_count_offset  INTEGER NOT NULL DEFAULT 0,
+        created_at         TEXT    NOT NULL,
+        updated_at         TEXT    NOT NULL
       );
 
       CREATE TABLE IF NOT EXISTS step_executions (
@@ -47,9 +48,14 @@ export class WorkflowRunRepository {
     const wrColumns = this.db
       .prepare("PRAGMA table_info(workflow_runs)")
       .all() as Array<{ name: string }>;
-    const hasMetadata = wrColumns.some((column) => column.name === "metadata");
-    if (!hasMetadata) {
+    const columnNames = new Set(wrColumns.map((c) => c.name));
+    if (!columnNames.has("metadata")) {
       this.db.exec("ALTER TABLE workflow_runs ADD COLUMN metadata TEXT");
+    }
+    if (!columnNames.has("step_count_offset")) {
+      this.db.exec(
+        "ALTER TABLE workflow_runs ADD COLUMN step_count_offset INTEGER NOT NULL DEFAULT 0",
+      );
     }
   }
 
@@ -329,6 +335,12 @@ export class WorkflowRunRepository {
         "UPDATE workflow_runs SET status = 'running', current_step = ?, updated_at = ? WHERE id = ?",
       )
       .run(step, now, id);
+  }
+
+  setStepCountOffset(id: string, offset: number): void {
+    this.db
+      .prepare("UPDATE workflow_runs SET step_count_offset = ? WHERE id = ?")
+      .run(offset, id);
   }
 
   findWorkflowRunIdBySessionId(sessionId: string): string | undefined {
