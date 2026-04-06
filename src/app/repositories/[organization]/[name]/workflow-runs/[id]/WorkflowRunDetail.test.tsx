@@ -51,6 +51,7 @@ function makeExecution(
     workflow_run_id: "run-1",
     step: overrides.step,
     step_type: "agent",
+    status: "completed",
     command_output: null,
     session_id: null,
     session_status: null,
@@ -254,5 +255,55 @@ describe("WorkflowRunDetail", () => {
         makeRun({ status: "running", step_executions: [exec1, exec2] }),
       );
     });
+  });
+
+  it("shows 'Awaiting Input' badge when step execution status is awaiting", () => {
+    const execution = makeExecution({
+      step: "implement",
+      status: "awaiting",
+      completed_at: null,
+    });
+
+    render(
+      <WorkflowRunDetail
+        run={makeRun({
+          status: "awaiting",
+          step_executions: [execution],
+        })}
+      />,
+    );
+
+    const executionItem = document.getElementById(
+      "step-execution-implement-execution",
+    )!;
+    expect(
+      within(executionItem).getByText("Awaiting Input"),
+    ).toBeInTheDocument();
+    expect(
+      within(executionItem).queryByText("Running"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows 'Running' badge when step execution status is running", () => {
+    const execution = makeExecution({
+      step: "implement",
+      status: "running",
+      completed_at: null,
+    });
+
+    render(
+      <WorkflowRunDetail
+        run={makeRun({
+          status: "running",
+          step_executions: [execution],
+        })}
+      />,
+    );
+
+    const executionItem = document.getElementById(
+      "step-execution-implement-execution",
+    )!;
+    expect(within(executionItem).getByText("Running")).toBeInTheDocument();
+    expect(screen.queryByText("Awaiting Input")).not.toBeInTheDocument();
   });
 });
