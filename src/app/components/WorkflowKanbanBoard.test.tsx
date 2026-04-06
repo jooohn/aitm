@@ -460,6 +460,73 @@ describe("WorkflowKanbanBoard", () => {
     });
   });
 
+  it("renders workflow sections in config definition order, not run-data order", async () => {
+    const deployDef: WorkflowDefinition = {
+      initial_step: "build",
+      steps: {
+        build: {
+          goal: "Build",
+          transitions: [{ terminal: "success", when: "done" }],
+        },
+      },
+    };
+    const testDef: WorkflowDefinition = {
+      initial_step: "lint",
+      steps: {
+        lint: {
+          goal: "Lint",
+          transitions: [{ terminal: "success", when: "done" }],
+        },
+      },
+    };
+
+    // Config order: default, deploy, test
+    fetchWorkflowsMock.mockResolvedValue({
+      default: WORKFLOW_DEF,
+      deploy: deployDef,
+      test: testDef,
+    });
+
+    // Runs arrive in reverse order: test first, then deploy, then default
+    fetchWorkflowRunsMock.mockResolvedValue([
+      makeRun({
+        id: "r1",
+        workflow_name: "test",
+        current_step: "lint",
+        worktree_branch: "test-branch",
+      }),
+      makeRun({
+        id: "r2",
+        workflow_name: "deploy",
+        current_step: "build",
+        worktree_branch: "deploy-branch",
+      }),
+      makeRun({
+        id: "r3",
+        workflow_name: "default",
+        current_step: "plan",
+        worktree_branch: "default-branch",
+      }),
+    ]);
+
+    render(
+      <WorkflowKanbanBoard
+        repositoryPath="/repos/org/name"
+        activeWorktreeBranches={null}
+      />,
+    );
+
+    await screen.findByText("default-branch");
+
+    // Workflow headings should appear in config order: default, deploy, test
+    const headings = screen.getAllByRole("heading", { level: 3 });
+    expect(headings.map((h) => h.textContent)).toEqual([
+      "default",
+      "deploy",
+      "test",
+    ]);
+  });
+
   describe("multi-repo mode (no repositoryPath)", () => {
     it("fetches all workflow runs when repositoryPath is not provided", async () => {
       fetchAllWorkflowRunsMock.mockResolvedValue([
