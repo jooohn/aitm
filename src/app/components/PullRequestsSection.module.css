@@ -1,0 +1,17 @@
+@reference "tailwindcss";
+
+.section {
+  @apply flex flex-col gap-1;
+}
+
+.heading {
+  @apply text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide;
+}
+
+.list {
+  @apply flex flex-wrap gap-2;
+}
+
+.link {
+  @apply text-sm text-blue-600 dark:text-blue-400 hover:underline;
+}

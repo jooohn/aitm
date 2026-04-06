@@ -2,12 +2,15 @@
 
 import { notFound, useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import PullRequestsSection from "@/app/components/PullRequestsSection";
 import WorkflowKanbanBoard from "@/app/components/WorkflowKanbanBoard";
 import {
   fetchRepository,
+  fetchWorkflowRuns,
   fetchWorktrees,
   type RepositoryDetail,
   removeWorktree,
+  type WorkflowRun,
   type Worktree,
 } from "@/lib/utils/api";
 import styles from "./page.module.css";
@@ -28,6 +31,7 @@ export default function WorktreePage() {
   const [repo, setRepo] = useState<RepositoryDetail | null>(null);
   const [worktree, setWorktree] = useState<Worktree | null>(null);
   const [loading, setLoading] = useState(true);
+  const [workflowRuns, setWorkflowRuns] = useState<WorkflowRun[]>([]);
   const [removing, setRemoving] = useState(false);
   const [removeError, setRemoveError] = useState<string | null>(null);
 
@@ -44,6 +48,7 @@ export default function WorktreePage() {
           return;
         }
         setWorktree(wt);
+        fetchWorkflowRuns(r.path, branch).then(setWorkflowRuns);
       })
       .catch(() => notFound())
       .finally(() => setLoading(false));
@@ -92,6 +97,7 @@ export default function WorktreePage() {
         )}
       </div>
       {removeError && <p className={styles.error}>{removeError}</p>}
+      <PullRequestsSection workflowRuns={workflowRuns} />
       <WorkflowKanbanBoard
         repositoryPath={repo.path}
         activeWorktreeBranches={[branch]}
