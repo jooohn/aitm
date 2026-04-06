@@ -10,6 +10,7 @@ import {
   fetchWorkflows,
   rerunWorkflowRun,
   rerunWorkflowRunFromFailedState,
+  resolveManualApproval,
   type StepExecution,
   stopWorkflowRun,
   type WorkflowDefinition,
@@ -52,9 +53,15 @@ function parseDecision(raw: string | null): TransitionDecision | null {
 
 interface StepExecutionItemProps {
   execution: StepExecution;
+  onResolve?: (executionId: string, decision: "approved" | "rejected") => void;
+  resolvingId?: string | null;
 }
 
-function StepExecutionItem({ execution }: StepExecutionItemProps) {
+function StepExecutionItem({
+  execution,
+  onResolve,
+  resolvingId,
+}: StepExecutionItemProps) {
   const {
     organization,
     name,
@@ -67,12 +74,20 @@ function StepExecutionItem({ execution }: StepExecutionItemProps) {
   const decision = parseDecision(execution.transition_decision);
   const isRunning = execution.completed_at === null;
   const isCommandExecution = execution.step_type === "command";
+  const isManualApproval = execution.step_type === "manual-approval";
+  const isPendingApproval = isManualApproval && isRunning;
 
   return (
     <li id={`step-execution-${execution.id}`} className={styles.execution}>
       <div className={styles.executionHeader}>
         <span className={styles.stateName}>{execution.step}</span>
-        {isRunning ? (
+        {isPendingApproval ? (
+          <span
+            className={`${styles.badge} ${styles["badge-pending-approval"]}`}
+          >
+            Awaiting Approval
+          </span>
+        ) : isRunning ? (
           <span className={`${styles.badge} ${styles["badge-running"]}`}>
             Running
           </span>
@@ -95,6 +110,24 @@ function StepExecutionItem({ execution }: StepExecutionItemProps) {
           {new Date(execution.created_at).toLocaleString()}
         </span>
       </div>
+      {isPendingApproval && onResolve && (
+        <div className={styles.approvalActions}>
+          <button
+            className={`${styles.approvalButton} ${styles["approvalButton-approve"]}`}
+            onClick={() => onResolve(execution.id, "approved")}
+            disabled={resolvingId === execution.id}
+          >
+            {resolvingId === execution.id ? "…" : "Approve"}
+          </button>
+          <button
+            className={`${styles.approvalButton} ${styles["approvalButton-reject"]}`}
+            onClick={() => onResolve(execution.id, "rejected")}
+            disabled={resolvingId === execution.id}
+          >
+            {resolvingId === execution.id ? "…" : "Reject"}
+          </button>
+        </div>
+      )}
       {(decision || isCommandExecution) && (
         <div className={styles.decision}>
           {decision && (
@@ -170,6 +203,7 @@ export default function WorkflowRunDetail({ run: initial }: Props) {
   const [rerunFromFailedError, setRerunFromFailedError] = useState<
     string | null
   >(null);
+  const [resolvingId, setResolvingId] = useState<string | null>(null);
   const [workflowDefinition, setWorkflowDefinition] =
     useState<WorkflowDefinition | null>(null);
 
@@ -228,6 +262,21 @@ export default function WorkflowRunDetail({ run: initial }: Props) {
       setStopError(err instanceof Error ? err.message : "Stop failed");
     } finally {
       setStopping(false);
+    }
+  }
+
+  async function handleResolve(
+    executionId: string,
+    decision: "approved" | "rejected",
+  ) {
+    setResolvingId(executionId);
+    try {
+      const updated = await resolveManualApproval(run.id, decision);
+      setRun(updated);
+    } catch {
+      // ignore resolve errors — the poll will pick up the state
+    } finally {
+      setResolvingId(null);
     }
   }
 
@@ -465,7 +514,12 @@ export default function WorkflowRunDetail({ run: initial }: Props) {
         ) : (
           <ul className={styles.executions}>
             {[...run.step_executions].reverse().map((execution) => (
-              <StepExecutionItem key={execution.id} execution={execution} />
+              <StepExecutionItem
+                key={execution.id}
+                execution={execution}
+                onResolve={handleResolve}
+                resolvingId={resolvingId}
+              />
             ))}
           </ul>
         )}

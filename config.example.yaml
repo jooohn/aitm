@@ -74,10 +74,18 @@ workflows:
         transitions:
           - step: implement
             when: "review found issues that require code changes"
-          - step: commit-push-pr
+          - step: approve
             when: "code is ready to commit"
           - terminal: failure
             when: "changes should be abandoned"
+
+      approve:
+        type: manual-approval
+        transitions:
+          - step: commit-push-pr
+            when: "approved"
+          - step: implement
+            when: "rejected"
 
       commit-push-pr:
         goal: |

@@ -195,7 +195,7 @@ export interface StepExecution {
   id: string;
   workflow_run_id: string;
   step: string;
-  step_type: "agent" | "command";
+  step_type: "agent" | "command" | "manual-approval";
   command_output: string | null;
   session_id: string | null;
   session_status: SessionStatus | null;
@@ -268,5 +268,16 @@ export function rerunWorkflowRunFromFailedState(
 ): Promise<WorkflowRunDetail> {
   return apiFetch(`/api/workflow-runs/${id}/rerun-from-failed`, {
     method: "POST",
+  });
+}
+
+export function resolveManualApproval(
+  id: string,
+  decision: "approved" | "rejected",
+): Promise<WorkflowRunDetail> {
+  return apiFetch(`/api/workflow-runs/${id}/resolve`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ decision }),
   });
 }

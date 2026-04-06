@@ -57,7 +57,7 @@ export class WorkflowRunRepository {
     id: string;
     workflowRunId: string;
     stepName: string;
-    stepType: "agent" | "command";
+    stepType: "agent" | "command" | "manual-approval";
     now: string;
   }): void {
     this.db
@@ -373,6 +373,7 @@ export class WorkflowRunRepository {
        JOIN workflow_runs wr ON se.workflow_run_id = wr.id
        WHERE se.completed_at IS NULL
          AND NOT EXISTS (SELECT 1 FROM sessions WHERE step_execution_id = se.id)
+         AND se.step_type != 'manual-approval'
          AND wr.status = 'running'`,
       )
       .all() as Array<{ execution_id: string; workflow_run_id: string }>;
