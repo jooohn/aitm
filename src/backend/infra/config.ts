@@ -1,4 +1,4 @@
-import { readFile } from "fs/promises";
+import { readFileSync } from "fs";
 import yaml, { YAMLException } from "js-yaml";
 import { homedir } from "os";
 import { join } from "path";
@@ -80,15 +80,13 @@ export interface WorkflowDefinition {
   steps: Record<string, WorkflowStep>;
 }
 
-interface ConfigSnapshot {
+export interface ConfigSnapshot {
   agent: AgentConfig;
   repositories: ConfigRepository[];
   workflows: Record<string, WorkflowDefinition>;
 }
 
 const CORE_DECISION_KEYS = new Set(["transition", "reason", "handoff_summary"]);
-
-let configSnapshot: ConfigSnapshot | null = null;
 
 function fail(message: string): never {
   throw new Error(message);
@@ -438,11 +436,11 @@ function validateConfig(raw: unknown): ConfigSnapshot {
   return { agent, repositories, workflows };
 }
 
-async function loadConfigSnapshot(): Promise<ConfigSnapshot> {
+export function loadConfig(): ConfigSnapshot {
   const configPath = getConfigPath();
   let content: string;
   try {
-    content = await readFile(configPath, "utf8");
+    content = readFileSync(configPath, "utf8");
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") {
       fail(`Config file not found: ${configPath}`);
@@ -468,34 +466,10 @@ async function loadConfigSnapshot(): Promise<ConfigSnapshot> {
   }
 }
 
-function requireConfigSnapshot(): ConfigSnapshot {
-  if (!configSnapshot) {
-    fail("Configuration has not been initialized");
-  }
-  return configSnapshot;
-}
-
-export async function initializeConfig(): Promise<void> {
-  if (configSnapshot) return;
-  configSnapshot = await loadConfigSnapshot();
-}
-
-export function resetConfigForTests(): void {
-  configSnapshot = null;
-}
-
-export async function getConfigRepositories(): Promise<ConfigRepository[]> {
-  return requireConfigSnapshot().repositories;
-}
-
-export async function getAgentConfig(): Promise<AgentConfig> {
-  return requireConfigSnapshot().agent;
-}
-
-export async function resolveAgentConfig(
+export function resolveAgentConfig(
+  base: AgentConfig,
   override?: AgentConfigOverride,
-): Promise<AgentConfig> {
-  const base = requireConfigSnapshot().agent;
+): AgentConfig {
   const inheritsProviderFields =
     override?.provider === undefined || override.provider === base.provider;
 
@@ -508,10 +482,4 @@ export async function resolveAgentConfig(
       override?.permission_mode ??
       (inheritsProviderFields ? base.permission_mode : undefined),
   };
-}
-
-export async function getConfigWorkflows(): Promise<
-  Record<string, WorkflowDefinition>
-> {
-  return requireConfigSnapshot().workflows;
 }

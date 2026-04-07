@@ -3,31 +3,10 @@ import { NextRequest } from "next/server";
 import { tmpdir } from "os";
 import { join } from "path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  agentService,
-  sessionService,
-  worktreeService,
-} from "@/backend/container";
+import * as container from "@/backend/container";
 import { db } from "@/backend/infra/db";
 import { setupTestConfigDir, writeTestConfig } from "@/test-config-helper";
 import { POST } from "./route";
-
-vi.spyOn(agentService, "startAgent").mockResolvedValue();
-vi.spyOn(agentService, "resumeAgent").mockResolvedValue();
-vi.spyOn(agentService, "cancelAgent").mockImplementation(() => {});
-vi.spyOn(worktreeService, "listWorktrees").mockImplementation(
-  async (repoPath) => [
-    {
-      branch: "feat/test",
-      path: repoPath,
-      is_main: false,
-      is_bare: false,
-      head: "HEAD",
-    },
-  ],
-);
-
-const createSession = sessionService.createSession.bind(sessionService);
 
 async function makeFakeGitRepo(): Promise<string> {
   const dir = join(
@@ -45,12 +24,27 @@ function makeParams(id: string): { params: Promise<{ id: string }> } {
 beforeEach(async () => {
   const configFile = await setupTestConfigDir();
   await writeTestConfig(configFile, "workflows: {}\n");
+  container.initializeContainer();
   db.prepare("DELETE FROM sessions").run();
+  vi.spyOn(container.agentService, "startAgent").mockResolvedValue();
+  vi.spyOn(container.agentService, "resumeAgent").mockResolvedValue();
+  vi.spyOn(container.agentService, "cancelAgent").mockImplementation(() => {});
+  vi.spyOn(container.worktreeService, "listWorktrees").mockImplementation(
+    async (repoPath) => [
+      {
+        branch: "feat/test",
+        path: repoPath,
+        is_main: false,
+        is_bare: false,
+        head: "HEAD",
+      },
+    ],
+  );
 });
 
 describe("POST /api/sessions/:id/reply", () => {
   it("returns 200 and calls resumeAgent for AWAITING_INPUT session", async () => {
-    const session = await createSession({
+    const session = await container.sessionService.createSession({
       repository_path: await makeFakeGitRepo(),
       worktree_branch: "feat/test",
       goal: "Do something",
@@ -69,7 +63,7 @@ describe("POST /api/sessions/:id/reply", () => {
     );
 
     expect(res.status).toBe(200);
-    expect(agentService.resumeAgent).toHaveBeenCalledWith(
+    expect(container.agentService.resumeAgent).toHaveBeenCalledWith(
       session.id,
       "Use PostgreSQL",
       session.repository_path,
@@ -94,7 +88,7 @@ describe("POST /api/sessions/:id/reply", () => {
   });
 
   it("returns 422 when session is not AWAITING_INPUT", async () => {
-    const session = await createSession({
+    const session = await container.sessionService.createSession({
       repository_path: await makeFakeGitRepo(),
       worktree_branch: "feat/test",
       goal: "Do something",
@@ -113,7 +107,7 @@ describe("POST /api/sessions/:id/reply", () => {
   });
 
   it("returns 400 when message is missing", async () => {
-    const session = await createSession({
+    const session = await container.sessionService.createSession({
       repository_path: await makeFakeGitRepo(),
       worktree_branch: "feat/test",
       goal: "Do something",

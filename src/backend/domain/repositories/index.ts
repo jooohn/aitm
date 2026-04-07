@@ -1,6 +1,6 @@
 import { access } from "fs/promises";
 import { basename, join } from "path";
-import { getConfigRepositories } from "@/backend/infra/config";
+import type { ConfigRepository } from "@/backend/infra/config";
 import { spawnAsync } from "@/backend/utils/process";
 
 export interface Repository {
@@ -32,8 +32,10 @@ async function isGitRepo(path: string): Promise<boolean> {
 }
 
 export class RepositoryService {
+  constructor(private configRepositories: ConfigRepository[]) {}
+
   async listRepositories(): Promise<Repository[]> {
-    return (await getConfigRepositories())
+    return this.configRepositories
       .map((r) => ({
         path: r.path,
         name: basename(r.path),

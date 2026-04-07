@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { getConfigWorkflows } from "@/backend/infra/config";
+import type { AgentConfig, WorkflowDefinition } from "@/backend/infra/config";
 import type { EventBus } from "@/backend/infra/event-bus";
 import { logger } from "@/backend/infra/logger";
 import { spawnAsync } from "@/backend/utils/process";
@@ -88,6 +88,8 @@ export class WorkflowRunService {
     private worktreeService: WorktreeService,
     private commandStepExecutor: CommandStepExecutor,
     private eventBus: EventBus,
+    private workflows: Record<string, WorkflowDefinition>,
+    private agentConfig: AgentConfig,
   ) {
     this.workflowRunQueries = new WorkflowRunQueries(workflowRunRepository);
     this.stepRunner = new StepRunner(
@@ -95,10 +97,13 @@ export class WorkflowRunService {
       sessionService,
       worktreeService,
       commandStepExecutor,
+      workflows,
+      agentConfig,
     );
     this.workflowStateMachine = new WorkflowStateMachine(
       workflowRunRepository,
       this.stepRunner,
+      workflows,
     );
     this.stepRunner.setStepCompletionHandler(
       this.workflowStateMachine.completeStepExecution.bind(
@@ -128,7 +133,7 @@ export class WorkflowRunService {
   }
 
   async createWorkflowRun(input: CreateWorkflowRunInput): Promise<WorkflowRun> {
-    const workflows = await getConfigWorkflows();
+    const workflows = this.workflows;
     const workflow = workflows[input.workflow_name];
     if (!workflow)
       throw new Error(`Workflow not found: ${input.workflow_name}`);

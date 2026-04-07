@@ -1,7 +1,6 @@
 import { mkdir, writeFile } from "fs/promises";
 import { tmpdir } from "os";
 import { join } from "path";
-import { initializeConfig, resetConfigForTests } from "@/backend/infra/config";
 
 export async function setupTestConfigDir(): Promise<string> {
   const dir = join(
@@ -19,6 +18,4 @@ export async function writeTestConfig(
   content: string,
 ): Promise<void> {
   await writeFile(configFile, content);
-  resetConfigForTests();
-  await initializeConfig();
 }

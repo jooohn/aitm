@@ -2,13 +2,7 @@ import { chmod, rm, writeFile } from "fs/promises";
 import { dirname } from "path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { setupTestConfigDir } from "@/test-config-helper";
-import {
-  getAgentConfig,
-  getConfigRepositories,
-  getConfigWorkflows,
-  initializeConfig,
-  resolveAgentConfig,
-} from "./config";
+import { loadConfig, resolveAgentConfig } from "./config";
 
 let configFile: string;
 
@@ -24,41 +18,28 @@ afterEach(async () => {
   await rm(dirname(configFile), { recursive: true, force: true });
 });
 
-describe("config initialization", () => {
-  it("fails when getters are used before initialization", async () => {
-    await expect(getConfigRepositories()).rejects.toThrow(
-      "Configuration has not been initialized",
-    );
-    await expect(getAgentConfig()).rejects.toThrow(
-      "Configuration has not been initialized",
-    );
-    await expect(getConfigWorkflows()).rejects.toThrow(
-      "Configuration has not been initialized",
-    );
-  });
-
+describe("loadConfig", () => {
   it("fails when the config file is missing", async () => {
-    await expect(initializeConfig()).rejects.toThrow(configFile);
-    await expect(initializeConfig()).rejects.toThrow("Config file not found");
+    expect(() => loadConfig()).toThrow("Config file not found");
   });
 
   it("fails when the config file is unreadable", async () => {
     await writeConfig("workflows: {}\n");
     await chmod(configFile, 0o000);
 
-    await expect(initializeConfig()).rejects.toThrow("Unable to read config");
+    expect(() => loadConfig()).toThrow("Unable to read config");
   });
 
   it("fails on invalid yaml", async () => {
     await writeConfig("workflows: [\n");
 
-    await expect(initializeConfig()).rejects.toThrow("Invalid YAML");
+    expect(() => loadConfig()).toThrow("Invalid YAML");
   });
 
   it("fails on invalid top-level shape", async () => {
     await writeConfig("- not-a-map\n");
 
-    await expect(initializeConfig()).rejects.toThrow("Invalid config root");
+    expect(() => loadConfig()).toThrow("Invalid config root");
   });
 
   it("fails on invalid workflow invariants", async () => {
@@ -74,7 +55,7 @@ workflows:
             when: done
 `);
 
-    await expect(initializeConfig()).rejects.toThrow(
+    expect(() => loadConfig()).toThrow(
       "workflows.bad-flow.initial_step must reference an existing step",
     );
   });
@@ -84,9 +65,7 @@ workflows:
 workflows: ""
 `);
 
-    await expect(initializeConfig()).rejects.toThrow(
-      "workflows must be an object",
-    );
+    expect(() => loadConfig()).toThrow("workflows must be an object");
   });
 
   it("fails on invalid metadata shape instead of dropping it", async () => {
@@ -105,7 +84,7 @@ workflows:
             when: done
 `);
 
-    await expect(initializeConfig()).rejects.toThrow(
+    expect(() => loadConfig()).toThrow(
       "workflows.my-flow.steps.push.output.metadata.pr_url must be an object",
     );
   });
@@ -126,7 +105,7 @@ workflows:
             when: done
 `);
 
-    await expect(initializeConfig()).rejects.toThrow(
+    expect(() => loadConfig()).toThrow(
       "workflows.my-flow.steps.push.output.presets[0] must reference a known preset",
     );
   });
@@ -146,12 +125,12 @@ workflows:
             when: done
 `);
 
-    await expect(initializeConfig()).rejects.toThrow(
+    expect(() => loadConfig()).toThrow(
       "workflows.my-flow.steps.plan cannot define command for an agent step",
     );
   });
 
-  it("loads once and keeps serving the cached snapshot", async () => {
+  it("returns a fresh snapshot on each call", async () => {
     await writeConfig(`
 agent:
   provider: codex
@@ -169,24 +148,20 @@ workflows:
             when: done
 `);
 
-    await initializeConfig();
-    await writeConfig("workflows: {}\n");
-
-    await expect(getConfigRepositories()).resolves.toEqual([
-      { path: "/projects/org/repo1" },
-    ]);
-    await expect(getAgentConfig()).resolves.toEqual({
+    const snapshot = loadConfig();
+    expect(snapshot.repositories).toEqual([{ path: "/projects/org/repo1" }]);
+    expect(snapshot.agent).toEqual({
       provider: "codex",
       model: "gpt-5.4",
       command: undefined,
       permission_mode: undefined,
     });
-    await expect(getConfigWorkflows()).resolves.toMatchObject({
+    expect(snapshot.workflows).toMatchObject({
       "my-flow": { initial_step: "plan" },
     });
   });
 
-  it("normalizes valid workflows after initialization", async () => {
+  it("normalizes valid workflows", async () => {
     await writeConfig(`
 agent:
   provider: claude
@@ -230,12 +205,10 @@ workflows:
             when: approved
 `);
 
-    await initializeConfig();
+    const snapshot = loadConfig();
 
-    await expect(getConfigRepositories()).resolves.toEqual([
-      { path: "/projects/org/repo1" },
-    ]);
-    await expect(getConfigWorkflows()).resolves.toEqual({
+    expect(snapshot.repositories).toEqual([{ path: "/projects/org/repo1" }]);
+    expect(snapshot.workflows).toEqual({
       "my-flow": {
         initial_step: "plan",
         inputs: [{ name: "title", label: "Title", type: "text" }],
@@ -277,23 +250,19 @@ workflows:
 });
 
 describe("resolveAgentConfig", () => {
-  it("inherits provider fields from the cached base config", async () => {
-    await writeConfig(`
-agent:
-  provider: codex
-  model: gpt-5.4
-  command: /opt/homebrew/bin/codex
-  permission_mode: full
-workflows: {}
-`);
+  it("inherits provider fields from the base config", () => {
+    const base = {
+      provider: "codex" as const,
+      model: "gpt-5.4",
+      command: "/opt/homebrew/bin/codex",
+      permission_mode: "full" as const,
+    };
 
-    await initializeConfig();
-
-    await expect(
-      resolveAgentConfig({
+    expect(
+      resolveAgentConfig(base, {
         model: "gpt-5.4-mini",
       }),
-    ).resolves.toEqual({
+    ).toEqual({
       provider: "codex",
       model: "gpt-5.4-mini",
       command: "/opt/homebrew/bin/codex",
@@ -301,24 +270,20 @@ workflows: {}
     });
   });
 
-  it("drops provider-specific fields when switching providers", async () => {
-    await writeConfig(`
-agent:
-  provider: claude
-  model: sonnet
-  command: /opt/homebrew/bin/claude
-  permission_mode: edit
-workflows: {}
-`);
+  it("drops provider-specific fields when switching providers", () => {
+    const base = {
+      provider: "claude" as const,
+      model: "sonnet",
+      command: "/opt/homebrew/bin/claude",
+      permission_mode: "edit" as const,
+    };
 
-    await initializeConfig();
-
-    await expect(
-      resolveAgentConfig({
+    expect(
+      resolveAgentConfig(base, {
         provider: "codex",
         permission_mode: "full",
       }),
-    ).resolves.toEqual({
+    ).toEqual({
       provider: "codex",
       model: undefined,
       command: undefined,

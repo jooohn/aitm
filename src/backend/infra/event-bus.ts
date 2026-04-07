@@ -59,6 +59,10 @@ export class EventBus {
     }
   }
 
+  removeAllListeners(): void {
+    this.listeners.clear();
+  }
+
   emit<K extends keyof EventMap>(eventName: K, payload: EventMap[K]): void {
     const list = this.listeners.get(eventName);
     if (!list) return;

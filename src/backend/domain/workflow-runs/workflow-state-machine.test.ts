@@ -1,23 +1,106 @@
 import Database from "better-sqlite3";
-import { mkdir, writeFile } from "fs/promises";
-import { tmpdir } from "os";
-import { join } from "path";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { initializeConfig, resetConfigForTests } from "@/backend/infra/config";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { WorkflowDefinition } from "@/backend/infra/config";
 import type { TransitionDecision } from "../agent";
 import { SessionRepository } from "../sessions/session-repository";
 import type { StartStepExecutionInput } from "./step-runner";
 import { WorkflowRunRepository } from "./workflow-run-repository";
 import { WorkflowStateMachine } from "./workflow-state-machine";
 
+const TWO_STEP_WORKFLOWS: Record<string, WorkflowDefinition> = {
+  "my-flow": {
+    initial_step: "plan",
+    steps: {
+      plan: {
+        type: "agent",
+        goal: "Write a plan",
+        transitions: [{ step: "implement", when: "ready" }],
+      },
+      implement: {
+        type: "agent",
+        goal: "Write code",
+        transitions: [{ terminal: "success", when: "done" }],
+      },
+    },
+  },
+};
+
+const SINGLE_STEP_WORKFLOWS: Record<string, WorkflowDefinition> = {
+  "my-flow": {
+    initial_step: "plan",
+    steps: {
+      plan: {
+        type: "agent",
+        goal: "Write a plan",
+        transitions: [{ terminal: "success", when: "done" }],
+      },
+    },
+  },
+};
+
+const APPROVAL_WORKFLOWS: Record<string, WorkflowDefinition> = {
+  "approval-flow": {
+    initial_step: "plan",
+    steps: {
+      plan: {
+        type: "agent",
+        goal: "Write a plan",
+        transitions: [{ step: "review", when: "ready" }],
+      },
+      review: {
+        type: "manual-approval",
+        transitions: [
+          { terminal: "success", when: "approved" },
+          { terminal: "failure", when: "rejected" },
+        ],
+      },
+    },
+  },
+};
+
+const APPROVAL_ONLY_WORKFLOWS: Record<string, WorkflowDefinition> = {
+  "approval-flow": {
+    initial_step: "review",
+    steps: {
+      review: {
+        type: "manual-approval",
+        transitions: [
+          { terminal: "success", when: "approved" },
+          { terminal: "failure", when: "rejected" },
+        ],
+      },
+    },
+  },
+};
+
+const CHAINED_APPROVAL_WORKFLOWS: Record<string, WorkflowDefinition> = {
+  "approval-flow": {
+    initial_step: "review",
+    steps: {
+      review: {
+        type: "manual-approval",
+        transitions: [
+          { step: "signoff", when: "approved" },
+          { terminal: "failure", when: "rejected" },
+        ],
+      },
+      signoff: {
+        type: "manual-approval",
+        transitions: [
+          { terminal: "success", when: "approved" },
+          { terminal: "failure", when: "rejected" },
+        ],
+      },
+    },
+  },
+};
+
 describe("WorkflowStateMachine", () => {
   let db: Database.Database;
   let sessionRepository: SessionRepository;
   let workflowRunRepository: WorkflowRunRepository;
-  let originalConfigPath: string | undefined;
 
   beforeEach(() => {
-    originalConfigPath = process.env.AITM_CONFIG_PATH;
     db = new Database(":memory:");
     sessionRepository = new SessionRepository(db);
     workflowRunRepository = new WorkflowRunRepository(db);
@@ -26,44 +109,7 @@ describe("WorkflowStateMachine", () => {
     workflowRunRepository.ensureTables();
   });
 
-  afterEach(() => {
-    resetConfigForTests();
-    if (originalConfigPath === undefined) {
-      delete process.env.AITM_CONFIG_PATH;
-    } else {
-      process.env.AITM_CONFIG_PATH = originalConfigPath;
-    }
-  });
-
-  async function writeTempConfig(content: string): Promise<string> {
-    const dir = join(
-      tmpdir(),
-      `aitm-config-test-${Math.random().toString(36).slice(2)}`,
-    );
-    await mkdir(dir, { recursive: true });
-    const configPath = join(dir, "config.yaml");
-    await writeFile(configPath, content, "utf8");
-    return configPath;
-  }
-
   it("advances persisted workflow state and starts the next step", async () => {
-    process.env.AITM_CONFIG_PATH = await writeTempConfig(`
-workflows:
-  my-flow:
-    initial_step: plan
-    steps:
-      plan:
-        goal: "Write a plan"
-        transitions:
-          - step: implement
-            when: ready
-      implement:
-        goal: "Write code"
-        transitions:
-          - terminal: success
-            when: done
-`);
-    await initializeConfig();
     workflowRunRepository.insertWorkflowRun({
       id: "run-1",
       repository_path: "/tmp/repo",
@@ -95,9 +141,11 @@ workflows:
       created_at: "2026-04-07T00:00:01.000Z",
       completed_at: null,
     });
-    const stateMachine = new WorkflowStateMachine(workflowRunRepository, {
-      startStepExecution,
-    } as never);
+    const stateMachine = new WorkflowStateMachine(
+      workflowRunRepository,
+      { startStepExecution } as never,
+      TWO_STEP_WORKFLOWS,
+    );
 
     await stateMachine.completeStepExecution("exec-1", {
       transition: "implement",
@@ -132,23 +180,6 @@ workflows:
   });
 
   it("terminates the workflow when the transition target does not exist", async () => {
-    process.env.AITM_CONFIG_PATH = await writeTempConfig(`
-workflows:
-  my-flow:
-    initial_step: plan
-    steps:
-      plan:
-        goal: "Write a plan"
-        transitions:
-          - step: implement
-            when: ready
-      implement:
-        goal: "Implement"
-        transitions:
-          - terminal: success
-            when: done
-`);
-    await initializeConfig();
     workflowRunRepository.insertWorkflowRun({
       id: "run-1",
       repository_path: "/tmp/repo",
@@ -166,9 +197,11 @@ workflows:
       now: "2026-04-07T00:00:00.000Z",
     });
 
-    const stateMachine = new WorkflowStateMachine(workflowRunRepository, {
-      startStepExecution: vi.fn(),
-    } as never);
+    const stateMachine = new WorkflowStateMachine(
+      workflowRunRepository,
+      { startStepExecution: vi.fn() } as never,
+      TWO_STEP_WORKFLOWS,
+    );
 
     await stateMachine.completeStepExecution("exec-1", {
       transition: "missing-step",
@@ -182,26 +215,6 @@ workflows:
   });
 
   it("marks the workflow as awaiting when the next persisted step is manual approval", async () => {
-    process.env.AITM_CONFIG_PATH = await writeTempConfig(`
-workflows:
-  approval-flow:
-    initial_step: plan
-    steps:
-      plan:
-        goal: "Write a plan"
-        transitions:
-          - step: review
-            when: ready
-      review:
-        type: manual-approval
-        prompt: "Approve?"
-        transitions:
-          - terminal: success
-            when: approved
-          - terminal: failure
-            when: rejected
-`);
-    await initializeConfig();
     workflowRunRepository.insertWorkflowRun({
       id: "run-1",
       repository_path: "/tmp/repo",
@@ -219,19 +232,23 @@ workflows:
       now: "2026-04-07T00:00:00.000Z",
     });
 
-    const stateMachine = new WorkflowStateMachine(workflowRunRepository, {
-      startStepExecution: async (input) => {
-        workflowRunRepository.insertStepExecution({
-          id: "exec-2",
-          workflowRunId: input.workflowRunId,
-          stepName: input.stepName,
-          stepType: "manual-approval",
-          now: "2026-04-07T00:00:01.000Z",
-        });
-        workflowRunRepository.setStepExecutionStatus("exec-2", "awaiting");
-        return workflowRunRepository.getStepExecution("exec-2")!;
+    const stateMachine = new WorkflowStateMachine(
+      workflowRunRepository,
+      {
+        startStepExecution: async (input) => {
+          workflowRunRepository.insertStepExecution({
+            id: "exec-2",
+            workflowRunId: input.workflowRunId,
+            stepName: input.stepName,
+            stepType: "manual-approval",
+            now: "2026-04-07T00:00:01.000Z",
+          });
+          workflowRunRepository.setStepExecutionStatus("exec-2", "awaiting");
+          return workflowRunRepository.getStepExecution("exec-2")!;
+        },
       },
-    });
+      APPROVAL_WORKFLOWS,
+    );
 
     await stateMachine.completeStepExecution("exec-1", {
       transition: "review",
@@ -245,18 +262,6 @@ workflows:
   });
 
   it("updates persisted run status from session lifecycle events without inline service logic", async () => {
-    process.env.AITM_CONFIG_PATH = await writeTempConfig(`
-workflows:
-  my-flow:
-    initial_step: plan
-    steps:
-      plan:
-        goal: "Write a plan"
-        transitions:
-          - terminal: success
-            when: done
-`);
-    await initializeConfig();
     workflowRunRepository.insertWorkflowRun({
       id: "run-1",
       repository_path: "/tmp/repo",
@@ -287,9 +292,11 @@ workflows:
     });
 
     const completeStepExecution = vi.fn().mockResolvedValue(undefined);
-    const stateMachine = new WorkflowStateMachine(workflowRunRepository, {
-      startStepExecution: vi.fn(),
-    } as never);
+    const stateMachine = new WorkflowStateMachine(
+      workflowRunRepository,
+      { startStepExecution: vi.fn() } as never,
+      SINGLE_STEP_WORKFLOWS,
+    );
     vi.spyOn(stateMachine, "completeStepExecution").mockImplementation(
       completeStepExecution,
     );
@@ -322,21 +329,6 @@ workflows:
   });
 
   it("marks the workflow as awaiting when rerunning a failed manual-approval step", async () => {
-    process.env.AITM_CONFIG_PATH = await writeTempConfig(`
-workflows:
-  approval-flow:
-    initial_step: review
-    steps:
-      review:
-        type: manual-approval
-        prompt: "Approve?"
-        transitions:
-          - terminal: success
-            when: approved
-          - terminal: failure
-            when: rejected
-`);
-    await initializeConfig();
     workflowRunRepository.insertWorkflowRun({
       id: "run-1",
       repository_path: "/tmp/repo",
@@ -371,19 +363,23 @@ workflows:
       "2026-04-07T00:00:01.000Z",
     );
 
-    const stateMachine = new WorkflowStateMachine(workflowRunRepository, {
-      startStepExecution: async (input) => {
-        workflowRunRepository.insertStepExecution({
-          id: "exec-2",
-          workflowRunId: input.workflowRunId,
-          stepName: input.stepName,
-          stepType: "manual-approval",
-          now: "2026-04-07T00:00:02.000Z",
-        });
-        workflowRunRepository.setStepExecutionStatus("exec-2", "awaiting");
-        return workflowRunRepository.getStepExecution("exec-2")!;
-      },
-    } as never);
+    const stateMachine = new WorkflowStateMachine(
+      workflowRunRepository,
+      {
+        startStepExecution: async (input) => {
+          workflowRunRepository.insertStepExecution({
+            id: "exec-2",
+            workflowRunId: input.workflowRunId,
+            stepName: input.stepName,
+            stepType: "manual-approval",
+            now: "2026-04-07T00:00:02.000Z",
+          });
+          workflowRunRepository.setStepExecutionStatus("exec-2", "awaiting");
+          return workflowRunRepository.getStepExecution("exec-2")!;
+        },
+      } as never,
+      APPROVAL_ONLY_WORKFLOWS,
+    );
 
     await stateMachine.rerunWorkflowRunFromFailedState("run-1");
 
@@ -393,29 +389,6 @@ workflows:
   });
 
   it("keeps the workflow awaiting when manual approval resolves into another manual-approval step", async () => {
-    process.env.AITM_CONFIG_PATH = await writeTempConfig(`
-workflows:
-  approval-flow:
-    initial_step: review
-    steps:
-      review:
-        type: manual-approval
-        prompt: "Approve review?"
-        transitions:
-          - step: signoff
-            when: approved
-          - terminal: failure
-            when: rejected
-      signoff:
-        type: manual-approval
-        prompt: "Approve signoff?"
-        transitions:
-          - terminal: success
-            when: approved
-          - terminal: failure
-            when: rejected
-`);
-    await initializeConfig();
     workflowRunRepository.insertWorkflowRun({
       id: "run-1",
       repository_path: "/tmp/repo",
@@ -438,19 +411,23 @@ workflows:
       "2026-04-07T00:00:00.000Z",
     );
 
-    const stateMachine = new WorkflowStateMachine(workflowRunRepository, {
-      startStepExecution: async (input: StartStepExecutionInput) => {
-        workflowRunRepository.insertStepExecution({
-          id: "exec-2",
-          workflowRunId: input.workflowRunId,
-          stepName: input.stepName,
-          stepType: "manual-approval",
-          now: "2026-04-07T00:00:01.000Z",
-        });
-        workflowRunRepository.setStepExecutionStatus("exec-2", "awaiting");
-        return workflowRunRepository.getStepExecution("exec-2")!;
+    const stateMachine = new WorkflowStateMachine(
+      workflowRunRepository,
+      {
+        startStepExecution: async (input: StartStepExecutionInput) => {
+          workflowRunRepository.insertStepExecution({
+            id: "exec-2",
+            workflowRunId: input.workflowRunId,
+            stepName: input.stepName,
+            stepType: "manual-approval",
+            now: "2026-04-07T00:00:01.000Z",
+          });
+          workflowRunRepository.setStepExecutionStatus("exec-2", "awaiting");
+          return workflowRunRepository.getStepExecution("exec-2")!;
+        },
       },
-    });
+      CHAINED_APPROVAL_WORKFLOWS,
+    );
 
     const updatedRun = await stateMachine.resolveManualApproval(
       "run-1",

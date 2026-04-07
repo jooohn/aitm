@@ -3,7 +3,7 @@ import { NextRequest } from "next/server";
 import { tmpdir } from "os";
 import { join } from "path";
 import { beforeEach, describe, expect, it } from "vitest";
-import { initializeConfig } from "@/backend/infra/config";
+import { initializeContainer } from "@/backend/container";
 import { setupTestConfigDir } from "@/test-config-helper";
 import { GET } from "./route";
 
@@ -22,7 +22,7 @@ async function writeConfig(paths: string[]) {
   const lines = paths.length === 0 ? ["repositories: []"] : ["repositories:"];
   for (const p of paths) lines.push(`  - path: ${p}`);
   await writeFile(configFile, lines.join("\n"));
-  await initializeConfig();
+  initializeContainer();
 }
 
 function makeParams(

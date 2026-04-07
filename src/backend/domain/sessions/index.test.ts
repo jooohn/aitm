@@ -2,49 +2,10 @@ import { mkdir, readFile, writeFile } from "fs/promises";
 import { tmpdir } from "os";
 import { join } from "path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  agentService,
-  sessionService,
-  worktreeService,
-} from "@/backend/container";
+import * as container from "@/backend/container";
 import { db } from "@/backend/infra/db";
 import { eventBus } from "@/backend/infra/event-bus";
 import { setupTestConfigDir, writeTestConfig } from "@/test-config-helper";
-
-const createSession = sessionService.createSession.bind(sessionService);
-const failSession = sessionService.failSession.bind(sessionService);
-const replyToSession = sessionService.replyToSession.bind(sessionService);
-const getSession = sessionService.getSession.bind(sessionService);
-const listSessions = sessionService.listSessions.bind(sessionService);
-
-vi.spyOn(agentService, "startAgent").mockResolvedValue();
-vi.spyOn(agentService, "resumeAgent").mockResolvedValue();
-vi.spyOn(agentService, "cancelAgent").mockImplementation(() => {});
-vi.spyOn(worktreeService, "listWorktrees").mockImplementation(
-  async (repoPath) => [
-    {
-      branch: "feat/test",
-      path: repoPath,
-      is_main: false,
-      is_bare: false,
-      head: "HEAD",
-    },
-    {
-      branch: "feat/a",
-      path: repoPath,
-      is_main: false,
-      is_bare: false,
-      head: "HEAD",
-    },
-    {
-      branch: "feat/b",
-      path: repoPath,
-      is_main: false,
-      is_bare: false,
-      head: "HEAD",
-    },
-  ],
-);
 
 const DEFAULT_TRANSITIONS = [{ terminal: "success" as const, when: "Done" }];
 let configFile: string;
@@ -61,14 +22,42 @@ async function makeFakeGitRepo(): Promise<string> {
 beforeEach(async () => {
   configFile = await setupTestConfigDir();
   await writeTestConfig(configFile, "workflows: {}\n");
+  container.initializeContainer();
   db.prepare("DELETE FROM sessions").run();
-  vi.clearAllMocks();
+  vi.spyOn(container.agentService, "startAgent").mockResolvedValue();
+  vi.spyOn(container.agentService, "resumeAgent").mockResolvedValue();
+  vi.spyOn(container.agentService, "cancelAgent").mockImplementation(() => {});
+  vi.spyOn(container.worktreeService, "listWorktrees").mockImplementation(
+    async (repoPath) => [
+      {
+        branch: "feat/test",
+        path: repoPath,
+        is_main: false,
+        is_bare: false,
+        head: "HEAD",
+      },
+      {
+        branch: "feat/a",
+        path: repoPath,
+        is_main: false,
+        is_bare: false,
+        head: "HEAD",
+      },
+      {
+        branch: "feat/b",
+        path: repoPath,
+        is_main: false,
+        is_bare: false,
+        head: "HEAD",
+      },
+    ],
+  );
 });
 
 describe("createSession", () => {
   it("creates a session with running status", async () => {
     const repoPath = await makeFakeGitRepo();
-    const session = await createSession({
+    const session = await container.sessionService.createSession({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       goal: "Write an implementation plan",
@@ -88,7 +77,7 @@ describe("createSession", () => {
 
   it("returns parsed metadata fields and agent config from the repository boundary", async () => {
     const repoPath = await makeFakeGitRepo();
-    const session = await createSession({
+    const session = await container.sessionService.createSession({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       goal: "Collect metadata",
@@ -127,7 +116,7 @@ describe("createSession", () => {
       command: "/opt/homebrew/bin/codex",
     };
 
-    const session = await createSession({
+    const session = await container.sessionService.createSession({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       goal: "Write code",
@@ -135,7 +124,7 @@ describe("createSession", () => {
       agent_config: agentConfig,
     });
 
-    expect(agentService.startAgent).toHaveBeenCalledWith(
+    expect(container.agentService.startAgent).toHaveBeenCalledWith(
       session.id,
       repoPath,
       "Write code",
@@ -159,15 +148,28 @@ agent:
 workflows: {}
 `,
     );
+    container.initializeContainer();
+    vi.spyOn(container.agentService, "startAgent").mockResolvedValue();
+    vi.spyOn(container.worktreeService, "listWorktrees").mockImplementation(
+      async (repoPath) => [
+        {
+          branch: "feat/test",
+          path: repoPath,
+          is_main: false,
+          is_bare: false,
+          head: "HEAD",
+        },
+      ],
+    );
 
-    const session = await createSession({
+    const session = await container.sessionService.createSession({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       goal: "Write code",
       transitions: DEFAULT_TRANSITIONS,
     });
 
-    expect(agentService.startAgent).toHaveBeenCalledWith(
+    expect(container.agentService.startAgent).toHaveBeenCalledWith(
       session.id,
       repoPath,
       "Write code",
@@ -187,20 +189,20 @@ workflows: {}
 describe("listSessions", () => {
   it("returns all sessions ordered by created_at descending", async () => {
     const repoPath = await makeFakeGitRepo();
-    await createSession({
+    await container.sessionService.createSession({
       repository_path: repoPath,
       worktree_branch: "feat/a",
       goal: "Goal A",
       transitions: DEFAULT_TRANSITIONS,
     });
-    await createSession({
+    await container.sessionService.createSession({
       repository_path: repoPath,
       worktree_branch: "feat/b",
       goal: "Goal B",
       transitions: DEFAULT_TRANSITIONS,
     });
 
-    const sessions = listSessions();
+    const sessions = container.sessionService.listSessions();
     expect(sessions).toHaveLength(2);
     const branches = sessions.map((s) => s.worktree_branch);
     expect(branches).toContain("feat/a");
@@ -210,102 +212,110 @@ describe("listSessions", () => {
   it("filters by repository_path", async () => {
     const path1 = await makeFakeGitRepo();
     const path2 = await makeFakeGitRepo();
-    await createSession({
+    await container.sessionService.createSession({
       repository_path: path1,
       worktree_branch: "feat/a",
       goal: "A",
       transitions: DEFAULT_TRANSITIONS,
     });
-    await createSession({
+    await container.sessionService.createSession({
       repository_path: path2,
       worktree_branch: "feat/b",
       goal: "B",
       transitions: DEFAULT_TRANSITIONS,
     });
 
-    const sessions = listSessions({ repository_path: path1 });
+    const sessions = container.sessionService.listSessions({
+      repository_path: path1,
+    });
     expect(sessions).toHaveLength(1);
     expect(sessions[0].worktree_branch).toBe("feat/a");
   });
 
   it("filters by worktree_branch", async () => {
     const repoPath = await makeFakeGitRepo();
-    await createSession({
+    await container.sessionService.createSession({
       repository_path: repoPath,
       worktree_branch: "feat/a",
       goal: "A",
       transitions: DEFAULT_TRANSITIONS,
     });
-    await createSession({
+    await container.sessionService.createSession({
       repository_path: repoPath,
       worktree_branch: "feat/b",
       goal: "B",
       transitions: DEFAULT_TRANSITIONS,
     });
 
-    const sessions = listSessions({ worktree_branch: "feat/a" });
+    const sessions = container.sessionService.listSessions({
+      worktree_branch: "feat/a",
+    });
     expect(sessions).toHaveLength(1);
     expect(sessions[0].goal).toBe("A");
   });
 
   it("filters by status", async () => {
     const repoPath = await makeFakeGitRepo();
-    const session = await createSession({
+    const session = await container.sessionService.createSession({
       repository_path: repoPath,
       worktree_branch: "feat/a",
       goal: "A",
       transitions: DEFAULT_TRANSITIONS,
     });
-    failSession(session.id);
-    await createSession({
+    container.sessionService.failSession(session.id);
+    await container.sessionService.createSession({
       repository_path: repoPath,
       worktree_branch: "feat/b",
       goal: "B",
       transitions: DEFAULT_TRANSITIONS,
     });
 
-    expect(listSessions({ status: "running" })).toHaveLength(1);
-    expect(listSessions({ status: "failure" })).toHaveLength(1);
+    expect(
+      container.sessionService.listSessions({ status: "running" }),
+    ).toHaveLength(1);
+    expect(
+      container.sessionService.listSessions({ status: "failure" }),
+    ).toHaveLength(1);
   });
 });
 
 describe("getSession", () => {
   it("returns the session by id", async () => {
     const repoPath = await makeFakeGitRepo();
-    const created = await createSession({
+    const created = await container.sessionService.createSession({
       repository_path: repoPath,
       worktree_branch: "feat/a",
       goal: "A",
       transitions: DEFAULT_TRANSITIONS,
     });
 
-    const found = getSession(created.id);
+    const found = container.sessionService.getSession(created.id);
     expect(found).toBeDefined();
     expect(found?.id).toBe(created.id);
   });
 
   it("returns undefined for unknown id", () => {
-    expect(getSession("nonexistent")).toBeUndefined();
+    expect(container.sessionService.getSession("nonexistent")).toBeUndefined();
   });
 });
 
 describe("failSession", () => {
   it("marks a running session as failure", async () => {
     const repoPath = await makeFakeGitRepo();
-    const session = await createSession({
+    const session = await container.sessionService.createSession({
       repository_path: repoPath,
       worktree_branch: "feat/a",
       goal: "A",
       transitions: DEFAULT_TRANSITIONS,
     });
 
-    const failed = failSession(session.id);
+    const failed = container.sessionService.failSession(session.id);
     expect(failed.status).toBe("failure");
   });
 
   it("emits session.status-changed when a session is failed", async () => {
     const repoPath = await makeFakeGitRepo();
-    const session = await createSession({
+    const session = await container.sessionService.createSession({
       repository_path: repoPath,
       worktree_branch: "feat/a",
       goal: "A",
@@ -314,7 +324,7 @@ describe("failSession", () => {
     const listener = vi.fn();
 
     eventBus.on("session.status-changed", listener);
-    failSession(session.id);
+    container.sessionService.failSession(session.id);
 
     expect(listener).toHaveBeenCalledWith({
       sessionId: session.id,
@@ -325,25 +335,29 @@ describe("failSession", () => {
   });
 
   it("throws when session is not found", () => {
-    expect(() => failSession("nonexistent")).toThrow("Session not found");
+    expect(() => container.sessionService.failSession("nonexistent")).toThrow(
+      "Session not found",
+    );
   });
 
   it("throws when session is already in a terminal state", async () => {
     const repoPath = await makeFakeGitRepo();
-    const session = await createSession({
+    const session = await container.sessionService.createSession({
       repository_path: repoPath,
       worktree_branch: "feat/a",
       goal: "A",
       transitions: DEFAULT_TRANSITIONS,
     });
-    failSession(session.id);
+    container.sessionService.failSession(session.id);
 
-    expect(() => failSession(session.id)).toThrow("terminal state");
+    expect(() => container.sessionService.failSession(session.id)).toThrow(
+      "terminal state",
+    );
   });
 
   it("marks an awaiting_input session as failure", async () => {
     const repoPath = await makeFakeGitRepo();
-    const session = await createSession({
+    const session = await container.sessionService.createSession({
       repository_path: repoPath,
       worktree_branch: "feat/a",
       goal: "A",
@@ -354,7 +368,7 @@ describe("failSession", () => {
       "UPDATE sessions SET status = 'awaiting_input' WHERE id = ?",
     ).run(session.id);
 
-    const failed = failSession(session.id);
+    const failed = container.sessionService.failSession(session.id);
     expect(failed.status).toBe("failure");
   });
 });
@@ -362,7 +376,7 @@ describe("failSession", () => {
 describe("replyToSession", () => {
   it("calls resumeAgent when session is awaiting_input", async () => {
     const repoPath = await makeFakeGitRepo();
-    const session = await createSession({
+    const session = await container.sessionService.createSession({
       repository_path: repoPath,
       worktree_branch: "feat/a",
       goal: "A",
@@ -372,9 +386,9 @@ describe("replyToSession", () => {
       "UPDATE sessions SET status = 'awaiting_input' WHERE id = ?",
     ).run(session.id);
 
-    await replyToSession(session.id, "Use PostgreSQL");
+    await container.sessionService.replyToSession(session.id, "Use PostgreSQL");
 
-    expect(agentService.resumeAgent).toHaveBeenCalledWith(
+    expect(container.agentService.resumeAgent).toHaveBeenCalledWith(
       session.id,
       "Use PostgreSQL",
       repoPath,
@@ -388,7 +402,7 @@ describe("replyToSession", () => {
 
   it("appends the accepted user reply to the session log before resuming", async () => {
     const repoPath = await makeFakeGitRepo();
-    const session = await createSession({
+    const session = await container.sessionService.createSession({
       repository_path: repoPath,
       worktree_branch: "feat/a",
       goal: "A",
@@ -398,7 +412,7 @@ describe("replyToSession", () => {
       "UPDATE sessions SET status = 'awaiting_input' WHERE id = ?",
     ).run(session.id);
 
-    await replyToSession(session.id, "Use PostgreSQL");
+    await container.sessionService.replyToSession(session.id, "Use PostgreSQL");
 
     await expect(readFile(session.log_file_path, "utf8")).resolves.toContain(
       `${JSON.stringify({ type: "user_input", message: "Use PostgreSQL" })}\n`,
@@ -406,38 +420,38 @@ describe("replyToSession", () => {
   });
 
   it("throws when session is not found", async () => {
-    await expect(replyToSession("nonexistent", "hello")).rejects.toThrow(
-      "Session not found",
-    );
+    await expect(
+      container.sessionService.replyToSession("nonexistent", "hello"),
+    ).rejects.toThrow("Session not found");
   });
 
   it("throws when session is RUNNING", async () => {
     const repoPath = await makeFakeGitRepo();
-    const session = await createSession({
+    const session = await container.sessionService.createSession({
       repository_path: repoPath,
       worktree_branch: "feat/a",
       goal: "A",
       transitions: DEFAULT_TRANSITIONS,
     });
 
-    await expect(replyToSession(session.id, "hello")).rejects.toThrow(
-      "not awaiting input",
-    );
+    await expect(
+      container.sessionService.replyToSession(session.id, "hello"),
+    ).rejects.toThrow("not awaiting input");
   });
 
   it("throws when session is in a terminal state", async () => {
     const repoPath = await makeFakeGitRepo();
-    const session = await createSession({
+    const session = await container.sessionService.createSession({
       repository_path: repoPath,
       worktree_branch: "feat/a",
       goal: "A",
       transitions: DEFAULT_TRANSITIONS,
     });
-    failSession(session.id);
+    container.sessionService.failSession(session.id);
 
-    await expect(replyToSession(session.id, "hello")).rejects.toThrow(
-      "not awaiting input",
-    );
+    await expect(
+      container.sessionService.replyToSession(session.id, "hello"),
+    ).rejects.toThrow("not awaiting input");
   });
 
   it("uses the agent config from session creation, not the current default", async () => {
@@ -448,7 +462,7 @@ describe("replyToSession", () => {
       command: "/opt/homebrew/bin/codex",
     };
 
-    const session = await createSession({
+    const session = await container.sessionService.createSession({
       repository_path: repoPath,
       worktree_branch: "feat/a",
       goal: "A",
@@ -459,9 +473,9 @@ describe("replyToSession", () => {
       "UPDATE sessions SET status = 'awaiting_input' WHERE id = ?",
     ).run(session.id);
 
-    await replyToSession(session.id, "Continue");
+    await container.sessionService.replyToSession(session.id, "Continue");
 
-    expect(agentService.resumeAgent).toHaveBeenCalledWith(
+    expect(container.agentService.resumeAgent).toHaveBeenCalledWith(
       session.id,
       "Continue",
       repoPath,
@@ -477,7 +491,7 @@ describe("replyToSession", () => {
 describe("agent-session.completed subscription", () => {
   it("marks the session as success and emits terminal session.status-changed", async () => {
     const repoPath = await makeFakeGitRepo();
-    const session = await createSession({
+    const session = await container.sessionService.createSession({
       repository_path: repoPath,
       worktree_branch: "feat/a",
       goal: "A",
@@ -495,7 +509,9 @@ describe("agent-session.completed subscription", () => {
       },
     });
 
-    expect(getSession(session.id)?.status).toBe("success");
+    expect(container.sessionService.getSession(session.id)?.status).toBe(
+      "success",
+    );
     expect(statusListener).toHaveBeenCalledWith({
       sessionId: session.id,
       status: "success",
@@ -510,7 +526,7 @@ describe("agent-session.completed subscription", () => {
 
   it("emits terminal session.status-changed only once for a terminal agent completion", async () => {
     const repoPath = await makeFakeGitRepo();
-    const session = await createSession({
+    const session = await container.sessionService.createSession({
       repository_path: repoPath,
       worktree_branch: "feat/a",
       goal: "A",
@@ -526,7 +542,7 @@ describe("agent-session.completed subscription", () => {
     eventBus.on("session.status-changed", statusListener);
 
     const onComplete = vi
-      .mocked(agentService.startAgent)
+      .mocked(container.agentService.startAgent)
       .mock.calls.at(-1)?.[6];
     expect(onComplete).toBeUndefined();
 

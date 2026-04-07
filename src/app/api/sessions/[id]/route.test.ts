@@ -3,12 +3,10 @@ import { NextRequest } from "next/server";
 import { tmpdir } from "os";
 import { join } from "path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { agentService, sessionService } from "@/backend/container";
+import * as container from "@/backend/container";
 import { db } from "@/backend/infra/db";
 import { setupTestConfigDir, writeTestConfig } from "@/test-config-helper";
 import { GET } from "./route";
-
-const createSession = sessionService.createSession.bind(sessionService);
 
 async function makeFakeGitRepo(): Promise<string> {
   const dir = join(
@@ -26,13 +24,14 @@ function makeParams(id: string): { params: Promise<{ id: string }> } {
 beforeEach(async () => {
   const configFile = await setupTestConfigDir();
   await writeTestConfig(configFile, "workflows: {}\n");
-  vi.spyOn(agentService, "startAgent").mockResolvedValue(undefined);
+  container.initializeContainer();
+  vi.spyOn(container.agentService, "startAgent").mockResolvedValue(undefined);
   db.prepare("DELETE FROM sessions").run();
 });
 
 describe("GET /api/sessions/:id", () => {
   it("returns 200 with the session", async () => {
-    const session = await createSession({
+    const session = await container.sessionService.createSession({
       repository_path: await makeFakeGitRepo(),
       worktree_branch: "feat/test",
       goal: "Do something",
@@ -51,7 +50,7 @@ describe("GET /api/sessions/:id", () => {
   });
 
   it("includes step_execution_id in the response", async () => {
-    const session = await createSession({
+    const session = await container.sessionService.createSession({
       repository_path: await makeFakeGitRepo(),
       worktree_branch: "feat/test",
       goal: "Do something",
@@ -68,7 +67,7 @@ describe("GET /api/sessions/:id", () => {
   });
 
   it("returns typed metadata fields instead of JSON strings", async () => {
-    const session = await createSession({
+    const session = await container.sessionService.createSession({
       repository_path: await makeFakeGitRepo(),
       worktree_branch: "feat/test",
       goal: "Do something",

@@ -1,4 +1,4 @@
-import { getConfigWorkflows, type WorkflowStep } from "@/backend/infra/config";
+import type { WorkflowDefinition } from "@/backend/infra/config";
 import type { SessionStatusChangedEvent } from "@/backend/infra/event-bus";
 import type { TransitionDecision } from "../agent";
 import type {
@@ -18,6 +18,7 @@ export class WorkflowStateMachine {
   constructor(
     private workflowRunRepository: WorkflowRunRepository,
     private stepRunner: Pick<StepRunner, "startStepExecution">,
+    private workflows: Record<string, WorkflowDefinition>,
   ) {}
 
   async handleSessionStatusChanged(
@@ -137,7 +138,7 @@ export class WorkflowStateMachine {
       return;
     }
 
-    const workflows = await getConfigWorkflows();
+    const workflows = this.workflows;
     const workflow = workflows[run.workflow_name];
     if (!workflow || !workflow.steps?.[decision.transition]) {
       this.workflowRunRepository.terminateWorkflowRun(run.id, "failure", now);
@@ -205,7 +206,7 @@ export class WorkflowStateMachine {
       throw new Error("Active step execution is not a manual-approval step");
     }
 
-    const workflows = await getConfigWorkflows();
+    const workflows = this.workflows;
     const workflow = workflows[run.workflow_name];
     if (!workflow) throw new Error(`Workflow not found: ${run.workflow_name}`);
 

@@ -1,9 +1,10 @@
 import { randomUUID } from "crypto";
 import {
-  AgentWorkflowStep,
-  CommandWorkflowStep,
-  getConfigWorkflows,
+  type AgentConfig,
+  type AgentWorkflowStep,
+  type CommandWorkflowStep,
   resolveAgentConfig,
+  type WorkflowDefinition,
   type WorkflowStep,
 } from "@/backend/infra/config";
 import type { TransitionDecision } from "../agent";
@@ -79,6 +80,8 @@ export class StepRunner {
     private sessionService: SessionCreator,
     private worktreeService: WorktreeFinder,
     private commandStepExecutor: CommandExecutor,
+    private workflows: Record<string, WorkflowDefinition>,
+    private agentConfig: AgentConfig,
   ) {}
 
   setStepCompletionHandler(handler: StepCompletionHandler): void {
@@ -88,7 +91,7 @@ export class StepRunner {
   async startStepExecution(
     input: StartStepExecutionInput,
   ): Promise<StepExecution> {
-    const workflows = await getConfigWorkflows();
+    const workflows = this.workflows;
     const workflow = workflows[input.workflowName];
     if (!workflow) throw new Error(`Workflow not found: ${input.workflowName}`);
 
@@ -219,7 +222,7 @@ export class StepRunner {
     previousExecutions: PreviousExecutionHandoff[];
   }): Promise<void> {
     const goal = buildGoal(stepDef.goal, previousExecutions, inputs);
-    const agentConfig = await resolveAgentConfig(stepDef.agent);
+    const agentConfig = resolveAgentConfig(this.agentConfig, stepDef.agent);
     await this.sessionService.createSession({
       repository_path: repositoryPath,
       worktree_branch: worktree.branch,

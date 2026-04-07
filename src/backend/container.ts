@@ -9,38 +9,79 @@ import { WorkflowRunService } from "@/backend/domain/workflow-runs";
 import { CommandStepExecutor } from "@/backend/domain/workflow-runs/command-step-executor";
 import { WorkflowRunRepository } from "@/backend/domain/workflow-runs/workflow-run-repository";
 import { WorktreeService } from "@/backend/domain/worktrees";
+import { type ConfigSnapshot, loadConfig } from "@/backend/infra/config";
 import { db } from "@/backend/infra/db";
 import { eventBus } from "@/backend/infra/event-bus";
 
-export const workflowRunRepository = new WorkflowRunRepository(db, eventBus);
-export const sessionRepository = new SessionRepository(db, eventBus);
-export const worktreeService = new WorktreeService();
-export const repositoryService = new RepositoryService();
-export const agentService = new AgentService(
-  {
-    claude: new ClaudeSDK(),
-    codex: new CodexSDK(),
-  },
-  sessionRepository,
-  eventBus,
-);
-export const sessionService = new SessionService(
-  sessionRepository,
-  agentService,
-  worktreeService,
-  eventBus,
-);
-export const commandStepExecutor = new CommandStepExecutor();
-export const workflowRunService = new WorkflowRunService(
-  workflowRunRepository,
-  sessionService,
-  worktreeService,
-  commandStepExecutor,
-  eventBus,
-);
-export const houseKeepingService = new HouseKeepingService(
-  sessionService,
-  worktreeService,
-);
-workflowRunRepository.ensureTables();
-sessionRepository.ensureTables();
+const DEFAULT_CONFIG: ConfigSnapshot = {
+  agent: { provider: "claude" },
+  repositories: [],
+  workflows: {},
+};
+
+export let config: ConfigSnapshot;
+export let workflowRunRepository: WorkflowRunRepository;
+export let sessionRepository: SessionRepository;
+export let worktreeService: WorktreeService;
+export let repositoryService: RepositoryService;
+export let agentService: AgentService;
+export let sessionService: SessionService;
+export let commandStepExecutor: CommandStepExecutor;
+export let workflowRunService: WorkflowRunService;
+export let houseKeepingService: HouseKeepingService;
+
+let tablesEnsured = false;
+
+function buildContainer(cfg: ConfigSnapshot): void {
+  config = cfg;
+  eventBus.removeAllListeners();
+
+  workflowRunRepository = new WorkflowRunRepository(db, eventBus);
+  sessionRepository = new SessionRepository(db, eventBus);
+  worktreeService = new WorktreeService();
+  repositoryService = new RepositoryService(config.repositories);
+  agentService = new AgentService(
+    {
+      claude: new ClaudeSDK(),
+      codex: new CodexSDK(),
+    },
+    sessionRepository,
+    eventBus,
+  );
+  sessionService = new SessionService(
+    sessionRepository,
+    agentService,
+    worktreeService,
+    eventBus,
+    config.agent,
+  );
+  commandStepExecutor = new CommandStepExecutor();
+  workflowRunService = new WorkflowRunService(
+    workflowRunRepository,
+    sessionService,
+    worktreeService,
+    commandStepExecutor,
+    eventBus,
+    config.workflows,
+    config.agent,
+  );
+  houseKeepingService = new HouseKeepingService(
+    sessionService,
+    worktreeService,
+    config.repositories,
+  );
+
+  if (!tablesEnsured) {
+    workflowRunRepository.ensureTables();
+    sessionRepository.ensureTables();
+    tablesEnsured = true;
+  }
+}
+
+export function initializeContainer(): void {
+  buildContainer(loadConfig());
+}
+
+// Eager initialization with default config so services exist at import time.
+// Production code calls initializeContainer() to load real config.
+buildContainer(DEFAULT_CONFIG);

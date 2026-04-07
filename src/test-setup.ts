@@ -9,7 +9,6 @@
  * underlying package will then take effect on the real wrapper code.
  */
 import { beforeEach, vi } from "vitest";
-import { resetConfigForTests } from "@/backend/infra/config";
 
 function throwGuard(runtime: string): () => never {
   return () => {
@@ -22,7 +21,6 @@ function throwGuard(runtime: string): () => never {
 
 beforeEach(() => {
   delete process.env.AITM_CONFIG_PATH;
-  resetConfigForTests();
 });
 
 vi.mock("@/backend/domain/agent/claude-sdk", () => ({

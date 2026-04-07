@@ -1,4 +1,4 @@
-import { getConfigRepositories } from "@/backend/infra/config";
+import type { ConfigRepository } from "@/backend/infra/config";
 import { logger } from "@/backend/infra/logger";
 import type { SessionService } from "../sessions";
 import type { WorktreeService } from "../worktrees";
@@ -9,6 +9,7 @@ export class HouseKeepingService {
   constructor(
     private sessionService: SessionService,
     private worktreeService: WorktreeService,
+    private configRepositories: ConfigRepository[],
   ) {}
 
   async runHouseKeeping(repoPath: string): Promise<void> {
@@ -47,8 +48,7 @@ export class HouseKeepingService {
       Number(process.env.AITM_HOUSE_KEEPING_INTERVAL_MS) || DEFAULT_INTERVAL_MS;
 
     const run = async () => {
-      const repos = await getConfigRepositories();
-      for (const repo of repos) {
+      for (const repo of this.configRepositories) {
         this.runHouseKeeping(repo.path).catch((err) => {
           logger.error(
             { err, repoPath: repo.path },

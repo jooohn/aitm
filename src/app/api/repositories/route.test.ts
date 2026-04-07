@@ -2,7 +2,7 @@ import { mkdir, writeFile } from "fs/promises";
 import { tmpdir } from "os";
 import { join } from "path";
 import { beforeEach, describe, expect, it } from "vitest";
-import { initializeConfig } from "@/backend/infra/config";
+import { initializeContainer } from "@/backend/container";
 import { setupTestConfigDir } from "@/test-config-helper";
 import { GET } from "./route";
 
@@ -24,7 +24,7 @@ beforeEach(async () => {
 describe("GET /api/repositories", () => {
   it("returns 200 with an empty array when config has no repositories", async () => {
     await writeFile(configFile, "workflows: {}\n");
-    await initializeConfig();
+    initializeContainer();
     const res = await GET();
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual([]);
@@ -33,7 +33,7 @@ describe("GET /api/repositories", () => {
   it("returns repos defined in config", async () => {
     const repoPath = await makeFakeGitRepo();
     await writeFile(configFile, `repositories:\n  - path: ${repoPath}\n`);
-    await initializeConfig();
+    initializeContainer();
     const res = await GET();
     expect(res.status).toBe(200);
     const body = await res.json();

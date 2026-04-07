@@ -2,11 +2,10 @@ import { randomUUID } from "crypto";
 import { access, appendFile, constants, mkdir, unlink } from "fs/promises";
 import { homedir, tmpdir } from "os";
 import { join } from "path";
-import {
-  type AgentConfig,
-  getAgentConfig,
-  type OutputMetadataFieldDef,
-  type WorkflowTransition,
+import type {
+  AgentConfig,
+  OutputMetadataFieldDef,
+  WorkflowTransition,
 } from "@/backend/infra/config";
 import type { EventBus } from "@/backend/infra/event-bus";
 import { logger } from "@/backend/infra/logger";
@@ -95,6 +94,7 @@ export class SessionService {
     private agentService: AgentService,
     private worktreeService: WorktreeService,
     private eventBus: EventBus,
+    private defaultAgentConfig: AgentConfig,
   ) {
     this.eventBus.on("agent-session.completed", ({ sessionId, decision }) => {
       this.handleAgentSessionCompleted(sessionId, decision);
@@ -117,7 +117,7 @@ export class SessionService {
     const id = randomUUID();
     const now = new Date().toISOString();
     const log_file_path = join(await sessionsLogDir(), `${id}.log`);
-    const agentConfig = input.agent_config ?? (await getAgentConfig());
+    const agentConfig = input.agent_config ?? this.defaultAgentConfig;
 
     this.sessionRepository.insertSession({
       id,

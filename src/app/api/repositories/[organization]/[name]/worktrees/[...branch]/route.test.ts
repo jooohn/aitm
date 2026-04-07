@@ -1,10 +1,6 @@
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  repositoryService,
-  sessionService,
-  worktreeService,
-} from "@/backend/container";
+import * as container from "@/backend/container";
 import { DELETE } from "./route";
 
 function makeParams(
@@ -17,17 +13,21 @@ function makeParams(
   return { params: Promise.resolve({ organization, name, branch }) };
 }
 
-const deleteWorktreeDataSpy = vi.spyOn(sessionService, "deleteWorktreeData");
-const removeWorktreeSpy = vi.spyOn(worktreeService, "removeWorktree");
-const getRepositoryByAliasSpy = vi.spyOn(
-  repositoryService,
-  "getRepositoryByAlias",
-);
+let deleteWorktreeDataSpy: ReturnType<typeof vi.spyOn>;
+let removeWorktreeSpy: ReturnType<typeof vi.spyOn>;
+let getRepositoryByAliasSpy: ReturnType<typeof vi.spyOn>;
 
 beforeEach(() => {
-  vi.resetAllMocks();
-  deleteWorktreeDataSpy.mockResolvedValue();
-  removeWorktreeSpy.mockResolvedValue();
+  deleteWorktreeDataSpy = vi
+    .spyOn(container.sessionService, "deleteWorktreeData")
+    .mockResolvedValue();
+  removeWorktreeSpy = vi
+    .spyOn(container.worktreeService, "removeWorktree")
+    .mockResolvedValue();
+  getRepositoryByAliasSpy = vi.spyOn(
+    container.repositoryService,
+    "getRepositoryByAlias",
+  );
 });
 
 describe("DELETE /api/repositories/:organization/:name/worktrees/[...branch]", () => {

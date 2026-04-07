@@ -3,22 +3,7 @@ import { NextRequest } from "next/server";
 import { tmpdir } from "os";
 import { join } from "path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
-import {
-  agentService,
-  workflowRunService,
-  worktreeService,
-} from "@/backend/container";
-import { setupTestConfigDir, writeTestConfig } from "@/test-config-helper";
-
-vi.spyOn(agentService, "startAgent").mockResolvedValue();
-vi.spyOn(agentService, "cancelAgent").mockImplementation(() => {});
-
-const createWorkflowRun =
-  workflowRunService.createWorkflowRun.bind(workflowRunService);
-const completeStepExecution =
-  workflowRunService.completeStepExecution.bind(workflowRunService);
-
+import * as container from "@/backend/container";
 import { db } from "@/backend/infra/db";
 import { setupTestConfigDir, writeTestConfig } from "@/test-config-helper";
 import { POST } from "./route";
@@ -68,12 +53,15 @@ let configFile: string;
 beforeEach(async () => {
   configFile = await setupTestConfigDir();
   await writeTestConfig(configFile, APPROVAL_WORKFLOW_CONFIG);
+  container.initializeContainer();
 
   db.prepare("DELETE FROM sessions").run();
   db.prepare("DELETE FROM step_executions").run();
   db.prepare("DELETE FROM workflow_runs").run();
 
-  vi.spyOn(worktreeService, "listWorktrees").mockImplementation(
+  vi.spyOn(container.agentService, "startAgent").mockResolvedValue();
+  vi.spyOn(container.agentService, "cancelAgent").mockImplementation(() => {});
+  vi.spyOn(container.worktreeService, "listWorktrees").mockImplementation(
     async (repoPath) => [
       {
         branch: "feat/test",
@@ -101,7 +89,7 @@ function makeRequest(id: string, body: { decision: string }): NextRequest {
 describe("POST /api/workflow-runs/:id/resolve", () => {
   it("returns 200 and advances workflow when approved", async () => {
     const repoPath = await makeFakeGitRepo();
-    const run = await createWorkflowRun({
+    const run = await container.workflowRunService.createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       workflow_name: "approval-flow",
@@ -121,7 +109,7 @@ describe("POST /api/workflow-runs/:id/resolve", () => {
 
   it("returns 200 and terminates workflow when rejected", async () => {
     const repoPath = await makeFakeGitRepo();
-    const run = await createWorkflowRun({
+    const run = await container.workflowRunService.createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       workflow_name: "approval-flow",
@@ -149,7 +137,7 @@ describe("POST /api/workflow-runs/:id/resolve", () => {
 
   it("returns 422 when workflow run is not running", async () => {
     const repoPath = await makeFakeGitRepo();
-    const run = await createWorkflowRun({
+    const run = await container.workflowRunService.createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       workflow_name: "approval-flow",
@@ -159,7 +147,7 @@ describe("POST /api/workflow-runs/:id/resolve", () => {
     const [execution] = db
       .prepare("SELECT * FROM step_executions WHERE workflow_run_id = ?")
       .all(run.id) as { id: string }[];
-    await completeStepExecution(execution.id, {
+    await container.workflowRunService.completeStepExecution(execution.id, {
       transition: "failure",
       reason: "Rejected",
       handoff_summary: "",
@@ -175,9 +163,22 @@ describe("POST /api/workflow-runs/:id/resolve", () => {
 
   it("returns 422 when active step is not manual-approval", async () => {
     await writeTestConfig(configFile, AGENT_WORKFLOW_CONFIG);
+    container.initializeContainer();
+    vi.spyOn(container.agentService, "startAgent").mockResolvedValue();
+    vi.spyOn(container.worktreeService, "listWorktrees").mockImplementation(
+      async (repoPath) => [
+        {
+          branch: "feat/test",
+          path: repoPath,
+          is_main: false,
+          is_bare: false,
+          head: "HEAD",
+        },
+      ],
+    );
 
     const repoPath = await makeFakeGitRepo();
-    const run = await createWorkflowRun({
+    const run = await container.workflowRunService.createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       workflow_name: "my-flow",
@@ -193,7 +194,7 @@ describe("POST /api/workflow-runs/:id/resolve", () => {
 
   it("returns 400 for invalid decision value", async () => {
     const repoPath = await makeFakeGitRepo();
-    const run = await createWorkflowRun({
+    const run = await container.workflowRunService.createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       workflow_name: "approval-flow",

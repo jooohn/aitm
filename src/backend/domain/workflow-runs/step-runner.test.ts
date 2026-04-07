@@ -1,23 +1,20 @@
 import Database from "better-sqlite3";
-import { mkdir, writeFile } from "fs/promises";
-import { tmpdir } from "os";
-import { join } from "path";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { initializeConfig, resetConfigForTests } from "@/backend/infra/config";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { AgentConfig, WorkflowDefinition } from "@/backend/infra/config";
 import type { TransitionDecision } from "../agent";
 import { SessionRepository } from "../sessions/session-repository";
 import type { Worktree } from "../worktrees";
 import { StepRunner } from "./step-runner";
 import { WorkflowRunRepository } from "./workflow-run-repository";
 
+const DEFAULT_AGENT_CONFIG: AgentConfig = { provider: "claude" };
+
 describe("StepRunner", () => {
   let db: Database.Database;
   let sessionRepository: SessionRepository;
   let workflowRunRepository: WorkflowRunRepository;
-  let originalConfigPath: string | undefined;
 
   beforeEach(() => {
-    originalConfigPath = process.env.AITM_CONFIG_PATH;
     db = new Database(":memory:");
     sessionRepository = new SessionRepository(db);
     workflowRunRepository = new WorkflowRunRepository(db);
@@ -26,39 +23,19 @@ describe("StepRunner", () => {
     workflowRunRepository.ensureTables();
   });
 
-  afterEach(() => {
-    resetConfigForTests();
-    if (originalConfigPath === undefined) {
-      delete process.env.AITM_CONFIG_PATH;
-    } else {
-      process.env.AITM_CONFIG_PATH = originalConfigPath;
-    }
-  });
-
-  async function writeTempConfig(content: string): Promise<string> {
-    const dir = join(
-      tmpdir(),
-      `aitm-config-test-${Math.random().toString(36).slice(2)}`,
-    );
-    await mkdir(dir, { recursive: true });
-    const configPath = join(dir, "config.yaml");
-    await writeFile(configPath, content, "utf8");
-    return configPath;
-  }
-
   it("starts agent steps by creating a session with handoff and input context", async () => {
-    process.env.AITM_CONFIG_PATH = await writeTempConfig(`
-workflows:
-  my-flow:
-    initial_step: plan
-    steps:
-      plan:
-        goal: "Write a plan"
-        transitions:
-          - terminal: success
-            when: done
-`);
-    await initializeConfig();
+    const workflows: Record<string, WorkflowDefinition> = {
+      "my-flow": {
+        initial_step: "plan",
+        steps: {
+          plan: {
+            type: "agent",
+            goal: "Write a plan",
+            transitions: [{ terminal: "success", when: "done" }],
+          },
+        },
+      },
+    };
     const createSession = vi.fn().mockResolvedValue(undefined);
     const completeStepExecution = vi.fn();
     const findWorktree = vi.fn().mockResolvedValue({
@@ -74,6 +51,8 @@ workflows:
       { createSession } as never,
       { findWorktree } as never,
       { execute: vi.fn() } as never,
+      workflows,
+      DEFAULT_AGENT_CONFIG,
     );
     stepRunner.setStepCompletionHandler(completeStepExecution);
 
@@ -119,24 +98,23 @@ workflows:
   });
 
   it("completes command steps via the bound completion handler", async () => {
-    process.env.AITM_CONFIG_PATH = await writeTempConfig(`
-workflows:
-  command-flow:
-    initial_step: cleanup
-    steps:
-      cleanup:
-        type: command
-        command: "echo cleanup"
-        transitions:
-          - step: next
-            when: succeeded
-      next:
-        goal: "Next"
-        transitions:
-          - terminal: success
-            when: done
-`);
-    await initializeConfig();
+    const workflows: Record<string, WorkflowDefinition> = {
+      "command-flow": {
+        initial_step: "cleanup",
+        steps: {
+          cleanup: {
+            type: "command",
+            command: "echo cleanup",
+            transitions: [{ step: "next", when: "succeeded" }],
+          },
+          next: {
+            type: "agent",
+            goal: "Next",
+            transitions: [{ terminal: "success", when: "done" }],
+          },
+        },
+      },
+    };
     const completeStepExecution = vi.fn();
     const findWorktree = vi.fn().mockResolvedValue({
       branch: "feat/test",
@@ -155,6 +133,8 @@ workflows:
       { createSession: vi.fn() } as never,
       { findWorktree } as never,
       { execute } as never,
+      workflows,
+      DEFAULT_AGENT_CONFIG,
     );
     stepRunner.setStepCompletionHandler(completeStepExecution);
 
@@ -188,24 +168,26 @@ workflows:
   });
 
   it("marks missing-worktree executions as failed through the completion handler", async () => {
-    process.env.AITM_CONFIG_PATH = await writeTempConfig(`
-workflows:
-  my-flow:
-    initial_step: plan
-    steps:
-      plan:
-        goal: "Write a plan"
-        transitions:
-          - terminal: success
-            when: done
-`);
-    await initializeConfig();
+    const workflows: Record<string, WorkflowDefinition> = {
+      "my-flow": {
+        initial_step: "plan",
+        steps: {
+          plan: {
+            type: "agent",
+            goal: "Write a plan",
+            transitions: [{ terminal: "success", when: "done" }],
+          },
+        },
+      },
+    };
     const completeStepExecution = vi.fn();
     const stepRunner = new StepRunner(
       workflowRunRepository,
       { createSession: vi.fn() } as never,
       { findWorktree: vi.fn().mockResolvedValue(undefined) } as never,
       { execute: vi.fn() } as never,
+      workflows,
+      DEFAULT_AGENT_CONFIG,
     );
     stepRunner.setStepCompletionHandler(completeStepExecution);
 
