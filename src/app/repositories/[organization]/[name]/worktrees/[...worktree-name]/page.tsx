@@ -6,7 +6,7 @@ import TrashIcon from "@/app/components/icons/TrashIcon";
 import PrChip, { extractPrInfos } from "@/app/components/PrChip";
 import WorkflowKanbanBoard from "@/app/workflows/WorkflowKanbanBoard";
 import { useRepository, useWorkflowRuns, useWorktrees } from "@/lib/hooks/swr";
-import { removeWorktree } from "@/lib/utils/api";
+import { isNotFoundError, removeWorktree } from "@/lib/utils/api";
 import styles from "./page.module.css";
 
 export default function WorktreePage() {
@@ -22,14 +22,16 @@ export default function WorktreePage() {
   const branch = worktreeNameSegments.join("/");
   const router = useRouter();
 
-  const { data: repo, isLoading: repoLoading } = useRepository(
-    organization,
-    name,
-  );
-  const { data: worktrees, isLoading: worktreesLoading } = useWorktrees(
-    organization,
-    name,
-  );
+  const {
+    data: repo,
+    error: repoError,
+    isLoading: repoLoading,
+  } = useRepository(organization, name);
+  const {
+    data: worktrees,
+    error: worktreesError,
+    isLoading: worktreesLoading,
+  } = useWorktrees(organization, name);
   const { data: workflowRuns } = useWorkflowRuns(repo?.path ?? null, branch);
 
   const [removing, setRemoving] = useState(false);
@@ -53,7 +55,20 @@ export default function WorktreePage() {
   }
 
   if ((!repo || !worktrees) && loading) return null;
-  if (!repo || !worktree) return notFound();
+  if (isNotFoundError(repoError)) return notFound();
+  if (repoError || worktreesError) {
+    const error = repoError ?? worktreesError;
+    return (
+      <main className={styles.page}>
+        <p className={styles.error}>
+          {error instanceof Error ? error.message : "Failed to load worktree"}
+        </p>
+      </main>
+    );
+  }
+  if (!repo) return null;
+  if (worktrees && !worktree) return notFound();
+  if (!worktree) return null;
 
   const prs = extractPrInfos(workflowRuns ?? []);
 

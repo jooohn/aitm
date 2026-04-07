@@ -5,6 +5,7 @@ import { notFound, useParams } from "next/navigation";
 import type { StatusBadgeVariant } from "@/app/components/StatusBadge";
 import StatusBadge from "@/app/components/StatusBadge";
 import { useWorkflowRun } from "@/lib/hooks/swr";
+import { isNotFoundError } from "@/lib/utils/api";
 import WorkflowBreadcrumb from "../../WorkflowBreadcrumb";
 import styles from "./page.module.css";
 
@@ -38,10 +39,22 @@ export default function StepExecutionPage() {
     organization: string;
     name: string;
   }>();
-  const { data: run, isLoading: loading } = useWorkflowRun(id);
+  const { data: run, error, isLoading: loading } = useWorkflowRun(id);
 
   if (!run && loading) return null;
-  if (!run) return notFound();
+  if (isNotFoundError(error)) return notFound();
+  if (error) {
+    return (
+      <main className={styles.page}>
+        <p className={styles.error}>
+          {error instanceof Error
+            ? error.message
+            : "Failed to load workflow run"}
+        </p>
+      </main>
+    );
+  }
+  if (!run) return null;
 
   const execution = run.step_executions.find((e) => e.id === executionId);
   if (!execution) return notFound();

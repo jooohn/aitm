@@ -2,7 +2,11 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { StepExecution, WorkflowRunDetail } from "@/lib/utils/api";
+import {
+  ApiError,
+  type StepExecution,
+  type WorkflowRunDetail,
+} from "@/lib/utils/api";
 
 vi.mock("next/link", () => ({
   default: ({
@@ -27,7 +31,7 @@ let mockParams = {
   name: "my-repo",
 };
 let mockRunData: WorkflowRunDetail | null = null;
-let mockFetchError = false;
+let mockFetchError: Error | null = null;
 
 vi.mock("next/navigation", () => ({
   useParams: () => mockParams,
@@ -41,7 +45,7 @@ vi.mock("@/lib/utils/api", async () => {
   return {
     ...actual,
     fetchWorkflowRun: vi.fn(async () => {
-      if (mockFetchError) throw new Error("fetch failed");
+      if (mockFetchError) throw mockFetchError;
       return mockRunData;
     }),
   };
@@ -89,7 +93,7 @@ function makeRun(
 
 afterEach(() => {
   cleanup();
-  mockFetchError = false;
+  mockFetchError = null;
   mockRunData = null;
 });
 
@@ -297,5 +301,17 @@ describe("StepExecutionPage", () => {
     expect(screen.getByRole("link", { name: "my-flow" })).toBeInTheDocument();
     // State name appears in both breadcrumb (current, plain text) and as h1
     expect(screen.getAllByText("plan").length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("shows an error instead of 404 for non-404 workflow run failures", async () => {
+    mockFetchError = new ApiError("fetch failed", 500);
+
+    render(
+      <SWRTestProvider>
+        <StepExecutionPage />
+      </SWRTestProvider>,
+    );
+
+    expect(await screen.findByText("fetch failed")).toBeInTheDocument();
   });
 });

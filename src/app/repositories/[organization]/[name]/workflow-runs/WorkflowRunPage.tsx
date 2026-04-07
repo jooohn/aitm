@@ -4,7 +4,7 @@ import { notFound, usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import WorkflowRunDetailView from "@/app/repositories/[organization]/[name]/workflow-runs/[id]/WorkflowRunDetail";
 import { useWorkflowRun } from "@/lib/hooks/swr";
-import type { WorkflowRunDetail } from "@/lib/utils/api";
+import { isNotFoundError, type WorkflowRunDetail } from "@/lib/utils/api";
 
 interface Props {
   workflowRunId: string;
@@ -39,7 +39,15 @@ export default function WorkflowRunPage({ workflowRunId, basePath }: Props) {
   }, [pathname, router, run, openedAwaitingSessionRunOnLoad]);
 
   if (!run && loading) return null;
-  if (error || !run) return notFound();
+  if (isNotFoundError(error)) return notFound();
+  if (error) {
+    return (
+      <p role="alert">
+        {error instanceof Error ? error.message : "Failed to load workflow run"}
+      </p>
+    );
+  }
+  if (!run) return null;
 
   return <WorkflowRunDetailView run={run} basePath={basePath} />;
 }

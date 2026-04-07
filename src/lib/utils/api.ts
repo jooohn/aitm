@@ -13,6 +13,20 @@ export interface ValidationResult {
   reason?: string;
 }
 
+export class ApiError extends Error {
+  readonly status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
+export function isNotFoundError(error: unknown): error is ApiError {
+  return error instanceof ApiError && error.status === 404;
+}
+
 async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(url, {
     cache: "no-store",
@@ -20,7 +34,10 @@ async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error(body.error ?? `Request failed: ${res.status}`);
+    throw new ApiError(
+      body.error ?? `Request failed: ${res.status}`,
+      res.status,
+    );
   }
   if (res.status === 204) return undefined as T;
   return res.json();

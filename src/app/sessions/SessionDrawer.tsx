@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import CloseIcon from "@/app/components/icons/CloseIcon";
 import SessionDetail from "@/app/sessions/[id]/SessionDetail";
 import { useSession } from "@/lib/hooks/swr";
+import { isNotFoundError } from "@/lib/utils/api";
 import styles from "./SessionDrawer.module.css";
 
 export default function SessionDrawer() {
@@ -35,7 +36,35 @@ export default function SessionDrawer() {
 
   if (closed) return null;
   if (!session && loading) return null;
-  if (error || !session) return notFound();
+  if (isNotFoundError(error)) return notFound();
+  if (error) {
+    return (
+      <div className={styles.overlay}>
+        <div className={styles.backdrop} onClick={handleClose} />
+        <aside className={styles.drawer}>
+          <div className={styles.drawerHeader}>
+            <h2 className={styles.drawerTitle}>Session unavailable</h2>
+            <button
+              type="button"
+              className={styles.closeButton}
+              onClick={handleClose}
+              aria-label="Close session drawer"
+            >
+              <CloseIcon />
+            </button>
+          </div>
+          <div className={styles.drawerBody}>
+            <p className={styles.error}>
+              {error instanceof Error
+                ? error.message
+                : "Failed to load session"}
+            </p>
+          </div>
+        </aside>
+      </div>
+    );
+  }
+  if (!session) return null;
 
   return (
     <div className={styles.overlay}>

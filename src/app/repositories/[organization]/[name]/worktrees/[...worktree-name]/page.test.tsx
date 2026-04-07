@@ -2,6 +2,7 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { ApiError } from "@/lib/utils/api";
 
 const {
   mockFetchRepository,
@@ -17,13 +18,17 @@ const {
   mockFetchWorkflowRuns: vi.fn(),
 }));
 
-vi.mock("@/lib/utils/api", () => ({
-  fetchRepository: mockFetchRepository,
-  fetchWorktrees: mockFetchWorktrees,
-  removeWorktree: mockRemoveWorktree,
-  fetchWorkflows: mockFetchWorkflows,
-  fetchWorkflowRuns: mockFetchWorkflowRuns,
-}));
+vi.mock("@/lib/utils/api", async () => {
+  const actual = await vi.importActual("@/lib/utils/api");
+  return {
+    ...actual,
+    fetchRepository: mockFetchRepository,
+    fetchWorktrees: mockFetchWorktrees,
+    removeWorktree: mockRemoveWorktree,
+    fetchWorkflows: mockFetchWorkflows,
+    fetchWorkflowRuns: mockFetchWorkflowRuns,
+  };
+});
 
 vi.mock("next/navigation", () => ({
   useParams: () => ({
@@ -52,6 +57,7 @@ vi.mock("next/link", () => ({
   ),
 }));
 
+import { SWRTestProvider } from "@/test-swr-provider";
 import WorktreePage from "./page";
 
 const repo = {
@@ -83,21 +89,33 @@ afterEach(() => {
 
 describe("WorktreePage", () => {
   it("renders the branch name heading", async () => {
-    render(<WorktreePage />);
+    render(
+      <SWRTestProvider>
+        <WorktreePage />
+      </SWRTestProvider>,
+    );
     expect(
       await screen.findByRole("heading", { name: "feature/my-branch" }),
     ).toBeInTheDocument();
   });
 
   it("renders the remove button for non-main worktrees", async () => {
-    render(<WorktreePage />);
+    render(
+      <SWRTestProvider>
+        <WorktreePage />
+      </SWRTestProvider>,
+    );
     expect(
       await screen.findByRole("button", { name: "Remove worktree" }),
     ).toBeInTheDocument();
   });
 
   it("does not render details section (Path, HEAD, Main, Bare)", async () => {
-    render(<WorktreePage />);
+    render(
+      <SWRTestProvider>
+        <WorktreePage />
+      </SWRTestProvider>,
+    );
     // Wait for page to load
     await screen.findByRole("heading", { name: "feature/my-branch" });
 
@@ -109,10 +127,30 @@ describe("WorktreePage", () => {
   });
 
   it("renders the WorkflowKanbanBoard", async () => {
-    render(<WorktreePage />);
+    render(
+      <SWRTestProvider>
+        <WorktreePage />
+      </SWRTestProvider>,
+    );
     // The kanban board renders a "Workflow Runs" heading
     expect(
       await screen.findByRole("heading", { name: "Workflow Runs" }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows an error instead of 404 for non-404 repository failures", async () => {
+    mockFetchRepository.mockRejectedValue(
+      new ApiError("Repository unavailable", 500),
+    );
+
+    render(
+      <SWRTestProvider>
+        <WorktreePage />
+      </SWRTestProvider>,
+    );
+
+    expect(
+      await screen.findByText("Repository unavailable"),
     ).toBeInTheDocument();
   });
 });

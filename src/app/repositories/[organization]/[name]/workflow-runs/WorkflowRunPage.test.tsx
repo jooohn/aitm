@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { ApiError } from "@/lib/utils/api";
 
 const mockFetchWorkflowRun = vi.fn();
 
@@ -64,5 +65,19 @@ describe("WorkflowRunPage", () => {
 
     await screen.findByText("build");
     expect(mockFetchWorkflowRun).toHaveBeenCalledWith("run-1");
+  });
+
+  it("shows an error instead of 404 for non-404 fetch failures", async () => {
+    mockFetchWorkflowRun.mockRejectedValue(new ApiError("Request failed", 500));
+
+    render(
+      <SWRTestProvider>
+        <WorkflowRunPage workflowRunId="run-1" />
+      </SWRTestProvider>,
+    );
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Request failed",
+    );
   });
 });

@@ -1,19 +1,24 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { ApiError } from "@/lib/utils/api";
 
 const mockFetchRepository = vi.fn();
 const mockFetchWorktrees = vi.fn();
 const mockFetchWorkflows = vi.fn();
 const mockFetchWorkflowRuns = vi.fn();
 
-vi.mock("@/lib/utils/api", () => ({
-  fetchRepository: (...args: unknown[]) => mockFetchRepository(...args),
-  fetchWorktrees: (...args: unknown[]) => mockFetchWorktrees(...args),
-  fetchWorkflows: (...args: unknown[]) => mockFetchWorkflows(...args),
-  fetchWorkflowRuns: (...args: unknown[]) => mockFetchWorkflowRuns(...args),
-}));
+vi.mock("@/lib/utils/api", async () => {
+  const actual = await vi.importActual("@/lib/utils/api");
+  return {
+    ...actual,
+    fetchRepository: (...args: unknown[]) => mockFetchRepository(...args),
+    fetchWorktrees: (...args: unknown[]) => mockFetchWorktrees(...args),
+    fetchWorkflows: (...args: unknown[]) => mockFetchWorkflows(...args),
+    fetchWorkflowRuns: (...args: unknown[]) => mockFetchWorkflowRuns(...args),
+  };
+});
 
 vi.mock("next/navigation", () => ({
   useParams: () => ({ organization: "org", name: "repo" }),
@@ -93,5 +98,17 @@ describe("RepositoryPage", () => {
     expect(mockFetchRepository).toHaveBeenCalled();
     expect(mockFetchWorktrees).toHaveBeenCalled();
     expect(mockFetchWorkflowRuns).toHaveBeenCalled();
+  });
+
+  it("shows an error instead of 404 for non-404 fetch failures", async () => {
+    mockFetchRepository.mockRejectedValue(new ApiError("Backend offline", 500));
+
+    render(
+      <SWRTestProvider>
+        <RepositoryPage />
+      </SWRTestProvider>,
+    );
+
+    expect(await screen.findByText("Backend offline")).toBeInTheDocument();
   });
 });
