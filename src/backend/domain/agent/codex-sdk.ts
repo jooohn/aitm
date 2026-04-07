@@ -1,13 +1,16 @@
 import type { ThreadEvent } from "@openai/codex-sdk";
 import { Codex } from "@openai/codex-sdk";
-import { buildTransitionOutputFormatForCodex } from "./codex-cli";
+import type { OutputMetadataFieldDef } from "@/backend/infra/config";
 import { toCodexConfig } from "./permission-mode";
 import type {
   AgentMessage,
   AgentQueryParams,
   AgentResumeParams,
   AgentRuntime,
+  OutputFormat,
+  SessionTransition,
 } from "./runtime";
+import { USER_INPUT_TRANSITION_NAME } from "./runtime";
 
 async function* streamEvents(
   events: AsyncIterable<ThreadEvent>,
@@ -157,6 +160,47 @@ function mapEvent(
     default:
       return null;
   }
+}
+
+export function buildTransitionOutputFormatForCodex(
+  transitions: SessionTransition[],
+  metadataFields?: Record<string, OutputMetadataFieldDef>,
+): OutputFormat {
+  const transitionNames = transitions.map((t) => {
+    if ("user_input" in t) return USER_INPUT_TRANSITION_NAME;
+    if ("step" in t) return t.step;
+    return t.terminal;
+  });
+
+  const properties: Record<string, Record<string, unknown>> = {
+    transition: {
+      type: "string",
+      enum: transitionNames,
+    },
+    reason: { type: "string" },
+    handoff_summary: { type: "string" },
+  };
+
+  if (metadataFields) {
+    for (const [key, def] of Object.entries(metadataFields)) {
+      if (key in properties) continue; // never overwrite core fields
+      const prop: Record<string, unknown> = { type: def.type };
+      if (def.description) prop.description = def.description;
+      properties[key] = prop;
+    }
+  }
+
+  const required = Object.keys(properties);
+
+  return {
+    type: "json_schema" as const,
+    schema: {
+      type: "object",
+      properties,
+      required,
+      additionalProperties: false,
+    },
+  };
 }
 
 export class CodexSDK implements AgentRuntime {

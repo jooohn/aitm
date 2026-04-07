@@ -19,17 +19,6 @@ function throwGuard(runtime: string): () => never {
   };
 }
 
-vi.mock("@/backend/domain/agent/claude-cli", () => ({
-  ClaudeCLI: class {
-    query = vi.fn(throwGuard("claude-cli"));
-    resume = vi.fn(throwGuard("claude-cli"));
-    buildTransitionOutputFormat = vi.fn(() => ({
-      type: "json_schema",
-      schema: {},
-    }));
-  },
-}));
-
 vi.mock("@/backend/domain/agent/claude-sdk", () => ({
   ClaudeSDK: class {
     query = vi.fn(throwGuard("claude-sdk"));
