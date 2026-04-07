@@ -9,6 +9,7 @@ import {
   worktreeService,
 } from "@/backend/container";
 import { db } from "@/backend/infra/db";
+import { setupTestConfigDir, writeTestConfig } from "@/test-config-helper";
 import { POST } from "./route";
 
 vi.spyOn(agentService, "startAgent").mockResolvedValue();
@@ -41,7 +42,9 @@ function makeParams(id: string): { params: Promise<{ id: string }> } {
   return { params: Promise.resolve({ id }) };
 }
 
-beforeEach(() => {
+beforeEach(async () => {
+  const configFile = await setupTestConfigDir();
+  await writeTestConfig(configFile, "workflows: {}\n");
   db.prepare("DELETE FROM sessions").run();
 });
 

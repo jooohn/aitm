@@ -4,11 +4,11 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { agentService, sessionService } from "@/backend/container";
+import { db } from "@/backend/infra/db";
+import { setupTestConfigDir, writeTestConfig } from "@/test-config-helper";
+import { GET } from "./route";
 
 const createSession = sessionService.createSession.bind(sessionService);
-
-import { db } from "@/backend/infra/db";
-import { GET } from "./route";
 
 async function makeFakeGitRepo(): Promise<string> {
   const dir = join(
@@ -23,7 +23,9 @@ function makeParams(id: string): { params: Promise<{ id: string }> } {
   return { params: Promise.resolve({ id }) };
 }
 
-beforeEach(() => {
+beforeEach(async () => {
+  const configFile = await setupTestConfigDir();
+  await writeTestConfig(configFile, "workflows: {}\n");
   vi.spyOn(agentService, "startAgent").mockResolvedValue(undefined);
   db.prepare("DELETE FROM sessions").run();
 });

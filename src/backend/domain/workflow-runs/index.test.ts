@@ -1,7 +1,7 @@
-import { mkdir, writeFile } from "fs/promises";
+import { mkdir } from "fs/promises";
 import { tmpdir } from "os";
 import { join } from "path";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   agentService,
   sessionService,
@@ -10,6 +10,7 @@ import {
 } from "@/backend/container";
 import { db } from "@/backend/infra/db";
 import { eventBus } from "@/backend/infra/event-bus";
+import { setupTestConfigDir, writeTestConfig } from "@/test-config-helper";
 
 const failSession = sessionService.failSession.bind(sessionService);
 
@@ -46,14 +47,9 @@ async function makeFakeGitRepo(): Promise<string> {
 }
 
 async function writeTempConfig(content: string): Promise<string> {
-  const dir = join(
-    tmpdir(),
-    `aitm-config-test-${Math.random().toString(36).slice(2)}`,
-  );
-  await mkdir(dir, { recursive: true });
-  const configPath = join(dir, "config.yaml");
-  await writeFile(configPath, content, "utf8");
-  return configPath;
+  const configFile = await setupTestConfigDir();
+  await writeTestConfig(configFile, content);
+  return configFile;
 }
 
 const SIMPLE_WORKFLOW_CONFIG = `
@@ -77,10 +73,7 @@ workflows:
             when: "blocked"
 `;
 
-let originalConfigPath: string | undefined;
-
 beforeEach(() => {
-  originalConfigPath = process.env.AITM_CONFIG_PATH;
   db.prepare("DELETE FROM sessions").run();
   db.prepare("DELETE FROM step_executions").run();
   db.prepare("DELETE FROM workflow_runs").run();
@@ -115,15 +108,6 @@ beforeEach(() => {
       },
     ],
   );
-});
-
-afterEach(() => {
-  vi.clearAllMocks();
-  if (originalConfigPath === undefined) {
-    delete process.env.AITM_CONFIG_PATH;
-  } else {
-    process.env.AITM_CONFIG_PATH = originalConfigPath;
-  }
 });
 
 describe("createWorkflowRun", () => {
@@ -1015,59 +999,29 @@ workflows:
   });
 });
 
-describe("workflow config missing `steps` key", () => {
+describe("workflow config validation", () => {
   const NO_STATES_CONFIG = `
 workflows:
   no-states-flow:
     initial_step: goal
 `;
 
-  it("createWorkflowRun throws a descriptive error instead of TypeError", async () => {
-    process.env.AITM_CONFIG_PATH = await writeTempConfig(NO_STATES_CONFIG);
-    const repoPath = await makeFakeGitRepo();
-
-    await expect(() =>
-      createWorkflowRun({
-        repository_path: repoPath,
-        worktree_branch: "feat/test",
-        workflow_name: "no-states-flow",
-      }),
-    ).rejects.toThrow("Step not found: goal");
+  it("fails initialization when a workflow omits steps", async () => {
+    await expect(writeTempConfig(NO_STATES_CONFIG)).rejects.toThrow(
+      "workflows.no-states-flow.steps must be a non-empty object",
+    );
   });
 
-  it("completeStepExecution terminates run as failure when workflow.steps is undefined at transition time", async () => {
-    // Create the run with a valid config first
-    process.env.AITM_CONFIG_PATH = await writeTempConfig(
-      SIMPLE_WORKFLOW_CONFIG,
-    );
-    const repoPath = await makeFakeGitRepo();
-    const run = await createWorkflowRun({
-      repository_path: repoPath,
-      worktree_branch: "feat/test",
-      workflow_name: "my-flow",
-    });
+  it("fails initialization before runtime code can observe a workflow without steps", async () => {
+    await writeTempConfig(SIMPLE_WORKFLOW_CONFIG);
 
-    const [exec] = db
-      .prepare("SELECT * FROM step_executions WHERE workflow_run_id = ?")
-      .all(run.id) as { id: string }[];
-
-    // Swap to a config where my-flow exists but has no steps key
-    process.env.AITM_CONFIG_PATH = await writeTempConfig(`
+    await expect(
+      writeTempConfig(`
 workflows:
   my-flow:
     initial_step: plan
-`);
-
-    // Should not throw — should terminate as failure
-    await completeStepExecution(exec.id, {
-      transition: "implement",
-      reason: "Ready",
-      handoff_summary: "Plan done",
-    });
-
-    const updatedRun = getWorkflowRun(run.id);
-    expect(updatedRun?.status).toBe("failure");
-    expect(updatedRun?.current_step).toBe("plan");
+`),
+    ).rejects.toThrow("workflows.my-flow.steps must be a non-empty object");
   });
 });
 

@@ -2,30 +2,27 @@ import { mkdir, writeFile } from "fs/promises";
 import { NextRequest } from "next/server";
 import { tmpdir } from "os";
 import { join } from "path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
+import { initializeConfig } from "@/backend/infra/config";
+import { setupTestConfigDir } from "@/test-config-helper";
 import { GET } from "./route";
 
 let configFile: string;
 
-async function makeTempDir(): Promise<string> {
+async function makeFakeGitRepo(): Promise<string> {
   const dir = join(
     tmpdir(),
     `aitm-test-${Math.random().toString(36).slice(2)}`,
   );
-  await mkdir(dir, { recursive: true });
-  return dir;
-}
-
-async function makeFakeGitRepo(): Promise<string> {
-  const dir = await makeTempDir();
-  await mkdir(join(dir, ".git"));
+  await mkdir(join(dir, ".git"), { recursive: true });
   return dir;
 }
 
 async function writeConfig(paths: string[]) {
-  const lines = ["repositories:"];
+  const lines = paths.length === 0 ? ["repositories: []"] : ["repositories:"];
   for (const p of paths) lines.push(`  - path: ${p}`);
   await writeFile(configFile, lines.join("\n"));
+  await initializeConfig();
 }
 
 function makeParams(
@@ -36,13 +33,7 @@ function makeParams(
 }
 
 beforeEach(async () => {
-  const dir = await makeTempDir();
-  configFile = join(dir, "config.yaml");
-  process.env.AITM_CONFIG_PATH = configFile;
-});
-
-afterEach(() => {
-  delete process.env.AITM_CONFIG_PATH;
+  configFile = await setupTestConfigDir();
 });
 
 describe("GET /api/repositories/:organization/:name", () => {

@@ -9,6 +9,7 @@ import {
 } from "@/backend/container";
 import { db } from "@/backend/infra/db";
 import { eventBus } from "@/backend/infra/event-bus";
+import { setupTestConfigDir, writeTestConfig } from "@/test-config-helper";
 
 const createSession = sessionService.createSession.bind(sessionService);
 const failSession = sessionService.failSession.bind(sessionService);
@@ -46,6 +47,7 @@ vi.spyOn(worktreeService, "listWorktrees").mockImplementation(
 );
 
 const DEFAULT_TRANSITIONS = [{ terminal: "success" as const, when: "Done" }];
+let configFile: string;
 
 async function makeFakeGitRepo(): Promise<string> {
   const dir = join(
@@ -56,7 +58,9 @@ async function makeFakeGitRepo(): Promise<string> {
   return dir;
 }
 
-beforeEach(() => {
+beforeEach(async () => {
+  configFile = await setupTestConfigDir();
+  await writeTestConfig(configFile, "workflows: {}\n");
   db.prepare("DELETE FROM sessions").run();
   vi.clearAllMocks();
 });
@@ -144,51 +148,39 @@ describe("createSession", () => {
   });
 
   it("uses the top-level agent config when no override is provided", async () => {
-    const dir = join(
-      tmpdir(),
-      `aitm-config-test-${Math.random().toString(36).slice(2)}`,
-    );
-    const configPath = join(dir, "config.yaml");
-    await mkdir(dir, { recursive: true });
-    process.env.AITM_CONFIG_PATH = configPath;
-
     const repoPath = await makeFakeGitRepo();
-    try {
-      await writeFile(
-        configPath,
-        `
+    await writeTestConfig(
+      configFile,
+      `
 agent:
   provider: codex
   model: gpt-5.4
   command: /opt/homebrew/bin/codex
 workflows: {}
 `,
-      );
+    );
 
-      const session = await createSession({
-        repository_path: repoPath,
-        worktree_branch: "feat/test",
-        goal: "Write code",
-        transitions: DEFAULT_TRANSITIONS,
-      });
+    const session = await createSession({
+      repository_path: repoPath,
+      worktree_branch: "feat/test",
+      goal: "Write code",
+      transitions: DEFAULT_TRANSITIONS,
+    });
 
-      expect(agentService.startAgent).toHaveBeenCalledWith(
-        session.id,
-        repoPath,
-        "Write code",
-        DEFAULT_TRANSITIONS,
-        {
-          provider: "codex",
-          model: "gpt-5.4",
-          command: "/opt/homebrew/bin/codex",
-        },
-        session.log_file_path,
-        undefined,
-        undefined,
-      );
-    } finally {
-      delete process.env.AITM_CONFIG_PATH;
-    }
+    expect(agentService.startAgent).toHaveBeenCalledWith(
+      session.id,
+      repoPath,
+      "Write code",
+      DEFAULT_TRANSITIONS,
+      {
+        provider: "codex",
+        model: "gpt-5.4",
+        command: "/opt/homebrew/bin/codex",
+      },
+      session.log_file_path,
+      undefined,
+      undefined,
+    );
   });
 });
 

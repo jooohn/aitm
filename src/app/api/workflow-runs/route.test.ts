@@ -1,10 +1,11 @@
-import { mkdir, writeFile } from "fs/promises";
+import { mkdir } from "fs/promises";
 import { NextRequest } from "next/server";
 import { tmpdir } from "os";
 import { join } from "path";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { worktreeService } from "@/backend/container";
 import { db } from "@/backend/infra/db";
+import { setupTestConfigDir, writeTestConfig } from "@/test-config-helper";
 import { GET, POST } from "./route";
 
 async function makeFakeGitRepo(): Promise<string> {
@@ -19,13 +20,7 @@ async function makeFakeGitRepo(): Promise<string> {
 let configFile: string;
 
 beforeEach(async () => {
-  const dir = join(
-    tmpdir(),
-    `aitm-config-test-${Math.random().toString(36).slice(2)}`,
-  );
-  await mkdir(dir, { recursive: true });
-  configFile = join(dir, "config.yaml");
-  process.env.AITM_CONFIG_PATH = configFile;
+  configFile = await setupTestConfigDir();
 
   db.prepare("DELETE FROM sessions").run();
   db.prepare("DELETE FROM step_executions").run();
@@ -58,14 +53,10 @@ beforeEach(async () => {
   );
 });
 
-afterEach(() => {
-  delete process.env.AITM_CONFIG_PATH;
-});
-
 describe("POST /api/workflow-runs", () => {
   it("creates a workflow run and returns 201", async () => {
     const repoPath = await makeFakeGitRepo();
-    await writeFile(
+    await writeTestConfig(
       configFile,
       `
 workflows:
@@ -102,7 +93,7 @@ workflows:
   });
 
   it("returns 422 when required fields are missing", async () => {
-    await writeFile(configFile, "");
+    await writeTestConfig(configFile, "workflows: {}\n");
     const res = await POST(
       new NextRequest("http://localhost/api/workflow-runs", {
         method: "POST",
@@ -115,7 +106,7 @@ workflows:
 
   it("returns 404 when workflow is not found in config", async () => {
     const repoPath = await makeFakeGitRepo();
-    await writeFile(configFile, "workflows: {}\n");
+    await writeTestConfig(configFile, "workflows: {}\n");
     const res = await POST(
       new NextRequest("http://localhost/api/workflow-runs", {
         method: "POST",
@@ -133,7 +124,7 @@ workflows:
 
 describe("GET /api/workflow-runs", () => {
   it("returns 200 with all workflow runs", async () => {
-    await writeFile(
+    await writeTestConfig(
       configFile,
       `
 workflows:
@@ -172,7 +163,7 @@ workflows:
   });
 
   it("filters by repository_path and worktree_branch", async () => {
-    await writeFile(
+    await writeTestConfig(
       configFile,
       `
 workflows:
