@@ -81,6 +81,7 @@
 
 .cardRunning {
   @apply border-blue-400 dark:border-blue-600;
+  animation: blink-blue 2s ease-in-out infinite;
 }
 
 .cardSuccess {
@@ -89,6 +90,49 @@
 
 .cardAwaiting {
   @apply border-amber-400 dark:border-amber-600;
+  animation: blink-amber 2s ease-in-out infinite;
+}
+
+@keyframes blink-blue {
+  0%,
+  100% {
+    border-color: var(--color-blue-400);
+  }
+  50% {
+    border-color: var(--color-blue-100);
+  }
+}
+
+@keyframes blink-amber {
+  0%,
+  100% {
+    border-color: var(--color-amber-400);
+  }
+  50% {
+    border-color: var(--color-amber-100);
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  @keyframes blink-blue {
+    0%,
+    100% {
+      border-color: var(--color-blue-600);
+    }
+    50% {
+      border-color: var(--color-blue-900);
+    }
+  }
+
+  @keyframes blink-amber {
+    0%,
+    100% {
+      border-color: var(--color-amber-600);
+    }
+    50% {
+      border-color: var(--color-amber-900);
+    }
+  }
 }
 
 .cardFailure {

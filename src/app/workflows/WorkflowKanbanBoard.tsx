@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import StatusBadge from "@/app/components/StatusBadge";
 import {
@@ -11,10 +10,8 @@ import {
   type WorkflowRun,
   type WorkflowRunStatus,
 } from "@/lib/utils/api";
-import { inferAlias } from "@/lib/utils/inferAlias";
-import { timeAgo } from "@/lib/utils/timeAgo";
-import { workflowRunPath } from "@/lib/utils/workflowRunPath";
 import { getOrderedSteps } from "@/lib/utils/workflowStepOrder";
+import KanbanCard from "./KanbanCard";
 import styles from "./WorkflowKanbanBoard.module.css";
 
 interface Props {
@@ -28,13 +25,6 @@ const STATUS_LABELS: Record<WorkflowRunStatus, string> = {
   awaiting: "Awaiting",
   success: "Success",
   failure: "Failure",
-};
-
-const statusCardClass: Partial<Record<WorkflowRunStatus, string>> = {
-  failure: styles.cardFailure,
-  success: styles.cardSuccess,
-  running: styles.cardRunning,
-  awaiting: styles.cardAwaiting,
 };
 
 const TERMINAL_COLUMNS = ["Success"] as const;
@@ -221,28 +211,11 @@ export default function WorkflowKanbanBoard({
                     </div>
                     <div className={styles.columnCards}>
                       {(runsByColumn.get(col) ?? []).map((run) => (
-                        <Link
+                        <KanbanCard
                           key={run.id}
-                          href={workflowRunPath(run)}
-                          className={[styles.card, statusCardClass[run.status]]
-                            .filter(Boolean)
-                            .join(" ")}
-                        >
-                          {multiRepo && (
-                            <span className={styles.cardRepo}>
-                              {inferAlias(run.repository_path)}
-                            </span>
-                          )}
-                          <span className={styles.cardBranch}>
-                            {run.worktree_branch}
-                          </span>
-                          <div className={styles.cardMeta}>
-                            <StatusBadge variant={run.status}>
-                              {STATUS_LABELS[run.status]}
-                            </StatusBadge>
-                            <span>{timeAgo(run.created_at)}</span>
-                          </div>
-                        </Link>
+                          run={run}
+                          showRepo={multiRepo}
+                        />
                       ))}
                     </div>
                   </div>
