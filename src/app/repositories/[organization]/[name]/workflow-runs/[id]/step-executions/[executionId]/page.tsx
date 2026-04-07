@@ -40,7 +40,7 @@ export default function StepExecutionPage() {
   }>();
   const { data: run, isLoading: loading } = useWorkflowRun(id);
 
-  if (loading) return null;
+  if (!run && loading) return null;
   if (!run) return notFound();
 
   const execution = run.step_executions.find((e) => e.id === executionId);

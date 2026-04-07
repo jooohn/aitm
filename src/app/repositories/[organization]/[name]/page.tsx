@@ -17,7 +17,7 @@ export default function RepositoryPage() {
   } = useRepository(organization, name);
   const { data: worktrees } = useWorktrees(organization, name);
 
-  if (loading) return null;
+  if (!repo && loading) return null;
   if (error || !repo) return notFound();
 
   const activeWorktreeBranches = worktrees

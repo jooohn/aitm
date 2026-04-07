@@ -38,7 +38,7 @@ export default function WorkflowRunPage({ workflowRunId, basePath }: Props) {
     }
   }, [pathname, router, run, openedAwaitingSessionRunOnLoad]);
 
-  if (loading) return null;
+  if (!run && loading) return null;
   if (error || !run) return notFound();
 
   return <WorkflowRunDetailView run={run} basePath={basePath} />;

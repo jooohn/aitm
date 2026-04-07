@@ -34,7 +34,7 @@ export default function SessionDrawer() {
   }, [pathname]);
 
   if (closed) return null;
-  if (loading) return null;
+  if (!session && loading) return null;
   if (error || !session) return notFound();
 
   return (

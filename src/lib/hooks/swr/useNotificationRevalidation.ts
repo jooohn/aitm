@@ -6,6 +6,6 @@ import { useNotificationStream } from "../useNotificationStream";
 export function useNotificationRevalidation(): void {
   const { mutate } = useSWRConfig();
   useNotificationStream(() => {
-    void mutate(() => true, undefined, { revalidate: true });
+    void mutate(() => true);
   });
 }

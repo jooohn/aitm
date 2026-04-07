@@ -52,7 +52,7 @@ export default function WorktreePage() {
     }
   }
 
-  if (loading) return null;
+  if ((!repo || !worktrees) && loading) return null;
   if (!repo || !worktree) return notFound();
 
   const prs = extractPrInfos(workflowRuns ?? []);
