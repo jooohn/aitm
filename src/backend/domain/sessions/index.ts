@@ -15,10 +15,10 @@ import type { WorktreeService } from "../worktrees";
 import type { SessionRepository } from "./session-repository";
 
 export type SessionStatus =
-  | "RUNNING"
-  | "AWAITING_INPUT"
-  | "SUCCEEDED"
-  | "FAILED";
+  | "running"
+  | "awaiting_input"
+  | "success"
+  | "failure";
 
 export interface Session {
   id: string;
@@ -185,7 +185,7 @@ export class SessionService {
     if (!session) {
       throw new Error(`Session not found: ${id}`);
     }
-    if (session.status === "SUCCEEDED" || session.status === "FAILED") {
+    if (session.status === "success" || session.status === "failure") {
       throw new Error(
         `Session ${id} is already in a terminal state: ${session.status}`,
       );
@@ -203,7 +203,7 @@ export class SessionService {
     if (!session) {
       throw new Error(`Session not found: ${id}`);
     }
-    if (session.status !== "AWAITING_INPUT") {
+    if (session.status !== "awaiting_input") {
       throw new Error(`Session ${id} is not awaiting input`);
     }
 

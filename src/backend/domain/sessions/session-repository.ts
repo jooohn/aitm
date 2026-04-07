@@ -16,10 +16,10 @@ export class SessionRepository {
   ): void {
     if (!this.eventBus) return;
 
-    if (status === "SUCCEEDED") {
+    if (status === "success") {
       if (!decision) {
         throw new Error(
-          `session.status-changed requires a decision for SUCCEEDED sessions: ${sessionId}`,
+          `session.status-changed requires a decision for success sessions: ${sessionId}`,
         );
       }
       this.eventBus.emit("session.status-changed", {
@@ -30,7 +30,7 @@ export class SessionRepository {
       return;
     }
 
-    if (status === "FAILED") {
+    if (status === "failure") {
       this.eventBus.emit("session.status-changed", {
         sessionId,
         status,
@@ -79,7 +79,7 @@ export class SessionRepository {
         transitions             TEXT    NOT NULL DEFAULT '[]',
         transition_decision     TEXT,
         agent_config            TEXT    NOT NULL DEFAULT '{"provider":"claude"}',
-        status                  TEXT    NOT NULL DEFAULT 'RUNNING',
+        status                  TEXT    NOT NULL DEFAULT 'running',
         terminal_attach_command TEXT,
         log_file_path           TEXT    NOT NULL,
         claude_session_id       TEXT,
@@ -119,7 +119,7 @@ export class SessionRepository {
          (id, repository_path, worktree_branch, goal, transitions,
           transition_decision, agent_config, status, terminal_attach_command, log_file_path,
           claude_session_id, step_execution_id, metadata_fields, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, NULL, ?, 'RUNNING', NULL, ?, NULL, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, NULL, ?, 'running', NULL, ?, NULL, ?, ?, ?, ?)`,
       )
       .run(
         params.id,
@@ -216,20 +216,20 @@ export class SessionRepository {
   setSessionRunning(id: string, now: string): boolean {
     return this.updateSessionStatus(
       id,
-      "RUNNING",
+      "running",
       now,
-      "status NOT IN ('SUCCEEDED', 'FAILED') AND status != ?",
-      ["RUNNING"],
+      "status NOT IN ('success', 'failure') AND status != ?",
+      ["running"],
     );
   }
 
   setSessionAwaitingInput(id: string, now: string): boolean {
     return this.updateSessionStatus(
       id,
-      "AWAITING_INPUT",
+      "awaiting_input",
       now,
-      "status NOT IN ('SUCCEEDED', 'FAILED') AND status != ?",
-      ["AWAITING_INPUT"],
+      "status NOT IN ('success', 'failure') AND status != ?",
+      ["awaiting_input"],
     );
   }
 
@@ -240,9 +240,9 @@ export class SessionRepository {
   ): boolean {
     return this.updateSessionStatus(
       id,
-      "SUCCEEDED",
+      "success",
       now,
-      "status NOT IN ('SUCCEEDED', 'FAILED')",
+      "status NOT IN ('success', 'failure')",
       [],
       decision,
     );
@@ -255,9 +255,9 @@ export class SessionRepository {
   ): boolean {
     return this.updateSessionStatus(
       id,
-      "FAILED",
+      "failure",
       now,
-      "status NOT IN ('SUCCEEDED', 'FAILED')",
+      "status NOT IN ('success', 'failure')",
       [],
       decision,
     );
@@ -309,18 +309,18 @@ export class SessionRepository {
   recoverCrashedSessions(): void {
     const now = new Date().toISOString();
     const runningSessions = this.db
-      .prepare(`SELECT id FROM sessions WHERE status = 'RUNNING'`)
+      .prepare(`SELECT id FROM sessions WHERE status = 'running'`)
       .all() as Array<{ id: string }>;
 
     this.db
       .prepare(
-        `UPDATE sessions SET status = 'FAILED', updated_at = ?
-       WHERE status = 'RUNNING'`,
+        `UPDATE sessions SET status = 'failure', updated_at = ?
+       WHERE status = 'running'`,
       )
       .run(now);
 
     for (const { id } of runningSessions) {
-      this.emitStatusChanged(id, "FAILED", null);
+      this.emitStatusChanged(id, "failure", null);
     }
   }
 }

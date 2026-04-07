@@ -193,14 +193,14 @@ export class WorkflowRunRepository {
     const result = this.db
       .prepare(
         `UPDATE step_executions
-         SET completed_at = ?, status = 'failed'
+         SET completed_at = ?, status = 'failure'
          WHERE id = ?
-           AND (completed_at IS NOT ? OR status != 'failed')`,
+           AND (completed_at IS NOT ? OR status != 'failure')`,
       )
       .run(now, id, now);
 
     if (result.changes > 0) {
-      this.emitStepExecutionStatusChanged(id, "failed");
+      this.emitStepExecutionStatusChanged(id, "failure");
     }
   }
 
@@ -520,7 +520,7 @@ export class WorkflowRunRepository {
         `SELECT se.id as execution_id, s.transition_decision
        FROM step_executions se
        JOIN sessions s ON s.step_execution_id = se.id
-       WHERE se.completed_at IS NULL AND s.status = 'SUCCEEDED'`,
+       WHERE se.completed_at IS NULL AND s.status = 'success'`,
       )
       .all() as Array<{
       execution_id: string;
@@ -539,7 +539,7 @@ export class WorkflowRunRepository {
        FROM step_executions se
        JOIN sessions s ON s.step_execution_id = se.id
        JOIN workflow_runs wr ON se.workflow_run_id = wr.id
-       WHERE se.completed_at IS NULL AND s.status = 'FAILED' AND wr.status = 'running'`,
+       WHERE se.completed_at IS NULL AND s.status = 'failure' AND wr.status = 'running'`,
       )
       .all() as Array<{
       execution_id: string;
@@ -572,7 +572,7 @@ export class WorkflowRunRepository {
      SET completed_at = ?
      WHERE completed_at IS NULL
        AND id IN (
-         SELECT step_execution_id FROM sessions WHERE status = 'FAILED' AND step_execution_id IS NOT NULL
+         SELECT step_execution_id FROM sessions WHERE status = 'failure' AND step_execution_id IS NOT NULL
        )`,
       )
       .run(now);

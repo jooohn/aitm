@@ -9,16 +9,16 @@ import { logger } from "@/backend/infra/logger";
 export type SessionStatusChangedEvent =
   | {
       sessionId: string;
-      status: "RUNNING" | "AWAITING_INPUT";
+      status: "running" | "awaiting_input";
     }
   | {
       sessionId: string;
-      status: "FAILED";
+      status: "failure";
       decision: null;
     }
   | {
       sessionId: string;
-      status: "SUCCEEDED";
+      status: "success";
       decision: TransitionDecision;
     };
 

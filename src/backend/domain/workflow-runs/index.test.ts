@@ -821,7 +821,7 @@ describe("stopWorkflowRun", () => {
     const updatedSession = db
       .prepare("SELECT * FROM sessions WHERE id = ?")
       .get(session.id) as { status: string };
-    expect(updatedSession.status).toBe("FAILED");
+    expect(updatedSession.status).toBe("failure");
   });
 
   it("throws when the workflow run is already terminal", async () => {
@@ -882,7 +882,7 @@ workflows:
   it("still fails the workflow run when the active session already reached SUCCEEDED", async () => {
     const { run, execution, session } = await setupRunningRun();
 
-    db.prepare("UPDATE sessions SET status = 'SUCCEEDED' WHERE id = ?").run(
+    db.prepare("UPDATE sessions SET status = 'success' WHERE id = ?").run(
       session.id,
     );
 
@@ -901,9 +901,7 @@ workflows:
     const { run, execution, session } = await setupRunningRun();
 
     vi.spyOn(sessionService, "failSession").mockImplementationOnce((id) => {
-      db.prepare("UPDATE sessions SET status = 'SUCCEEDED' WHERE id = ?").run(
-        id,
-      );
+      db.prepare("UPDATE sessions SET status = 'success' WHERE id = ?").run(id);
       throw new Error(
         `Session ${id} is already in a terminal state: SUCCEEDED`,
       );
@@ -922,7 +920,7 @@ workflows:
     const updatedSession = db
       .prepare("SELECT status FROM sessions WHERE id = ?")
       .get(session.id) as { status: string };
-    expect(updatedSession.status).toBe("SUCCEEDED");
+    expect(updatedSession.status).toBe("success");
   });
 });
 
@@ -2084,12 +2082,12 @@ workflows:
         .prepare("SELECT * FROM sessions WHERE step_execution_id = ?")
         .get(execution.id) as { id: string };
 
-      db.prepare("UPDATE sessions SET status = 'SUCCEEDED' WHERE id = ?").run(
+      db.prepare("UPDATE sessions SET status = 'success' WHERE id = ?").run(
         session.id,
       );
       eventBus.emit("session.status-changed", {
         sessionId: session.id,
-        status: "SUCCEEDED",
+        status: "success",
         decision: {
           transition: "implement",
           reason: "Plan complete",
@@ -2125,11 +2123,11 @@ workflows:
 
       // Simulate session entering AWAITING_INPUT
       db.prepare(
-        "UPDATE sessions SET status = 'AWAITING_INPUT' WHERE id = ?",
+        "UPDATE sessions SET status = 'awaiting_input' WHERE id = ?",
       ).run(session.id);
       eventBus.emit("session.status-changed", {
         sessionId: session.id,
-        status: "AWAITING_INPUT",
+        status: "awaiting_input",
       });
 
       const updatedRun = getWorkflowRun(run.id);
@@ -2157,11 +2155,11 @@ workflows:
       const emitSpy = vi.spyOn(eventBus, "emit");
 
       db.prepare(
-        "UPDATE sessions SET status = 'AWAITING_INPUT' WHERE id = ?",
+        "UPDATE sessions SET status = 'awaiting_input' WHERE id = ?",
       ).run(session.id);
       eventBus.emit("session.status-changed", {
         sessionId: session.id,
-        status: "AWAITING_INPUT",
+        status: "awaiting_input",
       });
 
       expect(emitSpy).toHaveBeenCalledWith("workflow-run.status-changed", {
@@ -2190,22 +2188,22 @@ workflows:
 
       // Go to AWAITING_INPUT
       db.prepare(
-        "UPDATE sessions SET status = 'AWAITING_INPUT' WHERE id = ?",
+        "UPDATE sessions SET status = 'awaiting_input' WHERE id = ?",
       ).run(session.id);
       eventBus.emit("session.status-changed", {
         sessionId: session.id,
-        status: "AWAITING_INPUT",
+        status: "awaiting_input",
       });
 
       expect(getWorkflowRun(run.id)?.status).toBe("awaiting");
 
       // Resume to RUNNING
-      db.prepare("UPDATE sessions SET status = 'RUNNING' WHERE id = ?").run(
+      db.prepare("UPDATE sessions SET status = 'running' WHERE id = ?").run(
         session.id,
       );
       eventBus.emit("session.status-changed", {
         sessionId: session.id,
-        status: "RUNNING",
+        status: "running",
       });
 
       expect(getWorkflowRun(run.id)?.status).toBe("running");
@@ -2218,7 +2216,7 @@ workflows:
       const now = new Date().toISOString();
       db.prepare(
         `INSERT INTO sessions (id, repository_path, worktree_branch, goal, transitions, status, log_file_path, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, 'RUNNING', '/tmp/log', ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, 'running', '/tmp/log', ?, ?)`,
       ).run(
         standaloneSessionId,
         repoPath,
@@ -2232,7 +2230,7 @@ workflows:
       // Should not throw
       eventBus.emit("session.status-changed", {
         sessionId: standaloneSessionId,
-        status: "AWAITING_INPUT",
+        status: "awaiting_input",
       });
     });
   });
@@ -2316,11 +2314,11 @@ workflows:
 
       // Simulate session entering AWAITING_INPUT → workflow goes to awaiting
       db.prepare(
-        "UPDATE sessions SET status = 'AWAITING_INPUT' WHERE id = ?",
+        "UPDATE sessions SET status = 'awaiting_input' WHERE id = ?",
       ).run(session.id);
       eventBus.emit("session.status-changed", {
         sessionId: session.id,
-        status: "AWAITING_INPUT",
+        status: "awaiting_input",
       });
 
       expect(getWorkflowRun(run.id)?.status).toBe("awaiting");
@@ -2464,11 +2462,11 @@ workflows:
 
       // Simulate session entering AWAITING_INPUT
       db.prepare(
-        "UPDATE sessions SET status = 'AWAITING_INPUT' WHERE id = ?",
+        "UPDATE sessions SET status = 'awaiting_input' WHERE id = ?",
       ).run(session.id);
       eventBus.emit("session.status-changed", {
         sessionId: session.id,
-        status: "AWAITING_INPUT",
+        status: "awaiting_input",
       });
 
       const updatedExecution = db
@@ -2497,20 +2495,20 @@ workflows:
 
       // Go to AWAITING_INPUT
       db.prepare(
-        "UPDATE sessions SET status = 'AWAITING_INPUT' WHERE id = ?",
+        "UPDATE sessions SET status = 'awaiting_input' WHERE id = ?",
       ).run(session.id);
       eventBus.emit("session.status-changed", {
         sessionId: session.id,
-        status: "AWAITING_INPUT",
+        status: "awaiting_input",
       });
 
       // Resume to RUNNING
-      db.prepare("UPDATE sessions SET status = 'RUNNING' WHERE id = ?").run(
+      db.prepare("UPDATE sessions SET status = 'running' WHERE id = ?").run(
         session.id,
       );
       eventBus.emit("session.status-changed", {
         sessionId: session.id,
-        status: "RUNNING",
+        status: "running",
       });
 
       const updatedExecution = db
@@ -2519,7 +2517,7 @@ workflows:
       expect(updatedExecution.status).toBe("running");
     });
 
-    it("sets status to 'completed' when step execution completes with a transition", async () => {
+    it("sets status to 'success' when step execution completes with a transition", async () => {
       process.env.AITM_CONFIG_PATH = await writeTempConfig(
         SIMPLE_WORKFLOW_CONFIG,
       );
@@ -2543,10 +2541,10 @@ workflows:
       const updatedExecution = db
         .prepare("SELECT * FROM step_executions WHERE id = ?")
         .get(execution.id) as { status: string };
-      expect(updatedExecution.status).toBe("completed");
+      expect(updatedExecution.status).toBe("success");
     });
 
-    it("sets status to 'failed' when step execution completes with no decision", async () => {
+    it("sets status to 'failure' when step execution completes with no decision", async () => {
       process.env.AITM_CONFIG_PATH = await writeTempConfig(
         SIMPLE_WORKFLOW_CONFIG,
       );
@@ -2566,10 +2564,10 @@ workflows:
       const updatedExecution = db
         .prepare("SELECT * FROM step_executions WHERE id = ?")
         .get(execution.id) as { status: string };
-      expect(updatedExecution.status).toBe("failed");
+      expect(updatedExecution.status).toBe("failure");
     });
 
-    it("sets status to 'failed' when step execution completes with terminal failure", async () => {
+    it("sets status to 'failure' when step execution completes with terminal failure", async () => {
       process.env.AITM_CONFIG_PATH = await writeTempConfig(
         SIMPLE_WORKFLOW_CONFIG,
       );
@@ -2593,10 +2591,10 @@ workflows:
       const updatedExecution = db
         .prepare("SELECT * FROM step_executions WHERE id = ?")
         .get(execution.id) as { status: string };
-      expect(updatedExecution.status).toBe("failed");
+      expect(updatedExecution.status).toBe("failure");
     });
 
-    it("sets status to 'completed' when step execution completes with terminal success", async () => {
+    it("sets status to 'success' when step execution completes with terminal success", async () => {
       process.env.AITM_CONFIG_PATH = await writeTempConfig(
         SIMPLE_WORKFLOW_CONFIG,
       );
@@ -2620,10 +2618,10 @@ workflows:
       const updatedExecution = db
         .prepare("SELECT * FROM step_executions WHERE id = ?")
         .get(execution.id) as { status: string };
-      expect(updatedExecution.status).toBe("completed");
+      expect(updatedExecution.status).toBe("success");
     });
 
-    it("sets status to 'failed' on recovery when closing orphaned executions", async () => {
+    it("sets status to 'failure' on recovery when closing orphaned executions", async () => {
       process.env.AITM_CONFIG_PATH = await writeTempConfig(
         SIMPLE_WORKFLOW_CONFIG,
       );
@@ -2641,7 +2639,7 @@ workflows:
       const session = db
         .prepare("SELECT * FROM sessions WHERE step_execution_id = ?")
         .get(execution.id) as { id: string };
-      db.prepare("UPDATE sessions SET status = 'FAILED' WHERE id = ?").run(
+      db.prepare("UPDATE sessions SET status = 'failure' WHERE id = ?").run(
         session.id,
       );
 
@@ -2651,7 +2649,7 @@ workflows:
       const closedExecution = db
         .prepare("SELECT * FROM step_executions WHERE id = ?")
         .get(execution.id) as { status: string; completed_at: string | null };
-      expect(closedExecution.status).toBe("failed");
+      expect(closedExecution.status).toBe("failure");
       expect(closedExecution.completed_at).not.toBeNull();
     });
   });
@@ -2749,11 +2747,11 @@ workflows:
       const emitSpy = vi.spyOn(eventBus, "emit");
 
       db.prepare(
-        "UPDATE sessions SET status = 'AWAITING_INPUT' WHERE id = ?",
+        "UPDATE sessions SET status = 'awaiting_input' WHERE id = ?",
       ).run(session.id);
       eventBus.emit("session.status-changed", {
         sessionId: session.id,
-        status: "AWAITING_INPUT",
+        status: "awaiting_input",
       });
 
       expect(emitSpy).toHaveBeenCalledWith("step-execution.status-changed", {
@@ -2783,22 +2781,22 @@ workflows:
 
       // Go to AWAITING_INPUT first
       db.prepare(
-        "UPDATE sessions SET status = 'AWAITING_INPUT' WHERE id = ?",
+        "UPDATE sessions SET status = 'awaiting_input' WHERE id = ?",
       ).run(session.id);
       eventBus.emit("session.status-changed", {
         sessionId: session.id,
-        status: "AWAITING_INPUT",
+        status: "awaiting_input",
       });
 
       const emitSpy = vi.spyOn(eventBus, "emit");
 
       // Resume
-      db.prepare("UPDATE sessions SET status = 'RUNNING' WHERE id = ?").run(
+      db.prepare("UPDATE sessions SET status = 'running' WHERE id = ?").run(
         session.id,
       );
       eventBus.emit("session.status-changed", {
         sessionId: session.id,
-        status: "RUNNING",
+        status: "running",
       });
 
       expect(emitSpy).toHaveBeenCalledWith("step-execution.status-changed", {
@@ -2808,7 +2806,7 @@ workflows:
       });
     });
 
-    it("emits 'completed' when step execution completes successfully", async () => {
+    it("emits 'success' when step execution completes successfully", async () => {
       process.env.AITM_CONFIG_PATH = await writeTempConfig(
         SIMPLE_WORKFLOW_CONFIG,
       );
@@ -2834,11 +2832,11 @@ workflows:
       expect(emitSpy).toHaveBeenCalledWith("step-execution.status-changed", {
         stepExecutionId: execution.id,
         workflowRunId: run.id,
-        status: "completed",
+        status: "success",
       });
     });
 
-    it("emits 'failed' when step execution completes with no decision", async () => {
+    it("emits 'failure' when step execution completes with no decision", async () => {
       process.env.AITM_CONFIG_PATH = await writeTempConfig(
         SIMPLE_WORKFLOW_CONFIG,
       );
@@ -2860,7 +2858,7 @@ workflows:
       expect(emitSpy).toHaveBeenCalledWith("step-execution.status-changed", {
         stepExecutionId: execution.id,
         workflowRunId: run.id,
-        status: "failed",
+        status: "failure",
       });
     });
   });
@@ -2886,11 +2884,11 @@ workflows:
 
       // Simulate session entering AWAITING_INPUT → triggers step-execution status → triggers workflow-run status
       db.prepare(
-        "UPDATE sessions SET status = 'AWAITING_INPUT' WHERE id = ?",
+        "UPDATE sessions SET status = 'awaiting_input' WHERE id = ?",
       ).run(session.id);
       eventBus.emit("session.status-changed", {
         sessionId: session.id,
-        status: "AWAITING_INPUT",
+        status: "awaiting_input",
       });
 
       const updatedRun = getWorkflowRun(run.id);
@@ -2919,12 +2917,12 @@ workflows:
         "UPDATE step_executions SET status = 'awaiting' WHERE id = ?",
       ).run(execution.id);
       db.prepare(
-        "UPDATE sessions SET status = 'AWAITING_INPUT' WHERE id = ?",
+        "UPDATE sessions SET status = 'awaiting_input' WHERE id = ?",
       ).run(session.id);
 
       eventBus.emit("session.status-changed", {
         sessionId: session.id,
-        status: "AWAITING_INPUT",
+        status: "awaiting_input",
       });
 
       expect(getWorkflowRun(run.id)?.status).toBe("awaiting");
@@ -2950,21 +2948,21 @@ workflows:
 
       // Go to awaiting
       db.prepare(
-        "UPDATE sessions SET status = 'AWAITING_INPUT' WHERE id = ?",
+        "UPDATE sessions SET status = 'awaiting_input' WHERE id = ?",
       ).run(session.id);
       eventBus.emit("session.status-changed", {
         sessionId: session.id,
-        status: "AWAITING_INPUT",
+        status: "awaiting_input",
       });
       expect(getWorkflowRun(run.id)?.status).toBe("awaiting");
 
       // Resume
-      db.prepare("UPDATE sessions SET status = 'RUNNING' WHERE id = ?").run(
+      db.prepare("UPDATE sessions SET status = 'running' WHERE id = ?").run(
         session.id,
       );
       eventBus.emit("session.status-changed", {
         sessionId: session.id,
-        status: "RUNNING",
+        status: "running",
       });
 
       expect(getWorkflowRun(run.id)?.status).toBe("running");

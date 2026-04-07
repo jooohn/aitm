@@ -50,7 +50,7 @@ function makeSession(overrides: Partial<Session> = {}): Session {
     workflow_name: null,
     workflow_run_id: null,
     step_execution_id: null,
-    status: "RUNNING",
+    status: "running",
     created_at: "2024-01-01T00:00:00Z",
     updated_at: "2024-01-01T00:00:00Z",
     terminal_attach_command: null,
@@ -89,13 +89,13 @@ describe("SessionDetail – goal section", () => {
 
 describe("SessionDetail – mark as failed removal", () => {
   it("does not render a 'Mark as failed' button for running sessions", () => {
-    const session = makeSession({ status: "RUNNING" });
+    const session = makeSession({ status: "running" });
     render(<SessionDetail session={session} />);
     expect(screen.queryByText("Mark as failed")).not.toBeInTheDocument();
   });
 
   it("does not render a 'Mark as failed' button for awaiting input sessions", () => {
-    const session = makeSession({ status: "AWAITING_INPUT" });
+    const session = makeSession({ status: "awaiting_input" });
     render(<SessionDetail session={session} />);
     expect(screen.queryByText("Mark as failed")).not.toBeInTheDocument();
   });
@@ -109,7 +109,7 @@ describe("SessionDetail – status and updates", () => {
           id: "session-1",
           goal: "First goal",
           step_name: "First state",
-          status: "AWAITING_INPUT",
+          status: "awaiting_input",
         })}
       />,
     );
@@ -120,7 +120,7 @@ describe("SessionDetail – status and updates", () => {
           id: "session-2",
           goal: "Second goal",
           step_name: "Second state",
-          status: "FAILED",
+          status: "failure",
         })}
       />,
     );
@@ -135,7 +135,7 @@ describe("SessionDetail – status and updates", () => {
       <SessionDetail
         session={makeSession({
           id: "session-1",
-          status: "AWAITING_INPUT",
+          status: "awaiting_input",
         })}
       />,
     );

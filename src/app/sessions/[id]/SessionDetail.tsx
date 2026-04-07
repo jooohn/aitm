@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { StatusBadgeVariant } from "@/app/components/StatusBadge";
+import StatusBadge from "@/app/components/StatusBadge";
 import {
   fetchSession,
   replyToSession,
@@ -49,13 +51,20 @@ interface Props {
 }
 
 const STATUS_LABELS: Record<SessionStatus, string> = {
-  RUNNING: "Running",
-  AWAITING_INPUT: "Awaiting input",
-  SUCCEEDED: "Succeeded",
-  FAILED: "Failed",
+  running: "Running",
+  awaiting_input: "Awaiting input",
+  success: "Succeeded",
+  failure: "Failed",
 };
 
-const TERMINAL_STATUSES: SessionStatus[] = ["SUCCEEDED", "FAILED"];
+const SESSION_BADGE_VARIANT: Record<SessionStatus, StatusBadgeVariant> = {
+  running: "running",
+  awaiting_input: "awaiting",
+  success: "success",
+  failure: "failure",
+};
+
+const TERMINAL_STATUSES: SessionStatus[] = ["success", "failure"];
 
 export default function SessionDetail({
   session: initial,
@@ -183,11 +192,9 @@ export default function SessionDetail({
     <div className={styles.container}>
       <div className={styles.header}>
         <div className={styles.headerLeft}>
-          <span
-            className={`${styles.badge} ${styles[`badge-${session.status}`]}`}
-          >
+          <StatusBadge variant={SESSION_BADGE_VARIANT[session.status]}>
             {STATUS_LABELS[session.status]}
-          </span>
+          </StatusBadge>
         </div>
       </div>
 
@@ -209,7 +216,7 @@ export default function SessionDetail({
             outputItems.map((item, i) => <OutputItemView key={i} item={item} />)
           )}
 
-          {session.status === "AWAITING_INPUT" && (
+          {session.status === "awaiting_input" && (
             <form onSubmit={handleReply} className={styles.replyForm}>
               <textarea
                 className={styles.replyInput}

@@ -34,7 +34,7 @@ describe("canStopWorkflowRun", () => {
           step: "plan",
           command_output: null,
           session_id: "session-1",
-          session_status: "RUNNING",
+          session_status: "running",
           transition_decision: null,
           handoff_summary: null,
           created_at: "2026-04-01T00:00:00.000Z",
@@ -78,7 +78,7 @@ describe("canStopWorkflowRun", () => {
           step: "plan",
           command_output: null,
           session_id: "session-1",
-          session_status: "FAILED",
+          session_status: "failure",
           transition_decision: null,
           handoff_summary: null,
           created_at: "2026-04-01T00:00:00.000Z",
@@ -104,10 +104,10 @@ describe("fetchSessionsByStatus", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    await fetchSessionsByStatus("AWAITING_INPUT");
+    await fetchSessionsByStatus("awaiting_input");
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "/api/sessions?status=AWAITING_INPUT",
+      "/api/sessions?status=awaiting_input",
       { cache: "no-store" },
     );
   });

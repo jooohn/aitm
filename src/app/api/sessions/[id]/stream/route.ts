@@ -4,7 +4,7 @@ import { sessionService } from "@/backend/container";
 
 type Params = Promise<{ id: string }>;
 
-const TERMINAL_STATUSES = new Set(["SUCCEEDED", "FAILED"]);
+const TERMINAL_STATUSES = new Set(["success", "failure"]);
 const POLL_INTERVAL_MS = 500;
 
 export async function GET(
@@ -61,7 +61,7 @@ export async function GET(
       sendNewLines().then(() => {
         if (
           TERMINAL_STATUSES.has(
-            sessionService.getSession(id)?.status ?? "FAILED",
+            sessionService.getSession(id)?.status ?? "failure",
           )
         ) {
           controller.enqueue(encoder.encode("event: done\ndata: {}\n\n"));

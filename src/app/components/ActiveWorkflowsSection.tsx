@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { fetchAllWorkflowRuns, type WorkflowRun } from "@/lib/utils/api";
 import { workflowRunPath } from "@/lib/utils/workflowRunPath";
 import styles from "./ActiveWorkflowsSection.module.css";
+import StatusBadge from "./StatusBadge";
 
 function repoAlias(repositoryPath: string): string {
   const parts = repositoryPath.replace(/\/$/, "").split("/");
@@ -60,7 +61,7 @@ export default function ActiveWorkflowsSection() {
             <li key={run.id} className={styles.item}>
               <div className={styles.info}>
                 <div className={styles.header}>
-                  <span className={styles.badge}>Running</span>
+                  <StatusBadge variant="running">Running</StatusBadge>
                   <span className={styles.repoAlias}>
                     {repoAlias(run.repository_path)}
                   </span>

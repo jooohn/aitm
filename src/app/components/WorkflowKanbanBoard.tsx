@@ -16,6 +16,7 @@ import { inferAlias } from "@/lib/utils/inferAlias";
 import { timeAgo } from "@/lib/utils/timeAgo";
 import { workflowRunPath } from "@/lib/utils/workflowRunPath";
 import { getOrderedSteps } from "@/lib/utils/workflowStepOrder";
+import StatusBadge from "./StatusBadge";
 import styles from "./WorkflowKanbanBoard.module.css";
 
 interface Props {
@@ -207,12 +208,9 @@ export default function WorkflowKanbanBoard({
                 const count = statusCounts.get(status);
                 if (!count) return null;
                 return (
-                  <span
-                    key={status}
-                    className={`${styles.badge} ${styles[`badge-${status}`]}`}
-                  >
+                  <StatusBadge key={status} variant={status}>
                     {count} {STATUS_LABELS[status]}
-                  </span>
+                  </StatusBadge>
                 );
               })}
             </div>
@@ -249,11 +247,9 @@ export default function WorkflowKanbanBoard({
                               {run.worktree_branch}
                             </Link>
                             <div className={styles.cardMeta}>
-                              <span
-                                className={`${styles.badge} ${styles[`badge-${run.status}`]}`}
-                              >
+                              <StatusBadge variant={run.status}>
                                 {STATUS_LABELS[run.status]}
-                              </span>
+                              </StatusBadge>
                               <span>{timeAgo(run.created_at)}</span>
                               {prUrl && (
                                 <a

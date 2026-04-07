@@ -48,26 +48,6 @@
   @apply text-xs text-zinc-500 dark:text-zinc-400;
 }
 
-.badge {
-  @apply inline-block text-xs font-medium px-1.5 py-0.5 rounded;
-}
-
-.badge-running {
-  @apply bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300;
-}
-
-.badge-awaiting {
-  @apply bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300;
-}
-
-.badge-success {
-  @apply bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300;
-}
-
-.badge-failure {
-  @apply bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300;
-}
-
 .form {
   @apply flex flex-wrap items-end gap-3 pt-2;
 }

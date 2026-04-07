@@ -54,7 +54,7 @@ describe("POST /api/sessions/:id/reply", () => {
       transitions: [{ terminal: "success" as const, when: "Done" }],
     });
     db.prepare(
-      "UPDATE sessions SET status = 'AWAITING_INPUT' WHERE id = ?",
+      "UPDATE sessions SET status = 'awaiting_input' WHERE id = ?",
     ).run(session.id);
 
     const res = await POST(
@@ -117,7 +117,7 @@ describe("POST /api/sessions/:id/reply", () => {
       transitions: [{ terminal: "success" as const, when: "Done" }],
     });
     db.prepare(
-      "UPDATE sessions SET status = 'AWAITING_INPUT' WHERE id = ?",
+      "UPDATE sessions SET status = 'awaiting_input' WHERE id = ?",
     ).run(session.id);
 
     const res = await POST(

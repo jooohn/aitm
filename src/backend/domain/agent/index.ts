@@ -33,7 +33,7 @@ async function appendToLog(logFilePath: string, entry: unknown): Promise<void> {
 }
 
 function isTerminalSessionStatus(status: SessionStatus | null): boolean {
-  return status === "FAILED" || status === "SUCCEEDED";
+  return status === "failure" || status === "success";
 }
 
 function buildSessionTransitions(

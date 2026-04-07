@@ -60,7 +60,7 @@ describe("useNotificationStream", () => {
 
     act(() => {
       MockEventSource.instances[0].simulateMessage(
-        JSON.stringify({ sessionId: "s1", status: "AWAITING_INPUT" }),
+        JSON.stringify({ sessionId: "s1", status: "awaiting_input" }),
       );
     });
 
@@ -96,7 +96,7 @@ describe("useNotificationStream", () => {
 
     act(() => {
       MockEventSource.instances[0].simulateMessage(
-        JSON.stringify({ sessionId: "s1", status: "AWAITING_INPUT" }),
+        JSON.stringify({ sessionId: "s1", status: "awaiting_input" }),
       );
     });
 

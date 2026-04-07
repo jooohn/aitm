@@ -11,6 +11,7 @@ import {
   type WorkflowRunStatus,
 } from "@/lib/utils/api";
 import { workflowRunPath } from "@/lib/utils/workflowRunPath";
+import StatusBadge from "./StatusBadge";
 import WorkflowLaunchForm from "./WorkflowLaunchForm";
 
 import styles from "./WorkflowSection.module.css";
@@ -110,11 +111,9 @@ export default function WorkflowSection({ repositoryPath, branch }: Props) {
             <li key={run.id} className={styles.item}>
               <div className={styles.info}>
                 <div className={styles.header}>
-                  <span
-                    className={`${styles.badge} ${styles[`badge-${run.status}`]}`}
-                  >
+                  <StatusBadge variant={run.status}>
                     {STATUS_LABELS[run.status]}
-                  </span>
+                  </StatusBadge>
                   <Link
                     href={workflowRunPath(run)}
                     className={styles.branchName}

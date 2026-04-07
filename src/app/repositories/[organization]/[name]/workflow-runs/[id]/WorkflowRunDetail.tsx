@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import EllipsisIcon from "@/app/components/icons/EllipsisIcon";
 import ExternalLinkIcon from "@/app/components/icons/ExternalLinkIcon";
 import RunWorkflowModal from "@/app/components/RunWorkflowModal";
+import StatusBadge from "@/app/components/StatusBadge";
 import {
   canStopWorkflowRun,
   fetchWorkflowRun,
@@ -86,23 +87,15 @@ function StepExecutionItem({
       <div className={styles.executionHeader}>
         <span className={styles.stateName}>{execution.step}</span>
         {isPendingApproval ? (
-          <span
-            className={`${styles.badge} ${styles["badge-pending-approval"]}`}
-          >
+          <StatusBadge variant="pending-approval">
             Awaiting Approval
-          </span>
+          </StatusBadge>
         ) : isAwaiting ? (
-          <span className={`${styles.badge} ${styles["badge-awaiting"]}`}>
-            Awaiting Input
-          </span>
+          <StatusBadge variant="awaiting">Awaiting Input</StatusBadge>
         ) : isRunning ? (
-          <span className={`${styles.badge} ${styles["badge-running"]}`}>
-            Running
-          </span>
+          <StatusBadge variant="running">Running</StatusBadge>
         ) : (
-          <span className={`${styles.badge} ${styles["badge-completed"]}`}>
-            Completed
-          </span>
+          <StatusBadge variant="success">Completed</StatusBadge>
         )}
       </div>
       <div className={styles.executionMeta}>
@@ -396,11 +389,9 @@ export default function WorkflowRunDetail({ run: initial, basePath }: Props) {
             <span className={styles.titleRunId}>({run.id})</span>
           </h1>
           <div className={styles.headerMeta}>
-            <span
-              className={`${styles.badge} ${styles[`badge-${run.status}`]}`}
-            >
+            <StatusBadge variant={run.status}>
               {STATUS_LABELS[run.status]}
-            </span>
+            </StatusBadge>
             <p className={styles.headerTimestamps}>
               Created {timeAgo(run.created_at)}, Last modified{" "}
               {timeAgo(run.updated_at)}

@@ -53,7 +53,7 @@ function insertSession(
     "feat/test",
     "Goal",
     JSON.stringify([{ terminal: "success", when: "done" }]),
-    opts?.status ?? "RUNNING",
+    opts?.status ?? "running",
     logFilePath,
     opts?.claude_session_id ?? null,
     now,
@@ -189,7 +189,7 @@ describe("startAgent", () => {
     expect(decision.metadata).toBeUndefined();
   });
 
-  it("sets AWAITING_INPUT and returns when agent selects __REQUIRE_USER_INPUT__", async () => {
+  it("sets awaiting_input and returns when agent selects __REQUIRE_USER_INPUT__", async () => {
     const agentService = buildAgentService();
     const repoPath = await makeFakeGitRepo();
     const sessionId = "session-user-input";
@@ -224,17 +224,17 @@ describe("startAgent", () => {
       onComplete,
     );
 
-    // Session should be AWAITING_INPUT
+    // Session should be awaiting_input
     const row = db
       .prepare("SELECT status FROM sessions WHERE id = ?")
       .get(sessionId) as { status: string };
-    expect(row.status).toBe("AWAITING_INPUT");
+    expect(row.status).toBe("awaiting_input");
 
     // onComplete should NOT have been called
     expect(onComplete).not.toHaveBeenCalled();
   });
 
-  it("emits session.status-changed event when agent sets AWAITING_INPUT", async () => {
+  it("emits session.status-changed event when agent sets awaiting_input", async () => {
     const agentService = buildAgentService();
     const repoPath = await makeFakeGitRepo();
     const sessionId = "session-status-changed-event";
@@ -272,13 +272,13 @@ describe("startAgent", () => {
 
     expect(statusChangedListener).toHaveBeenCalledWith({
       sessionId,
-      status: "AWAITING_INPUT",
+      status: "awaiting_input",
     });
 
     eventBus.off("session.status-changed", statusChangedListener);
   });
 
-  it("sets SUCCEEDED when agent completes with a real transition", async () => {
+  it("sets success when agent completes with a real transition", async () => {
     const agentService = buildAgentService();
     const repoPath = await makeFakeGitRepo();
     const sessionId = "session-success";
@@ -312,7 +312,7 @@ describe("startAgent", () => {
     const row = db
       .prepare("SELECT status FROM sessions WHERE id = ?")
       .get(sessionId) as { status: string };
-    expect(row.status).toBe("SUCCEEDED");
+    expect(row.status).toBe("success");
     expect(onComplete).toHaveBeenCalledWith(
       expect.objectContaining({ transition: "success" }),
     );
@@ -424,7 +424,7 @@ describe("startAgent", () => {
       onComplete,
     );
 
-    db.prepare("UPDATE sessions SET status = 'FAILED' WHERE id = ?").run(
+    db.prepare("UPDATE sessions SET status = 'failure' WHERE id = ?").run(
       sessionId,
     );
 
@@ -434,7 +434,7 @@ describe("startAgent", () => {
     expect(onComplete).not.toHaveBeenCalled();
     expect(
       db.prepare("SELECT status FROM sessions WHERE id = ?").get(sessionId),
-    ).toEqual({ status: "FAILED" });
+    ).toEqual({ status: "failure" });
   });
 
   it("completes the session when it becomes terminal after cwd is set but before runtime launch", async () => {
@@ -445,8 +445,8 @@ describe("startAgent", () => {
     const onComplete = vi.fn();
     insertSession(sessionId, repoPath, logFilePath);
 
-    // Mark session as FAILED before startAgent's second terminal check
-    db.prepare("UPDATE sessions SET status = 'FAILED' WHERE id = ?").run(
+    // Mark session as failure before startAgent's second terminal check
+    db.prepare("UPDATE sessions SET status = 'failure' WHERE id = ?").run(
       sessionId,
     );
 
@@ -464,7 +464,7 @@ describe("startAgent", () => {
     expect(onComplete).not.toHaveBeenCalled();
     expect(
       db.prepare("SELECT status FROM sessions WHERE id = ?").get(sessionId),
-    ).toEqual({ status: "FAILED" });
+    ).toEqual({ status: "failure" });
   });
 
   it("uses the injected claude runtime when the provider is claude", async () => {
@@ -533,21 +533,21 @@ describe("startAgent", () => {
     const row = db
       .prepare("SELECT status FROM sessions WHERE id = ?")
       .get(sessionId) as { status: string };
-    expect(row.status).toBe("FAILED");
+    expect(row.status).toBe("failure");
     expect(onComplete).toHaveBeenCalledWith(null);
     expect(queryMock).not.toHaveBeenCalled();
   });
 });
 
 describe("resumeAgent", () => {
-  it("resumes agent and sets SUCCEEDED when agent completes with a real transition", async () => {
+  it("resumes agent and sets success when agent completes with a real transition", async () => {
     const agentService = buildAgentService();
     const repoPath = await makeFakeGitRepo();
     const sessionId = "session-resume-success";
     const logFilePath = join(tmpdir(), `${sessionId}.log`);
     const onComplete = vi.fn();
     insertSession(sessionId, repoPath, logFilePath, {
-      status: "AWAITING_INPUT",
+      status: "awaiting_input",
       claude_session_id: "agent-session-123",
     });
 
@@ -576,7 +576,7 @@ describe("resumeAgent", () => {
     const row = db
       .prepare("SELECT status, transition_decision FROM sessions WHERE id = ?")
       .get(sessionId) as { status: string; transition_decision: string };
-    expect(row.status).toBe("SUCCEEDED");
+    expect(row.status).toBe("success");
     expect(JSON.parse(row.transition_decision).transition).toBe("success");
 
     expect(onComplete).toHaveBeenCalledWith(
@@ -591,14 +591,14 @@ describe("resumeAgent", () => {
     );
   });
 
-  it("sets AWAITING_INPUT again when agent requests more input", async () => {
+  it("sets awaiting_input again when agent requests more input", async () => {
     const agentService = buildAgentService();
     const repoPath = await makeFakeGitRepo();
     const sessionId = "session-resume-more-input";
     const logFilePath = join(tmpdir(), `${sessionId}.log`);
     const onComplete = vi.fn();
     insertSession(sessionId, repoPath, logFilePath, {
-      status: "AWAITING_INPUT",
+      status: "awaiting_input",
       claude_session_id: "agent-session-456",
     });
 
@@ -627,17 +627,17 @@ describe("resumeAgent", () => {
     const row = db
       .prepare("SELECT status FROM sessions WHERE id = ?")
       .get(sessionId) as { status: string };
-    expect(row.status).toBe("AWAITING_INPUT");
+    expect(row.status).toBe("awaiting_input");
     expect(onComplete).not.toHaveBeenCalled();
   });
 
-  it("emits session.status-changed with RUNNING when resuming", async () => {
+  it("emits session.status-changed with running when resuming", async () => {
     const agentService = buildAgentService();
     const repoPath = await makeFakeGitRepo();
     const sessionId = "session-resume-running-event";
     const logFilePath = join(tmpdir(), `${sessionId}.log`);
     insertSession(sessionId, repoPath, logFilePath, {
-      status: "AWAITING_INPUT",
+      status: "awaiting_input",
       claude_session_id: "agent-session-running",
     });
 
@@ -667,7 +667,7 @@ describe("resumeAgent", () => {
 
     expect(statusChangedListener).toHaveBeenNthCalledWith(1, {
       sessionId,
-      status: "RUNNING",
+      status: "running",
     });
 
     eventBus.off("session.status-changed", statusChangedListener);
@@ -679,7 +679,7 @@ describe("resumeAgent", () => {
     const sessionId = "session-resume-metadata";
     const logFilePath = join(tmpdir(), `${sessionId}.log`);
     insertSession(sessionId, repoPath, logFilePath, {
-      status: "AWAITING_INPUT",
+      status: "awaiting_input",
       claude_session_id: "agent-session-meta",
     });
 
@@ -716,14 +716,14 @@ describe("resumeAgent", () => {
     );
   });
 
-  it("sets FAILED when resume produces an error result", async () => {
+  it("sets failure when resume produces an error result", async () => {
     const agentService = buildAgentService();
     const repoPath = await makeFakeGitRepo();
     const sessionId = "session-resume-error";
     const logFilePath = join(tmpdir(), `${sessionId}.log`);
     const onComplete = vi.fn();
     insertSession(sessionId, repoPath, logFilePath, {
-      status: "AWAITING_INPUT",
+      status: "awaiting_input",
       claude_session_id: "agent-session-789",
     });
 
@@ -748,7 +748,7 @@ describe("resumeAgent", () => {
     const row = db
       .prepare("SELECT status FROM sessions WHERE id = ?")
       .get(sessionId) as { status: string };
-    expect(row.status).toBe("FAILED");
+    expect(row.status).toBe("failure");
     expect(onComplete).toHaveBeenCalledWith(null);
   });
 
@@ -759,7 +759,7 @@ describe("resumeAgent", () => {
     const logFilePath = join(tmpdir(), `${sessionId}.log`);
     const onComplete = vi.fn();
     insertSession(sessionId, repoPath, logFilePath, {
-      status: "AWAITING_INPUT",
+      status: "awaiting_input",
       claude_session_id: "agent-session-invalid-provider",
     });
 
@@ -776,7 +776,7 @@ describe("resumeAgent", () => {
     const row = db
       .prepare("SELECT status FROM sessions WHERE id = ?")
       .get(sessionId) as { status: string };
-    expect(row.status).toBe("FAILED");
+    expect(row.status).toBe("failure");
     expect(onComplete).toHaveBeenCalledWith(null);
     expect(resumeMock).not.toHaveBeenCalled();
   });

@@ -62,7 +62,7 @@ beforeEach(() => {
 });
 
 describe("createSession", () => {
-  it("creates a session with RUNNING status", async () => {
+  it("creates a session with running status", async () => {
     const repoPath = await makeFakeGitRepo();
     const session = await createSession({
       repository_path: repoPath,
@@ -72,7 +72,7 @@ describe("createSession", () => {
     });
 
     expect(session.id).toBeTypeOf("string");
-    expect(session.status).toBe("RUNNING");
+    expect(session.status).toBe("running");
     expect(session.repository_path).toBe(repoPath);
     expect(session.worktree_branch).toBe("feat/test");
     expect(session.goal).toBe("Write an implementation plan");
@@ -239,8 +239,8 @@ describe("listSessions", () => {
       transitions: DEFAULT_TRANSITIONS,
     });
 
-    expect(listSessions({ status: "RUNNING" })).toHaveLength(1);
-    expect(listSessions({ status: "FAILED" })).toHaveLength(1);
+    expect(listSessions({ status: "running" })).toHaveLength(1);
+    expect(listSessions({ status: "failure" })).toHaveLength(1);
   });
 });
 
@@ -265,7 +265,7 @@ describe("getSession", () => {
 });
 
 describe("failSession", () => {
-  it("marks a RUNNING session as FAILED", async () => {
+  it("marks a running session as failure", async () => {
     const repoPath = await makeFakeGitRepo();
     const session = await createSession({
       repository_path: repoPath,
@@ -275,7 +275,7 @@ describe("failSession", () => {
     });
 
     const failed = failSession(session.id);
-    expect(failed.status).toBe("FAILED");
+    expect(failed.status).toBe("failure");
   });
 
   it("emits session.status-changed when a session is failed", async () => {
@@ -293,7 +293,7 @@ describe("failSession", () => {
 
     expect(listener).toHaveBeenCalledWith({
       sessionId: session.id,
-      status: "FAILED",
+      status: "failure",
       decision: null,
     });
     eventBus.off("session.status-changed", listener);
@@ -316,7 +316,7 @@ describe("failSession", () => {
     expect(() => failSession(session.id)).toThrow("terminal state");
   });
 
-  it("marks an AWAITING_INPUT session as FAILED", async () => {
+  it("marks an awaiting_input session as failure", async () => {
     const repoPath = await makeFakeGitRepo();
     const session = await createSession({
       repository_path: repoPath,
@@ -324,18 +324,18 @@ describe("failSession", () => {
       goal: "A",
       transitions: DEFAULT_TRANSITIONS,
     });
-    // Manually set status to AWAITING_INPUT
+    // Manually set status to awaiting_input
     db.prepare(
-      "UPDATE sessions SET status = 'AWAITING_INPUT' WHERE id = ?",
+      "UPDATE sessions SET status = 'awaiting_input' WHERE id = ?",
     ).run(session.id);
 
     const failed = failSession(session.id);
-    expect(failed.status).toBe("FAILED");
+    expect(failed.status).toBe("failure");
   });
 });
 
 describe("replyToSession", () => {
-  it("calls resumeAgent when session is AWAITING_INPUT", async () => {
+  it("calls resumeAgent when session is awaiting_input", async () => {
     const repoPath = await makeFakeGitRepo();
     const session = await createSession({
       repository_path: repoPath,
@@ -344,7 +344,7 @@ describe("replyToSession", () => {
       transitions: DEFAULT_TRANSITIONS,
     });
     db.prepare(
-      "UPDATE sessions SET status = 'AWAITING_INPUT' WHERE id = ?",
+      "UPDATE sessions SET status = 'awaiting_input' WHERE id = ?",
     ).run(session.id);
 
     await replyToSession(session.id, "Use PostgreSQL");
@@ -370,7 +370,7 @@ describe("replyToSession", () => {
       transitions: DEFAULT_TRANSITIONS,
     });
     db.prepare(
-      "UPDATE sessions SET status = 'AWAITING_INPUT' WHERE id = ?",
+      "UPDATE sessions SET status = 'awaiting_input' WHERE id = ?",
     ).run(session.id);
 
     await replyToSession(session.id, "Use PostgreSQL");
@@ -431,7 +431,7 @@ describe("replyToSession", () => {
       agent_config: agentConfig,
     });
     db.prepare(
-      "UPDATE sessions SET status = 'AWAITING_INPUT' WHERE id = ?",
+      "UPDATE sessions SET status = 'awaiting_input' WHERE id = ?",
     ).run(session.id);
 
     await replyToSession(session.id, "Continue");
@@ -450,7 +450,7 @@ describe("replyToSession", () => {
 });
 
 describe("agent-session.completed subscription", () => {
-  it("marks the session as SUCCEEDED and emits terminal session.status-changed", async () => {
+  it("marks the session as success and emits terminal session.status-changed", async () => {
     const repoPath = await makeFakeGitRepo();
     const session = await createSession({
       repository_path: repoPath,
@@ -470,10 +470,10 @@ describe("agent-session.completed subscription", () => {
       },
     });
 
-    expect(getSession(session.id)?.status).toBe("SUCCEEDED");
+    expect(getSession(session.id)?.status).toBe("success");
     expect(statusListener).toHaveBeenCalledWith({
       sessionId: session.id,
-      status: "SUCCEEDED",
+      status: "success",
       decision: {
         transition: "implement",
         reason: "done",
@@ -513,7 +513,7 @@ describe("agent-session.completed subscription", () => {
     expect(statusListener).toHaveBeenCalledTimes(1);
     expect(statusListener).toHaveBeenCalledWith({
       sessionId: session.id,
-      status: "SUCCEEDED",
+      status: "success",
       decision,
     });
 

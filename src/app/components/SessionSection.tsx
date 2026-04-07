@@ -9,6 +9,8 @@ import {
 } from "@/lib/utils/api";
 import { inferAlias } from "@/lib/utils/inferAlias";
 import styles from "./SessionSection.module.css";
+import type { StatusBadgeVariant } from "./StatusBadge";
+import StatusBadge from "./StatusBadge";
 
 interface Props {
   repositoryPath: string;
@@ -16,10 +18,17 @@ interface Props {
 }
 
 const STATUS_LABELS: Record<SessionStatus, string> = {
-  RUNNING: "Running",
-  AWAITING_INPUT: "Awaiting input",
-  SUCCEEDED: "Succeeded",
-  FAILED: "Failed",
+  running: "Running",
+  awaiting_input: "Awaiting input",
+  success: "Succeeded",
+  failure: "Failed",
+};
+
+const SESSION_BADGE_VARIANT: Record<SessionStatus, StatusBadgeVariant> = {
+  running: "running",
+  awaiting_input: "awaiting",
+  success: "success",
+  failure: "failure",
 };
 
 export default function SessionSection({ repositoryPath, branch }: Props) {
@@ -71,11 +80,9 @@ export default function SessionSection({ repositoryPath, branch }: Props) {
                   {session.step_name ?? session.goal}
                 </Link>
                 <div className={styles.meta}>
-                  <span
-                    className={`${styles.badge} ${styles[`badge-${session.status}`]}`}
-                  >
+                  <StatusBadge variant={SESSION_BADGE_VARIANT[session.status]}>
                     {STATUS_LABELS[session.status]}
-                  </span>
+                  </StatusBadge>
                   <span>
                     {" "}
                     · {new Date(session.created_at).toLocaleString()}

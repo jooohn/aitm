@@ -144,12 +144,12 @@ describe("WorkflowRunRepository event emission", () => {
     expect(listener).toHaveBeenCalledTimes(2);
     expect(listener).toHaveBeenCalledWith({
       sessionId: "session-1",
-      status: "FAILED",
+      status: "failure",
       decision: null,
     });
     expect(listener).toHaveBeenCalledWith({
       sessionId: "session-2",
-      status: "FAILED",
+      status: "failure",
       decision: null,
     });
   });

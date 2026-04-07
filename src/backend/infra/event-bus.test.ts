@@ -11,13 +11,13 @@ describe("EventBus", () => {
     eventBus.on("session.status-changed", listener);
     eventBus.emit("session.status-changed", {
       sessionId: "s1",
-      status: "SUCCEEDED",
+      status: "success",
       decision: { transition: "success", reason: "done", handoff_summary: "" },
     });
 
     expect(listener).toHaveBeenCalledWith({
       sessionId: "s1",
-      status: "SUCCEEDED",
+      status: "success",
       decision: { transition: "success", reason: "done", handoff_summary: "" },
     });
   });
@@ -47,7 +47,7 @@ describe("EventBus", () => {
     eventBus.on("session.status-changed", listener2);
     eventBus.emit("session.status-changed", {
       sessionId: "s1",
-      status: "FAILED",
+      status: "failure",
       decision: null,
     });
 
@@ -77,7 +77,7 @@ describe("EventBus", () => {
     eventBus.on("session.status-changed", goodListener);
     eventBus.emit("session.status-changed", {
       sessionId: "s1",
-      status: "FAILED",
+      status: "failure",
       decision: null,
     });
 
@@ -97,7 +97,7 @@ describe("EventBus", () => {
     expect(() =>
       eventBus.emit("session.status-changed", {
         sessionId: "s1",
-        status: "FAILED",
+        status: "failure",
         decision: null,
       }),
     ).not.toThrow();
@@ -110,12 +110,12 @@ describe("EventBus", () => {
     eventBus.on("session.status-changed", listener);
     eventBus.emit("session.status-changed", {
       sessionId: "s1",
-      status: "AWAITING_INPUT",
+      status: "awaiting_input",
     });
 
     expect(listener).toHaveBeenCalledWith({
       sessionId: "s1",
-      status: "AWAITING_INPUT",
+      status: "awaiting_input",
     });
   });
 
@@ -144,7 +144,7 @@ describe("EventBus", () => {
     eventBus.off("session.status-changed", listener);
     eventBus.emit("session.status-changed", {
       sessionId: "s1",
-      status: "FAILED",
+      status: "failure",
       decision: null,
     });
 
@@ -161,7 +161,7 @@ describe("EventBus", () => {
     eventBus.off("session.status-changed", listenerA);
     eventBus.emit("session.status-changed", {
       sessionId: "s1",
-      status: "FAILED",
+      status: "failure",
       decision: null,
     });
 

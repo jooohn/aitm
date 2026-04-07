@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { notFound, useParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import StatusBadge from "@/app/components/StatusBadge";
 import WorkflowBreadcrumb from "@/app/components/WorkflowBreadcrumb";
 import {
   fetchWorkflowRun,
@@ -68,13 +69,9 @@ export default function StepExecutionPage() {
       <div className={styles.header}>
         <div className={styles.headerLeft}>
           {isRunning ? (
-            <span className={`${styles.badge} ${styles["badge-running"]}`}>
-              Running
-            </span>
+            <StatusBadge variant="running">Running</StatusBadge>
           ) : (
-            <span className={`${styles.badge} ${styles["badge-completed"]}`}>
-              Completed
-            </span>
+            <StatusBadge variant="success">Completed</StatusBadge>
           )}
           <h1 className={styles.title}>{execution.step}</h1>
         </div>

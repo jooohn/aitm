@@ -36,26 +36,6 @@
   @apply text-xs text-zinc-500 dark:text-zinc-400;
 }
 
-.badge {
-  @apply inline-block text-xs font-medium px-1.5 py-0.5 rounded;
-}
-
-.badge-RUNNING {
-  @apply bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300;
-}
-
-.badge-SUCCEEDED {
-  @apply bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300;
-}
-
-.badge-AWAITING_INPUT {
-  @apply bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300;
-}
-
-.badge-FAILED {
-  @apply bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300;
-}
-
 .attachCommand {
   @apply mt-1 text-xs font-mono bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 px-2 py-0.5 rounded break-all;
 }

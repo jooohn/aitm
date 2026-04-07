@@ -27,8 +27,8 @@ export type WorkflowRunStatus = "running" | "awaiting" | "success" | "failure";
 export type StepExecutionStatus =
   | "running"
   | "awaiting"
-  | "completed"
-  | "failed";
+  | "success"
+  | "failure";
 
 export interface WorkflowRun {
   id: string;
@@ -163,7 +163,7 @@ export class WorkflowRunService {
     const now = new Date().toISOString();
 
     switch (event.status) {
-      case "AWAITING_INPUT": {
+      case "awaiting_input": {
         this.workflowRunRepository.setStepExecutionStatus(
           activeExecution.id,
           "awaiting",
@@ -173,7 +173,7 @@ export class WorkflowRunService {
         }
         break;
       }
-      case "RUNNING": {
+      case "running": {
         this.workflowRunRepository.setStepExecutionStatus(
           activeExecution.id,
           "running",
@@ -187,11 +187,11 @@ export class WorkflowRunService {
         }
         break;
       }
-      case "SUCCEEDED": {
+      case "success": {
         await this.completeStepExecution(activeExecution.id, event.decision);
         break;
       }
-      case "FAILED": {
+      case "failure": {
         await this.completeStepExecution(activeExecution.id, null);
         break;
       }
@@ -440,7 +440,7 @@ export class WorkflowRunService {
 
     // Determine step-execution terminal status
     const stepStatus: StepExecutionStatus =
-      !decision || decision.transition === "failure" ? "failed" : "completed";
+      !decision || decision.transition === "failure" ? "failure" : "success";
 
     this.workflowRunRepository.completeStepExecution(
       stepExecutionId,
@@ -580,7 +580,7 @@ export class WorkflowRunService {
       throw new Error("No active session to stop for this workflow run");
     }
 
-    if (activeExecution.session_status === "RUNNING") {
+    if (activeExecution.session_status === "running") {
       try {
         this.sessionService.failSession(activeExecution.session_id);
       } catch (err) {

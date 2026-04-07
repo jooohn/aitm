@@ -93,10 +93,10 @@ export async function cleanMergedWorktrees(
 }
 
 export type SessionStatus =
-  | "RUNNING"
-  | "AWAITING_INPUT"
-  | "SUCCEEDED"
-  | "FAILED";
+  | "running"
+  | "awaiting_input"
+  | "success"
+  | "failure";
 
 export interface Session {
   id: string;
@@ -195,7 +195,7 @@ export interface StepExecution {
   workflow_run_id: string;
   step: string;
   step_type: "agent" | "command" | "manual-approval";
-  status: "running" | "awaiting" | "completed" | "failed";
+  status: "running" | "awaiting" | "success" | "failure";
   command_output: string | null;
   session_id: string | null;
   session_status: SessionStatus | null;
