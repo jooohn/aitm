@@ -17,6 +17,7 @@ export default defineConfig({
     env: {
       AITM_DB_PATH: ":memory:",
       HOME: "/tmp/aitm-vitest-home",
+      NODE_ENV: "test",
     },
     testTimeout: 15_000,
     hookTimeout: 15_000,
