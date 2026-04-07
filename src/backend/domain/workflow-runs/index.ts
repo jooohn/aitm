@@ -1,27 +1,16 @@
 import { randomUUID } from "crypto";
-import {
-  AgentWorkflowStep,
-  CommandWorkflowStep,
-  getConfigWorkflows,
-  ManualApprovalWorkflowStep,
-  resolveAgentConfig,
-  type WorkflowDefinition,
-  WorkflowStep,
-} from "@/backend/infra/config";
-import type {
-  EventBus,
-  SessionStatusChangedEvent,
-} from "@/backend/infra/event-bus";
+import { getConfigWorkflows } from "@/backend/infra/config";
+import type { EventBus } from "@/backend/infra/event-bus";
 import { logger } from "@/backend/infra/logger";
 import { spawnAsync } from "@/backend/utils/process";
-import { type TransitionDecision } from "../agent";
+import type { TransitionDecision } from "../agent";
 import type { SessionService, SessionStatus } from "../sessions";
-import type { Worktree, WorktreeService } from "../worktrees";
+import type { WorktreeService } from "../worktrees";
 import type { CommandStepExecutor } from "./command-step-executor";
-import type {
-  PreviousExecutionHandoff,
-  WorkflowRunRepository,
-} from "./workflow-run-repository";
+import { StepRunner } from "./step-runner";
+import { WorkflowRunQueries } from "./workflow-run-queries";
+import type { WorkflowRunRepository } from "./workflow-run-repository";
+import { WorkflowStateMachine } from "./workflow-state-machine";
 
 export type WorkflowRunStatus = "running" | "awaiting" | "success" | "failure";
 export type StepExecutionStatus =
@@ -76,42 +65,6 @@ export interface ListWorkflowRunsFilter {
   status?: WorkflowRunStatus;
 }
 
-function buildGoal(
-  stepGoal: string,
-  previousExecutions: PreviousExecutionHandoff[],
-  inputs?: Record<string, string>,
-): string {
-  const parts = ["<goal>", stepGoal, "</goal>"];
-
-  if (
-    previousExecutions.length === 0 &&
-    inputs &&
-    Object.keys(inputs).length > 0
-  ) {
-    parts.push("", "<inputs>");
-    for (const [key, value] of Object.entries(inputs)) {
-      parts.push(`${key}: ${value}`);
-    }
-    parts.push("</inputs>");
-  }
-
-  if (previousExecutions.length > 0) {
-    parts.push("", "<handoff>", "Previous steps (oldest first):", "");
-    for (const prev of previousExecutions) {
-      parts.push(`Step: ${prev.step}`, `Summary: ${prev.handoff_summary}`);
-      if (prev.log_file_path) {
-        parts.push(`Log: ${prev.log_file_path}`);
-      }
-      parts.push("");
-    }
-    parts.push("</handoff>");
-  }
-
-  return parts.join("\n");
-}
-
-const DEFAULT_MAX_STEP_EXECUTIONS = 30;
-
 function isAlreadyTerminalSessionError(
   err: unknown,
   sessionId: string,
@@ -125,6 +78,10 @@ function isAlreadyTerminalSessionError(
 }
 
 export class WorkflowRunService {
+  private workflowRunQueries: WorkflowRunQueries;
+  private stepRunner: StepRunner;
+  private workflowStateMachine: WorkflowStateMachine;
+
   constructor(
     private workflowRunRepository: WorkflowRunRepository,
     private sessionService: SessionService,
@@ -132,247 +89,42 @@ export class WorkflowRunService {
     private commandStepExecutor: CommandStepExecutor,
     private eventBus: EventBus,
   ) {
+    this.workflowRunQueries = new WorkflowRunQueries(workflowRunRepository);
+    this.stepRunner = new StepRunner(
+      workflowRunRepository,
+      sessionService,
+      worktreeService,
+      commandStepExecutor,
+    );
+    this.workflowStateMachine = new WorkflowStateMachine(
+      workflowRunRepository,
+      this.stepRunner,
+    );
+    this.stepRunner.setStepCompletionHandler(
+      this.workflowStateMachine.completeStepExecution.bind(
+        this.workflowStateMachine,
+      ),
+    );
+
     eventBus.on("session.status-changed", (event) => {
-      void this.handleSessionStatusChanged(event).catch((err) =>
-        logger.error(
-          { err, sessionId: event.sessionId, status: event.status },
-          "Failed to handle session status change",
-        ),
-      );
+      void this.workflowStateMachine
+        .handleSessionStatusChanged(event)
+        .catch((err) =>
+          logger.error(
+            { err, sessionId: event.sessionId, status: event.status },
+            "Failed to handle session status change",
+          ),
+        );
     });
     eventBus.on(
       "step-execution.status-changed",
       ({ workflowRunId, status }) => {
-        this.handleStepExecutionStatusChanged(workflowRunId, status);
+        this.workflowStateMachine.handleStepExecutionStatusChanged(
+          workflowRunId,
+          status,
+        );
       },
     );
-  }
-
-  private async handleSessionStatusChanged(
-    event: SessionStatusChangedEvent,
-  ): Promise<void> {
-    const activeExecution =
-      this.workflowRunRepository.findActiveExecutionBySessionId(
-        event.sessionId,
-      );
-    if (!activeExecution) return;
-
-    const run = this.workflowRunRepository.getWorkflowRunById(
-      activeExecution.workflow_run_id,
-    );
-    const now = new Date().toISOString();
-
-    switch (event.status) {
-      case "awaiting_input": {
-        this.workflowRunRepository.setStepExecutionStatus(
-          activeExecution.id,
-          "awaiting",
-        );
-        if (run?.status === "running") {
-          this.workflowRunRepository.setWorkflowRunAwaiting(run.id, now);
-        }
-        break;
-      }
-      case "running": {
-        this.workflowRunRepository.setStepExecutionStatus(
-          activeExecution.id,
-          "running",
-        );
-        if (run?.status === "awaiting" && run.current_step) {
-          this.workflowRunRepository.setWorkflowRunRunning(
-            run.id,
-            run.current_step,
-            now,
-          );
-        }
-        break;
-      }
-      case "success": {
-        await this.completeStepExecution(activeExecution.id, event.decision);
-        break;
-      }
-      case "failure": {
-        await this.completeStepExecution(activeExecution.id, null);
-        break;
-      }
-    }
-  }
-
-  private handleStepExecutionStatusChanged(
-    workflowRunId: string,
-    status: StepExecutionStatus,
-  ): void {
-    const run = this.workflowRunRepository.getWorkflowRunById(workflowRunId);
-    if (!run) return;
-
-    const now = new Date().toISOString();
-
-    if (status === "awaiting" && run.status === "running") {
-      this.workflowRunRepository.setWorkflowRunAwaiting(workflowRunId, now);
-    } else if (status === "running" && run.status === "awaiting") {
-      this.workflowRunRepository.setWorkflowRunRunning(
-        workflowRunId,
-        run.current_step!,
-        now,
-      );
-    }
-  }
-
-  private async startStepExecution(
-    workflowRunId: string,
-    stepName: string,
-    repositoryPath: string,
-    worktreeBranch: string,
-    workflowName: string,
-    previousExecutions: PreviousExecutionHandoff[],
-    inputs?: Record<string, string>,
-  ): Promise<StepExecution> {
-    const workflows = await getConfigWorkflows();
-    const workflow = workflows[workflowName];
-    if (!workflow) throw new Error(`Workflow not found: ${workflowName}`);
-
-    const stepDef = workflow.steps?.[stepName];
-    if (!stepDef) throw new Error(`Step not found: ${stepName}`);
-
-    const executionId = randomUUID();
-    const now = new Date().toISOString();
-
-    this.workflowRunRepository.insertStepExecution({
-      id: executionId,
-      workflowRunId,
-      stepName,
-      stepType: stepDef.type,
-      now,
-    });
-
-    const worktree = await this.worktreeService.findWorktree(
-      repositoryPath,
-      worktreeBranch,
-    );
-    if (!worktree) {
-      await this.completeStepExecution(executionId, null);
-      return this.workflowRunRepository.getStepExecution(executionId)!;
-    }
-    await this.executeStep({
-      stepDef,
-      executionId,
-      workflowRunId,
-      repositoryPath,
-      worktree,
-      inputs,
-      previousExecutions,
-    });
-    return this.workflowRunRepository.getStepExecution(executionId)!;
-  }
-
-  private executeStep(params: {
-    stepDef: WorkflowStep;
-    executionId: string;
-    workflowRunId: string;
-    repositoryPath: string;
-    worktree: Worktree;
-    inputs?: Record<string, string>;
-    previousExecutions: PreviousExecutionHandoff[];
-  }) {
-    const { stepDef, worktree, ...remaining } = params;
-    switch (stepDef.type) {
-      case "command":
-        return this.startCommandStepExecution({
-          stepDef,
-          worktree,
-          ...remaining,
-        });
-      case "agent":
-        return this.startAgentStepExecution({
-          stepDef,
-          worktree,
-          ...remaining,
-        });
-      case "manual-approval":
-        return this.startManualApprovalStepExecution({
-          executionId: params.executionId,
-          workflowRunId: params.workflowRunId,
-        });
-    }
-  }
-
-  private startManualApprovalStepExecution({
-    executionId,
-    workflowRunId,
-  }: {
-    executionId: string;
-    workflowRunId: string;
-  }) {
-    this.workflowRunRepository.setStepExecutionStatus(executionId, "awaiting");
-  }
-
-  private async startCommandStepExecution({
-    stepDef,
-    executionId,
-    worktree,
-  }: {
-    stepDef: CommandWorkflowStep;
-    executionId: string;
-    worktree: Worktree;
-  }) {
-    const { outcome, commandOutput } = await this.commandStepExecutor.execute(
-      stepDef.command,
-      { cwd: worktree.path },
-    );
-
-    this.workflowRunRepository.setStepExecutionCommandOutput(
-      executionId,
-      commandOutput,
-    );
-
-    const matchedTransition = stepDef.transitions.find(
-      (t) => t.when === outcome,
-    );
-
-    let decision: TransitionDecision | null;
-    if (!matchedTransition) {
-      decision = null;
-    } else {
-      const transitionName =
-        "step" in matchedTransition
-          ? matchedTransition.step
-          : matchedTransition.terminal;
-      decision = {
-        transition: transitionName,
-        reason: `Command ${outcome}`,
-        handoff_summary: commandOutput ?? "",
-      };
-    }
-
-    await this.completeStepExecution(executionId, decision);
-  }
-
-  private async startAgentStepExecution({
-    stepDef,
-    executionId,
-    repositoryPath,
-    worktree,
-    inputs,
-    previousExecutions,
-  }: {
-    stepDef: AgentWorkflowStep;
-    executionId: string;
-    repositoryPath: string;
-    worktree: Worktree;
-    inputs?: Record<string, string>;
-    previousExecutions: PreviousExecutionHandoff[];
-  }) {
-    const goal = buildGoal(stepDef.goal, previousExecutions, inputs);
-    const agentConfig = await resolveAgentConfig(stepDef.agent);
-    await this.sessionService.createSession({
-      repository_path: repositoryPath,
-      worktree_branch: worktree.branch,
-      goal,
-      transitions: stepDef.transitions,
-      agent_config: agentConfig,
-      step_execution_id: executionId,
-      metadata_fields: stepDef.output?.metadata,
-    });
   }
 
   async createWorkflowRun(input: CreateWorkflowRunInput): Promise<WorkflowRun> {
@@ -410,15 +162,19 @@ export class WorkflowRunService {
       now,
     });
 
-    await this.startStepExecution(
-      id,
-      workflow.initial_step,
-      input.repository_path,
-      input.worktree_branch,
-      input.workflow_name,
-      [],
-      input.inputs,
-    );
+    const initialExecution = await this.stepRunner.startStepExecution({
+      workflowRunId: id,
+      stepName: workflow.initial_step,
+      repositoryPath: input.repository_path,
+      worktreeBranch: input.worktree_branch,
+      workflowName: input.workflow_name,
+      previousExecutions: [],
+      inputs: input.inputs,
+    });
+
+    if (initialExecution.status === "awaiting") {
+      this.workflowRunRepository.setWorkflowRunAwaiting(id, now);
+    }
 
     return this.workflowRunRepository.getWorkflowRunById(id) as WorkflowRun;
   }
@@ -427,92 +183,9 @@ export class WorkflowRunService {
     stepExecutionId: string,
     decision: TransitionDecision | null,
   ): Promise<void> {
-    const execution =
-      this.workflowRunRepository.getStepExecution(stepExecutionId);
-    if (!execution) return;
-
-    const run = this.workflowRunRepository.getWorkflowRunById(
-      execution.workflow_run_id,
-    );
-    if (!run || (run.status !== "running" && run.status !== "awaiting")) return;
-
-    const now = new Date().toISOString();
-
-    // Determine step-execution terminal status
-    const stepStatus: StepExecutionStatus =
-      !decision || decision.transition === "failure" ? "failure" : "success";
-
-    this.workflowRunRepository.completeStepExecution(
+    await this.workflowStateMachine.completeStepExecution(
       stepExecutionId,
-      decision ? JSON.stringify(decision) : null,
-      decision?.handoff_summary ?? null,
-      now,
-      stepStatus,
-    );
-
-    if (decision?.metadata && Object.keys(decision.metadata).length > 0) {
-      this.workflowRunRepository.mergeWorkflowRunMetadata(
-        run.id,
-        decision.metadata,
-      );
-    }
-
-    if (!decision) {
-      // No structured output → mark as failure.
-      this.workflowRunRepository.terminateWorkflowRun(run.id, "failure", now);
-      return;
-    }
-
-    const { transition } = decision;
-
-    if (transition === "success" || transition === "failure") {
-      this.workflowRunRepository.terminateWorkflowRun(run.id, transition, now);
-      return;
-    }
-
-    // Look up the workflow definition to validate the next state exists.
-    const workflows = await getConfigWorkflows();
-    const workflow = workflows[run.workflow_name];
-    if (!workflow || !workflow.steps?.[transition]) {
-      this.workflowRunRepository.terminateWorkflowRun(run.id, "failure", now);
-      return;
-    }
-
-    // Guard: terminate if step executions exceed the maximum allowed.
-    // Use the offset so re-runs from failed state get a fresh budget.
-    const maxSteps = workflow.max_steps ?? DEFAULT_MAX_STEP_EXECUTIONS;
-    const stepCount =
-      this.workflowRunRepository.countStepExecutions(run.id) -
-      (run.step_count_offset ?? 0);
-    if (stepCount >= maxSteps) {
-      this.workflowRunRepository.terminateWorkflowRun(run.id, "failure", now);
-      return;
-    }
-
-    // Advance to next state.
-    if (run.status === "awaiting") {
-      // Reset status to running when advancing from an awaiting state.
-      this.workflowRunRepository.setWorkflowRunRunning(run.id, transition, now);
-    } else {
-      this.workflowRunRepository.updateWorkflowRunCurrentStep(
-        run.id,
-        transition,
-        now,
-      );
-    }
-
-    // Collect all completed executions (including the current one, now committed) for handoff.
-    const previousExecutions = this.workflowRunRepository
-      .listCompletedExecutionsHandoff(run.id)
-      .filter((e): e is PreviousExecutionHandoff => e.handoff_summary !== null);
-
-    await this.startStepExecution(
-      run.id,
-      transition,
-      run.repository_path,
-      run.worktree_branch,
-      run.workflow_name,
-      previousExecutions,
+      decision,
     );
   }
 
@@ -521,49 +194,11 @@ export class WorkflowRunService {
     decision: "approved" | "rejected",
     reason?: string,
   ): Promise<WorkflowRunWithExecutions> {
-    const run = this.workflowRunRepository.getWorkflowRunById(id);
-    if (!run) throw new Error("Workflow run not found");
-    if (run.status !== "running" && run.status !== "awaiting") {
-      throw new Error("Workflow run is not running");
-    }
-
-    const activeExecution =
-      this.workflowRunRepository.getActiveStepExecution(id);
-    if (!activeExecution || activeExecution.step_type !== "manual-approval") {
-      throw new Error("Active step execution is not a manual-approval step");
-    }
-
-    const workflows = await getConfigWorkflows();
-    const workflow = workflows[run.workflow_name];
-    if (!workflow) throw new Error(`Workflow not found: ${run.workflow_name}`);
-
-    const stepDef = workflow.steps?.[activeExecution.step];
-    if (!stepDef) {
-      throw new Error(`Step not found: ${activeExecution.step}`);
-    }
-
-    const matchedTransition = stepDef.transitions.find(
-      (t) => t.when === decision,
+    return this.workflowStateMachine.resolveManualApproval(
+      id,
+      decision,
+      reason,
     );
-
-    let transitionDecision: TransitionDecision | null;
-    if (!matchedTransition) {
-      transitionDecision = null;
-    } else {
-      const transitionName =
-        "step" in matchedTransition
-          ? matchedTransition.step
-          : matchedTransition.terminal;
-      transitionDecision = {
-        transition: transitionName,
-        reason: reason || `Manually ${decision}`,
-        handoff_summary: reason || "",
-      };
-    }
-
-    await this.completeStepExecution(activeExecution.id, transitionDecision);
-
-    return this.getWorkflowRun(id)!;
   }
 
   async stopWorkflowRun(id: string): Promise<WorkflowRunWithExecutions> {
@@ -603,73 +238,11 @@ export class WorkflowRunService {
   // state but the execution was never closed (e.g., due to a server crash).
   // Then fail any workflow runs that have no remaining active state execution.
   async recoverCrashedWorkflowRuns(): Promise<void> {
-    const now = new Date().toISOString();
-
-    // For uncompleted state executions whose session SUCCEEDED: replay completeStepExecution()
-    // so the workflow advances (or terminates) correctly using the session's decision.
-    // This handles the case where the server crashed after the session completed but before
-    // the onComplete callback was invoked.
-    const pendingSucceeded =
-      this.workflowRunRepository.listPendingSucceededExecutions();
-
-    for (const { execution_id, transition_decision } of pendingSucceeded) {
-      let decision: TransitionDecision | null = null;
-      decision = transition_decision;
-      await this.completeStepExecution(execution_id, decision);
-    }
-
-    // For uncompleted state executions whose session FAILED while the workflow is still running:
-    // close the failed execution and retry the same state with a new session.
-    const pendingFailed =
-      this.workflowRunRepository.listPendingFailedExecutions();
-
-    for (const { execution_id, step, workflow_run_id } of pendingFailed) {
-      this.workflowRunRepository.closeStepExecution(execution_id, now);
-
-      const run = this.workflowRunRepository.getWorkflowRunById(
-        workflow_run_id,
-      ) as WorkflowRun;
-
-      const previousExecutions = this.workflowRunRepository
-        .listCompletedExecutionsHandoff(workflow_run_id)
-        .filter(
-          (e): e is PreviousExecutionHandoff => e.handoff_summary !== null,
-        );
-
-      await this.startStepExecution(
-        workflow_run_id,
-        step,
-        run.repository_path,
-        run.worktree_branch,
-        run.workflow_name,
-        previousExecutions,
-        run.inputs ?? undefined,
-      );
-    }
-
-    // Fail workflow runs with uncompleted command state executions (no linked session).
-    // These indicate a server crash during synchronous command execution.
-    const orphanedCommandExecutions =
-      this.workflowRunRepository.listOrphanedCommandExecutions();
-
-    for (const { execution_id, workflow_run_id } of orphanedCommandExecutions) {
-      this.workflowRunRepository.closeStepExecution(execution_id, now);
-      this.workflowRunRepository.terminateWorkflowRun(
-        workflow_run_id,
-        "failure",
-        now,
-      );
-    }
-
-    // Close any remaining uncompleted state executions (workflow already terminated).
-    this.workflowRunRepository.closeRemainingFailedExecutions(now);
-
-    // Fail any workflow runs that still have no active state execution.
-    this.workflowRunRepository.failRemainingRunningWorkflowRuns(now);
+    await this.workflowStateMachine.recoverCrashedWorkflowRuns();
   }
 
   listWorkflowRuns(filter: ListWorkflowRunsFilter): WorkflowRun[] {
-    return this.workflowRunRepository.listWorkflowRuns(filter);
+    return this.workflowRunQueries.listWorkflowRuns(filter);
   }
 
   async rerunWorkflowRun(id: string): Promise<WorkflowRun> {
@@ -708,45 +281,10 @@ export class WorkflowRunService {
   async rerunWorkflowRunFromFailedState(
     id: string,
   ): Promise<WorkflowRunWithExecutions> {
-    const run = this.workflowRunRepository.getWorkflowRunById(id);
-    if (!run) throw new Error("Workflow run not found");
-
-    if (run.status !== "failure") {
-      throw new Error(
-        "Only failed workflow runs can be re-run from failed state",
-      );
-    }
-
-    const lastExecution = this.workflowRunRepository.getLastStepExecution(id);
-    if (!lastExecution) throw new Error("Workflow run not found");
-
-    const failedStep = lastExecution.step;
-    const now = new Date().toISOString();
-
-    // Record current step count as offset so the max_steps guard only applies
-    // to executions created during this re-run, not the entire history.
-    const stepCountOffset = this.workflowRunRepository.countStepExecutions(id);
-    this.workflowRunRepository.setStepCountOffset(id, stepCountOffset);
-    this.workflowRunRepository.setWorkflowRunRunning(id, failedStep, now);
-
-    const previousExecutions = this.workflowRunRepository
-      .listCompletedExecutionsHandoffExcluding(id, lastExecution.id)
-      .filter((e): e is PreviousExecutionHandoff => e.handoff_summary !== null);
-
-    await this.startStepExecution(
-      id,
-      failedStep,
-      run.repository_path,
-      run.worktree_branch,
-      run.workflow_name,
-      previousExecutions,
-      run.inputs ?? undefined,
-    );
-
-    return this.getWorkflowRun(id)!;
+    return this.workflowStateMachine.rerunWorkflowRunFromFailedState(id);
   }
 
   getWorkflowRun(id: string): WorkflowRunWithExecutions | undefined {
-    return this.workflowRunRepository.getWorkflowRunWithExecutions(id);
+    return this.workflowRunQueries.getWorkflowRun(id);
   }
 }
