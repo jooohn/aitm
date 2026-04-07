@@ -1,14 +1,14 @@
-import { mkdir, writeFile } from "fs/promises";
+import { mkdir } from "fs/promises";
 import { NextRequest } from "next/server";
 import { tmpdir } from "os";
 import { join } from "path";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   agentService,
   workflowRunService,
   worktreeService,
 } from "@/backend/container";
-import { initializeConfig, resetConfigForTests } from "@/backend/infra/config";
+import { setupTestConfigDir, writeTestConfig } from "@/test-config-helper";
 
 const createWorkflowRun =
   workflowRunService.createWorkflowRun.bind(workflowRunService);
@@ -16,6 +16,7 @@ const completeStepExecution =
   workflowRunService.completeStepExecution.bind(workflowRunService);
 
 import { db } from "@/backend/infra/db";
+import { setupTestConfigDir, writeTestConfig } from "@/test-config-helper";
 import { POST } from "./route";
 
 async function makeFakeGitRepo(): Promise<string> {
@@ -48,23 +49,9 @@ workflows:
             when: "blocked"
 `;
 
-let configFile: string;
-
-async function writeConfig(content: string) {
-  await writeFile(configFile, content);
-  resetConfigForTests();
-  await initializeConfig();
-}
-
 beforeEach(async () => {
-  const dir = join(
-    tmpdir(),
-    `aitm-config-test-${Math.random().toString(36).slice(2)}`,
-  );
-  await mkdir(dir, { recursive: true });
-  configFile = join(dir, "config.yaml");
-  process.env.AITM_CONFIG_PATH = configFile;
-  await writeConfig(WORKFLOW_CONFIG);
+  const configFile = await setupTestConfigDir();
+  await writeTestConfig(configFile, WORKFLOW_CONFIG);
 
   db.prepare("DELETE FROM sessions").run();
   db.prepare("DELETE FROM step_executions").run();
@@ -82,11 +69,6 @@ beforeEach(async () => {
       },
     ],
   );
-});
-
-afterEach(() => {
-  delete process.env.AITM_CONFIG_PATH;
-  resetConfigForTests();
 });
 
 function makeParams(id: string): { params: Promise<{ id: string }> } {

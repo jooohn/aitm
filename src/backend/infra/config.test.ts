@@ -1,17 +1,15 @@
-import { chmod, mkdir, rm, writeFile } from "fs/promises";
-import { tmpdir } from "os";
-import { join } from "path";
+import { chmod, rm, writeFile } from "fs/promises";
+import { dirname } from "path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { setupTestConfigDir } from "@/test-config-helper";
 import {
   getAgentConfig,
   getConfigRepositories,
   getConfigWorkflows,
   initializeConfig,
-  resetConfigForTests,
   resolveAgentConfig,
 } from "./config";
 
-let configDir: string;
 let configFile: string;
 
 async function writeConfig(content: string) {
@@ -19,20 +17,11 @@ async function writeConfig(content: string) {
 }
 
 beforeEach(async () => {
-  configDir = join(
-    tmpdir(),
-    `aitm-config-test-${Math.random().toString(36).slice(2)}`,
-  );
-  await mkdir(configDir, { recursive: true });
-  configFile = join(configDir, "config.yaml");
-  process.env.AITM_CONFIG_PATH = configFile;
-  resetConfigForTests();
+  configFile = await setupTestConfigDir();
 });
 
 afterEach(async () => {
-  await rm(configDir, { recursive: true, force: true });
-  delete process.env.AITM_CONFIG_PATH;
-  resetConfigForTests();
+  await rm(dirname(configFile), { recursive: true, force: true });
 });
 
 describe("config initialization", () => {

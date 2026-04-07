@@ -1,10 +1,11 @@
 import { mkdir, rm, writeFile } from "fs/promises";
 import { tmpdir } from "os";
 import { join } from "path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { repositoryService } from "@/backend/container";
-import { initializeConfig, resetConfigForTests } from "@/backend/infra/config";
+import { initializeConfig } from "@/backend/infra/config";
 import { spawnAsync } from "@/backend/utils/process";
+import { setupTestConfigDir } from "@/test-config-helper";
 import { inferAlias } from "./index";
 
 const listRepositories =
@@ -33,15 +34,7 @@ async function makeFakeGitRepo(): Promise<string> {
 }
 
 beforeEach(async () => {
-  const dir = await makeTempDir();
-  configFile = join(dir, "config.yaml");
-  process.env.AITM_CONFIG_PATH = configFile;
-  resetConfigForTests();
-});
-
-afterEach(() => {
-  delete process.env.AITM_CONFIG_PATH;
-  resetConfigForTests();
+  configFile = await setupTestConfigDir();
 });
 
 async function writeConfig(paths: string[]) {

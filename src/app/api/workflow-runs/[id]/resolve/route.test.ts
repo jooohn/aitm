@@ -1,15 +1,15 @@
-import { mkdir, writeFile } from "fs/promises";
+import { mkdir } from "fs/promises";
 import { NextRequest } from "next/server";
 import { tmpdir } from "os";
 import { join } from "path";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   agentService,
   workflowRunService,
   worktreeService,
 } from "@/backend/container";
-import { initializeConfig, resetConfigForTests } from "@/backend/infra/config";
+import { setupTestConfigDir, writeTestConfig } from "@/test-config-helper";
 
 vi.spyOn(agentService, "startAgent").mockResolvedValue();
 vi.spyOn(agentService, "cancelAgent").mockImplementation(() => {});
@@ -20,6 +20,7 @@ const completeStepExecution =
   workflowRunService.completeStepExecution.bind(workflowRunService);
 
 import { db } from "@/backend/infra/db";
+import { setupTestConfigDir, writeTestConfig } from "@/test-config-helper";
 import { POST } from "./route";
 
 async function makeFakeGitRepo(): Promise<string> {
@@ -64,21 +65,9 @@ workflows:
 
 let configFile: string;
 
-async function writeConfig(content: string) {
-  await writeFile(configFile, content);
-  resetConfigForTests();
-  await initializeConfig();
-}
-
 beforeEach(async () => {
-  const dir = join(
-    tmpdir(),
-    `aitm-config-test-${Math.random().toString(36).slice(2)}`,
-  );
-  await mkdir(dir, { recursive: true });
-  configFile = join(dir, "config.yaml");
-  process.env.AITM_CONFIG_PATH = configFile;
-  await writeConfig(APPROVAL_WORKFLOW_CONFIG);
+  configFile = await setupTestConfigDir();
+  await writeTestConfig(configFile, APPROVAL_WORKFLOW_CONFIG);
 
   db.prepare("DELETE FROM sessions").run();
   db.prepare("DELETE FROM step_executions").run();
@@ -95,11 +84,6 @@ beforeEach(async () => {
       },
     ],
   );
-});
-
-afterEach(() => {
-  delete process.env.AITM_CONFIG_PATH;
-  resetConfigForTests();
 });
 
 function makeParams(id: string): { params: Promise<{ id: string }> } {
@@ -190,7 +174,7 @@ describe("POST /api/workflow-runs/:id/resolve", () => {
   });
 
   it("returns 422 when active step is not manual-approval", async () => {
-    await writeConfig(AGENT_WORKFLOW_CONFIG);
+    await writeTestConfig(configFile, AGENT_WORKFLOW_CONFIG);
 
     const repoPath = await makeFakeGitRepo();
     const run = await createWorkflowRun({

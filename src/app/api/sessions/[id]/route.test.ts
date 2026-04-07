@@ -1,15 +1,14 @@
-import { mkdir, writeFile } from "fs/promises";
+import { mkdir } from "fs/promises";
 import { NextRequest } from "next/server";
 import { tmpdir } from "os";
 import { join } from "path";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { agentService, sessionService } from "@/backend/container";
-import { initializeConfig, resetConfigForTests } from "@/backend/infra/config";
+import { db } from "@/backend/infra/db";
+import { setupTestConfigDir, writeTestConfig } from "@/test-config-helper";
+import { GET } from "./route";
 
 const createSession = sessionService.createSession.bind(sessionService);
-
-import { db } from "@/backend/infra/db";
-import { GET } from "./route";
 
 async function makeFakeGitRepo(): Promise<string> {
   const dir = join(
@@ -25,22 +24,10 @@ function makeParams(id: string): { params: Promise<{ id: string }> } {
 }
 
 beforeEach(async () => {
-  const configDir = join(
-    tmpdir(),
-    `aitm-config-test-${Math.random().toString(36).slice(2)}`,
-  );
-  await mkdir(configDir, { recursive: true });
-  process.env.AITM_CONFIG_PATH = join(configDir, "config.yaml");
-  await writeFile(process.env.AITM_CONFIG_PATH, "workflows: {}\n");
-  resetConfigForTests();
-  await initializeConfig();
+  const configFile = await setupTestConfigDir();
+  await writeTestConfig(configFile, "workflows: {}\n");
   vi.spyOn(agentService, "startAgent").mockResolvedValue(undefined);
   db.prepare("DELETE FROM sessions").run();
-});
-
-afterEach(() => {
-  delete process.env.AITM_CONFIG_PATH;
-  resetConfigForTests();
 });
 
 describe("GET /api/sessions/:id", () => {

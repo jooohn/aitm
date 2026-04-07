@@ -1,15 +1,15 @@
 import { mkdir, readFile, writeFile } from "fs/promises";
 import { tmpdir } from "os";
 import { join } from "path";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   agentService,
   sessionService,
   worktreeService,
 } from "@/backend/container";
-import { initializeConfig, resetConfigForTests } from "@/backend/infra/config";
 import { db } from "@/backend/infra/db";
 import { eventBus } from "@/backend/infra/event-bus";
+import { setupTestConfigDir, writeTestConfig } from "@/test-config-helper";
 
 const createSession = sessionService.createSession.bind(sessionService);
 const failSession = sessionService.failSession.bind(sessionService);
@@ -59,23 +59,10 @@ async function makeFakeGitRepo(): Promise<string> {
 }
 
 beforeEach(async () => {
-  const dir = join(
-    tmpdir(),
-    `aitm-config-test-${Math.random().toString(36).slice(2)}`,
-  );
-  await mkdir(dir, { recursive: true });
-  configFile = join(dir, "config.yaml");
-  process.env.AITM_CONFIG_PATH = configFile;
-  await writeFile(configFile, "workflows: {}\n");
-  resetConfigForTests();
-  await initializeConfig();
+  configFile = await setupTestConfigDir();
+  await writeTestConfig(configFile, "workflows: {}\n");
   db.prepare("DELETE FROM sessions").run();
   vi.clearAllMocks();
-});
-
-afterEach(() => {
-  delete process.env.AITM_CONFIG_PATH;
-  resetConfigForTests();
 });
 
 describe("createSession", () => {
@@ -129,45 +116,38 @@ describe("createSession", () => {
 
   it("uses the top-level agent config when no override is provided", async () => {
     const repoPath = await makeFakeGitRepo();
-    try {
-      await writeFile(
-        configFile,
-        `
+    await writeTestConfig(
+      configFile,
+      `
 agent:
   provider: codex
   model: gpt-5.4
   command: /opt/homebrew/bin/codex
 workflows: {}
 `,
-      );
-      resetConfigForTests();
-      await initializeConfig();
+    );
 
-      const session = await createSession({
-        repository_path: repoPath,
-        worktree_branch: "feat/test",
-        goal: "Write code",
-        transitions: DEFAULT_TRANSITIONS,
-      });
+    const session = await createSession({
+      repository_path: repoPath,
+      worktree_branch: "feat/test",
+      goal: "Write code",
+      transitions: DEFAULT_TRANSITIONS,
+    });
 
-      expect(agentService.startAgent).toHaveBeenCalledWith(
-        session.id,
-        repoPath,
-        "Write code",
-        DEFAULT_TRANSITIONS,
-        {
-          provider: "codex",
-          model: "gpt-5.4",
-          command: "/opt/homebrew/bin/codex",
-        },
-        session.log_file_path,
-        undefined,
-        undefined,
-      );
-    } finally {
-      delete process.env.AITM_CONFIG_PATH;
-      resetConfigForTests();
-    }
+    expect(agentService.startAgent).toHaveBeenCalledWith(
+      session.id,
+      repoPath,
+      "Write code",
+      DEFAULT_TRANSITIONS,
+      {
+        provider: "codex",
+        model: "gpt-5.4",
+        command: "/opt/homebrew/bin/codex",
+      },
+      session.log_file_path,
+      undefined,
+      undefined,
+    );
   });
 });
 

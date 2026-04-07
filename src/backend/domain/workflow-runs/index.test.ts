@@ -1,16 +1,16 @@
-import { mkdir, writeFile } from "fs/promises";
+import { mkdir } from "fs/promises";
 import { tmpdir } from "os";
 import { join } from "path";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   agentService,
   sessionService,
   workflowRunService,
   worktreeService,
 } from "@/backend/container";
-import { initializeConfig, resetConfigForTests } from "@/backend/infra/config";
 import { db } from "@/backend/infra/db";
 import { eventBus } from "@/backend/infra/event-bus";
+import { setupTestConfigDir, writeTestConfig } from "@/test-config-helper";
 
 const failSession = sessionService.failSession.bind(sessionService);
 
@@ -47,17 +47,9 @@ async function makeFakeGitRepo(): Promise<string> {
 }
 
 async function writeTempConfig(content: string): Promise<string> {
-  const dir = join(
-    tmpdir(),
-    `aitm-config-test-${Math.random().toString(36).slice(2)}`,
-  );
-  await mkdir(dir, { recursive: true });
-  const configPath = join(dir, "config.yaml");
-  await writeFile(configPath, content, "utf8");
-  process.env.AITM_CONFIG_PATH = configPath;
-  resetConfigForTests();
-  await initializeConfig();
-  return configPath;
+  const configFile = await setupTestConfigDir();
+  await writeTestConfig(configFile, content);
+  return configFile;
 }
 
 const SIMPLE_WORKFLOW_CONFIG = `
@@ -81,11 +73,7 @@ workflows:
             when: "blocked"
 `;
 
-let originalConfigPath: string | undefined;
-
 beforeEach(() => {
-  originalConfigPath = process.env.AITM_CONFIG_PATH;
-  resetConfigForTests();
   db.prepare("DELETE FROM sessions").run();
   db.prepare("DELETE FROM step_executions").run();
   db.prepare("DELETE FROM workflow_runs").run();
@@ -120,16 +108,6 @@ beforeEach(() => {
       },
     ],
   );
-});
-
-afterEach(() => {
-  vi.clearAllMocks();
-  resetConfigForTests();
-  if (originalConfigPath === undefined) {
-    delete process.env.AITM_CONFIG_PATH;
-  } else {
-    process.env.AITM_CONFIG_PATH = originalConfigPath;
-  }
 });
 
 describe("createWorkflowRun", () => {
