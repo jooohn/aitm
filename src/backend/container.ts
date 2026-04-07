@@ -82,6 +82,4 @@ export function initializeContainer(): void {
   buildContainer(loadConfig());
 }
 
-// Eager initialization with default config so services exist at import time.
-// Production code calls initializeContainer() to load real config.
-buildContainer(DEFAULT_CONFIG);
+buildContainer(process.env.NODE_ENV === "test" ? DEFAULT_CONFIG : loadConfig());
