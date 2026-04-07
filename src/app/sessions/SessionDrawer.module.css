@@ -10,12 +10,12 @@
 }
 
 .drawer {
-  @apply relative w-full max-w-2xl h-full bg-white dark:bg-zinc-900 border-l border-zinc-200 dark:border-zinc-700 shadow-2xl flex flex-col;
+  @apply relative w-full h-full bg-white dark:bg-zinc-900 border-l border-zinc-200 dark:border-zinc-700 shadow-2xl flex flex-col sm:max-w-2xl;
   animation: slideIn 250ms ease-out;
 }
 
 .drawerHeader {
-  @apply flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-zinc-700 shrink-0;
+  @apply flex items-center justify-between px-4 py-4 border-b border-zinc-200 dark:border-zinc-700 shrink-0 sm:px-6;
 }
 
 .drawerTitle {
@@ -27,7 +27,7 @@
 }
 
 .drawerBody {
-  @apply flex-1 overflow-y-auto px-6 py-6;
+  @apply flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-6;
 }
 
 .error {

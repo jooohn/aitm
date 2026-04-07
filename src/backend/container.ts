@@ -19,6 +19,13 @@ const DEFAULT_CONFIG: ConfigSnapshot = {
   workflows: {},
 };
 
+function shouldUseDefaultConfigOnBootstrap(): boolean {
+  return (
+    process.env.NODE_ENV === "test" ||
+    process.env.NEXT_PHASE === "phase-production-build"
+  );
+}
+
 export let config: ConfigSnapshot;
 export let workflowRunRepository: WorkflowRunRepository;
 export let sessionRepository: SessionRepository;
@@ -82,4 +89,6 @@ export function initializeContainer(): void {
   buildContainer(loadConfig());
 }
 
-buildContainer(process.env.NODE_ENV === "test" ? DEFAULT_CONFIG : loadConfig());
+buildContainer(
+  shouldUseDefaultConfigOnBootstrap() ? DEFAULT_CONFIG : loadConfig(),
+);

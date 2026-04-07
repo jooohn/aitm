@@ -1,7 +1,7 @@
 @reference "tailwindcss";
 
 .header {
-  @apply flex items-center justify-between px-6 h-[var(--header-h)] border-b border-zinc-200 dark:border-zinc-800 shrink-0;
+  @apply flex items-center justify-between px-4 sm:px-6 h-[var(--header-h)] border-b border-zinc-200 dark:border-zinc-800 shrink-0;
 }
 
 .stickyHeader {
@@ -17,7 +17,7 @@
 }
 
 .actions {
-  @apply flex items-center gap-3;
+  @apply flex items-center gap-2 sm:gap-3;
 }
 
 .iconButton {
