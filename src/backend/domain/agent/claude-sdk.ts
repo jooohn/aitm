@@ -28,6 +28,7 @@ export class ClaudeSDK implements AgentRuntime {
         outputFormat,
         tools: CLAUDE_SDK_TOOLS,
         systemPrompt: { type: "preset", preset: "claude_code" },
+        settingSources: ["user", "project", "local"],
       },
     });
 
