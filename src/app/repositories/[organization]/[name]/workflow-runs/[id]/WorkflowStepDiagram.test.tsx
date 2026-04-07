@@ -354,6 +354,139 @@ describe("WorkflowStepDiagram", () => {
     expect(duplicateKeyWarnings).toHaveLength(0);
   });
 
+  it("sets data-node-status based on step execution status for executed nodes", () => {
+    const executions = [
+      makeExecution({
+        step: "plan",
+        status: "success",
+        transition_decision: JSON.stringify({
+          transition: "implement",
+          reason: "Plan ready",
+          handoff_summary: "Done",
+        }),
+      }),
+    ];
+
+    const { container } = render(
+      <WorkflowStepDiagram
+        definition={linearWorkflow()}
+        stepExecutions={executions}
+        currentStep="implement"
+        status="running"
+      />,
+    );
+
+    const planNode = container.querySelector('[data-node-id="plan"]');
+    expect(planNode?.getAttribute("data-node-status")).toBe("success");
+  });
+
+  it("sets data-node-status='running' on the current running node", () => {
+    const executions = [
+      makeExecution({
+        step: "plan",
+        status: "success",
+        transition_decision: JSON.stringify({
+          transition: "implement",
+          reason: "Plan ready",
+          handoff_summary: "Done",
+        }),
+      }),
+      makeExecution({
+        step: "implement",
+        status: "running",
+        completed_at: null,
+      }),
+    ];
+
+    const { container } = render(
+      <WorkflowStepDiagram
+        definition={linearWorkflow()}
+        stepExecutions={executions}
+        currentStep="implement"
+        status="running"
+      />,
+    );
+
+    const implementNode = container.querySelector('[data-node-id="implement"]');
+    expect(implementNode?.getAttribute("data-node-status")).toBe("running");
+  });
+
+  it("sets data-node-status='awaiting' on an awaiting node", () => {
+    const executions = [
+      makeExecution({
+        step: "plan",
+        status: "success",
+        transition_decision: JSON.stringify({
+          transition: "implement",
+          reason: "Plan ready",
+          handoff_summary: "Done",
+        }),
+      }),
+      makeExecution({
+        step: "implement",
+        status: "awaiting",
+        completed_at: null,
+      }),
+    ];
+
+    const { container } = render(
+      <WorkflowStepDiagram
+        definition={linearWorkflow()}
+        stepExecutions={executions}
+        currentStep="implement"
+        status="awaiting"
+      />,
+    );
+
+    const implementNode = container.querySelector('[data-node-id="implement"]');
+    expect(implementNode?.getAttribute("data-node-status")).toBe("awaiting");
+  });
+
+  it("sets data-node-status='failure' on a failed node", () => {
+    const executions = [
+      makeExecution({
+        step: "plan",
+        status: "success",
+        transition_decision: JSON.stringify({
+          transition: "implement",
+          reason: "Plan ready",
+          handoff_summary: "Done",
+        }),
+      }),
+      makeExecution({
+        step: "implement",
+        status: "failure",
+        completed_at: "2024-01-01T00:10:00Z",
+      }),
+    ];
+
+    const { container } = render(
+      <WorkflowStepDiagram
+        definition={linearWorkflow()}
+        stepExecutions={executions}
+        currentStep="implement"
+        status="failure"
+      />,
+    );
+
+    const implementNode = container.querySelector('[data-node-id="implement"]');
+    expect(implementNode?.getAttribute("data-node-status")).toBe("failure");
+  });
+
+  it("does not set data-node-status on nodes that have not been executed", () => {
+    const { container } = render(
+      <WorkflowStepDiagram
+        definition={linearWorkflow()}
+        stepExecutions={[]}
+        currentStep="plan"
+        status="running"
+      />,
+    );
+
+    const implementNode = container.querySelector('[data-node-id="implement"]');
+    expect(implementNode?.hasAttribute("data-node-status")).toBe(false);
+  });
+
   it("renders back-edges as curved paths instead of straight lines", () => {
     const cyclicWorkflow: WorkflowDefinition = {
       initial_step: "implement",

@@ -25,6 +25,17 @@
   animation: pulse 2s ease-in-out infinite;
 }
 
+.nodeSuccess {
+  @apply fill-green-50 dark:fill-green-950 stroke-green-500 dark:stroke-green-400;
+  stroke-width: 2;
+}
+
+.nodeAwaiting {
+  @apply fill-amber-50 dark:fill-amber-950 stroke-amber-500 dark:stroke-amber-400;
+  stroke-width: 2.5;
+  animation: pulse 2s ease-in-out infinite;
+}
+
 .nodeFailure {
   @apply fill-red-50 dark:fill-red-950 stroke-red-500 dark:stroke-red-400;
   stroke-width: 2.5;
