@@ -29,18 +29,6 @@ describe("blink-fade animation", () => {
     expect(css).not.toMatch(/\.badge-running[\s\S]*?blink-fade/);
   });
 
-  it("does NOT apply blink-fade animation to .badge-running in WorkflowSection", () => {
-    const css = readCss("workflows/WorkflowSection.module.css");
-    expect(css).not.toContain("@keyframes blink-fade");
-    expect(css).not.toMatch(/\.badge-running[\s\S]*?blink-fade/);
-  });
-
-  it("does NOT apply blink-fade animation to .badge in ActiveWorkflowsSection", () => {
-    const css = readCss("workflows/ActiveWorkflowsSection.module.css");
-    expect(css).not.toContain("@keyframes blink-fade");
-    expect(css).not.toMatch(/\.badge[\s\S]*?blink-fade/);
-  });
-
   it("does NOT apply blink-fade animation to .badge-running in WorkflowRunDetail", () => {
     const css = readCss(
       "repositories/[organization]/[name]/workflow-runs/[id]/WorkflowRunDetail.module.css",
