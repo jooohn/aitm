@@ -2371,23 +2371,6 @@ workflows:
       expect(runningRuns).toHaveLength(0);
     });
   });
-
-  describe("pending approvals query with awaiting status", () => {
-    it("listPendingApprovals matches workflow runs with 'awaiting' status", async () => {
-      process.env.AITM_CONFIG_PATH = await writeTempConfig(
-        APPROVAL_WORKFLOW_CONFIG,
-      );
-      const repoPath = await makeFakeGitRepo();
-      await createWorkflowRun({
-        repository_path: repoPath,
-        worktree_branch: "feat/test",
-        workflow_name: "approval-flow",
-      });
-
-      const approvals = workflowRunService.listPendingApprovals();
-      expect(approvals).toHaveLength(1);
-    });
-  });
 });
 
 describe("step-execution status", () => {

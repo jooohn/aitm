@@ -121,24 +121,6 @@ export function fetchSession(id: string): Promise<Session> {
   return apiFetch(`/api/sessions/${id}`);
 }
 
-export function fetchSessions(
-  repositoryPath: string,
-  worktreeBranch: string,
-): Promise<Session[]> {
-  const params = new URLSearchParams({
-    repository_path: repositoryPath,
-    worktree_branch: worktreeBranch,
-  });
-  return apiFetch(`/api/sessions?${params}`);
-}
-
-export function fetchSessionsByStatus(
-  status: SessionStatus,
-): Promise<Session[]> {
-  const params = new URLSearchParams({ status });
-  return apiFetch(`/api/sessions?${params}`);
-}
-
 export async function replyToSession(
   id: string,
   message: string,
@@ -281,18 +263,4 @@ export function resolveManualApproval(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ decision, reason }),
   });
-}
-
-export interface PendingApproval {
-  step_execution_id: string;
-  step: string;
-  workflow_run_id: string;
-  workflow_name: string;
-  repository_path: string;
-  worktree_branch: string;
-  created_at: string;
-}
-
-export function fetchPendingApprovals(): Promise<PendingApproval[]> {
-  return apiFetch("/api/pending-approvals");
 }

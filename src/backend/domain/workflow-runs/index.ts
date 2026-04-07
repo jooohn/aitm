@@ -682,10 +682,6 @@ export class WorkflowRunService {
     return this.workflowRunRepository.listWorkflowRuns(filter);
   }
 
-  listPendingApprovals() {
-    return this.workflowRunRepository.listPendingApprovals();
-  }
-
   async rerunWorkflowRun(id: string): Promise<WorkflowRun> {
     const run = this.workflowRunRepository.getWorkflowRunById(id);
     if (!run) throw new Error("Workflow run not found");

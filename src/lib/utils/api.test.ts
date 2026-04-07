@@ -1,9 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  canStopWorkflowRun,
-  fetchSessionsByStatus,
-  type WorkflowRunDetail,
-} from "./api";
+import { canStopWorkflowRun, type WorkflowRunDetail } from "./api";
 
 function makeRun(
   overrides: Partial<WorkflowRunDetail> = {},
@@ -93,22 +89,4 @@ describe("canStopWorkflowRun", () => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
-});
-
-describe("fetchSessionsByStatus", () => {
-  it("requests sessions filtered by status", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: async () => [],
-    });
-    vi.stubGlobal("fetch", fetchMock);
-
-    await fetchSessionsByStatus("awaiting_input");
-
-    expect(fetchMock).toHaveBeenCalledWith(
-      "/api/sessions?status=awaiting_input",
-      { cache: "no-store" },
-    );
-  });
 });
