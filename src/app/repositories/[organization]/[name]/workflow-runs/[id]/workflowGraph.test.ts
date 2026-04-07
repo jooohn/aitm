@@ -7,24 +7,29 @@ import {
   type GraphNode,
 } from "./workflowGraph";
 
+function agentStep(
+  goal: string,
+  transitions: WorkflowDefinition["steps"][string]["transitions"],
+): WorkflowDefinition["steps"][string] {
+  return {
+    type: "agent",
+    goal,
+    transitions,
+  };
+}
+
 function linearWorkflow(): WorkflowDefinition {
   return {
     initial_step: "plan",
     steps: {
-      plan: {
-        goal: "Create a plan",
-        transitions: [
-          { step: "implement", when: "plan is ready" },
-          { terminal: "failure", when: "planning failed" },
-        ],
-      },
-      implement: {
-        goal: "Implement the plan",
-        transitions: [
-          { terminal: "success", when: "implementation complete" },
-          { terminal: "failure", when: "implementation failed" },
-        ],
-      },
+      plan: agentStep("Create a plan", [
+        { step: "implement", when: "plan is ready" },
+        { terminal: "failure", when: "planning failed" },
+      ]),
+      implement: agentStep("Implement the plan", [
+        { terminal: "success", when: "implementation complete" },
+        { terminal: "failure", when: "implementation failed" },
+      ]),
     },
   };
 }
@@ -33,35 +38,23 @@ function branchingWorkflow(): WorkflowDefinition {
   return {
     initial_step: "triage",
     steps: {
-      triage: {
-        goal: "Triage the issue",
-        transitions: [
-          { step: "fix_bug", when: "it's a bug" },
-          { step: "add_feature", when: "it's a feature request" },
-          { terminal: "failure", when: "cannot triage" },
-        ],
-      },
-      fix_bug: {
-        goal: "Fix the bug",
-        transitions: [
-          { step: "review", when: "bug fixed" },
-          { terminal: "failure", when: "cannot fix" },
-        ],
-      },
-      add_feature: {
-        goal: "Add the feature",
-        transitions: [
-          { step: "review", when: "feature added" },
-          { terminal: "failure", when: "cannot add" },
-        ],
-      },
-      review: {
-        goal: "Review changes",
-        transitions: [
-          { terminal: "success", when: "review passed" },
-          { terminal: "failure", when: "review failed" },
-        ],
-      },
+      triage: agentStep("Triage the issue", [
+        { step: "fix_bug", when: "it's a bug" },
+        { step: "add_feature", when: "it's a feature request" },
+        { terminal: "failure", when: "cannot triage" },
+      ]),
+      fix_bug: agentStep("Fix the bug", [
+        { step: "review", when: "bug fixed" },
+        { terminal: "failure", when: "cannot fix" },
+      ]),
+      add_feature: agentStep("Add the feature", [
+        { step: "review", when: "feature added" },
+        { terminal: "failure", when: "cannot add" },
+      ]),
+      review: agentStep("Review changes", [
+        { terminal: "success", when: "review passed" },
+        { terminal: "failure", when: "review failed" },
+      ]),
     },
   };
 }
@@ -163,20 +156,14 @@ describe("computeLayout", () => {
     const cyclicWorkflow: WorkflowDefinition = {
       initial_step: "a",
       steps: {
-        a: {
-          goal: "State A",
-          transitions: [
-            { step: "b", when: "go to b" },
-            { terminal: "failure", when: "fail" },
-          ],
-        },
-        b: {
-          goal: "State B",
-          transitions: [
-            { step: "a", when: "go back to a" },
-            { terminal: "success", when: "done" },
-          ],
-        },
+        a: agentStep("State A", [
+          { step: "b", when: "go to b" },
+          { terminal: "failure", when: "fail" },
+        ]),
+        b: agentStep("State B", [
+          { step: "a", when: "go back to a" },
+          { terminal: "success", when: "done" },
+        ]),
       },
     };
 
@@ -197,49 +184,31 @@ describe("computeLayout", () => {
     const devFlow: WorkflowDefinition = {
       initial_step: "plan",
       steps: {
-        plan: {
-          goal: "Create a plan",
-          transitions: [
-            { step: "implement", when: "plan is ready" },
-            { terminal: "failure", when: "planning failed" },
-          ],
-        },
-        implement: {
-          goal: "Implement the plan",
-          transitions: [
-            { step: "test", when: "implementation complete" },
-            { terminal: "failure", when: "blocked" },
-          ],
-        },
-        test: {
-          goal: "Run tests",
-          transitions: [
-            { step: "review", when: "succeeded" },
-            { step: "implement", when: "failed" },
-          ],
-        },
-        review: {
-          goal: "Review changes",
-          transitions: [
-            { step: "implement", when: "issues found" },
-            { step: "cleanup", when: "looks good" },
-            { terminal: "failure", when: "abandon" },
-          ],
-        },
-        cleanup: {
-          goal: "Cleanup",
-          transitions: [
-            { step: "commit", when: "succeeded" },
-            { step: "commit", when: "failed" },
-          ],
-        },
-        commit: {
-          goal: "Commit and push",
-          transitions: [
-            { terminal: "success", when: "PR created" },
-            { terminal: "failure", when: "failed" },
-          ],
-        },
+        plan: agentStep("Create a plan", [
+          { step: "implement", when: "plan is ready" },
+          { terminal: "failure", when: "planning failed" },
+        ]),
+        implement: agentStep("Implement the plan", [
+          { step: "test", when: "implementation complete" },
+          { terminal: "failure", when: "blocked" },
+        ]),
+        test: agentStep("Run tests", [
+          { step: "review", when: "succeeded" },
+          { step: "implement", when: "failed" },
+        ]),
+        review: agentStep("Review changes", [
+          { step: "implement", when: "issues found" },
+          { step: "cleanup", when: "looks good" },
+          { terminal: "failure", when: "abandon" },
+        ]),
+        cleanup: agentStep("Cleanup", [
+          { step: "commit", when: "succeeded" },
+          { step: "commit", when: "failed" },
+        ]),
+        commit: agentStep("Commit and push", [
+          { terminal: "success", when: "PR created" },
+          { terminal: "failure", when: "failed" },
+        ]),
       },
     };
 

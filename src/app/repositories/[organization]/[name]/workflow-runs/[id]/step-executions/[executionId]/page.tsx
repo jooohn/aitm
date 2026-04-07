@@ -17,21 +17,6 @@ const STEP_EXECUTION_BADGE: Record<
   completed: { variant: "success", label: "Completed" },
 };
 
-interface TransitionDecision {
-  transition: string;
-  reason: string;
-  handoff_summary: string;
-}
-
-function parseDecision(raw: string | null): TransitionDecision | null {
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw) as TransitionDecision;
-  } catch {
-    return null;
-  }
-}
-
 export default function StepExecutionPage() {
   const { id, executionId, organization, name } = useParams<{
     id: string;
@@ -59,7 +44,7 @@ export default function StepExecutionPage() {
   const execution = run.step_executions.find((e) => e.id === executionId);
   if (!execution) return notFound();
 
-  const decision = parseDecision(execution.transition_decision);
+  const decision = execution.transition_decision;
   const badge =
     STEP_EXECUTION_BADGE[
       execution.completed_at === null ? "running" : "completed"

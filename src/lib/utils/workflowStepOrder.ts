@@ -18,7 +18,7 @@ export function getOrderedSteps(definition: WorkflowDefinition): string[] {
     if (!step) continue;
 
     for (const transition of step.transitions) {
-      if (transition.step && !visited.has(transition.step)) {
+      if ("step" in transition && !visited.has(transition.step)) {
         visited.add(transition.step);
         queue.push(transition.step);
       }

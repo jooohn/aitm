@@ -13,24 +13,29 @@ afterEach(() => {
   cleanup();
 });
 
+function agentStep(
+  goal: string,
+  transitions: WorkflowDefinition["steps"][string]["transitions"],
+): WorkflowDefinition["steps"][string] {
+  return {
+    type: "agent",
+    goal,
+    transitions,
+  };
+}
+
 function linearWorkflow(): WorkflowDefinition {
   return {
     initial_step: "plan",
     steps: {
-      plan: {
-        goal: "Create a plan",
-        transitions: [
-          { step: "implement", when: "plan is ready" },
-          { terminal: "failure", when: "planning failed" },
-        ],
-      },
-      implement: {
-        goal: "Implement the plan",
-        transitions: [
-          { terminal: "success", when: "implementation complete" },
-          { terminal: "failure", when: "implementation failed" },
-        ],
-      },
+      plan: agentStep("Create a plan", [
+        { step: "implement", when: "plan is ready" },
+        { terminal: "failure", when: "planning failed" },
+      ]),
+      implement: agentStep("Implement the plan", [
+        { terminal: "success", when: "implementation complete" },
+        { terminal: "failure", when: "implementation failed" },
+      ]),
     },
   };
 }
@@ -38,10 +43,11 @@ function linearWorkflow(): WorkflowDefinition {
 function makeExecution(
   overrides: Partial<StepExecution> & { step: string },
 ): StepExecution {
+  const { step, ...rest } = overrides;
   return {
-    id: `${overrides.step}-execution`,
+    id: `${step}-execution`,
     workflow_run_id: "run-1",
-    step: overrides.step,
+    step,
     step_type: "agent",
     status: "success",
     command_output: null,
@@ -51,7 +57,7 @@ function makeExecution(
     handoff_summary: null,
     created_at: "2024-01-01T00:00:00Z",
     completed_at: "2024-01-01T00:05:00Z",
-    ...overrides,
+    ...rest,
   };
 }
 
@@ -92,11 +98,11 @@ describe("WorkflowStepDiagram", () => {
     const executions = [
       makeExecution({
         step: "plan",
-        transition_decision: JSON.stringify({
+        transition_decision: {
           transition: "implement",
           reason: "Plan ready",
           handoff_summary: "Done",
-        }),
+        },
       }),
     ];
 
@@ -138,11 +144,11 @@ describe("WorkflowStepDiagram", () => {
     const executions = [
       makeExecution({
         step: "plan",
-        transition_decision: JSON.stringify({
+        transition_decision: {
           transition: "implement",
           reason: "Plan ready",
           handoff_summary: "Done",
-        }),
+        },
       }),
     ];
 
@@ -168,11 +174,11 @@ describe("WorkflowStepDiagram", () => {
     const executions = [
       makeExecution({
         step: "plan",
-        transition_decision: JSON.stringify({
+        transition_decision: {
           transition: "implement",
           reason: "Plan ready",
           handoff_summary: "Done",
-        }),
+        },
       }),
     ];
 
@@ -203,19 +209,19 @@ describe("WorkflowStepDiagram", () => {
     const executions = [
       makeExecution({
         step: "plan",
-        transition_decision: JSON.stringify({
+        transition_decision: {
           transition: "implement",
           reason: "Plan ready",
           handoff_summary: "Done",
-        }),
+        },
       }),
       makeExecution({
         step: "implement",
-        transition_decision: JSON.stringify({
+        transition_decision: {
           transition: "success",
           reason: "Done",
           handoff_summary: "All done",
-        }),
+        },
       }),
     ];
 
@@ -314,17 +320,11 @@ describe("WorkflowStepDiagram", () => {
     const workflow: WorkflowDefinition = {
       initial_step: "cleanup",
       steps: {
-        cleanup: {
-          goal: "Cleanup files",
-          transitions: [
-            { step: "commit", when: "succeeded" },
-            { step: "commit", when: "failed" },
-          ],
-        },
-        commit: {
-          goal: "Commit",
-          transitions: [{ terminal: "success", when: "done" }],
-        },
+        cleanup: agentStep("Cleanup files", [
+          { step: "commit", when: "succeeded" },
+          { step: "commit", when: "failed" },
+        ]),
+        commit: agentStep("Commit", [{ terminal: "success", when: "done" }]),
       },
     };
 
@@ -359,11 +359,11 @@ describe("WorkflowStepDiagram", () => {
       makeExecution({
         step: "plan",
         status: "success",
-        transition_decision: JSON.stringify({
+        transition_decision: {
           transition: "implement",
           reason: "Plan ready",
           handoff_summary: "Done",
-        }),
+        },
       }),
     ];
 
@@ -385,11 +385,11 @@ describe("WorkflowStepDiagram", () => {
       makeExecution({
         step: "plan",
         status: "success",
-        transition_decision: JSON.stringify({
+        transition_decision: {
           transition: "implement",
           reason: "Plan ready",
           handoff_summary: "Done",
-        }),
+        },
       }),
       makeExecution({
         step: "implement",
@@ -416,11 +416,11 @@ describe("WorkflowStepDiagram", () => {
       makeExecution({
         step: "plan",
         status: "success",
-        transition_decision: JSON.stringify({
+        transition_decision: {
           transition: "implement",
           reason: "Plan ready",
           handoff_summary: "Done",
-        }),
+        },
       }),
       makeExecution({
         step: "implement",
@@ -447,11 +447,11 @@ describe("WorkflowStepDiagram", () => {
       makeExecution({
         step: "plan",
         status: "success",
-        transition_decision: JSON.stringify({
+        transition_decision: {
           transition: "implement",
           reason: "Plan ready",
           handoff_summary: "Done",
-        }),
+        },
       }),
       makeExecution({
         step: "implement",
@@ -491,20 +491,14 @@ describe("WorkflowStepDiagram", () => {
     const cyclicWorkflow: WorkflowDefinition = {
       initial_step: "implement",
       steps: {
-        implement: {
-          goal: "Implement",
-          transitions: [
-            { step: "test", when: "ready" },
-            { terminal: "failure", when: "blocked" },
-          ],
-        },
-        test: {
-          goal: "Test",
-          transitions: [
-            { step: "implement", when: "failed" },
-            { terminal: "success", when: "passed" },
-          ],
-        },
+        implement: agentStep("Implement", [
+          { step: "test", when: "ready" },
+          { terminal: "failure", when: "blocked" },
+        ]),
+        test: agentStep("Test", [
+          { step: "implement", when: "failed" },
+          { terminal: "success", when: "passed" },
+        ]),
       },
     };
 

@@ -76,10 +76,43 @@ describe("createSession", () => {
     expect(session.repository_path).toBe(repoPath);
     expect(session.worktree_branch).toBe("feat/test");
     expect(session.goal).toBe("Write an implementation plan");
-    expect(JSON.parse(session.transitions)).toEqual(DEFAULT_TRANSITIONS);
+    expect(session.transitions).toEqual(DEFAULT_TRANSITIONS);
     expect(session.transition_decision).toBeNull();
     expect(session.log_file_path).toContain(session.id);
     expect(session.created_at).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+  });
+
+  it("returns parsed metadata fields and agent config from the repository boundary", async () => {
+    const repoPath = await makeFakeGitRepo();
+    const session = await createSession({
+      repository_path: repoPath,
+      worktree_branch: "feat/test",
+      goal: "Collect metadata",
+      transitions: DEFAULT_TRANSITIONS,
+      agent_config: {
+        provider: "codex",
+        model: "gpt-5.4",
+        command: "codex",
+      },
+      metadata_fields: {
+        pr_url: {
+          type: "string",
+          description: "Pull request URL",
+        },
+      },
+    });
+
+    expect(session.agent_config).toEqual({
+      provider: "codex",
+      model: "gpt-5.4",
+      command: "codex",
+    });
+    expect(session.metadata_fields).toEqual({
+      pr_url: {
+        type: "string",
+        description: "Pull request URL",
+      },
+    });
   });
 
   it("passes an explicit agent config to startAgent", async () => {

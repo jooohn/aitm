@@ -6,8 +6,8 @@ import { SessionRepository } from "@/backend/domain/sessions/session-repository"
 import { WorkflowRunRepository } from "@/backend/domain/workflow-runs/workflow-run-repository";
 import { db } from "@/backend/infra/db";
 import { eventBus } from "@/backend/infra/event-bus";
-import { AgentService } from ".";
-import type { AgentRuntime, OutputFormat } from "./runtime";
+import { AgentService, type TransitionDecision } from ".";
+import type { AgentMessage, AgentRuntime, OutputFormat } from "./runtime";
 
 const { queryMock, resumeMock, buildOutputFormatMock } = vi.hoisted(() => ({
   queryMock: vi.fn(),
@@ -22,7 +22,10 @@ const agentConfig = {
 };
 
 let agentSessionCompletedListener:
-  | ((payload: { sessionId: string; decision: unknown | null }) => void)
+  | ((payload: {
+      sessionId: string;
+      decision: TransitionDecision | null;
+    }) => void)
   | null = null;
 
 async function makeFakeGitRepo(): Promise<string> {
@@ -468,7 +471,11 @@ describe("startAgent", () => {
   });
 
   it("uses the injected claude runtime when the provider is claude", async () => {
-    const claudeQueryMock = vi.fn(async function* () {
+    const claudeQueryMock = vi.fn(async function* (): AsyncGenerator<
+      AgentMessage,
+      void,
+      unknown
+    > {
       yield { type: "system", subtype: "init", session_id: "claude-agent-1" };
       yield {
         type: "result",

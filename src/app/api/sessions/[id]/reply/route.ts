@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { toSessionDto } from "@/backend/api/dto";
 import { sessionService } from "@/backend/container";
 
 type Params = Promise<{ id: string }>;
@@ -23,7 +24,7 @@ export async function POST(
   try {
     await sessionService.replyToSession(id, body.message);
     const session = sessionService.getSession(id);
-    return NextResponse.json(session);
+    return NextResponse.json(session ? toSessionDto(session) : null);
   } catch (err) {
     const message =
       err instanceof Error ? err.message : "Internal server error";

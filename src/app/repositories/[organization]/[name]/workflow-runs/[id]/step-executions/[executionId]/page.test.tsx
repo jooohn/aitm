@@ -199,11 +199,11 @@ describe("StepExecutionPage", () => {
         makeExecution({
           id: "exec-1",
           step: "plan",
-          transition_decision: JSON.stringify({
+          transition_decision: {
             transition: "implement",
             reason: "Plan is ready",
             handoff_summary: "Defined implementation steps.",
-          }),
+          },
         }),
       ],
     });

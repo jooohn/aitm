@@ -113,6 +113,9 @@ describe("GET /api/workflow-runs/:id", () => {
     expect(body.step_executions).toHaveLength(1);
     expect(body.step_executions[0].step).toBe("plan");
     expect(body.step_executions[0].step_type).toBe("agent");
+    expect(body.inputs).toBeNull();
+    expect(body.metadata).toBeNull();
+    expect(body.step_executions[0].transition_decision).toBeNull();
   });
 
   it("returns command step executions with explicit step_type and command output", async () => {
@@ -135,6 +138,49 @@ describe("GET /api/workflow-runs/:id", () => {
     expect(body.step_executions[0].step_type).toBe("command");
     expect(body.step_executions[0].command_output).toContain("stdout line");
     expect(body.step_executions[0].command_output).toContain("stderr line");
+  });
+
+  it("returns parsed inputs, metadata, and transition decisions", async () => {
+    const repoPath = await makeFakeGitRepo();
+    const run = await createWorkflowRun({
+      repository_path: repoPath,
+      worktree_branch: "feat/test",
+      workflow_name: "my-flow",
+      inputs: { ticket: "42" },
+    });
+
+    const [execution] = db
+      .prepare("SELECT * FROM step_executions WHERE workflow_run_id = ?")
+      .all(run.id) as { id: string }[];
+
+    await workflowRunService.completeStepExecution(execution.id, {
+      transition: "implement",
+      reason: "Ready",
+      handoff_summary: "Plan complete",
+      metadata: {
+        presets__pull_request_url: "https://github.com/org/repo/pull/42",
+      },
+    });
+
+    const res = await GET(
+      new NextRequest(`http://localhost/api/workflow-runs/${run.id}`),
+      makeParams(run.id),
+    );
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.inputs).toEqual({ ticket: "42" });
+    expect(body.metadata).toEqual({
+      presets__pull_request_url: "https://github.com/org/repo/pull/42",
+    });
+    expect(body.step_executions[0].transition_decision).toEqual({
+      transition: "implement",
+      reason: "Ready",
+      handoff_summary: "Plan complete",
+      metadata: {
+        presets__pull_request_url: "https://github.com/org/repo/pull/42",
+      },
+    });
   });
 
   it("returns 404 for unknown id", async () => {

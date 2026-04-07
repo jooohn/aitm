@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { toSessionDto } from "@/backend/api/dto";
 import { sessionService } from "@/backend/container";
 
 type Params = Promise<{ id: string }>;
@@ -12,5 +13,5 @@ export async function GET(
   if (!session) {
     return NextResponse.json({ error: "Session not found" }, { status: 404 });
   }
-  return NextResponse.json(session);
+  return NextResponse.json(toSessionDto(session));
 }

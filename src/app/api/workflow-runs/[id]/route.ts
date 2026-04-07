@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { toWorkflowRunDetailDto } from "@/backend/api/dto";
 import { workflowRunService } from "@/backend/container";
 
 export async function GET(
@@ -13,5 +14,5 @@ export async function GET(
       { status: 404 },
     );
   }
-  return NextResponse.json(run);
+  return NextResponse.json(toWorkflowRunDetailDto(run));
 }

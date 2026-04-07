@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { toWorkflowRunDto } from "@/backend/api/dto";
 import { workflowRunService } from "@/backend/container";
 
 function errorResponse(err: unknown): NextResponse {
@@ -17,7 +18,7 @@ export async function POST(
   try {
     const { id } = await params;
     const newRun = await workflowRunService.rerunWorkflowRun(id);
-    return NextResponse.json(newRun, { status: 201 });
+    return NextResponse.json(toWorkflowRunDto(newRun), { status: 201 });
   } catch (err) {
     return errorResponse(err);
   }

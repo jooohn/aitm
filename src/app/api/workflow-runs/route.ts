@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { toWorkflowRunDto } from "@/backend/api/dto";
 import { workflowRunService } from "@/backend/container";
 import type { WorkflowRunStatus } from "@/backend/domain/workflow-runs";
 
@@ -32,7 +33,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       workflow_name,
       inputs: inputs as Record<string, string> | undefined,
     });
-    return NextResponse.json(run, { status: 201 });
+    return NextResponse.json(toWorkflowRunDto(run), { status: 201 });
   } catch (err) {
     return errorResponse(err);
   }
@@ -47,11 +48,13 @@ export function GET(request: NextRequest): NextResponse {
     const status = statusParam as WorkflowRunStatus | undefined;
 
     return NextResponse.json(
-      workflowRunService.listWorkflowRuns({
-        repository_path,
-        worktree_branch,
-        status,
-      }),
+      workflowRunService
+        .listWorkflowRuns({
+          repository_path,
+          worktree_branch,
+          status,
+        })
+        .map(toWorkflowRunDto),
     );
   } catch (err) {
     return errorResponse(err);

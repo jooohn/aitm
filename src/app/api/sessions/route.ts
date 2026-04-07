@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { toSessionDto } from "@/backend/api/dto";
 import { sessionService } from "@/backend/container";
 import type { SessionStatus } from "@/backend/domain/sessions";
 
@@ -18,7 +19,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const status = statusParam as SessionStatus | undefined;
 
     return NextResponse.json(
-      sessionService.listSessions({ repository_path, worktree_branch, status }),
+      sessionService
+        .listSessions({ repository_path, worktree_branch, status })
+        .map(toSessionDto),
     );
   } catch (err) {
     return errorResponse(err);

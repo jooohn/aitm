@@ -228,7 +228,7 @@ workflows:
     ).rejects.toThrow("Workflow not found");
   });
 
-  it("stores inputs as JSON on the workflow run record", async () => {
+  it("stores parsed inputs on the workflow run domain record", async () => {
     const configWithInputs = `
 workflows:
   my-flow:
@@ -254,9 +254,9 @@ workflows:
       inputs: { "feature-description": "Implement login page" },
     });
 
-    expect(run.inputs).toBe(
-      JSON.stringify({ "feature-description": "Implement login page" }),
-    );
+    expect(run.inputs).toEqual({
+      "feature-description": "Implement login page",
+    });
   });
 
   it("injects inputs into the initial session goal as an <inputs> block", async () => {
@@ -458,12 +458,21 @@ workflows:
       workflowRunId: run.id,
       status: "running",
     });
+    const workflowRunStatusCalls = emitSpy.mock.calls.filter(
+      ([eventName]) => eventName === "workflow-run.status-changed",
+    ) as Array<
+      [
+        "workflow-run.status-changed",
+        {
+          workflowRunId: string;
+          status: string;
+        },
+      ]
+    >;
     expect(
-      emitSpy.mock.calls.filter(
-        ([eventName, payload]) =>
-          eventName === "workflow-run.status-changed" &&
-          payload.workflowRunId === run.id &&
-          payload.status === "running",
+      workflowRunStatusCalls.filter(
+        ([, payload]) =>
+          payload.workflowRunId === run.id && payload.status === "running",
       ),
     ).toHaveLength(1);
   });
@@ -654,9 +663,9 @@ describe("completeStepExecution", () => {
     });
 
     const updatedRun = getWorkflowRun(run.id);
-    expect(updatedRun?.metadata).toBe(
-      JSON.stringify({ pr_url: "https://github.com/org/repo/pull/42" }),
-    );
+    expect(updatedRun?.metadata).toEqual({
+      pr_url: "https://github.com/org/repo/pull/42",
+    });
   });
 
   it("merges metadata across multiple step executions", async () => {
@@ -684,8 +693,7 @@ describe("completeStepExecution", () => {
     });
 
     const updatedRun = getWorkflowRun(run.id);
-    const metadata = JSON.parse(updatedRun!.metadata!);
-    expect(metadata).toEqual({
+    expect(updatedRun!.metadata).toEqual({
       plan_status: "complete",
       pr_url: "https://github.com/org/repo/pull/42",
     });
@@ -2052,12 +2060,21 @@ workflows:
         workflowRunId: run.id,
         status: "awaiting",
       });
+      const workflowRunStatusCalls = emitSpy.mock.calls.filter(
+        ([eventName]) => eventName === "workflow-run.status-changed",
+      ) as Array<
+        [
+          "workflow-run.status-changed",
+          {
+            workflowRunId: string;
+            status: string;
+          },
+        ]
+      >;
       expect(
-        emitSpy.mock.calls.filter(
-          ([eventName, payload]) =>
-            eventName === "workflow-run.status-changed" &&
-            payload.workflowRunId === run.id &&
-            payload.status === "awaiting",
+        workflowRunStatusCalls.filter(
+          ([, payload]) =>
+            payload.workflowRunId === run.id && payload.status === "awaiting",
         ),
       ).toHaveLength(1);
     });
@@ -2348,6 +2365,57 @@ workflows:
       const recoveredRun = getWorkflowRun(run.id);
       expect(recoveredRun?.status).toBe("awaiting");
       expect(recoveredRun?.current_step).toBe("review");
+    });
+
+    it("tolerates malformed persisted transition decisions during recovery", async () => {
+      process.env.AITM_CONFIG_PATH = await writeTempConfig(
+        SIMPLE_WORKFLOW_CONFIG,
+      );
+      const repoPath = await makeFakeGitRepo();
+      const malformedRun = await createWorkflowRun({
+        repository_path: repoPath,
+        worktree_branch: "feat/test",
+        workflow_name: "my-flow",
+      });
+      const validRun = await createWorkflowRun({
+        repository_path: repoPath,
+        worktree_branch: "feat/test",
+        workflow_name: "my-flow",
+      });
+
+      const malformedExecution = db
+        .prepare("SELECT id FROM step_executions WHERE workflow_run_id = ?")
+        .get(malformedRun.id) as { id: string };
+      const validExecution = db
+        .prepare("SELECT id FROM step_executions WHERE workflow_run_id = ?")
+        .get(validRun.id) as { id: string };
+
+      const malformedSession = db
+        .prepare("SELECT id FROM sessions WHERE step_execution_id = ?")
+        .get(malformedExecution.id) as { id: string };
+      const validSession = db
+        .prepare("SELECT id FROM sessions WHERE step_execution_id = ?")
+        .get(validExecution.id) as { id: string };
+
+      db.prepare(
+        "UPDATE sessions SET status = 'success', transition_decision = ? WHERE id = ?",
+      ).run("{not-json", malformedSession.id);
+      db.prepare(
+        "UPDATE sessions SET status = 'success', transition_decision = ? WHERE id = ?",
+      ).run(
+        JSON.stringify({
+          transition: "implement",
+          reason: "Plan complete",
+          handoff_summary: "Ready for implementation",
+        }),
+        validSession.id,
+      );
+
+      await expect(recoverCrashedWorkflowRuns()).resolves.toBeUndefined();
+
+      expect(getWorkflowRun(malformedRun.id)?.status).toBe("failure");
+      expect(getWorkflowRun(validRun.id)?.current_step).toBe("implement");
+      expect(getWorkflowRun(validRun.id)?.status).toBe("running");
     });
   });
 
@@ -2698,10 +2766,21 @@ workflows:
         workflowRunId: run.id,
         status: "awaiting",
       });
+      const stepExecutionStatusCalls = emitSpy.mock.calls.filter(
+        ([eventName]) => eventName === "step-execution.status-changed",
+      ) as Array<
+        [
+          "step-execution.status-changed",
+          {
+            stepExecutionId: string;
+            workflowRunId: string;
+            status: string;
+          },
+        ]
+      >;
       expect(
-        emitSpy.mock.calls.filter(
-          ([eventName, payload]) =>
-            eventName === "step-execution.status-changed" &&
+        stepExecutionStatusCalls.filter(
+          ([, payload]) =>
             payload.stepExecutionId === execution.id &&
             payload.workflowRunId === run.id &&
             payload.status === "awaiting",

@@ -4,20 +4,10 @@ export interface WorkflowRunInputEntry {
 }
 
 export function parseWorkflowRunInputs(
-  raw: string | null,
+  raw: Record<string, string> | null,
 ): WorkflowRunInputEntry[] {
   if (!raw) return [];
-
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-      return [];
-    }
-
-    return Object.entries(parsed).flatMap(([key, value]) =>
-      typeof value === "string" ? [{ key, value }] : [],
-    );
-  } catch {
-    return [];
-  }
+  return Object.entries(raw)
+    .filter((entry): entry is [string, string] => typeof entry[1] === "string")
+    .map(([key, value]) => ({ key, value }));
 }

@@ -45,6 +45,7 @@ describe("GET /api/sessions/:id", () => {
     const body = await res.json();
     expect(body.id).toBe(session.id);
     expect(body.goal).toBe("Do something");
+    expect(body.transitions).toEqual([{ terminal: "success", when: "Done" }]);
   });
 
   it("includes step_execution_id in the response", async () => {
@@ -62,6 +63,34 @@ describe("GET /api/sessions/:id", () => {
     const body = await res.json();
     expect(body).toHaveProperty("step_execution_id");
     expect(body.step_execution_id).toBeNull();
+  });
+
+  it("returns typed metadata fields instead of JSON strings", async () => {
+    const session = await createSession({
+      repository_path: await makeFakeGitRepo(),
+      worktree_branch: "feat/test",
+      goal: "Do something",
+      transitions: [{ terminal: "success" as const, when: "Done" }],
+      metadata_fields: {
+        pr_url: {
+          type: "string",
+          description: "Pull request URL",
+        },
+      },
+    });
+
+    const res = await GET(
+      new NextRequest(`http://localhost/api/sessions/${session.id}`),
+      makeParams(session.id),
+    );
+
+    const body = await res.json();
+    expect(body.metadata_fields).toEqual({
+      pr_url: {
+        type: "string",
+        description: "Pull request URL",
+      },
+    });
   });
 
   it("returns 404 for unknown id", async () => {

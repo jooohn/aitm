@@ -17,19 +17,17 @@ function makeParams(
   return { params: Promise.resolve({ organization, name, branch }) };
 }
 
-let deleteWorktreeDataSpy: ReturnType<typeof vi.spyOn>;
-let removeWorktreeSpy: ReturnType<typeof vi.spyOn>;
-let getRepositoryByAliasSpy: ReturnType<typeof vi.spyOn>;
+const deleteWorktreeDataSpy = vi.spyOn(sessionService, "deleteWorktreeData");
+const removeWorktreeSpy = vi.spyOn(worktreeService, "removeWorktree");
+const getRepositoryByAliasSpy = vi.spyOn(
+  repositoryService,
+  "getRepositoryByAlias",
+);
 
 beforeEach(() => {
   vi.resetAllMocks();
-  deleteWorktreeDataSpy = vi
-    .spyOn(sessionService, "deleteWorktreeData")
-    .mockResolvedValue();
-  removeWorktreeSpy = vi
-    .spyOn(worktreeService, "removeWorktree")
-    .mockResolvedValue();
-  getRepositoryByAliasSpy = vi.spyOn(repositoryService, "getRepositoryByAlias");
+  deleteWorktreeDataSpy.mockResolvedValue();
+  removeWorktreeSpy.mockResolvedValue();
 });
 
 describe("DELETE /api/repositories/:organization/:name/worktrees/[...branch]", () => {
