@@ -1,4 +1,5 @@
 import type Database from "better-sqlite3";
+import type { TransitionDecision } from "@/backend/domain/agent";
 import type { EventBus } from "@/backend/infra/event-bus";
 import type { SessionStatus } from "../sessions";
 import type {
@@ -9,6 +10,14 @@ import type {
   WorkflowRunStatus,
   WorkflowRunWithExecutions,
 } from "./index";
+import {
+  parseTransitionDecision,
+  type StepExecutionRow,
+  stepExecutionRowToDomain,
+  type WorkflowRunRow,
+  workflowRunRowToDomain,
+  workflowRunWithExecutionsToDomain,
+} from "./workflow-run-serializer";
 
 export type PreviousExecutionHandoff = {
   step: string;
@@ -128,9 +137,11 @@ export class WorkflowRunRepository {
   }
 
   getStepExecution(id: string): StepExecution | undefined {
-    return this.db
+    const row = this.db
       .prepare("SELECT * FROM step_executions WHERE id = ?")
-      .get(id) as StepExecution | undefined;
+      .get(id) as StepExecutionRow | undefined;
+
+    return row ? stepExecutionRowToDomain(row) : undefined;
   }
 
   setStepExecutionStatus(id: string, status: StepExecutionStatus): void {
@@ -210,7 +221,7 @@ export class WorkflowRunRepository {
         session_status: SessionStatus | null;
       })
     | undefined {
-    return this.db
+    const row = this.db
       .prepare(
         `SELECT se.*, s.id AS session_id, s.status AS session_status
        FROM step_executions se
@@ -219,12 +230,13 @@ export class WorkflowRunRepository {
        ORDER BY se.created_at DESC
        LIMIT 1`,
       )
-      .get(workflowRunId) as
-      | (StepExecution & {
-          session_id: string | null;
-          session_status: SessionStatus | null;
-        })
-      | undefined;
+      .get(workflowRunId) as StepExecutionRow | undefined;
+
+    if (!row) return undefined;
+    return stepExecutionRowToDomain(row) as StepExecution & {
+      session_id: string | null;
+      session_status: SessionStatus | null;
+    };
   }
 
   countStepExecutions(workflowRunId: string): number {
@@ -237,11 +249,13 @@ export class WorkflowRunRepository {
   }
 
   getLastStepExecution(workflowRunId: string): StepExecution | undefined {
-    return this.db
+    const row = this.db
       .prepare(
         "SELECT * FROM step_executions WHERE workflow_run_id = ? ORDER BY rowid DESC LIMIT 1",
       )
-      .get(workflowRunId) as StepExecution | undefined;
+      .get(workflowRunId) as StepExecutionRow | undefined;
+
+    return row ? stepExecutionRowToDomain(row) : undefined;
   }
 
   listCompletedExecutionsHandoff(workflowRunId: string): Array<{
@@ -317,15 +331,19 @@ export class WorkflowRunRepository {
   }
 
   getWorkflowRunById(id: string): WorkflowRun | undefined {
-    return this.db
+    const row = this.db
       .prepare("SELECT * FROM workflow_runs WHERE id = ?")
-      .get(id) as WorkflowRun | undefined;
+      .get(id) as WorkflowRunRow | undefined;
+
+    return row ? workflowRunRowToDomain(row) : undefined;
   }
 
   getWorkflowRunWithExecutions(
     id: string,
   ): WorkflowRunWithExecutions | undefined {
-    const run = this.getWorkflowRunById(id);
+    const run = this.db
+      .prepare("SELECT * FROM workflow_runs WHERE id = ?")
+      .get(id) as WorkflowRunRow | undefined;
     if (!run) return undefined;
 
     const step_executions = this.db
@@ -336,9 +354,9 @@ export class WorkflowRunRepository {
        WHERE se.workflow_run_id = ?
        ORDER BY se.created_at ASC`,
       )
-      .all(id) as StepExecution[];
+      .all(id) as StepExecutionRow[];
 
-    return { ...run, step_executions };
+    return workflowRunWithExecutionsToDomain(run, step_executions);
   }
 
   listWorkflowRuns(filter: ListWorkflowRunsFilter): WorkflowRun[] {
@@ -360,22 +378,18 @@ export class WorkflowRunRepository {
 
     const where =
       conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
-    return this.db
+    const rows = this.db
       .prepare(`SELECT * FROM workflow_runs ${where} ORDER BY created_at DESC`)
-      .all(...params) as WorkflowRun[];
+      .all(...params) as WorkflowRunRow[];
+
+    return rows.map(workflowRunRowToDomain);
   }
 
   mergeWorkflowRunMetadata(
     id: string,
     newMetadata: Record<string, string>,
   ): void {
-    const row = this.db
-      .prepare("SELECT metadata FROM workflow_runs WHERE id = ?")
-      .get(id) as { metadata: string | null } | undefined;
-
-    const existing: Record<string, string> = row?.metadata
-      ? JSON.parse(row.metadata)
-      : {};
+    const existing = this.getWorkflowRunById(id)?.metadata ?? {};
     const merged = { ...existing, ...newMetadata };
 
     this.db
@@ -481,9 +495,9 @@ export class WorkflowRunRepository {
 
   listPendingSucceededExecutions(): Array<{
     execution_id: string;
-    transition_decision: string | null;
+    transition_decision: TransitionDecision | null;
   }> {
-    return this.db
+    const rows = this.db
       .prepare(
         `SELECT se.id as execution_id, s.transition_decision
        FROM step_executions se
@@ -494,6 +508,11 @@ export class WorkflowRunRepository {
       execution_id: string;
       transition_decision: string | null;
     }>;
+
+    return rows.map((row) => ({
+      execution_id: row.execution_id,
+      transition_decision: parseTransitionDecision(row.transition_decision),
+    }));
   }
 
   listPendingFailedExecutions(): Array<{

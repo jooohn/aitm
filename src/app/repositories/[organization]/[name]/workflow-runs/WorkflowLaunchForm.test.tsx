@@ -12,7 +12,17 @@ afterEach(() => {
 const defaultProps = {
   workflowNames: ["test-workflow"],
   workflows: {
-    "test-workflow": { inputs: [] },
+    "test-workflow": {
+      initial_step: "plan",
+      inputs: [],
+      steps: {
+        plan: {
+          type: "agent" as const,
+          goal: "Create a plan",
+          transitions: [{ terminal: "success" as const, when: "done" }],
+        },
+      },
+    },
   },
   selectedWorkflow: "test-workflow",
   onWorkflowChange: vi.fn(),

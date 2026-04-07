@@ -25,16 +25,18 @@ export interface Session {
   repository_path: string;
   worktree_branch: string;
   goal: string;
-  transitions: string; // JSON-serialized WorkflowTransition[]
-  transition_decision: string | null; // JSON-serialized TransitionDecision
-  agent_config: string; // JSON-serialized AgentConfig
+  transitions: WorkflowTransition[];
+  transition_decision: TransitionDecision | null;
+  agent_config: AgentConfig;
   status: SessionStatus;
   terminal_attach_command: string | null;
   log_file_path: string;
   claude_session_id: string | null;
   step_execution_id: string | null;
-  metadata_fields: string | null; // JSON-serialized Record<string, OutputMetadataFieldDef>
+  metadata_fields: Record<string, OutputMetadataFieldDef> | null;
   step_name: string | null;
+  workflow_name?: string | null;
+  workflow_run_id?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -116,20 +118,17 @@ export class SessionService {
     const now = new Date().toISOString();
     const log_file_path = join(await sessionsLogDir(), `${id}.log`);
     const agentConfig = input.agent_config ?? (await getAgentConfig());
-    const metadataFieldsJson = input.metadata_fields
-      ? JSON.stringify(input.metadata_fields)
-      : null;
 
     this.sessionRepository.insertSession({
       id,
       repository_path: input.repository_path,
       worktree_branch: input.worktree_branch,
       goal: input.goal,
-      transitions: JSON.stringify(input.transitions),
-      agent_config: JSON.stringify(agentConfig),
+      transitions: input.transitions,
+      agent_config: agentConfig,
       log_file_path,
       step_execution_id: input.step_execution_id ?? null,
-      metadata_fields: metadataFieldsJson,
+      metadata_fields: input.metadata_fields ?? null,
       now,
     });
 
@@ -207,11 +206,6 @@ export class SessionService {
       throw new Error(`Session ${id} is not awaiting input`);
     }
 
-    const transitions: WorkflowTransition[] = JSON.parse(session.transitions);
-    const agentConfig: AgentConfig = JSON.parse(session.agent_config);
-    const metadataFields: Record<string, OutputMetadataFieldDef> | undefined =
-      session.metadata_fields ? JSON.parse(session.metadata_fields) : undefined;
-
     let cwd: string;
     try {
       const worktrees = await this.worktreeService.listWorktrees(
@@ -240,11 +234,11 @@ export class SessionService {
         id,
         message,
         cwd,
-        transitions,
-        agentConfig,
+        session.transitions,
+        session.agent_config,
         session.log_file_path,
         undefined,
-        metadataFields,
+        session.metadata_fields ?? undefined,
       )
       .catch((err) =>
         logger.error({ err, sessionId: id }, "Failed to resume agent"),

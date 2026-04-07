@@ -3,9 +3,12 @@ import { act, cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom/vitest";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { StepExecution, WorkflowRunDetail } from "@/lib/utils/api";
+import type {
+  StepExecution,
+  WorkflowRunDetail as WorkflowRunDetailDto,
+} from "@/lib/utils/api";
 import { SWRTestProvider } from "@/test-swr-provider";
-import WorkflowRunDetail from "./WorkflowRunDetail";
+import WorkflowRunDetailComponent from "./WorkflowRunDetail";
 
 vi.mock("next/link", () => ({
   default: ({
@@ -59,10 +62,11 @@ vi.mock("@/lib/utils/api", async (importOriginal) => {
 function makeExecution(
   overrides: Partial<StepExecution> & { step: string },
 ): StepExecution {
+  const { step, ...rest } = overrides;
   return {
-    id: `${overrides.step}-execution`,
+    id: `${step}-execution`,
     workflow_run_id: "run-1",
-    step: overrides.step,
+    step,
     step_type: "agent",
     status: "success",
     command_output: null,
@@ -72,13 +76,13 @@ function makeExecution(
     handoff_summary: null,
     created_at: "2024-01-01T00:00:00Z",
     completed_at: "2024-01-01T00:05:00Z",
-    ...overrides,
+    ...rest,
   };
 }
 
 function makeRun(
-  overrides: Partial<WorkflowRunDetail> = {},
-): WorkflowRunDetail {
+  overrides: Partial<WorkflowRunDetailDto> = {},
+): WorkflowRunDetailDto {
   return {
     id: "run-1",
     repository_path: "/tmp/repo",
@@ -103,7 +107,7 @@ describe("WorkflowRunDetail layout", () => {
   it("renders header, details, and step executions in a single column", () => {
     render(
       <SWRTestProvider>
-        <WorkflowRunDetail
+        <WorkflowRunDetailComponent
           run={makeRun({
             status: "success",
             workflow_name: "my-flow",
@@ -130,11 +134,11 @@ describe("WorkflowRunDetail", () => {
     const agentExecution = {
       ...makeExecution({
         step: "plan",
-        transition_decision: JSON.stringify({
+        transition_decision: {
           transition: "implement",
           reason: "Plan is ready",
           handoff_summary: "Defined the implementation steps.",
-        }),
+        },
       }),
       step_type: "agent",
     } as StepExecution & { step_type: "agent" };
@@ -143,18 +147,18 @@ describe("WorkflowRunDetail", () => {
       ...makeExecution({
         step: "lint",
         command_output: "stdout line\nstderr line",
-        transition_decision: JSON.stringify({
+        transition_decision: {
           transition: "success",
           reason: "Command succeeded",
           handoff_summary: "stdout line\nstderr line",
-        }),
+        },
       }),
       step_type: "command",
     } as StepExecution & { step_type: "command" };
 
     render(
       <SWRTestProvider>
-        <WorkflowRunDetail
+        <WorkflowRunDetailComponent
           run={makeRun({
             step_executions: [agentExecution, commandExecution],
           })}
@@ -180,12 +184,12 @@ describe("WorkflowRunDetail", () => {
   });
 
   it("renders a pull request banner when metadata contains a PR URL", () => {
-    const metadata = JSON.stringify({
+    const metadata = {
       presets__pull_request_url: "https://github.com/org/repo/pull/42",
-    });
+    };
     render(
       <SWRTestProvider>
-        <WorkflowRunDetail run={makeRun({ metadata })} />
+        <WorkflowRunDetailComponent run={makeRun({ metadata })} />
       </SWRTestProvider>,
     );
 
@@ -203,7 +207,7 @@ describe("WorkflowRunDetail", () => {
   it("does not render a pull request banner when metadata is null", () => {
     render(
       <SWRTestProvider>
-        <WorkflowRunDetail run={makeRun({ metadata: null })} />
+        <WorkflowRunDetailComponent run={makeRun({ metadata: null })} />
       </SWRTestProvider>,
     );
 
@@ -251,7 +255,7 @@ describe("WorkflowRunDetail", () => {
 
     render(
       <SWRTestProvider>
-        <WorkflowRunDetail run={runWithExecs} />
+        <WorkflowRunDetailComponent run={runWithExecs} />
       </SWRTestProvider>,
     );
 
@@ -300,7 +304,7 @@ describe("WorkflowRunDetail", () => {
 
     render(
       <SWRTestProvider>
-        <WorkflowRunDetail
+        <WorkflowRunDetailComponent
           run={makeRun({
             status: "awaiting",
             step_executions: [execution],
@@ -327,7 +331,7 @@ describe("WorkflowRunDetail", () => {
 
     render(
       <SWRTestProvider>
-        <WorkflowRunDetail
+        <WorkflowRunDetailComponent
           run={makeRun({
             status: "running",
             step_executions: [execution],
@@ -354,7 +358,7 @@ describe("StepExecutionItem status-based border", () => {
 
     render(
       <SWRTestProvider>
-        <WorkflowRunDetail
+        <WorkflowRunDetailComponent
           run={makeRun({
             status: "running",
             step_executions: [execution],
@@ -378,7 +382,7 @@ describe("StepExecutionItem status-based border", () => {
 
     render(
       <SWRTestProvider>
-        <WorkflowRunDetail
+        <WorkflowRunDetailComponent
           run={makeRun({
             status: "awaiting",
             step_executions: [execution],
@@ -401,7 +405,7 @@ describe("StepExecutionItem status-based border", () => {
 
     render(
       <SWRTestProvider>
-        <WorkflowRunDetail
+        <WorkflowRunDetailComponent
           run={makeRun({
             status: "success",
             step_executions: [execution],
@@ -426,7 +430,7 @@ describe("StepExecutionItem status-based border", () => {
 
     render(
       <SWRTestProvider>
-        <WorkflowRunDetail
+        <WorkflowRunDetailComponent
           run={makeRun({
             status: "running",
             step_executions: [execution],

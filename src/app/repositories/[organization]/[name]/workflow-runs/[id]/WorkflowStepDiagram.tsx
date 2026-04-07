@@ -24,13 +24,7 @@ const PADDING = 24;
 const TERMINAL_RADIUS = 30;
 
 function parseTransitionTarget(execution: StepExecution): string | null {
-  if (!execution.transition_decision) return null;
-  try {
-    const decision = JSON.parse(execution.transition_decision);
-    return decision.transition ?? null;
-  } catch {
-    return null;
-  }
+  return execution.transition_decision?.transition ?? null;
 }
 
 export default function WorkflowStepDiagram({

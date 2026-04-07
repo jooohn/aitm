@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import StatusBadge from "@/app/components/StatusBadge";
 import type { StepExecution } from "@/lib/utils/api";
+import type { TransitionDecisionDto } from "@/shared/contracts/api";
 import styles from "./WorkflowRunDetail.module.css";
 
 const STATUS_LABELS: Record<StepExecution["status"], string> = {
@@ -12,21 +13,6 @@ const STATUS_LABELS: Record<StepExecution["status"], string> = {
   success: "Success",
   failure: "Failure",
 };
-
-interface TransitionDecision {
-  transition: string;
-  reason: string;
-  handoff_summary: string;
-}
-
-function parseDecision(raw: string | null): TransitionDecision | null {
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw) as TransitionDecision;
-  } catch {
-    return null;
-  }
-}
 
 interface StepExecutionItemProps {
   execution: StepExecution;
@@ -48,7 +34,7 @@ export default function StepExecutionItem({
   resolvingId,
 }: StepExecutionItemProps) {
   const [approvalReason, setApprovalReason] = useState("");
-  const decision = parseDecision(execution.transition_decision);
+  const decision: TransitionDecisionDto | null = execution.transition_decision;
   const isCommandExecution = execution.step_type === "command";
   const isPendingApproval =
     execution.step_type === "manual-approval" &&

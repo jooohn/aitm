@@ -1,17 +1,31 @@
-export interface Repository {
-  path: string;
-  name: string;
-  alias: string;
-}
+import type {
+  RepositoryDetailDto,
+  RepositoryDto,
+  SessionDto,
+  ValidationResultDto,
+  WorkflowDefinitionDto,
+  WorkflowRunDetailDto,
+  WorkflowRunDto,
+  WorkflowRunStatusDto,
+  WorktreeDto,
+} from "@/shared/contracts/api";
 
-export interface RepositoryDetail extends Repository {
-  github_url: string | null;
-}
-
-export interface ValidationResult {
-  valid: boolean;
-  reason?: string;
-}
+export type Repository = RepositoryDto;
+export type RepositoryDetail = RepositoryDetailDto;
+export type ValidationResult = ValidationResultDto;
+export type Worktree = WorktreeDto;
+export type Session = SessionDto;
+export type SessionStatus = SessionDto["status"];
+export type WorkflowTransition = SessionDto["transitions"][number];
+export type WorkflowInput = NonNullable<
+  WorkflowDefinitionDto["inputs"]
+>[number];
+export type WorkflowStep = WorkflowDefinitionDto["steps"][string];
+export type WorkflowDefinition = WorkflowDefinitionDto;
+export type WorkflowRun = WorkflowRunDto;
+export type WorkflowRunStatus = WorkflowRunStatusDto;
+export type StepExecution = WorkflowRunDetailDto["step_executions"][number];
+export type WorkflowRunDetail = WorkflowRunDetailDto;
 
 export class ApiError extends Error {
   readonly status: number;
@@ -61,14 +75,6 @@ export function validateRepository(
   return apiFetch(`/api/repositories/${organization}/${name}/validate`);
 }
 
-export interface Worktree {
-  branch: string;
-  path: string;
-  is_main: boolean;
-  is_bare: boolean;
-  head: string;
-}
-
 export function fetchWorktrees(
   organization: string,
   name: string,
@@ -109,31 +115,6 @@ export async function cleanMergedWorktrees(
   );
 }
 
-export type SessionStatus =
-  | "running"
-  | "awaiting_input"
-  | "success"
-  | "failure";
-
-export interface Session {
-  id: string;
-  repository_path: string;
-  worktree_branch: string;
-  goal: string;
-  transitions: string; // JSON-serialized WorkflowTransition[]
-  transition_decision: string | null; // JSON-serialized TransitionDecision
-  status: SessionStatus;
-  terminal_attach_command: string | null;
-  log_file_path: string;
-  claude_session_id: string | null;
-  step_execution_id: string | null;
-  step_name: string | null;
-  workflow_name: string | null;
-  workflow_run_id: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
 export function fetchSession(id: string): Promise<Session> {
   return apiFetch(`/api/sessions/${id}`);
 }
@@ -147,65 +128,6 @@ export async function replyToSession(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ message }),
   });
-}
-
-export type WorkflowRunStatus = "running" | "awaiting" | "success" | "failure";
-
-export interface WorkflowTransition {
-  step?: string;
-  terminal?: "success" | "failure";
-  when: string;
-}
-
-export interface WorkflowStep {
-  goal: string;
-  transitions: WorkflowTransition[];
-}
-
-export interface WorkflowInput {
-  name: string;
-  label: string;
-  description?: string;
-  required?: boolean;
-  type?: "text" | "multiline-text";
-}
-
-export interface WorkflowDefinition {
-  initial_step: string;
-  inputs?: WorkflowInput[];
-  steps: Record<string, WorkflowStep>;
-}
-
-export interface WorkflowRun {
-  id: string;
-  repository_path: string;
-  worktree_branch: string;
-  workflow_name: string;
-  current_step: string | null;
-  status: WorkflowRunStatus;
-  inputs: string | null;
-  metadata: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface StepExecution {
-  id: string;
-  workflow_run_id: string;
-  step: string;
-  step_type: "agent" | "command" | "manual-approval";
-  status: "running" | "awaiting" | "success" | "failure";
-  command_output: string | null;
-  session_id: string | null;
-  session_status: SessionStatus | null;
-  transition_decision: string | null;
-  handoff_summary: string | null;
-  created_at: string;
-  completed_at: string | null;
-}
-
-export interface WorkflowRunDetail extends WorkflowRun {
-  step_executions: StepExecution[];
 }
 
 export function canStopWorkflowRun(run: WorkflowRunDetail): boolean {

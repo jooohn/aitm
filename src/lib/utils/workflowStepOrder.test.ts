@@ -2,32 +2,34 @@ import { describe, expect, it } from "vitest";
 import type { WorkflowDefinition } from "./api";
 import { getOrderedSteps } from "./workflowStepOrder";
 
+function agentStep(
+  goal: string,
+  transitions: WorkflowDefinition["steps"][string]["transitions"],
+): WorkflowDefinition["steps"][string] {
+  return {
+    type: "agent",
+    goal,
+    transitions,
+  };
+}
+
 describe("getOrderedSteps", () => {
   it("returns steps in BFS order from initial_step", () => {
     const definition: WorkflowDefinition = {
       initial_step: "plan",
       steps: {
-        plan: {
-          goal: "Create a plan",
-          transitions: [
-            { step: "implement", when: "plan approved" },
-            { terminal: "failure", when: "plan rejected" },
-          ],
-        },
-        implement: {
-          goal: "Implement the plan",
-          transitions: [
-            { step: "review", when: "implementation done" },
-            { terminal: "failure", when: "implementation failed" },
-          ],
-        },
-        review: {
-          goal: "Review the code",
-          transitions: [
-            { terminal: "success", when: "review passed" },
-            { step: "implement", when: "review rejected" },
-          ],
-        },
+        plan: agentStep("Create a plan", [
+          { step: "implement", when: "plan approved" },
+          { terminal: "failure", when: "plan rejected" },
+        ]),
+        implement: agentStep("Implement the plan", [
+          { step: "review", when: "implementation done" },
+          { terminal: "failure", when: "implementation failed" },
+        ]),
+        review: agentStep("Review the code", [
+          { terminal: "success", when: "review passed" },
+          { step: "implement", when: "review rejected" },
+        ]),
       },
     };
 
@@ -42,13 +44,10 @@ describe("getOrderedSteps", () => {
     const definition: WorkflowDefinition = {
       initial_step: "run",
       steps: {
-        run: {
-          goal: "Run the task",
-          transitions: [
-            { terminal: "success", when: "done" },
-            { terminal: "failure", when: "error" },
-          ],
-        },
+        run: agentStep("Run the task", [
+          { terminal: "success", when: "done" },
+          { terminal: "failure", when: "error" },
+        ]),
       },
     };
 
@@ -59,25 +58,13 @@ describe("getOrderedSteps", () => {
     const definition: WorkflowDefinition = {
       initial_step: "start",
       steps: {
-        start: {
-          goal: "Start",
-          transitions: [
-            { step: "left", when: "go left" },
-            { step: "right", when: "go right" },
-          ],
-        },
-        left: {
-          goal: "Left path",
-          transitions: [{ step: "merge", when: "done" }],
-        },
-        right: {
-          goal: "Right path",
-          transitions: [{ step: "merge", when: "done" }],
-        },
-        merge: {
-          goal: "Merge",
-          transitions: [{ terminal: "success", when: "done" }],
-        },
+        start: agentStep("Start", [
+          { step: "left", when: "go left" },
+          { step: "right", when: "go right" },
+        ]),
+        left: agentStep("Left path", [{ step: "merge", when: "done" }]),
+        right: agentStep("Right path", [{ step: "merge", when: "done" }]),
+        merge: agentStep("Merge", [{ terminal: "success", when: "done" }]),
       },
     };
 
@@ -89,14 +76,10 @@ describe("getOrderedSteps", () => {
     const definition: WorkflowDefinition = {
       initial_step: "a",
       steps: {
-        a: {
-          goal: "Step A",
-          transitions: [{ terminal: "success", when: "done" }],
-        },
-        orphan: {
-          goal: "Orphan step",
-          transitions: [{ terminal: "success", when: "done" }],
-        },
+        a: agentStep("Step A", [{ terminal: "success", when: "done" }]),
+        orphan: agentStep("Orphan step", [
+          { terminal: "success", when: "done" },
+        ]),
       },
     };
 
@@ -107,17 +90,11 @@ describe("getOrderedSteps", () => {
     const definition: WorkflowDefinition = {
       initial_step: "a",
       steps: {
-        a: {
-          goal: "Step A",
-          transitions: [{ step: "b", when: "next" }],
-        },
-        b: {
-          goal: "Step B",
-          transitions: [
-            { step: "a", when: "retry" },
-            { terminal: "success", when: "done" },
-          ],
-        },
+        a: agentStep("Step A", [{ step: "b", when: "next" }]),
+        b: agentStep("Step B", [
+          { step: "a", when: "retry" },
+          { terminal: "success", when: "done" },
+        ]),
       },
     };
 

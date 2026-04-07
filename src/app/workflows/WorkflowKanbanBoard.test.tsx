@@ -6,6 +6,17 @@ import type { WorkflowDefinition, WorkflowRun } from "@/lib/utils/api";
 import { SWRTestProvider } from "@/test-swr-provider";
 import WorkflowKanbanBoard from "./WorkflowKanbanBoard";
 
+function agentStep(
+  goal: string,
+  transitions: WorkflowDefinition["steps"][string]["transitions"],
+): WorkflowDefinition["steps"][string] {
+  return {
+    type: "agent",
+    goal,
+    transitions,
+  };
+}
+
 function deferred<T>() {
   let resolve!: (value: T) => void;
   const promise = new Promise<T>((res) => {
@@ -32,27 +43,18 @@ vi.mock("next/link", () => ({
 const WORKFLOW_DEF: WorkflowDefinition = {
   initial_step: "plan",
   steps: {
-    plan: {
-      goal: "Create a plan",
-      transitions: [
-        { step: "implement", when: "plan approved" },
-        { terminal: "failure", when: "plan rejected" },
-      ],
-    },
-    implement: {
-      goal: "Implement the plan",
-      transitions: [
-        { step: "review", when: "implementation done" },
-        { terminal: "failure", when: "implementation failed" },
-      ],
-    },
-    review: {
-      goal: "Review the code",
-      transitions: [
-        { terminal: "success", when: "review passed" },
-        { step: "implement", when: "review rejected" },
-      ],
-    },
+    plan: agentStep("Create a plan", [
+      { step: "implement", when: "plan approved" },
+      { terminal: "failure", when: "plan rejected" },
+    ]),
+    implement: agentStep("Implement the plan", [
+      { step: "review", when: "implementation done" },
+      { terminal: "failure", when: "implementation failed" },
+    ]),
+    review: agentStep("Review the code", [
+      { terminal: "success", when: "review passed" },
+      { step: "implement", when: "review rejected" },
+    ]),
   },
 };
 
@@ -286,10 +288,7 @@ describe("WorkflowKanbanBoard", () => {
     const otherDef: WorkflowDefinition = {
       initial_step: "build",
       steps: {
-        build: {
-          goal: "Build",
-          transitions: [{ terminal: "success", when: "done" }],
-        },
+        build: agentStep("Build", [{ terminal: "success", when: "done" }]),
       },
     };
 
@@ -467,19 +466,13 @@ describe("WorkflowKanbanBoard", () => {
     const deployDef: WorkflowDefinition = {
       initial_step: "build",
       steps: {
-        build: {
-          goal: "Build",
-          transitions: [{ terminal: "success", when: "done" }],
-        },
+        build: agentStep("Build", [{ terminal: "success", when: "done" }]),
       },
     };
     const testDef: WorkflowDefinition = {
       initial_step: "lint",
       steps: {
-        lint: {
-          goal: "Lint",
-          transitions: [{ terminal: "success", when: "done" }],
-        },
+        lint: agentStep("Lint", [{ terminal: "success", when: "done" }]),
       },
     };
 

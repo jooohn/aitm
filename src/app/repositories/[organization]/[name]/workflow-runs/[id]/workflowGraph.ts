@@ -31,13 +31,16 @@ export function buildGraph(definition: WorkflowDefinition): Graph {
     nodes.set(stateName, { id: stateName, type: "step" });
 
     for (const transition of state.transitions) {
-      if (transition.step) {
+      if ("step" in transition) {
         edges.push({
           from: stateName,
           to: transition.step,
           label: transition.when,
         });
-      } else if (transition.terminal && transition.terminal !== "failure") {
+      } else if (
+        "terminal" in transition &&
+        transition.terminal !== "failure"
+      ) {
         if (!nodes.has(transition.terminal)) {
           nodes.set(transition.terminal, {
             id: transition.terminal,

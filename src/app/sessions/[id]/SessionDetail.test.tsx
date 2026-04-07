@@ -44,7 +44,7 @@ function makeSession(overrides: Partial<Session> = {}): Session {
     repository_path: "/tmp/repos/acme/app",
     worktree_branch: "main",
     goal: "Implement a feature",
-    transitions: "[]",
+    transitions: [],
     transition_decision: null,
     step_name: null,
     workflow_name: null,

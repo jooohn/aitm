@@ -2,6 +2,11 @@ import type Database from "better-sqlite3";
 import type { TransitionDecision } from "@/backend/domain/agent";
 import type { EventBus } from "@/backend/infra/event-bus";
 import type { ListSessionsFilter, Session, SessionStatus } from "./index";
+import {
+  type SessionRow,
+  serializeSessionInsert,
+  sessionRowToDomain,
+} from "./session-serializer";
 
 export class SessionRepository {
   constructor(
@@ -106,13 +111,15 @@ export class SessionRepository {
     repository_path: string;
     worktree_branch: string;
     goal: string;
-    transitions: string;
-    agent_config: string;
+    transitions: Session["transitions"];
+    agent_config: Session["agent_config"];
     log_file_path: string;
     step_execution_id: string | null;
-    metadata_fields: string | null;
+    metadata_fields: Session["metadata_fields"];
     now: string;
   }): void {
+    const row = serializeSessionInsert(params);
+
     this.db
       .prepare(
         `INSERT INTO sessions
@@ -122,22 +129,22 @@ export class SessionRepository {
        VALUES (?, ?, ?, ?, ?, NULL, ?, 'running', NULL, ?, NULL, ?, ?, ?, ?)`,
       )
       .run(
-        params.id,
-        params.repository_path,
-        params.worktree_branch,
-        params.goal,
-        params.transitions,
-        params.agent_config,
-        params.log_file_path,
-        params.step_execution_id,
-        params.metadata_fields,
-        params.now,
-        params.now,
+        row.id,
+        row.repository_path,
+        row.worktree_branch,
+        row.goal,
+        row.transitions,
+        row.agent_config,
+        row.log_file_path,
+        row.step_execution_id,
+        row.metadata_fields,
+        row.created_at,
+        row.updated_at,
       );
   }
 
   getSession(id: string): Session | undefined {
-    return this.db
+    const row = this.db
       .prepare(
         `SELECT s.*, se.step AS step_name, wr.workflow_name, wr.id AS workflow_run_id
        FROM sessions s
@@ -145,7 +152,9 @@ export class SessionRepository {
        LEFT JOIN workflow_runs wr ON se.workflow_run_id = wr.id
        WHERE s.id = ?`,
       )
-      .get(id) as Session | undefined;
+      .get(id) as SessionRow | undefined;
+
+    return row ? sessionRowToDomain(row) : undefined;
   }
 
   getSessionStatus(id: string): SessionStatus | null {
@@ -181,7 +190,7 @@ export class SessionRepository {
 
     const where =
       conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
-    return this.db
+    const rows = this.db
       .prepare(
         `SELECT s.*, se.step AS step_name, wr.workflow_name, wr.id AS workflow_run_id
        FROM sessions s
@@ -190,7 +199,9 @@ export class SessionRepository {
        ${where}
        ORDER BY s.created_at DESC`,
       )
-      .all(...params) as Session[];
+      .all(...params) as SessionRow[];
+
+    return rows.map(sessionRowToDomain);
   }
 
   setTransitionDecision(id: string, decision: TransitionDecision): void {

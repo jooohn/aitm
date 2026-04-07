@@ -37,8 +37,8 @@ export interface WorkflowRun {
   workflow_name: string;
   current_step: string | null;
   status: WorkflowRunStatus;
-  inputs: string | null;
-  metadata: string | null;
+  inputs: Record<string, string> | null;
+  metadata: Record<string, string> | null;
   step_count_offset: number;
   created_at: string;
   updated_at: string;
@@ -53,7 +53,7 @@ export interface StepExecution {
   command_output: string | null;
   session_id: string | null;
   session_status: SessionStatus | null;
-  transition_decision: string | null;
+  transition_decision: TransitionDecision | null;
   handoff_summary: string | null;
   created_at: string;
   completed_at: string | null;
@@ -614,13 +614,7 @@ export class WorkflowRunService {
 
     for (const { execution_id, transition_decision } of pendingSucceeded) {
       let decision: TransitionDecision | null = null;
-      if (transition_decision) {
-        try {
-          decision = JSON.parse(transition_decision) as TransitionDecision;
-        } catch {
-          // malformed JSON — treat as no decision, will terminate as failure
-        }
-      }
+      decision = transition_decision;
       await this.completeStepExecution(execution_id, decision);
     }
 
@@ -642,10 +636,6 @@ export class WorkflowRunService {
           (e): e is PreviousExecutionHandoff => e.handoff_summary !== null,
         );
 
-      const inputs = run.inputs
-        ? (JSON.parse(run.inputs) as Record<string, string>)
-        : undefined;
-
       await this.startStepExecution(
         workflow_run_id,
         step,
@@ -653,7 +643,7 @@ export class WorkflowRunService {
         run.worktree_branch,
         run.workflow_name,
         previousExecutions,
-        inputs,
+        run.inputs ?? undefined,
       );
     }
 
@@ -707,15 +697,11 @@ export class WorkflowRunService {
       logger.warn({ err }, "git stash warning");
     }
 
-    const inputs = run.inputs
-      ? (JSON.parse(run.inputs) as Record<string, string>)
-      : undefined;
-
     return await this.createWorkflowRun({
       repository_path: run.repository_path,
       worktree_branch: run.worktree_branch,
       workflow_name: run.workflow_name,
-      inputs,
+      inputs: run.inputs ?? undefined,
     });
   }
 
@@ -747,10 +733,6 @@ export class WorkflowRunService {
       .listCompletedExecutionsHandoffExcluding(id, lastExecution.id)
       .filter((e): e is PreviousExecutionHandoff => e.handoff_summary !== null);
 
-    const inputs = run.inputs
-      ? (JSON.parse(run.inputs) as Record<string, string>)
-      : undefined;
-
     await this.startStepExecution(
       id,
       failedStep,
@@ -758,7 +740,7 @@ export class WorkflowRunService {
       run.worktree_branch,
       run.workflow_name,
       previousExecutions,
-      inputs,
+      run.inputs ?? undefined,
     );
 
     return this.getWorkflowRun(id)!;

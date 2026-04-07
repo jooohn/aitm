@@ -1,5 +1,6 @@
 import Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { WorkflowTransition } from "@/backend/infra/config";
 import { EventBus } from "@/backend/infra/event-bus";
 import { SessionRepository } from "../sessions/session-repository";
 import { WorkflowRunRepository } from "./workflow-run-repository";
@@ -116,8 +117,8 @@ describe("WorkflowRunRepository event emission", () => {
       repository_path: "/tmp/repo",
       worktree_branch: "feat/test",
       goal: "Goal",
-      transitions: "[]",
-      agent_config: '{"provider":"codex"}',
+      transitions: [],
+      agent_config: { provider: "codex" },
       log_file_path: "/tmp/session-1.log",
       step_execution_id: null,
       metadata_fields: null,
@@ -128,8 +129,8 @@ describe("WorkflowRunRepository event emission", () => {
       repository_path: "/tmp/repo",
       worktree_branch: "feat/test",
       goal: "Goal",
-      transitions: "[]",
-      agent_config: '{"provider":"codex"}',
+      transitions: [],
+      agent_config: { provider: "codex" },
       log_file_path: "/tmp/session-2.log",
       step_execution_id: null,
       metadata_fields: null,
@@ -176,6 +177,122 @@ describe("WorkflowRunRepository event emission", () => {
     expect(listener).toHaveBeenCalledWith({
       workflowRunId: "run-1",
       status: "failure",
+    });
+  });
+
+  it("deserializes workflow run and session JSON-backed fields when reading", () => {
+    const transitions: WorkflowTransition[] = [
+      { step: "implement", when: "plan is ready" },
+    ];
+
+    workflowRunRepository.insertWorkflowRun({
+      id: "run-1",
+      repository_path: "/tmp/repo",
+      worktree_branch: "feat/test",
+      workflow_name: "my-flow",
+      initial_step: "plan",
+      inputs_json: JSON.stringify({ ticket: "42" }),
+      now: "2026-04-07T00:00:00.000Z",
+    });
+    workflowRunRepository.insertStepExecution({
+      id: "exec-1",
+      workflowRunId: "run-1",
+      stepName: "plan",
+      stepType: "agent",
+      now: "2026-04-07T00:00:00.000Z",
+    });
+    workflowRunRepository.completeStepExecution(
+      "exec-1",
+      JSON.stringify({
+        transition: "implement",
+        reason: "Ready",
+        handoff_summary: "Plan complete",
+      }),
+      "Plan complete",
+      "2026-04-07T00:00:01.000Z",
+      "success",
+    );
+    workflowRunRepository.mergeWorkflowRunMetadata("run-1", {
+      presets__pull_request_url: "https://github.com/org/repo/pull/42",
+    });
+
+    sessionRepository.insertSession({
+      id: "session-1",
+      repository_path: "/tmp/repo",
+      worktree_branch: "feat/test",
+      goal: "Goal",
+      transitions,
+      agent_config: { provider: "codex", model: "gpt-5.4" },
+      log_file_path: "/tmp/session-1.log",
+      step_execution_id: "exec-1",
+      metadata_fields: {
+        pr_url: {
+          type: "string",
+          description: "Pull request URL",
+        },
+      },
+      now: "2026-04-07T00:00:00.000Z",
+    });
+
+    const run = workflowRunRepository.getWorkflowRunWithExecutions("run-1");
+    const session = sessionRepository.getSession("session-1");
+
+    expect(run?.inputs).toEqual({ ticket: "42" });
+    expect(run?.metadata).toEqual({
+      presets__pull_request_url: "https://github.com/org/repo/pull/42",
+    });
+    expect(run?.step_executions[0].transition_decision).toEqual({
+      transition: "implement",
+      reason: "Ready",
+      handoff_summary: "Plan complete",
+    });
+    expect(session?.transitions).toEqual(transitions);
+    expect(session?.agent_config).toEqual({
+      provider: "codex",
+      model: "gpt-5.4",
+    });
+    expect(session?.metadata_fields).toEqual({
+      pr_url: {
+        type: "string",
+        description: "Pull request URL",
+      },
+    });
+  });
+
+  it("filters malformed workflow run string records when reading", () => {
+    workflowRunRepository.insertWorkflowRun({
+      id: "run-1",
+      repository_path: "/tmp/repo",
+      worktree_branch: "feat/test",
+      workflow_name: "my-flow",
+      initial_step: "plan",
+      inputs_json: null,
+      now: "2026-04-07T00:00:00.000Z",
+    });
+
+    db.prepare(
+      `UPDATE workflow_runs
+       SET inputs = ?, metadata = ?
+       WHERE id = ?`,
+    ).run(
+      JSON.stringify({
+        ticket: "42",
+        attempt: 3,
+        nested: { title: "bad" },
+      }),
+      JSON.stringify({
+        presets__pull_request_url: "https://github.com/org/repo/pull/42",
+        nested: { title: "bad" },
+        enabled: true,
+      }),
+      "run-1",
+    );
+
+    const run = workflowRunRepository.getWorkflowRunById("run-1");
+
+    expect(run?.inputs).toEqual({ ticket: "42" });
+    expect(run?.metadata).toEqual({
+      presets__pull_request_url: "https://github.com/org/repo/pull/42",
     });
   });
 });

@@ -2,41 +2,41 @@ import { describe, expect, it } from "vitest";
 import { parseWorkflowRunInputs } from "./parseWorkflowRunInputs";
 
 describe("parseWorkflowRunInputs", () => {
-  it("returns entries for valid string-valued input objects", () => {
+  it("returns entries for valid input objects", () => {
     expect(
-      parseWorkflowRunInputs(
-        JSON.stringify({
-          title: "Add run inputs to detail page",
-          notes: "Line one\nLine two",
-        }),
-      ),
+      parseWorkflowRunInputs({
+        title: "Add run inputs to detail page",
+        notes: "Line one\nLine two",
+      }),
     ).toEqual([
       { key: "title", value: "Add run inputs to detail page" },
       { key: "notes", value: "Line one\nLine two" },
     ]);
   });
 
-  it("returns an empty array for null, invalid, or non-object JSON", () => {
+  it("returns an empty array for null input", () => {
     expect(parseWorkflowRunInputs(null)).toEqual([]);
-    expect(parseWorkflowRunInputs("{")).toEqual([]);
-    expect(parseWorkflowRunInputs(JSON.stringify([]))).toEqual([]);
-    expect(parseWorkflowRunInputs(JSON.stringify("value"))).toEqual([]);
   });
 
-  it("ignores non-string values", () => {
+  it("preserves empty-string values", () => {
     expect(
-      parseWorkflowRunInputs(
-        JSON.stringify({
-          title: "Keep me",
-          count: 2,
-          enabled: true,
-          nested: { nope: "nope" },
-          empty: "",
-        }),
-      ),
+      parseWorkflowRunInputs({
+        title: "Keep me",
+        empty: "",
+      }),
     ).toEqual([
       { key: "title", value: "Keep me" },
       { key: "empty", value: "" },
     ]);
+  });
+
+  it("drops non-string values from unexpected input objects", () => {
+    expect(
+      parseWorkflowRunInputs({
+        title: "Keep me",
+        nested: { bad: true },
+        count: 1,
+      } as unknown as Record<string, string>),
+    ).toEqual([{ key: "title", value: "Keep me" }]);
   });
 });
