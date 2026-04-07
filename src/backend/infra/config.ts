@@ -2,6 +2,7 @@ import { readFile } from "fs/promises";
 import yaml, { YAMLException } from "js-yaml";
 import { homedir } from "os";
 import { join } from "path";
+import { z } from "zod/v4";
 import type { PermissionMode } from "@/backend/domain/agent/permission-mode";
 import { METADATA_PRESETS } from "./presets";
 
@@ -12,6 +13,9 @@ function getConfigPath(): string {
 }
 
 export type AgentProvider = "claude" | "codex";
+
+const agentProviderSchema = z.enum(["claude", "codex"]);
+const permissionModeSchema = z.enum(["plan", "edit", "full"]);
 
 export interface AgentConfig {
   provider: AgentProvider;
@@ -82,13 +86,6 @@ interface ConfigSnapshot {
   workflows: Record<string, WorkflowDefinition>;
 }
 
-const VALID_AGENT_PROVIDERS = new Set<AgentProvider>(["claude", "codex"]);
-const VALID_PERMISSION_MODES = new Set<PermissionMode>([
-  "plan",
-  "edit",
-  "full",
-]);
-const VALID_INPUT_TYPES = new Set(["text", "multiline-text"]);
 const CORE_DECISION_KEYS = new Set(["transition", "reason", "handoff_summary"]);
 
 let configSnapshot: ConfigSnapshot | null = null;
@@ -97,154 +94,89 @@ function fail(message: string): never {
   throw new Error(message);
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function validateOptionalString(
-  value: unknown,
-  path: string,
-): string | undefined {
-  if (value === undefined) return undefined;
-  if (typeof value !== "string") fail(`${path} must be a string`);
-  return value;
-}
-
-function validateOptionalBoolean(
-  value: unknown,
-  path: string,
-): boolean | undefined {
-  if (value === undefined) return undefined;
-  if (typeof value !== "boolean") fail(`${path} must be a boolean`);
-  return value;
-}
-
-function validateTransitions(
-  value: unknown,
-  path: string,
-): WorkflowTransition[] {
-  if (!Array.isArray(value) || value.length === 0) {
-    fail(`${path} must be a non-empty array`);
-  }
-
-  return value.map((transition, index) => {
-    const transitionPath = `${path}[${index}]`;
-    if (!isRecord(transition)) fail(`${transitionPath} must be an object`);
-    if (typeof transition.when !== "string") {
-      fail(`${transitionPath}.when must be a string`);
+const transitionSchema = z
+  .object({
+    when: z.string(),
+    step: z.string().optional(),
+    terminal: z.enum(["success", "failure"]).optional(),
+  })
+  .check((ctx) => {
+    if (ctx.value.step !== undefined && ctx.value.terminal !== undefined) {
+      ctx.issues.push({
+        code: "custom",
+        message: "cannot define both step and terminal",
+        path: [],
+      });
     }
-
-    if (typeof transition.step === "string") {
-      if (transition.terminal !== undefined) {
-        fail(`${transitionPath} cannot define both step and terminal`);
-      }
-      return { step: transition.step, when: transition.when };
+    if (ctx.value.step === undefined && ctx.value.terminal === undefined) {
+      ctx.issues.push({
+        code: "custom",
+        message: "must define either step or terminal (success|failure)",
+        path: [],
+      });
     }
-
-    if (
-      transition.terminal === "success" ||
-      transition.terminal === "failure"
-    ) {
-      return { terminal: transition.terminal, when: transition.when };
+  })
+  .transform((val): WorkflowTransition => {
+    if (val.step !== undefined) {
+      return { step: val.step, when: val.when };
     }
-
-    fail(
-      `${transitionPath} must define either step or terminal (success|failure)`,
-    );
+    return { terminal: val.terminal!, when: val.when };
   });
-}
 
-function validateAgentConfig(
+const transitionsSchema = z.array(transitionSchema).nonempty();
+
+const agentConfigSchema = z.object({
+  provider: agentProviderSchema.optional(),
+  model: z.string().optional(),
+  command: z.string().optional(),
+  permission_mode: permissionModeSchema.optional(),
+});
+
+const outputMetadataFieldSchema = z.object({
+  type: z.string(),
+  description: z.string().optional(),
+});
+
+function validatePresets(
   value: unknown,
   path: string,
-  allowPartial: boolean,
-): AgentConfig | AgentConfigOverride {
-  if (!isRecord(value)) fail(`${path} must be an object`);
-
-  const provider = value.provider;
-  if (
-    provider !== undefined &&
-    !VALID_AGENT_PROVIDERS.has(provider as AgentProvider)
-  ) {
-    fail(`${path}.provider must be one of: claude, codex`);
-  }
-  if (!allowPartial && provider === undefined) {
-    return {
-      provider: "claude",
-      model: validateOptionalString(value.model, `${path}.model`),
-      command: validateOptionalString(value.command, `${path}.command`),
-      permission_mode: validatePermissionMode(
-        value.permission_mode,
-        `${path}.permission_mode`,
-      ),
-    };
-  }
-
-  return {
-    provider: provider as AgentProvider | undefined,
-    model: validateOptionalString(value.model, `${path}.model`),
-    command: validateOptionalString(value.command, `${path}.command`),
-    permission_mode: validatePermissionMode(
-      value.permission_mode,
-      `${path}.permission_mode`,
-    ),
-  };
-}
-
-function validatePermissionMode(
-  value: unknown,
-  path: string,
-): PermissionMode | undefined {
+): Record<string, OutputMetadataFieldDef> | undefined {
   if (value === undefined) return undefined;
-  if (!VALID_PERMISSION_MODES.has(value as PermissionMode)) {
-    fail(`${path} must be one of: plan, edit, full`);
-  }
-  return value as PermissionMode;
-}
-
-function validateRepositories(
-  value: unknown,
-  path: string,
-): ConfigRepository[] {
-  if (value === undefined) return [];
-  if (!Array.isArray(value)) fail(`${path} must be an array`);
-
-  return value.map((entry, index) => {
-    const entryPath = `${path}[${index}]`;
-    if (!isRecord(entry)) fail(`${entryPath} must be an object`);
-    if (typeof entry.path !== "string")
-      fail(`${entryPath}.path must be a string`);
-    return { path: entry.path };
-  });
-}
-
-function validateWorkflowInputs(
-  value: unknown,
-  path: string,
-): WorkflowInput[] | undefined {
-  if (value === undefined) return undefined;
-  if (!isRecord(value)) fail(`${path} must be an object`);
-
-  return Object.entries(value).map(([name, def]) => {
-    const inputPath = `${path}.${name}`;
-    if (!isRecord(def)) fail(`${inputPath} must be an object`);
-    if (typeof def.label !== "string")
-      fail(`${inputPath}.label must be a string`);
-    const type = def.type;
-    if (type !== undefined && !VALID_INPUT_TYPES.has(String(type))) {
-      fail(`${inputPath}.type must be one of: text, multiline-text`);
+  const presets = parseZodWithPath(z.array(z.string()), value, path);
+  const entries: [string, OutputMetadataFieldDef][] = [];
+  for (let i = 0; i < presets.length; i++) {
+    const presetName = presets[i];
+    const preset = METADATA_PRESETS[presetName];
+    if (!preset) {
+      fail(`${path}[${i}] must reference a known preset`);
     }
-    return {
-      name,
-      label: def.label,
-      description: validateOptionalString(
-        def.description,
-        `${inputPath}.description`,
-      ),
-      required: validateOptionalBoolean(def.required, `${inputPath}.required`),
-      type: type as WorkflowInput["type"] | undefined,
-    };
-  });
+    entries.push([
+      `presets__${presetName}`,
+      { type: preset.type, description: preset.description },
+    ]);
+  }
+  return entries.length > 0
+    ? (Object.fromEntries(entries) as Record<string, OutputMetadataFieldDef>)
+    : undefined;
+}
+
+const workflowInputSchema = z.object({
+  label: z.string(),
+  description: z.string().optional(),
+  required: z.boolean().optional(),
+  type: z.enum(["text", "multiline-text"]).optional(),
+});
+
+function parseZodWithPath<T>(
+  schema: z.ZodType<T>,
+  value: unknown,
+  path: string,
+): T {
+  const result = schema.safeParse(value);
+  if (result.success) return result.data;
+  const first = result.error.issues[0];
+  const subpath = first.path.length > 0 ? `.${first.path.join(".")}` : "";
+  fail(`${path}${subpath} ${first.message}`);
 }
 
 function validateOutputMetadata(
@@ -252,53 +184,24 @@ function validateOutputMetadata(
   path: string,
 ): Record<string, OutputMetadataFieldDef> | undefined {
   if (value === undefined) return undefined;
-  if (!isRecord(value)) fail(`${path} must be an object`);
-
-  const entries = Object.entries(value).map(([key, def]) => {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    fail(`${path} must be an object`);
+  }
+  const record = value as Record<string, unknown>;
+  const entries: [string, OutputMetadataFieldDef][] = [];
+  for (const [key, def] of Object.entries(record)) {
     const fieldPath = `${path}.${key}`;
     if (CORE_DECISION_KEYS.has(key)) {
       fail(`${fieldPath} uses a reserved metadata field name`);
     }
-    if (!isRecord(def)) fail(`${fieldPath} must be an object`);
-    if (typeof def.type !== "string")
-      fail(`${fieldPath}.type must be a string`);
-    return [
-      key,
-      {
-        type: def.type,
-        description: validateOptionalString(
-          def.description,
-          `${fieldPath}.description`,
-        ),
-      },
-    ] as const;
-  });
-
-  return entries.length > 0 ? Object.fromEntries(entries) : undefined;
-}
-
-function resolvePresetMetadata(
-  value: unknown,
-  path: string,
-): Record<string, OutputMetadataFieldDef> | undefined {
-  if (value === undefined) return undefined;
-  if (!Array.isArray(value)) fail(`${path} must be an array`);
-
-  const entries = value.flatMap((presetName, index) => {
-    const presetPath = `${path}[${index}]`;
-    if (typeof presetName !== "string") fail(`${presetPath} must be a string`);
-    const preset = METADATA_PRESETS[presetName];
-    if (!preset) {
-      fail(`${presetPath} must reference a known preset`);
+    if (typeof def !== "object" || def === null || Array.isArray(def)) {
+      fail(`${fieldPath} must be an object`);
     }
-    return [
-      [
-        `presets__${presetName}`,
-        { type: preset.type, description: preset.description },
-      ] as const,
-    ];
-  });
-
+    entries.push([
+      key,
+      parseZodWithPath(outputMetadataFieldSchema, def, fieldPath),
+    ]);
+  }
   return entries.length > 0 ? Object.fromEntries(entries) : undefined;
 }
 
@@ -307,20 +210,28 @@ function validateAgentOutput(
   path: string,
 ): AgentWorkflowStep["output"] | undefined {
   if (value === undefined) return undefined;
-  if (!isRecord(value)) fail(`${path} must be an object`);
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    fail(`${path} must be an object`);
+  }
+  const record = value as Record<string, unknown>;
 
-  const metadata = {
-    ...resolvePresetMetadata(value.presets, `${path}.presets`),
-    ...validateOutputMetadata(value.metadata, `${path}.metadata`),
-  };
+  const presetMetadata = validatePresets(record.presets, `${path}.presets`);
+  const explicitMetadata = validateOutputMetadata(
+    record.metadata,
+    `${path}.metadata`,
+  );
 
+  const metadata = { ...presetMetadata, ...explicitMetadata };
   return Object.keys(metadata).length > 0 ? { metadata } : undefined;
 }
 
 function validateWorkflowStep(value: unknown, path: string): WorkflowStep {
-  if (!isRecord(value)) fail(`${path} must be an object`);
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    fail(`${path} must be an object`);
+  }
+  const record = value as Record<string, unknown>;
 
-  const explicitType = value.type;
+  const explicitType = record.type;
   if (
     explicitType !== undefined &&
     explicitType !== "agent" &&
@@ -330,91 +241,73 @@ function validateWorkflowStep(value: unknown, path: string): WorkflowStep {
     fail(`${path}.type must be one of: agent, command, manual-approval`);
   }
 
+  const transitions = parseZodWithPath(
+    transitionsSchema,
+    record.transitions,
+    `${path}.transitions`,
+  );
+
   if (explicitType === "manual-approval") {
-    if (value.goal !== undefined) {
-      fail(`${path} cannot define goal for a manual-approval step`);
+    for (const key of ["goal", "command", "agent", "output"] as const) {
+      if (record[key] !== undefined) {
+        fail(`${path} cannot define ${key} for a manual-approval step`);
+      }
     }
-    if (value.command !== undefined) {
-      fail(`${path} cannot define command for a manual-approval step`);
-    }
-    if (value.agent !== undefined) {
-      fail(`${path} cannot define agent for a manual-approval step`);
-    }
-    if (value.output !== undefined) {
-      fail(`${path} cannot define output for a manual-approval step`);
-    }
-    return {
-      type: "manual-approval",
-      transitions: validateTransitions(
-        value.transitions,
-        `${path}.transitions`,
-      ),
-    };
+    return { type: "manual-approval", transitions };
   }
 
-  if (explicitType === "agent") {
-    if (value.command !== undefined) {
+  if (
+    explicitType === "agent" ||
+    (explicitType === undefined && typeof record.goal === "string")
+  ) {
+    if (record.command !== undefined) {
       fail(`${path} cannot define command for an agent step`);
     }
-    if (typeof value.goal !== "string") fail(`${path}.goal must be a string`);
+    if (typeof record.goal !== "string") fail(`${path}.goal must be a string`);
     return {
       type: "agent",
-      goal: value.goal,
-      transitions: validateTransitions(
-        value.transitions,
-        `${path}.transitions`,
-      ),
+      goal: record.goal,
+      transitions,
       agent:
-        value.agent === undefined
+        record.agent === undefined
           ? undefined
-          : (validateAgentConfig(
-              value.agent,
+          : (parseZodWithPath(
+              agentConfigSchema,
+              record.agent,
               `${path}.agent`,
-              true,
             ) as AgentConfigOverride),
-      output: validateAgentOutput(value.output, `${path}.output`),
+      output: validateAgentOutput(record.output, `${path}.output`),
     };
   }
 
-  if (typeof value.command === "string" || explicitType === "command") {
-    if (typeof value.command !== "string")
+  if (typeof record.command === "string" || explicitType === "command") {
+    if (typeof record.command !== "string")
       fail(`${path}.command must be a string`);
-    if (value.goal !== undefined) {
-      fail(`${path} cannot define goal for a command step`);
+    for (const key of ["goal", "agent", "output"] as const) {
+      if (record[key] !== undefined) {
+        fail(`${path} cannot define ${key} for a command step`);
+      }
     }
-    if (value.agent !== undefined) {
-      fail(`${path} cannot define agent for a command step`);
-    }
-    if (value.output !== undefined) {
-      fail(`${path} cannot define output for a command step`);
-    }
-    return {
-      type: "command",
-      command: value.command,
-      transitions: validateTransitions(
-        value.transitions,
-        `${path}.transitions`,
-      ),
-    };
+    return { type: "command", command: record.command, transitions };
   }
 
-  if (value.command !== undefined) {
+  if (record.command !== undefined) {
     fail(`${path} cannot define command for an agent step`);
   }
-  if (typeof value.goal !== "string") fail(`${path}.goal must be a string`);
+  if (typeof record.goal !== "string") fail(`${path}.goal must be a string`);
   return {
     type: "agent",
-    goal: value.goal,
-    transitions: validateTransitions(value.transitions, `${path}.transitions`),
+    goal: record.goal,
+    transitions,
     agent:
-      value.agent === undefined
+      record.agent === undefined
         ? undefined
-        : (validateAgentConfig(
-            value.agent,
+        : (parseZodWithPath(
+            agentConfigSchema,
+            record.agent,
             `${path}.agent`,
-            true,
           ) as AgentConfigOverride),
-    output: validateAgentOutput(value.output, `${path}.output`),
+    output: validateAgentOutput(record.output, `${path}.output`),
   };
 }
 
@@ -423,31 +316,56 @@ function validateWorkflowDefinition(
   value: unknown,
 ): WorkflowDefinition {
   const path = `workflows.${name}`;
-  if (!isRecord(value)) fail(`${path} must be an object`);
-  if (typeof value.initial_step !== "string") {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    fail(`${path} must be an object`);
+  }
+  const record = value as Record<string, unknown>;
+
+  if (typeof record.initial_step !== "string") {
     fail(`${path}.initial_step must be a string`);
   }
-  if (!isRecord(value.steps) || Object.keys(value.steps).length === 0) {
+  if (
+    typeof record.steps !== "object" ||
+    record.steps === null ||
+    Array.isArray(record.steps) ||
+    Object.keys(record.steps).length === 0
+  ) {
     fail(`${path}.steps must be a non-empty object`);
   }
-  if (value.max_steps !== undefined) {
-    if (
-      typeof value.max_steps !== "number" ||
-      !Number.isInteger(value.max_steps) ||
-      value.max_steps <= 0
-    ) {
+  if (record.max_steps !== undefined) {
+    const maxStepsResult = z.int().positive().safeParse(record.max_steps);
+    if (!maxStepsResult.success) {
       fail(`${path}.max_steps must be a positive integer`);
     }
   }
 
+  const inputs =
+    record.inputs !== undefined
+      ? Object.entries(
+          parseZodWithPath(
+            z.record(z.string(), workflowInputSchema),
+            record.inputs,
+            `${path}.inputs`,
+          ),
+        ).map(([inputName, def]) => ({
+          name: inputName,
+          label: def.label,
+          description: def.description,
+          required: def.required,
+          type: def.type,
+        }))
+      : undefined;
+
   const steps = Object.fromEntries(
-    Object.entries(value.steps).map(([stepName, stepDef]) => [
-      stepName,
-      validateWorkflowStep(stepDef, `${path}.steps.${stepName}`),
-    ]),
+    Object.entries(record.steps as Record<string, unknown>).map(
+      ([stepName, stepDef]) => [
+        stepName,
+        validateWorkflowStep(stepDef, `${path}.steps.${stepName}`),
+      ],
+    ),
   );
 
-  if (!(value.initial_step in steps)) {
+  if (!(record.initial_step in steps)) {
     fail(`${path}.initial_step must reference an existing step`);
   }
 
@@ -462,37 +380,60 @@ function validateWorkflowDefinition(
   }
 
   return {
-    initial_step: value.initial_step,
-    max_steps: value.max_steps as number | undefined,
-    inputs: validateWorkflowInputs(value.inputs, `${path}.inputs`),
+    initial_step: record.initial_step,
+    max_steps: record.max_steps as number | undefined,
+    inputs,
     steps,
   };
 }
 
 function validateConfig(raw: unknown): ConfigSnapshot {
-  if (!isRecord(raw)) fail("Invalid config root: expected an object");
-  if (raw.workflows !== undefined && !isRecord(raw.workflows)) {
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+    fail("Invalid config root: expected an object");
+  }
+  const record = raw as Record<string, unknown>;
+  if (record.workflows !== undefined && typeof record.workflows !== "object") {
     fail("workflows must be an object");
   }
 
-  return {
-    agent: {
-      provider: "claude",
-      ...(raw.agent === undefined
-        ? {}
-        : (validateAgentConfig(raw.agent, "agent", false) as AgentConfig)),
-    },
-    repositories: validateRepositories(raw.repositories, "repositories"),
-    workflows:
-      raw.workflows !== undefined
-        ? Object.fromEntries(
-            Object.entries(raw.workflows).map(([name, def]) => [
-              name,
-              validateWorkflowDefinition(name, def),
-            ]),
-          )
-        : {},
-  };
+  const agent: AgentConfig =
+    record.agent !== undefined
+      ? (() => {
+          const parsed = parseZodWithPath(
+            agentConfigSchema,
+            record.agent,
+            "agent",
+          );
+          return {
+            provider: parsed.provider ?? "claude",
+            model: parsed.model,
+            command: parsed.command,
+            permission_mode: parsed.permission_mode as
+              | PermissionMode
+              | undefined,
+          };
+        })()
+      : { provider: "claude" };
+
+  const repositories =
+    record.repositories !== undefined
+      ? parseZodWithPath(
+          z.array(z.object({ path: z.string() })),
+          record.repositories,
+          "repositories",
+        )
+      : [];
+
+  const workflows =
+    record.workflows !== undefined
+      ? Object.fromEntries(
+          Object.entries(record.workflows as Record<string, unknown>).map(
+            ([name, def]) => [name, validateWorkflowDefinition(name, def)],
+          ),
+        )
+      : {};
+
+  return { agent, repositories, workflows };
 }
 
 async function loadConfigSnapshot(): Promise<ConfigSnapshot> {
