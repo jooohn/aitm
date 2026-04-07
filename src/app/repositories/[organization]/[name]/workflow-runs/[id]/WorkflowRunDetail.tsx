@@ -435,15 +435,20 @@ export default function WorkflowRunDetail({ run: initial, basePath }: Props) {
           </div>
         </div>
         <div className={styles.headerRight}>
+          {canStop && (
+            <div className={styles.stopActions}>
+              <button
+                className={styles.stopButton}
+                onClick={handleStop}
+                disabled={stopping}
+              >
+                {stopping ? "Stopping…" : "Stop Immediately"}
+              </button>
+              {stopError && <p className={styles.rerunError}>{stopError}</p>}
+            </div>
+          )}
           {run.status === "failure" && (
             <div className={styles.headerActions}>
-              <button
-                className={styles.rerunButton}
-                onClick={handleRerun}
-                disabled={rerunning}
-              >
-                {rerunning ? "Re-running…" : "Re-run"}
-              </button>
               <button
                 className={styles.rerunButton}
                 onClick={handleRerunFromFailed}
@@ -453,7 +458,6 @@ export default function WorkflowRunDetail({ run: initial, basePath }: Props) {
                   ? "Re-running…"
                   : "Re-run from failed step"}
               </button>
-              {rerunError && <p className={styles.rerunError}>{rerunError}</p>}
               {rerunFromFailedError && (
                 <p className={styles.rerunError}>{rerunFromFailedError}</p>
               )}
@@ -493,6 +497,7 @@ export default function WorkflowRunDetail({ run: initial, basePath }: Props) {
               </div>
             )}
           </div>
+          {rerunError && <p className={styles.rerunError}>{rerunError}</p>}
         </div>
       </div>
 
@@ -533,21 +538,7 @@ export default function WorkflowRunDetail({ run: initial, basePath }: Props) {
 
       {workflowDefinition && (
         <section>
-          <div className={styles.sectionHeader}>
-            <h2 className={styles.sectionHeading}>Step diagram</h2>
-            {canStop && (
-              <div className={styles.stopActions}>
-                <button
-                  className={styles.stopButton}
-                  onClick={handleStop}
-                  disabled={stopping}
-                >
-                  {stopping ? "Stopping…" : "Stop Immediately"}
-                </button>
-                {stopError && <p className={styles.rerunError}>{stopError}</p>}
-              </div>
-            )}
-          </div>
+          <h2 className={styles.sectionHeading}>Step diagram</h2>
           <WorkflowStepDiagram
             definition={workflowDefinition}
             stepExecutions={run.step_executions}
