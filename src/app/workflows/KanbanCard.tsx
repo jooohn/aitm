@@ -2,6 +2,7 @@ import Link from "next/link";
 import StatusBadge from "@/app/components/StatusBadge";
 import type { WorkflowRun, WorkflowRunStatus } from "@/lib/utils/api";
 import { inferAlias } from "@/lib/utils/inferAlias";
+import { syncedAnimationDelay } from "@/lib/utils/syncedAnimationDelay";
 import { timeAgo } from "@/lib/utils/timeAgo";
 import { workflowRunPath } from "@/lib/utils/workflowRunPath";
 import styles from "./WorkflowKanbanBoard.module.css";
@@ -13,12 +14,16 @@ const STATUS_LABELS: Record<WorkflowRunStatus, string> = {
   failure: "Failure",
 };
 
+const BLINK_DURATION_MS = 2000;
+
 const statusCardClass: Partial<Record<WorkflowRunStatus, string>> = {
   failure: styles.cardFailure,
   success: styles.cardSuccess,
   running: styles.cardRunning,
   awaiting: styles.cardAwaiting,
 };
+
+const blinkingStatuses = new Set<WorkflowRunStatus>(["running", "awaiting"]);
 
 interface KanbanCardProps {
   run: WorkflowRun;
@@ -32,6 +37,11 @@ export default function KanbanCard({ run, showRepo }: KanbanCardProps) {
       className={[styles.card, statusCardClass[run.status]]
         .filter(Boolean)
         .join(" ")}
+      style={
+        blinkingStatuses.has(run.status)
+          ? { animationDelay: syncedAnimationDelay(BLINK_DURATION_MS) }
+          : undefined
+      }
     >
       {showRepo && (
         <span className={styles.cardRepo}>
