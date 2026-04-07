@@ -104,7 +104,7 @@ describe("WorkflowRunDetail layout", () => {
     expect(heading).toHaveTextContent("feat/test");
     expect(heading).toHaveTextContent("my-flow");
     expect(heading).toHaveTextContent("(run-1)");
-    expect(screen.getByText("Success")).toBeInTheDocument();
+    expect(screen.getAllByText("Success").length).toBeGreaterThan(0);
     expect(screen.getByText("Step executions")).toBeInTheDocument();
     expect(screen.getByText("plan")).toBeInTheDocument();
   });
@@ -203,12 +203,14 @@ describe("WorkflowRunDetail", () => {
       id: "exec-1",
       step: "review-1",
       step_type: "manual-approval",
+      status: "awaiting",
       completed_at: null,
     });
     const exec2 = makeExecution({
       id: "exec-2",
       step: "review-2",
       step_type: "manual-approval",
+      status: "awaiting",
       completed_at: null,
     });
 
@@ -257,7 +259,7 @@ describe("WorkflowRunDetail", () => {
     });
   });
 
-  it("shows 'Awaiting Input' badge when step execution status is awaiting", () => {
+  it("shows 'Awaiting' badge when step execution status is awaiting", () => {
     const execution = makeExecution({
       step: "implement",
       status: "awaiting",
@@ -276,9 +278,7 @@ describe("WorkflowRunDetail", () => {
     const executionItem = document.getElementById(
       "step-execution-implement-execution",
     )!;
-    expect(
-      within(executionItem).getByText("Awaiting Input"),
-    ).toBeInTheDocument();
+    expect(within(executionItem).getByText("Awaiting")).toBeInTheDocument();
     expect(
       within(executionItem).queryByText("Running"),
     ).not.toBeInTheDocument();
@@ -374,10 +374,11 @@ describe("StepExecutionItem status-based border", () => {
     expect(executionItem.getAttribute("data-status")).toBe("success");
   });
 
-  it("sets data-status='pending-approval' on a pending manual approval", () => {
+  it("sets data-status='awaiting' on a pending manual approval", () => {
     const execution = makeExecution({
       step: "review",
       step_type: "manual-approval",
+      status: "awaiting",
       completed_at: null,
     });
 
@@ -393,6 +394,6 @@ describe("StepExecutionItem status-based border", () => {
     const executionItem = document.getElementById(
       "step-execution-review-execution",
     )!;
-    expect(executionItem.getAttribute("data-status")).toBe("pending-approval");
+    expect(executionItem.getAttribute("data-status")).toBe("awaiting");
   });
 });

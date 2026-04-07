@@ -1,12 +1,7 @@
 import type { ReactNode } from "react";
 import styles from "./StatusBadge.module.css";
 
-export type StatusBadgeVariant =
-  | "running"
-  | "awaiting"
-  | "success"
-  | "failure"
-  | "pending-approval";
+export type StatusBadgeVariant = "running" | "awaiting" | "success" | "failure";
 
 interface Props {
   variant: StatusBadgeVariant;

@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import EllipsisIcon from "@/app/components/icons/EllipsisIcon";
 import ExternalLinkIcon from "@/app/components/icons/ExternalLinkIcon";
-import type { StatusBadgeVariant } from "@/app/components/StatusBadge";
 import StatusBadge from "@/app/components/StatusBadge";
 import {
   canStopWorkflowRun,
@@ -14,7 +13,6 @@ import {
   rerunWorkflowRun,
   rerunWorkflowRunFromFailedState,
   resolveManualApproval,
-  type StepExecution,
   stopWorkflowRun,
   type WorkflowDefinition,
   type WorkflowRunDetail,
@@ -26,6 +24,7 @@ import { timeAgo } from "@/lib/utils/timeAgo";
 import { workflowRunPath } from "@/lib/utils/workflowRunPath";
 import RunWorkflowModal from "../RunWorkflowModal";
 import { parseWorkflowRunInputs } from "./parseWorkflowRunInputs";
+import StepExecutionItem from "./StepExecutionItem";
 import styles from "./WorkflowRunDetail.module.css";
 import WorkflowStepDiagram from "./WorkflowStepDiagram";
 
@@ -42,206 +41,6 @@ const STATUS_LABELS: Record<WorkflowRunStatus, string> = {
 };
 
 const TERMINAL_STATUSES: WorkflowRunStatus[] = ["success", "failure"];
-
-type StepExecutionDisplayStatus =
-  | "pending-approval"
-  | "awaiting"
-  | "running"
-  | "completed";
-
-function getStepExecutionDisplayStatus(
-  execution: StepExecution,
-): StepExecutionDisplayStatus {
-  const isRunning = execution.completed_at === null;
-  if (execution.step_type === "manual-approval" && isRunning)
-    return "pending-approval";
-  if (execution.status === "awaiting") return "awaiting";
-  if (isRunning) return "running";
-  return "completed";
-}
-
-const STEP_EXECUTION_BADGE: Record<
-  StepExecutionDisplayStatus,
-  { variant: StatusBadgeVariant; label: string }
-> = {
-  "pending-approval": {
-    variant: "pending-approval",
-    label: "Awaiting Approval",
-  },
-  awaiting: { variant: "awaiting", label: "Awaiting Input" },
-  running: { variant: "running", label: "Running" },
-  completed: { variant: "success", label: "Completed" },
-};
-
-interface TransitionDecision {
-  transition: string;
-  reason: string;
-  handoff_summary: string;
-}
-
-function parseDecision(raw: string | null): TransitionDecision | null {
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw) as TransitionDecision;
-  } catch {
-    return null;
-  }
-}
-
-interface StepExecutionItemProps {
-  execution: StepExecution;
-  isCurrent: boolean;
-  runBasePath: string;
-  onResolve?: (
-    executionId: string,
-    decision: "approved" | "rejected",
-    reason: string,
-  ) => void;
-  resolvingId?: string | null;
-}
-
-function StepExecutionItem({
-  execution,
-  isCurrent,
-  runBasePath,
-  onResolve,
-  resolvingId,
-}: StepExecutionItemProps) {
-  const [approvalReason, setApprovalReason] = useState("");
-  const decision = parseDecision(execution.transition_decision);
-  const displayStatus = getStepExecutionDisplayStatus(execution);
-  const badge = STEP_EXECUTION_BADGE[displayStatus];
-  const isCommandExecution = execution.step_type === "command";
-  const isPendingApproval = displayStatus === "pending-approval";
-
-  const statusVariant: StatusBadgeVariant = isPendingApproval
-    ? "pending-approval"
-    : displayStatus === "awaiting"
-      ? "awaiting"
-      : displayStatus === "running"
-        ? "running"
-        : execution.status === "failure"
-          ? "failure"
-          : "success";
-
-  return (
-    <li
-      id={`step-execution-${execution.id}`}
-      className={`${styles.execution} ${isCurrent ? (styles[`execution-${statusVariant}`] ?? "") : ""}`}
-      data-status={statusVariant}
-    >
-      <div className={styles.executionHeader}>
-        <span className={styles.stateName}>{execution.step}</span>
-        <StatusBadge variant={badge.variant}>{badge.label}</StatusBadge>
-      </div>
-      <div className={styles.executionMeta}>
-        {execution.session_id && (
-          <Link
-            href={`${runBasePath}/sessions/${execution.session_id}`}
-            className={styles.sessionLink}
-          >
-            Session {execution.session_id.slice(0, 8)}…
-          </Link>
-        )}
-        <span className={styles.timestamp}>
-          {new Date(execution.created_at).toLocaleString()}
-        </span>
-      </div>
-      {isPendingApproval && onResolve && (
-        <div className={styles.approvalSection}>
-          <textarea
-            className={styles.approvalReason}
-            placeholder="Comment"
-            value={approvalReason}
-            onChange={(e) => setApprovalReason(e.target.value)}
-            disabled={resolvingId === execution.id}
-            rows={3}
-          />
-          <div className={styles.approvalActions}>
-            <button
-              className={`${styles.approvalButton} ${styles["approvalButton-approve"]}`}
-              onClick={() =>
-                onResolve(execution.id, "approved", approvalReason)
-              }
-              disabled={resolvingId === execution.id}
-            >
-              {resolvingId === execution.id ? "…" : "Approve"}
-            </button>
-            <button
-              className={`${styles.approvalButton} ${styles["approvalButton-reject"]}`}
-              onClick={() =>
-                onResolve(execution.id, "rejected", approvalReason)
-              }
-              disabled={resolvingId === execution.id}
-            >
-              {resolvingId === execution.id ? "…" : "Reject"}
-            </button>
-          </div>
-        </div>
-      )}
-      {(decision || isCommandExecution) && (
-        <div className={styles.decision}>
-          {decision && (
-            <div className={styles.decisionTransition}>
-              <span className={styles.decisionLabel}>Transition</span>
-              <span
-                className={`${styles.transitionTarget} ${
-                  decision.transition === "success"
-                    ? styles["transition-success"]
-                    : decision.transition === "failure"
-                      ? styles["transition-failure"]
-                      : styles["transition-state"]
-                }`}
-              >
-                {decision.transition}
-              </span>
-            </div>
-          )}
-          {isCommandExecution ? (
-            <div className={styles.decisionColumn}>
-              <span className={styles.decisionLabel}>Output</span>
-              <div
-                className={styles.commandOutput}
-                data-testid={`command-output-${execution.id}`}
-              >
-                {execution.command_output ? (
-                  <div className={styles.commandOutputLine}>
-                    {execution.command_output}
-                  </div>
-                ) : (
-                  <div
-                    className={`${styles.commandOutputLine} ${styles.commandOutputEmpty}`}
-                  >
-                    No output captured.
-                  </div>
-                )}
-              </div>
-            </div>
-          ) : (
-            <>
-              {decision && (
-                <div className={styles.decisionRow}>
-                  <span className={styles.decisionLabel}>Reason</span>
-                  <span className={styles.decisionValue}>
-                    {decision.reason}
-                  </span>
-                </div>
-              )}
-              {decision?.handoff_summary && (
-                <div className={styles.decisionRow}>
-                  <span className={styles.decisionLabel}>Summary</span>
-                  <span className={styles.decisionValue}>
-                    {decision.handoff_summary}
-                  </span>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      )}
-    </li>
-  );
-}
 
 export default function WorkflowRunDetail({ run: initial, basePath }: Props) {
   const router = useRouter();

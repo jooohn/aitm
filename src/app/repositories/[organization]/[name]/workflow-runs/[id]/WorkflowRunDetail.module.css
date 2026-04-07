@@ -161,10 +161,6 @@
   animation: border-blink-amber 1.5s ease-in-out infinite;
 }
 
-.execution-pending-approval {
-  animation: border-blink-amber 1.5s ease-in-out infinite;
-}
-
 .execution-success {
   @apply border-green-400 dark:border-green-500;
 }

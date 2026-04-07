@@ -25,7 +25,6 @@ describe("StatusBadge", () => {
     "awaiting",
     "success",
     "failure",
-    "pending-approval",
   ] as const)("applies variant class for %s", (variant) => {
     render(<StatusBadge variant={variant}>{variant}</StatusBadge>);
     const el = screen.getByText(variant);
