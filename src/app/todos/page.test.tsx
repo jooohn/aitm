@@ -38,8 +38,12 @@ vi.mock("next/link", () => ({
   ),
 }));
 
+const mockReplace = vi.fn();
+let mockPathname = "/todos";
+
 vi.mock("next/navigation", () => ({
-  usePathname: () => "/todos",
+  usePathname: () => mockPathname,
+  useRouter: () => ({ replace: mockReplace }),
 }));
 
 function makeWorkflowRun(overrides: Partial<WorkflowRun> = {}): WorkflowRun {
@@ -60,6 +64,8 @@ function makeWorkflowRun(overrides: Partial<WorkflowRun> = {}): WorkflowRun {
 
 beforeEach(() => {
   fetchAllWorkflowRunsMock.mockReset();
+  mockReplace.mockReset();
+  mockPathname = "/todos";
   capturedCallback = null;
 });
 
@@ -145,5 +151,62 @@ describe("/todos layout", () => {
     await waitFor(() => {
       expect(screen.getAllByRole("link")).toHaveLength(2);
     });
+  });
+
+  it("auto-selects the first item when pathname is /todos", async () => {
+    mockPathname = "/todos";
+    fetchAllWorkflowRunsMock.mockResolvedValue([
+      makeWorkflowRun({ id: "run-1" }),
+      makeWorkflowRun({ id: "run-2" }),
+    ]);
+
+    render(
+      <TodosLayout>
+        <TodosPage />
+      </TodosLayout>,
+    );
+
+    await waitFor(() => {
+      expect(mockReplace).toHaveBeenCalledWith("/todos/run-1");
+    });
+  });
+
+  it("does not auto-select when an item is already selected", async () => {
+    mockPathname = "/todos/run-2";
+    fetchAllWorkflowRunsMock.mockResolvedValue([
+      makeWorkflowRun({ id: "run-1" }),
+      makeWorkflowRun({ id: "run-2" }),
+    ]);
+
+    render(
+      <TodosLayout>
+        <TodosPage />
+      </TodosLayout>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByRole("link")).toHaveLength(2);
+    });
+
+    expect(mockReplace).not.toHaveBeenCalled();
+  });
+
+  it("does not auto-select when there are no items", async () => {
+    mockPathname = "/todos";
+    fetchAllWorkflowRunsMock.mockResolvedValue([]);
+
+    render(
+      <TodosLayout>
+        <TodosPage />
+      </TodosLayout>,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("No items are waiting for action."),
+      ).toBeInTheDocument();
+    });
+
+    expect(mockReplace).not.toHaveBeenCalled();
   });
 });

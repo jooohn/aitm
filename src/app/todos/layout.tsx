@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import StatusDot from "@/app/components/StatusDot";
 import { useNotificationStream } from "@/lib/hooks/useNotificationStream";
@@ -16,6 +16,7 @@ export default function TodosLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [items, setItems] = useState<WorkflowRun[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -37,6 +38,12 @@ export default function TodosLayout({
   }, [refresh]);
 
   useNotificationStream(refresh);
+
+  useEffect(() => {
+    if (pathname === "/todos" && items.length > 0) {
+      router.replace(`/todos/${items[0].id}`);
+    }
+  }, [pathname, items, router]);
 
   return (
     <main className={styles.page}>
