@@ -1,19 +1,12 @@
 "use client";
 
 import { notFound, useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import TrashIcon from "@/app/components/icons/TrashIcon";
 import PrChip, { extractPrInfos } from "@/app/components/PrChip";
 import WorkflowKanbanBoard from "@/app/workflows/WorkflowKanbanBoard";
-import {
-  fetchRepository,
-  fetchWorkflowRuns,
-  fetchWorktrees,
-  type RepositoryDetail,
-  removeWorktree,
-  type WorkflowRun,
-  type Worktree,
-} from "@/lib/utils/api";
+import { useRepository, useWorkflowRuns, useWorktrees } from "@/lib/hooks/swr";
+import { removeWorktree } from "@/lib/utils/api";
 import styles from "./page.module.css";
 
 export default function WorktreePage() {
@@ -29,31 +22,21 @@ export default function WorktreePage() {
   const branch = worktreeNameSegments.join("/");
   const router = useRouter();
 
-  const [repo, setRepo] = useState<RepositoryDetail | null>(null);
-  const [worktree, setWorktree] = useState<Worktree | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [workflowRuns, setWorkflowRuns] = useState<WorkflowRun[]>([]);
+  const { data: repo, isLoading: repoLoading } = useRepository(
+    organization,
+    name,
+  );
+  const { data: worktrees, isLoading: worktreesLoading } = useWorktrees(
+    organization,
+    name,
+  );
+  const { data: workflowRuns } = useWorkflowRuns(repo?.path ?? null, branch);
+
   const [removing, setRemoving] = useState(false);
   const [removeError, setRemoveError] = useState<string | null>(null);
 
-  useEffect(() => {
-    Promise.all([
-      fetchRepository(organization, name),
-      fetchWorktrees(organization, name),
-    ])
-      .then(([r, worktrees]) => {
-        setRepo(r);
-        const wt = worktrees.find((w) => w.branch === branch);
-        if (!wt) {
-          notFound();
-          return;
-        }
-        setWorktree(wt);
-        fetchWorkflowRuns(r.path, branch).then(setWorkflowRuns);
-      })
-      .catch(() => notFound())
-      .finally(() => setLoading(false));
-  }, [organization, name, branch]);
+  const loading = repoLoading || worktreesLoading;
+  const worktree = worktrees?.find((w) => w.branch === branch);
 
   async function handleRemove() {
     setRemoving(true);
@@ -72,7 +55,7 @@ export default function WorktreePage() {
   if (loading) return null;
   if (!repo || !worktree) return notFound();
 
-  const prs = extractPrInfos(workflowRuns);
+  const prs = extractPrInfos(workflowRuns ?? []);
 
   return (
     <main className={styles.page}>

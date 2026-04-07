@@ -3,31 +3,27 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { mutate } from "swr";
 import EllipsisIcon from "@/app/components/icons/EllipsisIcon";
-import {
-  cleanMergedWorktrees,
-  createWorktree,
-  fetchWorktrees,
-  type Worktree,
-} from "@/lib/utils/api";
+import { swrKeys, useWorktrees } from "@/lib/hooks/swr";
+import { cleanMergedWorktrees, createWorktree } from "@/lib/utils/api";
 import styles from "./WorktreeSection.module.css";
 
 interface Props {
   organization: string;
   name: string;
-  refreshKey?: number;
 }
 
-export default function WorktreeSection({
-  organization,
-  name,
-  refreshKey,
-}: Props) {
+export default function WorktreeSection({ organization, name }: Props) {
   const pathname = usePathname();
-  const [worktrees, setWorktrees] = useState<Worktree[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const {
+    data: worktrees,
+    error: loadError,
+    isLoading,
+  } = useWorktrees(organization, name);
+  const hasLoadedOnce = !!worktrees || !!loadError;
+  const loading = isLoading;
+
   const [branch, setBranch] = useState("");
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
@@ -64,32 +60,12 @@ export default function WorktreeSection({
     };
   }, [menuOpen]);
 
-  async function load() {
-    setLoading(true);
-    setLoadError(null);
-    try {
-      setWorktrees(await fetchWorktrees(organization, name));
-    } catch (err) {
-      setLoadError(
-        err instanceof Error ? err.message : "Failed to load worktrees",
-      );
-    } finally {
-      setHasLoadedOnce(true);
-      setLoading(false);
-    }
-  }
-
-  // biome-ignore lint/correctness/useExhaustiveDependencies: load on mount and when refreshKey changes
-  useEffect(() => {
-    load();
-  }, [refreshKey]);
-
   async function handleCleanMerged() {
     setCleaningMerged(true);
     setCleanMergedError(null);
     try {
       await cleanMergedWorktrees(organization, name);
-      await load();
+      await mutate(swrKeys.worktrees(organization, name));
     } catch (err) {
       setCleanMergedError(
         err instanceof Error ? err.message : "Failed to clean merged worktrees",
@@ -107,7 +83,7 @@ export default function WorktreeSection({
       await createWorktree(organization, name, { branch });
       setBranch("");
       setShowCreateModal(false);
-      await load();
+      await mutate(swrKeys.worktrees(organization, name));
     } catch (err) {
       setCreateError(
         err instanceof Error ? err.message : "Failed to create worktree",
@@ -165,9 +141,15 @@ export default function WorktreeSection({
       </div>
 
       {!hasLoadedOnce && loading && <p className={styles.status}>Loading…</p>}
-      {loadError && <p className={styles.error}>{loadError}</p>}
+      {loadError && (
+        <p className={styles.error}>
+          {loadError instanceof Error
+            ? loadError.message
+            : "Failed to load worktrees"}
+        </p>
+      )}
 
-      {(hasLoadedOnce || !loading) && !loadError && (
+      {(hasLoadedOnce || !loading) && !loadError && worktrees && (
         <ul className={styles.list}>
           {worktrees.map((w) => {
             const wtHref = `/repositories/${organization}/${name}/worktrees/${w.branch}`;

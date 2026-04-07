@@ -2,14 +2,12 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useRepositories, useWorkflows } from "@/lib/hooks/swr";
 import {
   createWorkflowRun,
   createWorktree,
-  fetchRepositories,
   fetchRepository,
-  fetchWorkflows,
   type Repository,
-  type WorkflowDefinition,
 } from "@/lib/utils/api";
 import { workflowRunPath } from "@/lib/utils/workflowRunPath";
 import styles from "./RunWorkflowModal.module.css";
@@ -29,49 +27,57 @@ export default function RunWorkflowModal({
   onCreated,
 }: Props) {
   const router = useRouter();
-  const [repos, setRepos] = useState<Repository[]>([]);
   const [selectedAlias, setSelectedAlias] = useState(fixedAlias ?? "");
   const [branch, setBranch] = useState(fixedBranch ?? "");
-  const [workflows, setWorkflows] = useState<
-    Record<string, WorkflowDefinition>
-  >({});
   const [selectedWorkflow, setSelectedWorkflow] = useState("");
   const [inputValues, setInputValues] = useState<Record<string, string>>({});
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
+  // For fixed alias, fetch just that repo; otherwise fetch all
+  const [fixedRepo, setFixedRepo] = useState<Repository | null>(null);
+  const [fixedRepoLoading, setFixedRepoLoading] = useState(!!fixedAlias);
+  const [fixedRepoError, setFixedRepoError] = useState<string | null>(null);
+  const { data: allRepos } = useRepositories();
+  const { data: workflows, isLoading: workflowsLoading } = useWorkflows();
+
   useEffect(() => {
-    async function load() {
-      setLoading(true);
-      setLoadError(null);
-      try {
-        const [repoList, wfs] = await Promise.all([
-          fixedAlias
-            ? fetchRepository(
-                ...(fixedAlias.split("/") as [string, string]),
-              ).then((r) => [r])
-            : fetchRepositories(),
-          fetchWorkflows(),
-        ]);
-        setRepos(repoList);
-        if (!fixedAlias && repoList.length > 0) {
-          setSelectedAlias(repoList[0].alias);
-        }
-        setWorkflows(wfs);
-        const names = Object.keys(wfs);
-        if (names.length > 0) setSelectedWorkflow(names[0]);
-      } catch (err) {
-        setLoadError(
-          err instanceof Error ? err.message : "Failed to load configuration",
-        );
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
+    if (!fixedAlias) return;
+    const [org, name] = fixedAlias.split("/") as [string, string];
+    setFixedRepoLoading(true);
+    fetchRepository(org, name)
+      .then((r) => setFixedRepo(r))
+      .catch((err) =>
+        setFixedRepoError(
+          err instanceof Error ? err.message : "Failed to load repository",
+        ),
+      )
+      .finally(() => setFixedRepoLoading(false));
   }, [fixedAlias]);
+
+  const repos: Repository[] = fixedAlias
+    ? fixedRepo
+      ? [fixedRepo]
+      : []
+    : (allRepos ?? []);
+  const loading = fixedAlias
+    ? fixedRepoLoading || workflowsLoading
+    : !allRepos || workflowsLoading;
+  const loadError = fixedRepoError;
+
+  // Auto-select first repo and workflow when data loads
+  useEffect(() => {
+    if (!fixedAlias && repos.length > 0 && !selectedAlias) {
+      setSelectedAlias(repos[0].alias);
+    }
+  }, [fixedAlias, repos, selectedAlias]);
+
+  useEffect(() => {
+    if (workflows && !selectedWorkflow) {
+      const names = Object.keys(workflows);
+      if (names.length > 0) setSelectedWorkflow(names[0]);
+    }
+  }, [workflows, selectedWorkflow]);
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -112,7 +118,7 @@ export default function RunWorkflowModal({
     }
   }
 
-  const workflowNames = Object.keys(workflows);
+  const workflowNames = workflows ? Object.keys(workflows) : [];
 
   return (
     <div
@@ -151,7 +157,8 @@ export default function RunWorkflowModal({
         {!loading &&
           !loadError &&
           (fixedAlias || repos.length > 0) &&
-          workflowNames.length > 0 && (
+          workflowNames.length > 0 &&
+          workflows && (
             <WorkflowLaunchForm
               workflowNames={workflowNames}
               workflows={workflows}

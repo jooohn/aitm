@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
+import useSWR from "swr";
+import { swrKeys } from "@/lib/hooks/swr";
 import {
   fetchAllWorkflowRuns,
   fetchWorkflowRuns,
@@ -15,7 +17,6 @@ import styles from "./WorkflowKanbanBoard.module.css";
 interface Props {
   repositoryPath?: string;
   activeWorktreeBranches: string[] | null;
-  refreshKey?: number;
 }
 
 const TERMINAL_COLUMNS = ["Success"] as const;
@@ -23,104 +24,54 @@ const TERMINAL_COLUMNS = ["Success"] as const;
 export default function WorkflowKanbanBoard({
   repositoryPath,
   activeWorktreeBranches,
-  refreshKey,
 }: Props) {
-  const [workflows, setWorkflows] = useState<Record<
-    string,
-    WorkflowDefinition
-  > | null>(null);
-  const [runs, setRuns] = useState<WorkflowRun[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
-
   const multiRepo = !repositoryPath;
 
-  useEffect(() => {
-    let cancelled = false;
+  const { data: workflows } = useSWR<Record<string, WorkflowDefinition>>(
+    swrKeys.workflows(),
+    fetchWorkflows,
+  );
 
-    if (refreshKey !== undefined) {
-      setLoading(true);
-    }
+  const {
+    data: rawRuns,
+    error: loadError,
+    isLoading,
+  } = useSWR<WorkflowRun[]>(
+    repositoryPath
+      ? swrKeys.workflowRuns({ repository_path: repositoryPath })
+      : swrKeys.workflowRuns(),
+    () =>
+      repositoryPath
+        ? fetchWorkflowRuns(repositoryPath)
+        : fetchAllWorkflowRuns(),
+    {
+      refreshInterval: (data) =>
+        data?.some((r) => r.status === "running") ? 2000 : 0,
+    },
+  );
 
-    async function load() {
-      setLoadError(null);
-      try {
-        const [wfDefs, wfRuns] = await Promise.all([
-          fetchWorkflows(),
-          repositoryPath
-            ? fetchWorkflowRuns(repositoryPath)
-            : fetchAllWorkflowRuns(),
-        ]);
-        if (cancelled) return;
-        setWorkflows(wfDefs);
-        const branchSet = activeWorktreeBranches
-          ? new Set(activeWorktreeBranches)
-          : null;
-        setRuns(
-          branchSet
-            ? wfRuns.filter((r) => branchSet.has(r.worktree_branch))
-            : wfRuns,
-        );
-      } catch (err) {
-        if (cancelled) return;
-        setLoadError(
-          err instanceof Error ? err.message : "Failed to load kanban data",
-        );
-      } finally {
-        if (cancelled) return;
-        setHasLoadedOnce(true);
-        setLoading(false);
-      }
-    }
+  const runs = useMemo(() => {
+    if (!rawRuns) return [];
+    if (!activeWorktreeBranches) return rawRuns;
+    const branchSet = new Set(activeWorktreeBranches);
+    return rawRuns.filter((r) => branchSet.has(r.worktree_branch));
+  }, [rawRuns, activeWorktreeBranches]);
 
-    void load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [repositoryPath, activeWorktreeBranches, refreshKey]);
-
-  useEffect(() => {
-    if (!runs.some((r) => r.status === "running")) return;
-
-    const id = setInterval(() => {
-      void (async () => {
-        setLoadError(null);
-        try {
-          const [wfDefs, wfRuns] = await Promise.all([
-            fetchWorkflows(),
-            repositoryPath
-              ? fetchWorkflowRuns(repositoryPath)
-              : fetchAllWorkflowRuns(),
-          ]);
-          setWorkflows(wfDefs);
-          const branchSet = activeWorktreeBranches
-            ? new Set(activeWorktreeBranches)
-            : null;
-          setRuns(
-            branchSet
-              ? wfRuns.filter((r) => branchSet.has(r.worktree_branch))
-              : wfRuns,
-          );
-        } catch (err) {
-          setLoadError(
-            err instanceof Error ? err.message : "Failed to load kanban data",
-          );
-        } finally {
-          setHasLoadedOnce(true);
-          setLoading(false);
-        }
-      })();
-    }, 2000);
-
-    return () => clearInterval(id);
-  }, [runs, repositoryPath, activeWorktreeBranches]);
+  const hasLoadedOnce = !!rawRuns || !!loadError;
+  const loading = isLoading;
 
   if (!hasLoadedOnce && loading) {
     return <p className={styles.status}>Loading…</p>;
   }
-  if (loadError) return <p className={styles.error}>{loadError}</p>;
+  if (loadError) {
+    return (
+      <p className={styles.error}>
+        {loadError instanceof Error
+          ? loadError.message
+          : "Failed to load kanban data"}
+      </p>
+    );
+  }
   if (!workflows) return null;
 
   if (runs.length === 0) {

@@ -9,6 +9,8 @@ let mockWorkflowRunId = "run-1";
 
 vi.mock("next/navigation", () => ({
   useParams: () => ({ workflowRunId: mockWorkflowRunId }),
+  usePathname: () => `/todos/${mockWorkflowRunId}`,
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
   notFound: () => {
     throw new Error("notFound");
   },
@@ -35,6 +37,7 @@ vi.mock(
   }),
 );
 
+import { SWRTestProvider } from "@/test-swr-provider";
 import TodoDetailRoute from "./page";
 
 function makeRunDetail(
@@ -71,7 +74,11 @@ describe("/todos/[workflowRunId] page", () => {
       makeRunDetail({ status: "running" }),
     );
 
-    render(<TodoDetailRoute />);
+    render(
+      <SWRTestProvider>
+        <TodoDetailRoute />
+      </SWRTestProvider>,
+    );
 
     await waitFor(() => {
       expect(screen.getByText("build")).toBeInTheDocument();
@@ -101,7 +108,11 @@ describe("/todos/[workflowRunId] page", () => {
       }),
     );
 
-    render(<TodoDetailRoute />);
+    render(
+      <SWRTestProvider>
+        <TodoDetailRoute />
+      </SWRTestProvider>,
+    );
 
     await waitFor(() => {
       expect(screen.getByText("build")).toBeInTheDocument();

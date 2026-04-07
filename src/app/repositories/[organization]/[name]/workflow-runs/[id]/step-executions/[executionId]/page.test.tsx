@@ -47,6 +47,7 @@ vi.mock("@/lib/utils/api", async () => {
   };
 });
 
+import { SWRTestProvider } from "@/test-swr-provider";
 import StepExecutionPage from "./page";
 
 function makeExecution(
@@ -111,7 +112,11 @@ describe("StepExecutionPage", () => {
       ],
     });
 
-    render(<StepExecutionPage />);
+    render(
+      <SWRTestProvider>
+        <StepExecutionPage />
+      </SWRTestProvider>,
+    );
     // Wait for async fetch - state name appears as h1 heading
     expect(
       await screen.findByRole("heading", { level: 1, name: "plan" }),
@@ -137,7 +142,11 @@ describe("StepExecutionPage", () => {
       ],
     });
 
-    render(<StepExecutionPage />);
+    render(
+      <SWRTestProvider>
+        <StepExecutionPage />
+      </SWRTestProvider>,
+    );
     const sessionLink = await screen.findByRole("link", {
       name: /session/i,
     });
@@ -165,7 +174,11 @@ describe("StepExecutionPage", () => {
       ],
     });
 
-    render(<StepExecutionPage />);
+    render(
+      <SWRTestProvider>
+        <StepExecutionPage />
+      </SWRTestProvider>,
+    );
     expect(await screen.findByText("All checks passed")).toBeInTheDocument();
     expect(screen.getByText("command")).toBeInTheDocument();
   });
@@ -191,7 +204,11 @@ describe("StepExecutionPage", () => {
       ],
     });
 
-    render(<StepExecutionPage />);
+    render(
+      <SWRTestProvider>
+        <StepExecutionPage />
+      </SWRTestProvider>,
+    );
     expect(await screen.findByText("implement")).toBeInTheDocument();
     expect(screen.getByText("Plan is ready")).toBeInTheDocument();
     expect(
@@ -216,7 +233,11 @@ describe("StepExecutionPage", () => {
       ],
     });
 
-    render(<StepExecutionPage />);
+    render(
+      <SWRTestProvider>
+        <StepExecutionPage />
+      </SWRTestProvider>,
+    );
     // Wait for the heading to confirm data loaded, then check badge
     await screen.findByRole("heading", { level: 1, name: "plan" });
     // "Completed" appears as badge and as detail label
@@ -240,7 +261,11 @@ describe("StepExecutionPage", () => {
       ],
     });
 
-    render(<StepExecutionPage />);
+    render(
+      <SWRTestProvider>
+        <StepExecutionPage />
+      </SWRTestProvider>,
+    );
     expect(await screen.findByText("Running")).toBeInTheDocument();
   });
 
@@ -259,7 +284,11 @@ describe("StepExecutionPage", () => {
       step_executions: [makeExecution({ id: "exec-1", step: "plan" })],
     });
 
-    render(<StepExecutionPage />);
+    render(
+      <SWRTestProvider>
+        <StepExecutionPage />
+      </SWRTestProvider>,
+    );
 
     // Breadcrumb should show branch and workflow run as links; state as plain text
     expect(

@@ -2,14 +2,9 @@
 
 import Link from "next/link";
 import { notFound, useParams } from "next/navigation";
-import { useEffect, useState } from "react";
 import type { StatusBadgeVariant } from "@/app/components/StatusBadge";
 import StatusBadge from "@/app/components/StatusBadge";
-import {
-  fetchWorkflowRun,
-  type StepExecution,
-  type WorkflowRunDetail,
-} from "@/lib/utils/api";
+import { useWorkflowRun } from "@/lib/hooks/swr";
 import WorkflowBreadcrumb from "../../WorkflowBreadcrumb";
 import styles from "./page.module.css";
 
@@ -43,15 +38,7 @@ export default function StepExecutionPage() {
     organization: string;
     name: string;
   }>();
-  const [run, setRun] = useState<WorkflowRunDetail | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchWorkflowRun(id)
-      .then(setRun)
-      .catch(() => notFound())
-      .finally(() => setLoading(false));
-  }, [id]);
+  const { data: run, isLoading: loading } = useWorkflowRun(id);
 
   if (loading) return null;
   if (!run) return notFound();

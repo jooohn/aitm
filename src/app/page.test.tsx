@@ -38,6 +38,7 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
 }));
 
+import { SWRTestProvider } from "@/test-swr-provider";
 import Home from "./page";
 
 const REPOS: Repository[] = [
@@ -92,14 +93,22 @@ afterEach(() => {
 describe("Homepage", () => {
   describe("sidebar", () => {
     it("renders a REPOSITORIES heading", async () => {
-      render(<Home />);
+      render(
+        <SWRTestProvider>
+          <Home />
+        </SWRTestProvider>,
+      );
       expect(
         await screen.findByRole("heading", { name: /repositories/i }),
       ).toBeInTheDocument();
     });
 
     it("renders repository links in the sidebar", async () => {
-      render(<Home />);
+      render(
+        <SWRTestProvider>
+          <Home />
+        </SWRTestProvider>,
+      );
       const repoLink = await screen.findByRole("link", { name: "org/alpha" });
       expect(repoLink).toHaveAttribute("href", "/repositories/org/alpha");
 
@@ -109,7 +118,11 @@ describe("Homepage", () => {
 
     it("shows empty message when no repositories configured", async () => {
       mockFetchRepositories.mockResolvedValue([]);
-      render(<Home />);
+      render(
+        <SWRTestProvider>
+          <Home />
+        </SWRTestProvider>,
+      );
       expect(
         await screen.findByText(/no repositories configured/i),
       ).toBeInTheDocument();
@@ -122,7 +135,11 @@ describe("Homepage", () => {
         makeRun({ id: "r1", current_step: "plan" }),
       ]);
 
-      render(<Home />);
+      render(
+        <SWRTestProvider>
+          <Home />
+        </SWRTestProvider>,
+      );
       await screen.findByText("feature-branch");
 
       expect(
@@ -131,7 +148,11 @@ describe("Homepage", () => {
     });
 
     it("fetches all workflow runs without status filter", async () => {
-      render(<Home />);
+      render(
+        <SWRTestProvider>
+          <Home />
+        </SWRTestProvider>,
+      );
       await screen.findByRole("heading", { name: /repositories/i });
 
       expect(mockFetchAllWorkflowRuns).toHaveBeenCalledWith();
@@ -153,7 +174,11 @@ describe("Homepage", () => {
         }),
       ]);
 
-      render(<Home />);
+      render(
+        <SWRTestProvider>
+          <Home />
+        </SWRTestProvider>,
+      );
       await screen.findByText("alpha-feat");
       expect(screen.getByText("beta-feat")).toBeInTheDocument();
     });
@@ -161,7 +186,11 @@ describe("Homepage", () => {
 
   describe("layout", () => {
     it("uses a two-column grid layout", async () => {
-      render(<Home />);
+      render(
+        <SWRTestProvider>
+          <Home />
+        </SWRTestProvider>,
+      );
       await screen.findByRole("heading", { name: /repositories/i });
 
       // The page should have a sidebar (aside element) and main content area

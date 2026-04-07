@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom/vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { WorkflowRun, Worktree } from "@/lib/utils/api";
+import { SWRTestProvider } from "@/test-swr-provider";
 
 vi.mock("next/link", () => ({
   default: ({
@@ -24,14 +25,7 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/repositories/org/name",
 }));
 
-const {
-  fetchWorktreesMock,
-  fetchWorkflowRunsMock,
-  createWorktreeMock,
-  cleanMergedWorktreesMock,
-} = vi.hoisted(() => ({
-  fetchWorktreesMock: vi.fn(),
-  fetchWorkflowRunsMock: vi.fn(),
+const { createWorktreeMock, cleanMergedWorktreesMock } = vi.hoisted(() => ({
   createWorktreeMock: vi.fn(),
   cleanMergedWorktreesMock: vi.fn(),
 }));
@@ -40,22 +34,12 @@ vi.mock("@/lib/utils/api", async () => {
   const actual = await vi.importActual("@/lib/utils/api");
   return {
     ...actual,
-    fetchWorktrees: fetchWorktreesMock,
-    fetchWorkflowRuns: fetchWorkflowRunsMock,
     createWorktree: createWorktreeMock,
     cleanMergedWorktrees: cleanMergedWorktreesMock,
   };
 });
 
 import WorktreeRunsSection from "./WorktreeRunsSection";
-
-function deferred<T>() {
-  let resolve!: (value: T) => void;
-  const promise = new Promise<T>((res) => {
-    resolve = res;
-  });
-  return { promise, resolve };
-}
 
 function makeWorktree(overrides: Partial<Worktree> = {}): Worktree {
   return {
@@ -84,77 +68,62 @@ function makeRun(overrides: Partial<WorkflowRun> = {}): WorkflowRun {
   };
 }
 
-beforeEach(() => {
-  fetchWorktreesMock.mockResolvedValue([]);
-  fetchWorkflowRunsMock.mockResolvedValue([]);
-});
-
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
 });
 
 describe("WorktreeRunsSection", () => {
-  it("keeps rendered runs visible during refreshes after the first load", async () => {
-    const nextWorktrees = deferred<Worktree[]>();
-    const nextRuns = deferred<WorkflowRun[]>();
-
-    fetchWorktreesMock
-      .mockResolvedValueOnce([
-        makeWorktree({ branch: "feature-a", is_main: false }),
-      ])
-      .mockReturnValueOnce(nextWorktrees.promise);
-    fetchWorkflowRunsMock
-      .mockResolvedValueOnce([
-        makeRun({
-          id: "r1",
-          worktree_branch: "feature-a",
-          workflow_name: "develop",
-        }),
-      ])
-      .mockReturnValueOnce(nextRuns.promise);
-
-    const { rerender } = render(
-      <WorktreeRunsSection
-        organization="org"
-        name="name"
-        repositoryPath="/repos/org/name"
-        refreshKey={0}
-      />,
-    );
-
-    await screen.findByText("develop");
-
-    rerender(
-      <WorktreeRunsSection
-        organization="org"
-        name="name"
-        repositoryPath="/repos/org/name"
-        refreshKey={1}
-      />,
-    );
-
-    expect(screen.getByText("develop")).toBeInTheDocument();
-    expect(screen.queryByText("Loading…")).not.toBeInTheDocument();
-
-    nextWorktrees.resolve([
-      makeWorktree({ branch: "feature-a", is_main: false }),
-    ]);
-    nextRuns.resolve([
+  it("keeps rendered runs visible when loading is true after first load", async () => {
+    const worktrees = [makeWorktree({ branch: "feature-a", is_main: false })];
+    const runs = [
       makeRun({
         id: "r1",
         worktree_branch: "feature-a",
         workflow_name: "develop",
       }),
-    ]);
+    ];
+
+    const { rerender } = render(
+      <SWRTestProvider>
+        <WorktreeRunsSection
+          organization="org"
+          name="name"
+          worktrees={worktrees}
+          runs={runs}
+          loading={false}
+          hasLoadedOnce={true}
+          error={null}
+        />
+      </SWRTestProvider>,
+    );
+
+    await screen.findByText("develop");
+
+    rerender(
+      <SWRTestProvider>
+        <WorktreeRunsSection
+          organization="org"
+          name="name"
+          worktrees={worktrees}
+          runs={runs}
+          loading={true}
+          hasLoadedOnce={true}
+          error={null}
+        />
+      </SWRTestProvider>,
+    );
+
+    expect(screen.getByText("develop")).toBeInTheDocument();
+    expect(screen.queryByText("Loading…")).not.toBeInTheDocument();
   });
 
   it("renders worktrees with their workflow runs grouped underneath", async () => {
-    fetchWorktreesMock.mockResolvedValue([
+    const worktrees = [
       makeWorktree({ branch: "main", is_main: true }),
       makeWorktree({ branch: "feature-a", is_main: false }),
-    ]);
-    fetchWorkflowRunsMock.mockResolvedValue([
+    ];
+    const runs = [
       makeRun({
         id: "r1",
         worktree_branch: "feature-a",
@@ -166,14 +135,20 @@ describe("WorktreeRunsSection", () => {
         workflow_name: "maintain-pr",
         status: "success",
       }),
-    ]);
+    ];
 
     render(
-      <WorktreeRunsSection
-        organization="org"
-        name="name"
-        repositoryPath="/repos/org/name"
-      />,
+      <SWRTestProvider>
+        <WorktreeRunsSection
+          organization="org"
+          name="name"
+          worktrees={worktrees}
+          runs={runs}
+          loading={false}
+          hasLoadedOnce={true}
+          error={null}
+        />
+      </SWRTestProvider>,
     );
 
     // Wait for data to load
@@ -189,18 +164,23 @@ describe("WorktreeRunsSection", () => {
   });
 
   it("shows worktrees with no runs", async () => {
-    fetchWorktreesMock.mockResolvedValue([
+    const worktrees = [
       makeWorktree({ branch: "main", is_main: true }),
       makeWorktree({ branch: "empty-branch", is_main: false }),
-    ]);
-    fetchWorkflowRunsMock.mockResolvedValue([]);
+    ];
 
     render(
-      <WorktreeRunsSection
-        organization="org"
-        name="name"
-        repositoryPath="/repos/org/name"
-      />,
+      <SWRTestProvider>
+        <WorktreeRunsSection
+          organization="org"
+          name="name"
+          worktrees={worktrees}
+          runs={[]}
+          loading={false}
+          hasLoadedOnce={true}
+          error={null}
+        />
+      </SWRTestProvider>,
     );
 
     await screen.findByText("empty-branch");
@@ -208,19 +188,21 @@ describe("WorktreeRunsSection", () => {
   });
 
   it("shows orphaned runs in a separate group", async () => {
-    fetchWorktreesMock.mockResolvedValue([
-      makeWorktree({ branch: "main", is_main: true }),
-    ]);
-    fetchWorkflowRunsMock.mockResolvedValue([
-      makeRun({ id: "r1", worktree_branch: "deleted-branch" }),
-    ]);
+    const worktrees = [makeWorktree({ branch: "main", is_main: true })];
+    const runs = [makeRun({ id: "r1", worktree_branch: "deleted-branch" })];
 
     render(
-      <WorktreeRunsSection
-        organization="org"
-        name="name"
-        repositoryPath="/repos/org/name"
-      />,
+      <SWRTestProvider>
+        <WorktreeRunsSection
+          organization="org"
+          name="name"
+          worktrees={worktrees}
+          runs={runs}
+          loading={false}
+          hasLoadedOnce={true}
+          error={null}
+        />
+      </SWRTestProvider>,
     );
 
     // Main is hidden; wait for orphaned group to appear
@@ -230,24 +212,28 @@ describe("WorktreeRunsSection", () => {
   });
 
   it("always shows runs without any expand/collapse toggle", async () => {
-    fetchWorktreesMock.mockResolvedValue([
-      makeWorktree({ branch: "feature-a", is_main: false }),
-    ]);
-    fetchWorkflowRunsMock.mockResolvedValue([
+    const worktrees = [makeWorktree({ branch: "feature-a", is_main: false })];
+    const runs = [
       makeRun({
         id: "r1",
         worktree_branch: "feature-a",
         status: "running",
         workflow_name: "develop",
       }),
-    ]);
+    ];
 
     render(
-      <WorktreeRunsSection
-        organization="org"
-        name="name"
-        repositoryPath="/repos/org/name"
-      />,
+      <SWRTestProvider>
+        <WorktreeRunsSection
+          organization="org"
+          name="name"
+          worktrees={worktrees}
+          runs={runs}
+          loading={false}
+          hasLoadedOnce={true}
+          error={null}
+        />
+      </SWRTestProvider>,
     );
 
     await screen.findByText("feature-a");
@@ -262,23 +248,27 @@ describe("WorktreeRunsSection", () => {
   });
 
   it("renders worktree names as links to the worktree detail page", async () => {
-    fetchWorktreesMock.mockResolvedValue([
-      makeWorktree({ branch: "feature-a", is_main: false }),
-    ]);
-    fetchWorkflowRunsMock.mockResolvedValue([
+    const worktrees = [makeWorktree({ branch: "feature-a", is_main: false })];
+    const runs = [
       makeRun({
         id: "r1",
         worktree_branch: "feature-a",
         workflow_name: "develop",
       }),
-    ]);
+    ];
 
     render(
-      <WorktreeRunsSection
-        organization="org"
-        name="name"
-        repositoryPath="/repos/org/name"
-      />,
+      <SWRTestProvider>
+        <WorktreeRunsSection
+          organization="org"
+          name="name"
+          worktrees={worktrees}
+          runs={runs}
+          loading={false}
+          hasLoadedOnce={true}
+          error={null}
+        />
+      </SWRTestProvider>,
     );
 
     await screen.findByText("feature-a");
@@ -291,19 +281,21 @@ describe("WorktreeRunsSection", () => {
   });
 
   it("renders the Archived group as plain text, not a link", async () => {
-    fetchWorktreesMock.mockResolvedValue([
-      makeWorktree({ branch: "main", is_main: true }),
-    ]);
-    fetchWorkflowRunsMock.mockResolvedValue([
-      makeRun({ id: "r1", worktree_branch: "deleted-branch" }),
-    ]);
+    const worktrees = [makeWorktree({ branch: "main", is_main: true })];
+    const runs = [makeRun({ id: "r1", worktree_branch: "deleted-branch" })];
 
     render(
-      <WorktreeRunsSection
-        organization="org"
-        name="name"
-        repositoryPath="/repos/org/name"
-      />,
+      <SWRTestProvider>
+        <WorktreeRunsSection
+          organization="org"
+          name="name"
+          worktrees={worktrees}
+          runs={runs}
+          loading={false}
+          hasLoadedOnce={true}
+          error={null}
+        />
+      </SWRTestProvider>,
     );
 
     await screen.findByText("Archived");
@@ -317,10 +309,8 @@ describe("WorktreeRunsSection", () => {
   });
 
   it("shows only 3 runs initially with a 'Show all' button for more", async () => {
-    fetchWorktreesMock.mockResolvedValue([
-      makeWorktree({ branch: "feature-a", is_main: false }),
-    ]);
-    fetchWorkflowRunsMock.mockResolvedValue([
+    const worktrees = [makeWorktree({ branch: "feature-a", is_main: false })];
+    const runs = [
       makeRun({
         id: "r1",
         worktree_branch: "feature-a",
@@ -346,14 +336,20 @@ describe("WorktreeRunsSection", () => {
         worktree_branch: "feature-a",
         workflow_name: "run-5",
       }),
-    ]);
+    ];
 
     render(
-      <WorktreeRunsSection
-        organization="org"
-        name="name"
-        repositoryPath="/repos/org/name"
-      />,
+      <SWRTestProvider>
+        <WorktreeRunsSection
+          organization="org"
+          name="name"
+          worktrees={worktrees}
+          runs={runs}
+          loading={false}
+          hasLoadedOnce={true}
+          error={null}
+        />
+      </SWRTestProvider>,
     );
 
     await screen.findByText("feature-a");
@@ -376,10 +372,8 @@ describe("WorktreeRunsSection", () => {
   });
 
   it("does not show 'Show all' button when runs are 3 or fewer", async () => {
-    fetchWorktreesMock.mockResolvedValue([
-      makeWorktree({ branch: "feature-a", is_main: false }),
-    ]);
-    fetchWorkflowRunsMock.mockResolvedValue([
+    const worktrees = [makeWorktree({ branch: "feature-a", is_main: false })];
+    const runs = [
       makeRun({
         id: "r1",
         worktree_branch: "feature-a",
@@ -390,14 +384,20 @@ describe("WorktreeRunsSection", () => {
         worktree_branch: "feature-a",
         workflow_name: "run-2",
       }),
-    ]);
+    ];
 
     render(
-      <WorktreeRunsSection
-        organization="org"
-        name="name"
-        repositoryPath="/repos/org/name"
-      />,
+      <SWRTestProvider>
+        <WorktreeRunsSection
+          organization="org"
+          name="name"
+          worktrees={worktrees}
+          runs={runs}
+          loading={false}
+          hasLoadedOnce={true}
+          error={null}
+        />
+      </SWRTestProvider>,
     );
 
     await screen.findByText("feature-a");
@@ -406,23 +406,27 @@ describe("WorktreeRunsSection", () => {
 
   it("shows relative time for each workflow run", async () => {
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-    fetchWorktreesMock.mockResolvedValue([
-      makeWorktree({ branch: "feature-a", is_main: false }),
-    ]);
-    fetchWorkflowRunsMock.mockResolvedValue([
+    const worktrees = [makeWorktree({ branch: "feature-a", is_main: false })];
+    const runs = [
       makeRun({
         id: "r1",
         worktree_branch: "feature-a",
         created_at: oneHourAgo,
       }),
-    ]);
+    ];
 
     render(
-      <WorktreeRunsSection
-        organization="org"
-        name="name"
-        repositoryPath="/repos/org/name"
-      />,
+      <SWRTestProvider>
+        <WorktreeRunsSection
+          organization="org"
+          name="name"
+          worktrees={worktrees}
+          runs={runs}
+          loading={false}
+          hasLoadedOnce={true}
+          error={null}
+        />
+      </SWRTestProvider>,
     );
 
     await screen.findByText("feature-a");
@@ -430,23 +434,27 @@ describe("WorktreeRunsSection", () => {
   });
 
   it("links workflow runs to their detail pages", async () => {
-    fetchWorktreesMock.mockResolvedValue([
-      makeWorktree({ branch: "feature-a", is_main: false }),
-    ]);
-    fetchWorkflowRunsMock.mockResolvedValue([
+    const worktrees = [makeWorktree({ branch: "feature-a", is_main: false })];
+    const runs = [
       makeRun({
         id: "r1",
         worktree_branch: "feature-a",
         workflow_name: "develop",
       }),
-    ]);
+    ];
 
     render(
-      <WorktreeRunsSection
-        organization="org"
-        name="name"
-        repositoryPath="/repos/org/name"
-      />,
+      <SWRTestProvider>
+        <WorktreeRunsSection
+          organization="org"
+          name="name"
+          worktrees={worktrees}
+          runs={runs}
+          loading={false}
+          hasLoadedOnce={true}
+          error={null}
+        />
+      </SWRTestProvider>,
     );
 
     await screen.findByText("feature-a");

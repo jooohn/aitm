@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { mutate } from "swr";
 import EllipsisIcon from "@/app/components/icons/EllipsisIcon";
 import PrChip, { extractPrInfos } from "@/app/components/PrChip";
 import StatusDot from "@/app/components/StatusDot";
+import { swrKeys } from "@/lib/hooks/swr";
 import {
   cleanMergedWorktrees,
   createWorktree,
@@ -26,7 +28,6 @@ interface Props {
   loading: boolean;
   hasLoadedOnce: boolean;
   error: string | null;
-  onReload: () => void;
 }
 
 export default function WorktreeRunsSection({
@@ -37,7 +38,6 @@ export default function WorktreeRunsSection({
   loading,
   hasLoadedOnce,
   error,
-  onReload,
 }: Props) {
   const pathname = usePathname();
   const groups = useMemo(
@@ -93,7 +93,7 @@ export default function WorktreeRunsSection({
       await createWorktree(organization, name, { branch });
       setBranch("");
       setShowCreateModal(false);
-      onReload();
+      await mutate(swrKeys.worktrees(organization, name));
     } catch (err) {
       setCreateError(
         err instanceof Error ? err.message : "Failed to create worktree",
@@ -108,7 +108,7 @@ export default function WorktreeRunsSection({
     setCleanMergedError(null);
     try {
       await cleanMergedWorktrees(organization, name);
-      onReload();
+      await mutate(swrKeys.worktrees(organization, name));
     } catch (err) {
       setCleanMergedError(
         err instanceof Error ? err.message : "Failed to clean merged worktrees",

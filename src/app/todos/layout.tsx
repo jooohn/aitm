@@ -2,10 +2,9 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect } from "react";
 import StatusDot from "@/app/components/StatusDot";
-import { useNotificationStream } from "@/lib/hooks/useNotificationStream";
-import { fetchAllWorkflowRuns, type WorkflowRun } from "@/lib/utils/api";
+import { useAllWorkflowRuns } from "@/lib/hooks/swr";
 import { inferAlias } from "@/lib/utils/inferAlias";
 import { timeAgo } from "@/lib/utils/timeAgo";
 import styles from "./page.module.css";
@@ -17,30 +16,14 @@ export default function TodosLayout({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [items, setItems] = useState<WorkflowRun[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const refresh = useCallback(() => {
-    fetchAllWorkflowRuns("awaiting")
-      .then((runs) => {
-        setError(null);
-        setItems(runs);
-      })
-      .catch((err) => {
-        setError(err instanceof Error ? err.message : "Failed to load todos");
-      })
-      .finally(() => setLoading(false));
-  }, []);
+  const {
+    data: items,
+    error,
+    isLoading: loading,
+  } = useAllWorkflowRuns("awaiting");
 
   useEffect(() => {
-    refresh();
-  }, [refresh]);
-
-  useNotificationStream(refresh);
-
-  useEffect(() => {
-    if (pathname === "/todos" && items.length > 0) {
+    if (pathname === "/todos" && items && items.length > 0) {
       router.replace(`/todos/${items[0].id}`);
     }
   }, [pathname, items, router]);
@@ -56,8 +39,10 @@ export default function TodosLayout({
           {loading ? (
             <p className={styles.status}>Loading…</p>
           ) : error ? (
-            <p className={styles.error}>{error}</p>
-          ) : items.length === 0 ? (
+            <p className={styles.error}>
+              {error instanceof Error ? error.message : "Failed to load todos"}
+            </p>
+          ) : !items || items.length === 0 ? (
             <p className={styles.status}>No items are waiting for action.</p>
           ) : (
             <ul className={styles.list}>

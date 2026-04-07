@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
-import { act, renderHook, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { renderHook, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { SWRTestProvider } from "@/test-swr-provider";
 import { useAwaitingInputCount } from "./useAwaitingInputCount";
 
 const { fetchAllWorkflowRunsMock } = vi.hoisted(() => ({
@@ -11,18 +12,9 @@ vi.mock("@/lib/utils/api", () => ({
   fetchAllWorkflowRuns: fetchAllWorkflowRunsMock,
 }));
 
-let capturedCallback: (() => void) | null = null;
-
-vi.mock("./useNotificationStream", () => ({
-  useNotificationStream: (cb: () => void) => {
-    capturedCallback = cb;
-  },
-}));
-
 beforeEach(() => {
   fetchAllWorkflowRunsMock.mockReset();
   fetchAllWorkflowRunsMock.mockResolvedValue([]);
-  capturedCallback = null;
 });
 
 describe("useAwaitingInputCount", () => {
@@ -32,7 +24,9 @@ describe("useAwaitingInputCount", () => {
       { id: "wr2", status: "awaiting" },
     ]);
 
-    const { result } = renderHook(() => useAwaitingInputCount());
+    const { result } = renderHook(() => useAwaitingInputCount(), {
+      wrapper: SWRTestProvider,
+    });
 
     await waitFor(() => {
       expect(result.current.count).toBe(2);
@@ -41,42 +35,26 @@ describe("useAwaitingInputCount", () => {
     expect(fetchAllWorkflowRunsMock).toHaveBeenCalledWith("awaiting");
   });
 
-  it("uses useNotificationStream for SSE events", async () => {
-    renderHook(() => useAwaitingInputCount());
+  it("returns count from the SWR hook", async () => {
+    fetchAllWorkflowRunsMock.mockResolvedValue([
+      { id: "wr1", status: "awaiting" },
+    ]);
 
-    await waitFor(() => {
-      expect(capturedCallback).not.toBeNull();
+    const { result } = renderHook(() => useAwaitingInputCount(), {
+      wrapper: SWRTestProvider,
     });
-  });
-
-  it("re-fetches count when notification stream fires", async () => {
-    fetchAllWorkflowRunsMock
-      .mockResolvedValueOnce([{ id: "wr1", status: "awaiting" }])
-      .mockResolvedValueOnce([
-        { id: "wr1", status: "awaiting" },
-        { id: "wr2", status: "awaiting" },
-      ]);
-
-    const { result } = renderHook(() => useAwaitingInputCount());
 
     await waitFor(() => {
       expect(result.current.count).toBe(1);
-    });
-
-    // Simulate SSE message via captured callback
-    act(() => {
-      capturedCallback!();
-    });
-
-    await waitFor(() => {
-      expect(result.current.count).toBe(2);
     });
   });
 
   it("handles initial fetch error without crashing", async () => {
     fetchAllWorkflowRunsMock.mockRejectedValue(new Error("network error"));
 
-    const { result } = renderHook(() => useAwaitingInputCount());
+    const { result } = renderHook(() => useAwaitingInputCount(), {
+      wrapper: SWRTestProvider,
+    });
 
     // Should stay at 0 and not throw
     await waitFor(() => {

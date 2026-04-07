@@ -3,18 +3,17 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { mutate } from "swr";
 import EllipsisIcon from "@/app/components/icons/EllipsisIcon";
 import ExternalLinkIcon from "@/app/components/icons/ExternalLinkIcon";
 import StatusBadge from "@/app/components/StatusBadge";
+import { swrKeys, useWorkflowRun, useWorkflows } from "@/lib/hooks/swr";
 import {
   canStopWorkflowRun,
-  fetchWorkflowRun,
-  fetchWorkflows,
   rerunWorkflowRun,
   rerunWorkflowRunFromFailedState,
   resolveManualApproval,
   stopWorkflowRun,
-  type WorkflowDefinition,
   type WorkflowRunDetail,
   type WorkflowRunStatus,
 } from "@/lib/utils/api";
@@ -40,11 +39,16 @@ const STATUS_LABELS: Record<WorkflowRunStatus, string> = {
   failure: "Failure",
 };
 
-const TERMINAL_STATUSES: WorkflowRunStatus[] = ["success", "failure"];
-
-export default function WorkflowRunDetail({ run: initial, basePath }: Props) {
+export default function WorkflowRunDetailView({
+  run: initial,
+  basePath,
+}: Props) {
   const router = useRouter();
-  const [run, setRun] = useState<WorkflowRunDetail>(initial);
+  const { data: run } = useWorkflowRun(initial.id, {
+    fallbackData: initial,
+  });
+  const { data: workflows } = useWorkflows();
+
   const [rerunning, setRerunning] = useState(false);
   const [rerunError, setRerunError] = useState<string | null>(null);
   const [stopping, setStopping] = useState(false);
@@ -54,8 +58,6 @@ export default function WorkflowRunDetail({ run: initial, basePath }: Props) {
     string | null
   >(null);
   const [resolvingId, setResolvingId] = useState<string | null>(null);
-  const [workflowDefinition, setWorkflowDefinition] =
-    useState<WorkflowDefinition | null>(null);
 
   // Action menu state
   const [menuOpen, setMenuOpen] = useState(false);
@@ -64,18 +66,21 @@ export default function WorkflowRunDetail({ run: initial, basePath }: Props) {
   // Launch workflow modal state
   const [showLaunchModal, setShowLaunchModal] = useState(false);
 
-  const isTerminal = TERMINAL_STATUSES.includes(run.status);
-  const inputEntries = parseWorkflowRunInputs(run.inputs);
+  // Use the SWR data (falls back to initial via fallbackData)
+  const currentRun = run ?? initial;
+  const workflowDefinition = workflows?.[currentRun.workflow_name] ?? null;
+
+  const inputEntries = parseWorkflowRunInputs(currentRun.inputs);
   const inputLabelMap = new Map(
     workflowDefinition?.inputs?.map((i) => [i.name, i.label]),
   );
-  const canStop = canStopWorkflowRun(run);
-  const pullRequestUrl = extractPullRequestUrl(run.metadata);
+  const canStop = canStopWorkflowRun(currentRun);
+  const pullRequestUrl = extractPullRequestUrl(currentRun.metadata);
 
   const handleStepClick = useCallback(
     (stepId: string) => {
       // Find the latest execution for this step
-      const latest = [...run.step_executions]
+      const latest = [...currentRun.step_executions]
         .reverse()
         .find((e) => e.step === stepId);
       if (!latest) return;
@@ -86,14 +91,14 @@ export default function WorkflowRunDetail({ run: initial, basePath }: Props) {
         setTimeout(() => el.classList.remove(styles.highlight), 1500);
       }
     },
-    [run.step_executions],
+    [currentRun.step_executions],
   );
 
   async function handleRerun() {
     setRerunning(true);
     setRerunError(null);
     try {
-      const newRun = await rerunWorkflowRun(run.id);
+      const newRun = await rerunWorkflowRun(currentRun.id);
       router.push(workflowRunPath(newRun));
     } catch (err) {
       setRerunError(err instanceof Error ? err.message : "Re-run failed");
@@ -106,8 +111,8 @@ export default function WorkflowRunDetail({ run: initial, basePath }: Props) {
     setStopping(true);
     setStopError(null);
     try {
-      const updated = await stopWorkflowRun(run.id);
-      setRun(updated);
+      const updated = await stopWorkflowRun(currentRun.id);
+      await mutate(swrKeys.workflowRun(currentRun.id), updated);
     } catch (err) {
       setStopError(err instanceof Error ? err.message : "Stop failed");
     } finally {
@@ -123,11 +128,11 @@ export default function WorkflowRunDetail({ run: initial, basePath }: Props) {
     setResolvingId(executionId);
     try {
       const updated = await resolveManualApproval(
-        run.id,
+        currentRun.id,
         decision,
         reason || undefined,
       );
-      setRun(updated);
+      await mutate(swrKeys.workflowRun(currentRun.id), updated);
     } catch {
       // ignore resolve errors — the poll will pick up the state
     } finally {
@@ -139,8 +144,8 @@ export default function WorkflowRunDetail({ run: initial, basePath }: Props) {
     setRerunningFromFailed(true);
     setRerunFromFailedError(null);
     try {
-      const updated = await rerunWorkflowRunFromFailedState(run.id);
-      setRun(updated);
+      const updated = await rerunWorkflowRunFromFailedState(currentRun.id);
+      await mutate(swrKeys.workflowRun(currentRun.id), updated);
     } catch (err) {
       setRerunFromFailedError(
         err instanceof Error ? err.message : "Re-run from failed state failed",
@@ -178,58 +183,28 @@ export default function WorkflowRunDetail({ run: initial, basePath }: Props) {
     handleRerun();
   }
 
-  useEffect(() => {
-    if (isTerminal) return;
-
-    const interval = setInterval(async () => {
-      try {
-        const updated = await fetchWorkflowRun(run.id);
-        setRun(updated);
-
-        if (TERMINAL_STATUSES.includes(updated.status)) {
-          clearInterval(interval);
-        }
-      } catch {
-        // ignore poll errors
-      }
-    }, 2000);
-
-    return () => clearInterval(interval);
-  }, [run.id, isTerminal]);
-
-  useEffect(() => {
-    fetchWorkflows()
-      .then((workflows) => {
-        const def = workflows[run.workflow_name];
-        if (def) setWorkflowDefinition(def);
-      })
-      .catch(() => {
-        // ignore fetch errors for workflow definition
-      });
-  }, [run.workflow_name]);
-
   return (
     <div className={styles.container}>
       <div className={styles.header}>
         <div className={styles.headerLeft}>
           <h1 className={styles.title}>
             <Link
-              href={`/repositories/${inferAlias(run.repository_path)}/worktrees/${run.worktree_branch}`}
+              href={`/repositories/${inferAlias(currentRun.repository_path)}/worktrees/${currentRun.worktree_branch}`}
               className={styles.titleBranchLink}
             >
-              {run.worktree_branch}
+              {currentRun.worktree_branch}
             </Link>
             <span className={styles.titleSeparator}>/</span>
-            {run.workflow_name}
-            <span className={styles.titleRunId}>({run.id})</span>
+            {currentRun.workflow_name}
+            <span className={styles.titleRunId}>({currentRun.id})</span>
           </h1>
           <div className={styles.headerMeta}>
-            <StatusBadge variant={run.status}>
-              {STATUS_LABELS[run.status]}
+            <StatusBadge variant={currentRun.status}>
+              {STATUS_LABELS[currentRun.status]}
             </StatusBadge>
             <p className={styles.headerTimestamps}>
-              Created {timeAgo(run.created_at)}, Last modified{" "}
-              {timeAgo(run.updated_at)}
+              Created {timeAgo(currentRun.created_at)}, Last modified{" "}
+              {timeAgo(currentRun.updated_at)}
             </p>
           </div>
         </div>
@@ -246,7 +221,7 @@ export default function WorkflowRunDetail({ run: initial, basePath }: Props) {
               {stopError && <p className={styles.rerunError}>{stopError}</p>}
             </div>
           )}
-          {run.status === "failure" && (
+          {currentRun.status === "failure" && (
             <div className={styles.headerActions}>
               <button
                 className={styles.rerunButton}
@@ -340,9 +315,9 @@ export default function WorkflowRunDetail({ run: initial, basePath }: Props) {
           <h2 className={styles.sectionHeading}>Step diagram</h2>
           <WorkflowStepDiagram
             definition={workflowDefinition}
-            stepExecutions={run.step_executions}
-            currentStep={run.current_step}
-            status={run.status}
+            stepExecutions={currentRun.step_executions}
+            currentStep={currentRun.current_step}
+            status={currentRun.status}
             onStepClick={handleStepClick}
           />
         </section>
@@ -350,23 +325,25 @@ export default function WorkflowRunDetail({ run: initial, basePath }: Props) {
 
       <section>
         <h2 className={styles.sectionHeading}>Step executions</h2>
-        {run.step_executions.length === 0 ? (
+        {currentRun.step_executions.length === 0 ? (
           <p className={styles.empty}>No step executions yet.</p>
         ) : (
           <ul className={styles.executions}>
-            {[...run.step_executions].reverse().map((execution, index) => (
-              <StepExecutionItem
-                key={execution.id}
-                execution={execution}
-                isCurrent={index === 0}
-                runBasePath={
-                  basePath ??
-                  `/repositories/${inferAlias(run.repository_path)}/workflow-runs/${run.id}`
-                }
-                onResolve={handleResolve}
-                resolvingId={resolvingId}
-              />
-            ))}
+            {[...currentRun.step_executions]
+              .reverse()
+              .map((execution, index) => (
+                <StepExecutionItem
+                  key={execution.id}
+                  execution={execution}
+                  isCurrent={index === 0}
+                  runBasePath={
+                    basePath ??
+                    `/repositories/${inferAlias(currentRun.repository_path)}/workflow-runs/${currentRun.id}`
+                  }
+                  onResolve={handleResolve}
+                  resolvingId={resolvingId}
+                />
+              ))}
           </ul>
         )}
       </section>
@@ -374,8 +351,8 @@ export default function WorkflowRunDetail({ run: initial, basePath }: Props) {
       {showLaunchModal && (
         <RunWorkflowModal
           onClose={() => setShowLaunchModal(false)}
-          fixedAlias={inferAlias(run.repository_path)}
-          fixedBranch={run.worktree_branch}
+          fixedAlias={inferAlias(currentRun.repository_path)}
+          fixedBranch={currentRun.worktree_branch}
         />
       )}
     </div>

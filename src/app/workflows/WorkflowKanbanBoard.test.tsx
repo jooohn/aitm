@@ -3,6 +3,7 @@ import { cleanup, render, screen, within } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { WorkflowDefinition, WorkflowRun } from "@/lib/utils/api";
+import { SWRTestProvider } from "@/test-swr-provider";
 import WorkflowKanbanBoard from "./WorkflowKanbanBoard";
 
 function deferred<T>() {
@@ -106,10 +107,12 @@ describe("WorkflowKanbanBoard", () => {
     ]);
 
     render(
-      <WorkflowKanbanBoard
-        repositoryPath="/repos/org/name"
-        activeWorktreeBranches={null}
-      />,
+      <SWRTestProvider>
+        <WorkflowKanbanBoard
+          repositoryPath="/repos/org/name"
+          activeWorktreeBranches={null}
+        />
+      </SWRTestProvider>,
     );
 
     await screen.findByText("feature-branch");
@@ -124,10 +127,12 @@ describe("WorkflowKanbanBoard", () => {
     ]);
 
     render(
-      <WorkflowKanbanBoard
-        repositoryPath="/repos/org/name"
-        activeWorktreeBranches={null}
-      />,
+      <SWRTestProvider>
+        <WorkflowKanbanBoard
+          repositoryPath="/repos/org/name"
+          activeWorktreeBranches={null}
+        />
+      </SWRTestProvider>,
     );
 
     // Wait for data to load
@@ -148,10 +153,12 @@ describe("WorkflowKanbanBoard", () => {
     ]);
 
     render(
-      <WorkflowKanbanBoard
-        repositoryPath="/repos/org/name"
-        activeWorktreeBranches={null}
-      />,
+      <SWRTestProvider>
+        <WorkflowKanbanBoard
+          repositoryPath="/repos/org/name"
+          activeWorktreeBranches={null}
+        />
+      </SWRTestProvider>,
     );
 
     await screen.findByText("feat-a");
@@ -175,10 +182,12 @@ describe("WorkflowKanbanBoard", () => {
     ]);
 
     render(
-      <WorkflowKanbanBoard
-        repositoryPath="/repos/org/name"
-        activeWorktreeBranches={null}
-      />,
+      <SWRTestProvider>
+        <WorkflowKanbanBoard
+          repositoryPath="/repos/org/name"
+          activeWorktreeBranches={null}
+        />
+      </SWRTestProvider>,
     );
 
     await screen.findByText("feat-done");
@@ -202,10 +211,12 @@ describe("WorkflowKanbanBoard", () => {
     ]);
 
     render(
-      <WorkflowKanbanBoard
-        repositoryPath="/repos/org/name"
-        activeWorktreeBranches={null}
-      />,
+      <SWRTestProvider>
+        <WorkflowKanbanBoard
+          repositoryPath="/repos/org/name"
+          activeWorktreeBranches={null}
+        />
+      </SWRTestProvider>,
     );
 
     await screen.findByText("feat-fail");
@@ -239,10 +250,12 @@ describe("WorkflowKanbanBoard", () => {
     ]);
 
     render(
-      <WorkflowKanbanBoard
-        repositoryPath="/repos/org/name"
-        activeWorktreeBranches={["active-branch"]}
-      />,
+      <SWRTestProvider>
+        <WorkflowKanbanBoard
+          repositoryPath="/repos/org/name"
+          activeWorktreeBranches={["active-branch"]}
+        />
+      </SWRTestProvider>,
     );
 
     await screen.findByText("active-branch");
@@ -255,10 +268,12 @@ describe("WorkflowKanbanBoard", () => {
     ]);
 
     render(
-      <WorkflowKanbanBoard
-        repositoryPath="/repos/org/name"
-        activeWorktreeBranches={null}
-      />,
+      <SWRTestProvider>
+        <WorkflowKanbanBoard
+          repositoryPath="/repos/org/name"
+          activeWorktreeBranches={null}
+        />
+      </SWRTestProvider>,
     );
 
     await screen.findByText("feature-branch");
@@ -294,10 +309,12 @@ describe("WorkflowKanbanBoard", () => {
     ]);
 
     render(
-      <WorkflowKanbanBoard
-        repositoryPath="/repos/org/name"
-        activeWorktreeBranches={null}
-      />,
+      <SWRTestProvider>
+        <WorkflowKanbanBoard
+          repositoryPath="/repos/org/name"
+          activeWorktreeBranches={null}
+        />
+      </SWRTestProvider>,
     );
 
     await screen.findByText("feature-branch");
@@ -309,10 +326,12 @@ describe("WorkflowKanbanBoard", () => {
 
   it("shows loading state initially", () => {
     render(
-      <WorkflowKanbanBoard
-        repositoryPath="/repos/org/name"
-        activeWorktreeBranches={null}
-      />,
+      <SWRTestProvider>
+        <WorkflowKanbanBoard
+          repositoryPath="/repos/org/name"
+          activeWorktreeBranches={null}
+        />
+      </SWRTestProvider>,
     );
 
     expect(screen.getByText("Loading…")).toBeInTheDocument();
@@ -327,21 +346,23 @@ describe("WorkflowKanbanBoard", () => {
       .mockReturnValueOnce(nextRuns.promise);
 
     const { rerender } = render(
-      <WorkflowKanbanBoard
-        repositoryPath="/repos/org/name"
-        activeWorktreeBranches={null}
-        refreshKey={0}
-      />,
+      <SWRTestProvider>
+        <WorkflowKanbanBoard
+          repositoryPath="/repos/org/name"
+          activeWorktreeBranches={null}
+        />
+      </SWRTestProvider>,
     );
 
     await screen.findByText("feature-branch");
 
     rerender(
-      <WorkflowKanbanBoard
-        repositoryPath="/repos/org/name"
-        activeWorktreeBranches={null}
-        refreshKey={1}
-      />,
+      <SWRTestProvider>
+        <WorkflowKanbanBoard
+          repositoryPath="/repos/org/name"
+          activeWorktreeBranches={null}
+        />
+      </SWRTestProvider>,
     );
 
     expect(screen.getByText("feature-branch")).toBeInTheDocument();
@@ -358,10 +379,12 @@ describe("WorkflowKanbanBoard", () => {
     ]);
 
     render(
-      <WorkflowKanbanBoard
-        repositoryPath="/repos/org/name"
-        activeWorktreeBranches={null}
-      />,
+      <SWRTestProvider>
+        <WorkflowKanbanBoard
+          repositoryPath="/repos/org/name"
+          activeWorktreeBranches={null}
+        />
+      </SWRTestProvider>,
     );
 
     await screen.findByText("feature-branch");
@@ -376,10 +399,12 @@ describe("WorkflowKanbanBoard", () => {
     ]);
 
     render(
-      <WorkflowKanbanBoard
-        repositoryPath="/repos/org/name"
-        activeWorktreeBranches={null}
-      />,
+      <SWRTestProvider>
+        <WorkflowKanbanBoard
+          repositoryPath="/repos/org/name"
+          activeWorktreeBranches={null}
+        />
+      </SWRTestProvider>,
     );
 
     await screen.findByText("feature-branch");
@@ -398,10 +423,12 @@ describe("WorkflowKanbanBoard", () => {
       ]);
 
       render(
-        <WorkflowKanbanBoard
-          repositoryPath="/repos/org/name"
-          activeWorktreeBranches={null}
-        />,
+        <SWRTestProvider>
+          <WorkflowKanbanBoard
+            repositoryPath="/repos/org/name"
+            activeWorktreeBranches={null}
+          />
+        </SWRTestProvider>,
       );
 
       await screen.findByText("feat-done");
@@ -421,10 +448,12 @@ describe("WorkflowKanbanBoard", () => {
       ]);
 
       render(
-        <WorkflowKanbanBoard
-          repositoryPath="/repos/org/name"
-          activeWorktreeBranches={null}
-        />,
+        <SWRTestProvider>
+          <WorkflowKanbanBoard
+            repositoryPath="/repos/org/name"
+            activeWorktreeBranches={null}
+          />
+        </SWRTestProvider>,
       );
 
       await screen.findByText("feat-wip");
@@ -484,10 +513,12 @@ describe("WorkflowKanbanBoard", () => {
     ]);
 
     render(
-      <WorkflowKanbanBoard
-        repositoryPath="/repos/org/name"
-        activeWorktreeBranches={null}
-      />,
+      <SWRTestProvider>
+        <WorkflowKanbanBoard
+          repositoryPath="/repos/org/name"
+          activeWorktreeBranches={null}
+        />
+      </SWRTestProvider>,
     );
 
     await screen.findByText("default-branch");
@@ -507,7 +538,11 @@ describe("WorkflowKanbanBoard", () => {
         makeRun({ id: "r1", current_step: "plan" }),
       ]);
 
-      render(<WorkflowKanbanBoard activeWorktreeBranches={null} />);
+      render(
+        <SWRTestProvider>
+          <WorkflowKanbanBoard activeWorktreeBranches={null} />
+        </SWRTestProvider>,
+      );
 
       await screen.findByText("feature-branch");
       expect(fetchAllWorkflowRunsMock).toHaveBeenCalledWith();
@@ -530,7 +565,11 @@ describe("WorkflowKanbanBoard", () => {
         }),
       ]);
 
-      render(<WorkflowKanbanBoard activeWorktreeBranches={null} />);
+      render(
+        <SWRTestProvider>
+          <WorkflowKanbanBoard activeWorktreeBranches={null} />
+        </SWRTestProvider>,
+      );
 
       await screen.findByText("alpha-feat");
       expect(screen.getByText("beta-feat")).toBeInTheDocument();
@@ -546,7 +585,11 @@ describe("WorkflowKanbanBoard", () => {
         }),
       ]);
 
-      render(<WorkflowKanbanBoard activeWorktreeBranches={null} />);
+      render(
+        <SWRTestProvider>
+          <WorkflowKanbanBoard activeWorktreeBranches={null} />
+        </SWRTestProvider>,
+      );
 
       await screen.findByText("alpha-feat");
       expect(screen.getByText("org/alpha")).toBeInTheDocument();
@@ -563,10 +606,12 @@ describe("WorkflowKanbanBoard", () => {
       ]);
 
       render(
-        <WorkflowKanbanBoard
-          repositoryPath="/repos/org/alpha"
-          activeWorktreeBranches={null}
-        />,
+        <SWRTestProvider>
+          <WorkflowKanbanBoard
+            repositoryPath="/repos/org/alpha"
+            activeWorktreeBranches={null}
+          />
+        </SWRTestProvider>,
       );
 
       await screen.findByText("alpha-feat");

@@ -1,14 +1,8 @@
 "use client";
 
 import { notFound, useParams } from "next/navigation";
-import { useEffect, useState } from "react";
 import WorkflowKanbanBoard from "@/app/workflows/WorkflowKanbanBoard";
-import { useNotificationStream } from "@/lib/hooks/useNotificationStream";
-import {
-  fetchRepository,
-  fetchWorktrees,
-  type RepositoryDetail,
-} from "@/lib/utils/api";
+import { useRepository, useWorktrees } from "@/lib/hooks/swr";
 import styles from "./page.module.css";
 
 export default function RepositoryPage() {
@@ -16,50 +10,19 @@ export default function RepositoryPage() {
     organization: string;
     name: string;
   }>();
-  const [repo, setRepo] = useState<RepositoryDetail | null>(null);
-  const [activeWorktreeBranches, setActiveWorktreeBranches] = useState<
-    string[] | null
-  >(null);
-  const [loading, setLoading] = useState(true);
-
-  useNotificationStream(() => {
-    setLoading(true);
-    void Promise.all([
-      fetchRepository(organization, name),
-      fetchWorktrees(organization, name).catch(() => null),
-    ])
-      .then(([r, worktrees]) => {
-        setRepo(r);
-        if (worktrees) {
-          setActiveWorktreeBranches(
-            worktrees.map((w) => w.branch).filter(Boolean),
-          );
-        }
-      })
-      .catch(() => notFound())
-      .finally(() => setLoading(false));
-  });
-
-  useEffect(() => {
-    setLoading(true);
-    void Promise.all([
-      fetchRepository(organization, name),
-      fetchWorktrees(organization, name).catch(() => null),
-    ])
-      .then(([r, worktrees]) => {
-        setRepo(r);
-        if (worktrees) {
-          setActiveWorktreeBranches(
-            worktrees.map((w) => w.branch).filter(Boolean),
-          );
-        }
-      })
-      .catch(() => notFound())
-      .finally(() => setLoading(false));
-  }, [organization, name]);
+  const {
+    data: repo,
+    error,
+    isLoading: loading,
+  } = useRepository(organization, name);
+  const { data: worktrees } = useWorktrees(organization, name);
 
   if (loading) return null;
-  if (!repo) return notFound();
+  if (error || !repo) return notFound();
+
+  const activeWorktreeBranches = worktrees
+    ? worktrees.map((w) => w.branch).filter(Boolean)
+    : null;
 
   return (
     <main className={styles.page}>

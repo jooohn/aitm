@@ -1,11 +1,13 @@
 // @vitest-environment jsdom
-import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockFetchWorkflowRun = vi.fn();
 
 vi.mock("next/navigation", () => ({
+  usePathname: () => "/repositories/org/repo/workflow-runs/run-1",
+  useRouter: () => ({ push: vi.fn() }),
   notFound: () => {
     throw new Error("notFound");
   },
@@ -28,13 +30,7 @@ vi.mock("@/lib/utils/api", async () => {
   };
 });
 
-let notificationCallback: (() => void) | null = null;
-vi.mock("@/lib/hooks/useNotificationStream", () => ({
-  useNotificationStream: (cb: () => void) => {
-    notificationCallback = cb;
-  },
-}));
-
+import { SWRTestProvider } from "@/test-swr-provider";
 import WorkflowRunPage from "./WorkflowRunPage";
 
 beforeEach(() => {
@@ -59,21 +55,14 @@ afterEach(() => {
 });
 
 describe("WorkflowRunPage", () => {
-  it("re-fetches the workflow run when notification stream fires", async () => {
-    render(<WorkflowRunPage workflowRunId="run-1" />);
+  it("fetches and renders the workflow run", async () => {
+    render(
+      <SWRTestProvider>
+        <WorkflowRunPage workflowRunId="run-1" />
+      </SWRTestProvider>,
+    );
 
     await screen.findByText("build");
-
-    const initialCalls = mockFetchWorkflowRun.mock.calls.length;
-
-    act(() => {
-      notificationCallback?.();
-    });
-
-    await waitFor(() => {
-      expect(mockFetchWorkflowRun.mock.calls.length).toBeGreaterThan(
-        initialCalls,
-      );
-    });
+    expect(mockFetchWorkflowRun).toHaveBeenCalledWith("run-1");
   });
 });

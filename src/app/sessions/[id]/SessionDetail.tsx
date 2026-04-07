@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { mutate } from "swr";
 import type { StatusBadgeVariant } from "@/app/components/StatusBadge";
 import StatusBadge from "@/app/components/StatusBadge";
+import { swrKeys, useSession } from "@/lib/hooks/swr";
 import {
-  fetchSession,
   replyToSession,
   type Session,
   type SessionStatus,
@@ -25,7 +26,7 @@ function appendWithGrouping(
   if (!last) {
     return [newItem];
   }
-  // Last item is a ToolCallItem with the same toolName → merge into a ToolGroupItem
+  // Last item is a ToolCallItem with the same toolName -> merge into a ToolGroupItem
   if (last.kind === "tool_call" && last.toolName === newItem.toolName) {
     const group: ToolGroupItem = {
       kind: "tool_group",
@@ -34,7 +35,7 @@ function appendWithGrouping(
     };
     return [...items.slice(0, -1), group];
   }
-  // Last item is a ToolGroupItem with the same toolName → append to the group
+  // Last item is a ToolGroupItem with the same toolName -> append to the group
   if (last.kind === "tool_group" && last.toolName === newItem.toolName) {
     const group: ToolGroupItem = {
       ...last,
@@ -64,13 +65,13 @@ const SESSION_BADGE_VARIANT: Record<SessionStatus, StatusBadgeVariant> = {
   failure: "failure",
 };
 
-const TERMINAL_STATUSES: SessionStatus[] = ["success", "failure"];
-
 export default function SessionDetail({
   session: initial,
   onSessionUpdated,
 }: Props) {
-  const [session, setSession] = useState<Session>(initial);
+  const { data: session } = useSession(initial.id, { fallbackData: initial });
+  const currentSession = session ?? initial;
+
   const [outputItems, setOutputItems] = useState<OutputItem[]>([]);
   const [replyText, setReplyText] = useState("");
   const [replying, setReplying] = useState(false);
@@ -79,12 +80,12 @@ export default function SessionDetail({
   const outputRef = useRef<HTMLDivElement>(null);
   const autoScrollRef = useRef(true);
 
-  const isTerminal = TERMINAL_STATUSES.includes(session.status);
-
+  // Sync prop changes to SWR cache
   useEffect(() => {
-    setSession(initial);
+    void mutate(swrKeys.session(initial.id), initial, { revalidate: false });
   }, [initial]);
 
+  // Reset UI state when a different session is passed in
   // biome-ignore lint/correctness/useExhaustiveDependencies: reset UI state when a different session is passed in
   useEffect(() => {
     setOutputItems([]);
@@ -94,17 +95,16 @@ export default function SessionDetail({
     autoScrollRef.current = true;
   }, [initial]);
 
-  const applySessionUpdate = useCallback(
-    (updated: Session) => {
-      setSession(updated);
-      onSessionUpdated?.(updated);
-    },
-    [onSessionUpdated],
-  );
+  // Notify parent when session updates
+  useEffect(() => {
+    if (session) {
+      onSessionUpdated?.(session);
+    }
+  }, [session, onSessionUpdated]);
 
   // SSE stream for live output
   useEffect(() => {
-    const es = new EventSource(`/api/sessions/${session.id}/stream`);
+    const es = new EventSource(`/api/sessions/${currentSession.id}/stream`);
 
     es.onmessage = (e) => {
       try {
@@ -135,7 +135,7 @@ export default function SessionDetail({
     };
 
     return () => es.close();
-  }, [session.id]);
+  }, [currentSession.id]);
 
   // Auto-scroll output pane when new items arrive
   // biome-ignore lint/correctness/useExhaustiveDependencies: outputItems triggers the scroll
@@ -144,25 +144,6 @@ export default function SessionDetail({
       outputRef.current.scrollTop = outputRef.current.scrollHeight;
     }
   }, [outputItems]);
-
-  // Poll for session status updates
-  useEffect(() => {
-    if (isTerminal) return;
-
-    const interval = setInterval(async () => {
-      try {
-        const updated = await fetchSession(session.id);
-        applySessionUpdate(updated);
-        if (TERMINAL_STATUSES.includes(updated.status)) {
-          clearInterval(interval);
-        }
-      } catch {
-        // ignore poll errors
-      }
-    }, 2000);
-
-    return () => clearInterval(interval);
-  }, [session.id, isTerminal, applySessionUpdate]);
 
   function handleOutputScroll() {
     if (!outputRef.current) return;
@@ -176,8 +157,8 @@ export default function SessionDetail({
     setReplying(true);
     setReplyError(null);
     try {
-      const updated = await replyToSession(session.id, replyText.trim());
-      applySessionUpdate(updated);
+      const updated = await replyToSession(currentSession.id, replyText.trim());
+      await mutate(swrKeys.session(currentSession.id), updated);
       setReplyText("");
     } catch (err) {
       setReplyError(
@@ -192,15 +173,15 @@ export default function SessionDetail({
     <div className={styles.container}>
       <div className={styles.header}>
         <div className={styles.headerLeft}>
-          <StatusBadge variant={SESSION_BADGE_VARIANT[session.status]}>
-            {STATUS_LABELS[session.status]}
+          <StatusBadge variant={SESSION_BADGE_VARIANT[currentSession.status]}>
+            {STATUS_LABELS[currentSession.status]}
           </StatusBadge>
         </div>
       </div>
 
       <section>
         <h2 className={styles.sectionHeading}>Goal</h2>
-        <div className={styles.goalPane}>{session.goal}</div>
+        <div className={styles.goalPane}>{currentSession.goal}</div>
       </section>
 
       <section>
@@ -216,7 +197,7 @@ export default function SessionDetail({
             outputItems.map((item, i) => <OutputItemView key={i} item={item} />)
           )}
 
-          {session.status === "awaiting_input" && (
+          {currentSession.status === "awaiting_input" && (
             <form onSubmit={handleReply} className={styles.replyForm}>
               <textarea
                 className={styles.replyInput}
@@ -239,13 +220,13 @@ export default function SessionDetail({
         </div>
       </section>
 
-      {session.terminal_attach_command && (
+      {currentSession.terminal_attach_command && (
         <dl className={styles.details}>
           <div className={styles.detailRow}>
             <dt className={styles.detailLabel}>Terminal attach</dt>
             <dd>
               <code className={styles.attachCommand}>
-                {session.terminal_attach_command}
+                {currentSession.terminal_attach_command}
               </code>
             </dd>
           </div>

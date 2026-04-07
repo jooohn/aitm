@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom/vitest";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { StepExecution, WorkflowRunDetail } from "@/lib/utils/api";
+import { SWRTestProvider } from "@/test-swr-provider";
 import WorkflowRunDetail from "./WorkflowRunDetail";
 
 vi.mock("next/link", () => ({
@@ -38,7 +39,19 @@ vi.mock("@/lib/utils/api", async (importOriginal) => {
   return {
     ...actual,
     resolveManualApproval: vi.fn(),
-    fetchWorkflowRun: vi.fn().mockResolvedValue({}),
+    fetchWorkflowRun: vi.fn().mockResolvedValue({
+      id: "run-1",
+      repository_path: "/tmp/repo",
+      worktree_branch: "feat/test",
+      workflow_name: "my-flow",
+      current_step: null,
+      status: "success",
+      inputs: null,
+      metadata: null,
+      created_at: "2024-01-01T00:00:00Z",
+      updated_at: "2024-01-01T00:05:00Z",
+      step_executions: [],
+    }),
     fetchWorkflows: vi.fn().mockResolvedValue({}),
   };
 });
@@ -89,15 +102,17 @@ afterEach(() => {
 describe("WorkflowRunDetail layout", () => {
   it("renders header, details, and step executions in a single column", () => {
     render(
-      <WorkflowRunDetail
-        run={makeRun({
-          status: "success",
-          workflow_name: "my-flow",
-          repository_path: "/tmp/repo",
-          worktree_branch: "feat/test",
-          step_executions: [makeExecution({ step: "plan" })],
-        })}
-      />,
+      <SWRTestProvider>
+        <WorkflowRunDetail
+          run={makeRun({
+            status: "success",
+            workflow_name: "my-flow",
+            repository_path: "/tmp/repo",
+            worktree_branch: "feat/test",
+            step_executions: [makeExecution({ step: "plan" })],
+          })}
+        />
+      </SWRTestProvider>,
     );
 
     const heading = screen.getByRole("heading", { level: 1 });
@@ -138,11 +153,13 @@ describe("WorkflowRunDetail", () => {
     } as StepExecution & { step_type: "command" };
 
     render(
-      <WorkflowRunDetail
-        run={makeRun({
-          step_executions: [agentExecution, commandExecution],
-        })}
-      />,
+      <SWRTestProvider>
+        <WorkflowRunDetail
+          run={makeRun({
+            step_executions: [agentExecution, commandExecution],
+          })}
+        />
+      </SWRTestProvider>,
     );
 
     expect(screen.getByText("Plan is ready")).toBeInTheDocument();
@@ -166,7 +183,11 @@ describe("WorkflowRunDetail", () => {
     const metadata = JSON.stringify({
       presets__pull_request_url: "https://github.com/org/repo/pull/42",
     });
-    render(<WorkflowRunDetail run={makeRun({ metadata })} />);
+    render(
+      <SWRTestProvider>
+        <WorkflowRunDetail run={makeRun({ metadata })} />
+      </SWRTestProvider>,
+    );
 
     const prLink = screen.getByRole("link", {
       name: /Pull request created/,
@@ -180,7 +201,11 @@ describe("WorkflowRunDetail", () => {
   });
 
   it("does not render a pull request banner when metadata is null", () => {
-    render(<WorkflowRunDetail run={makeRun({ metadata: null })} />);
+    render(
+      <SWRTestProvider>
+        <WorkflowRunDetail run={makeRun({ metadata: null })} />
+      </SWRTestProvider>,
+    );
 
     expect(screen.queryByText(/Pull request created/)).not.toBeInTheDocument();
   });
@@ -194,7 +219,9 @@ describe("WorkflowRunDetail", () => {
       resolvePromise = resolve;
     });
 
-    const { resolveManualApproval } = await import("@/lib/utils/api");
+    const { resolveManualApproval, fetchWorkflowRun } = await import(
+      "@/lib/utils/api"
+    );
     vi.mocked(resolveManualApproval).mockReturnValue(
       pendingPromise as ReturnType<typeof resolveManualApproval>,
     );
@@ -214,13 +241,18 @@ describe("WorkflowRunDetail", () => {
       completed_at: null,
     });
 
+    const runWithExecs = makeRun({
+      status: "running",
+      step_executions: [exec1, exec2],
+    });
+
+    // Ensure SWR revalidation returns the same run with executions
+    vi.mocked(fetchWorkflowRun).mockResolvedValue(runWithExecs);
+
     render(
-      <WorkflowRunDetail
-        run={makeRun({
-          status: "running",
-          step_executions: [exec1, exec2],
-        })}
-      />,
+      <SWRTestProvider>
+        <WorkflowRunDetail run={runWithExecs} />
+      </SWRTestProvider>,
     );
 
     // Both executions should have enabled Approve buttons
@@ -267,12 +299,14 @@ describe("WorkflowRunDetail", () => {
     });
 
     render(
-      <WorkflowRunDetail
-        run={makeRun({
-          status: "awaiting",
-          step_executions: [execution],
-        })}
-      />,
+      <SWRTestProvider>
+        <WorkflowRunDetail
+          run={makeRun({
+            status: "awaiting",
+            step_executions: [execution],
+          })}
+        />
+      </SWRTestProvider>,
     );
 
     const executionItem = document.getElementById(
@@ -292,12 +326,14 @@ describe("WorkflowRunDetail", () => {
     });
 
     render(
-      <WorkflowRunDetail
-        run={makeRun({
-          status: "running",
-          step_executions: [execution],
-        })}
-      />,
+      <SWRTestProvider>
+        <WorkflowRunDetail
+          run={makeRun({
+            status: "running",
+            step_executions: [execution],
+          })}
+        />
+      </SWRTestProvider>,
     );
 
     const executionItem = document.getElementById(
@@ -317,12 +353,14 @@ describe("StepExecutionItem status-based border", () => {
     });
 
     render(
-      <WorkflowRunDetail
-        run={makeRun({
-          status: "running",
-          step_executions: [execution],
-        })}
-      />,
+      <SWRTestProvider>
+        <WorkflowRunDetail
+          run={makeRun({
+            status: "running",
+            step_executions: [execution],
+          })}
+        />
+      </SWRTestProvider>,
     );
 
     const executionItem = document.getElementById(
@@ -339,12 +377,14 @@ describe("StepExecutionItem status-based border", () => {
     });
 
     render(
-      <WorkflowRunDetail
-        run={makeRun({
-          status: "awaiting",
-          step_executions: [execution],
-        })}
-      />,
+      <SWRTestProvider>
+        <WorkflowRunDetail
+          run={makeRun({
+            status: "awaiting",
+            step_executions: [execution],
+          })}
+        />
+      </SWRTestProvider>,
     );
 
     const executionItem = document.getElementById(
@@ -360,12 +400,14 @@ describe("StepExecutionItem status-based border", () => {
     });
 
     render(
-      <WorkflowRunDetail
-        run={makeRun({
-          status: "success",
-          step_executions: [execution],
-        })}
-      />,
+      <SWRTestProvider>
+        <WorkflowRunDetail
+          run={makeRun({
+            status: "success",
+            step_executions: [execution],
+          })}
+        />
+      </SWRTestProvider>,
     );
 
     const executionItem = document.getElementById(
@@ -383,12 +425,14 @@ describe("StepExecutionItem status-based border", () => {
     });
 
     render(
-      <WorkflowRunDetail
-        run={makeRun({
-          status: "running",
-          step_executions: [execution],
-        })}
-      />,
+      <SWRTestProvider>
+        <WorkflowRunDetail
+          run={makeRun({
+            status: "running",
+            step_executions: [execution],
+          })}
+        />
+      </SWRTestProvider>,
     );
 
     const executionItem = document.getElementById(

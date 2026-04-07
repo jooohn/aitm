@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
-import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { WorkflowRun } from "@/lib/utils/api";
+import { SWRTestProvider } from "@/test-swr-provider";
 import TodosLayout from "./layout";
 import TodosPage from "./page";
 
@@ -12,14 +13,6 @@ const { fetchAllWorkflowRunsMock } = vi.hoisted(() => ({
 
 vi.mock("@/lib/utils/api", () => ({
   fetchAllWorkflowRuns: fetchAllWorkflowRunsMock,
-}));
-
-let capturedCallback: (() => void) | null = null;
-
-vi.mock("@/lib/hooks/useNotificationStream", () => ({
-  useNotificationStream: (cb: () => void) => {
-    capturedCallback = cb;
-  },
 }));
 
 vi.mock("next/link", () => ({
@@ -66,7 +59,6 @@ beforeEach(() => {
   fetchAllWorkflowRunsMock.mockReset();
   mockReplace.mockReset();
   mockPathname = "/todos";
-  capturedCallback = null;
 });
 
 afterEach(() => {
@@ -81,9 +73,11 @@ describe("/todos layout", () => {
     ]);
 
     render(
-      <TodosLayout>
-        <TodosPage />
-      </TodosLayout>,
+      <SWRTestProvider>
+        <TodosLayout>
+          <TodosPage />
+        </TodosLayout>
+      </SWRTestProvider>,
     );
 
     await waitFor(() => {
@@ -99,9 +93,11 @@ describe("/todos layout", () => {
     fetchAllWorkflowRunsMock.mockResolvedValue([]);
 
     render(
-      <TodosLayout>
-        <TodosPage />
-      </TodosLayout>,
+      <SWRTestProvider>
+        <TodosLayout>
+          <TodosPage />
+        </TodosLayout>
+      </SWRTestProvider>,
     );
 
     expect(
@@ -113,44 +109,16 @@ describe("/todos layout", () => {
     fetchAllWorkflowRunsMock.mockResolvedValue([]);
 
     render(
-      <TodosLayout>
-        <TodosPage />
-      </TodosLayout>,
+      <SWRTestProvider>
+        <TodosLayout>
+          <TodosPage />
+        </TodosLayout>
+      </SWRTestProvider>,
     );
 
     expect(
       await screen.findByText("Select an item to inspect its details."),
     ).toBeInTheDocument();
-  });
-
-  it("re-fetches workflow runs when notification stream fires", async () => {
-    fetchAllWorkflowRunsMock
-      .mockResolvedValueOnce([
-        makeWorkflowRun({ id: "run-1", current_step: "implement" }),
-      ])
-      .mockResolvedValueOnce([
-        makeWorkflowRun({ id: "run-1", current_step: "implement" }),
-        makeWorkflowRun({ id: "run-2", current_step: "review" }),
-      ]);
-
-    render(
-      <TodosLayout>
-        <TodosPage />
-      </TodosLayout>,
-    );
-
-    await waitFor(() => {
-      expect(screen.getAllByRole("link")).toHaveLength(1);
-    });
-
-    // Simulate SSE message via captured callback
-    act(() => {
-      capturedCallback!();
-    });
-
-    await waitFor(() => {
-      expect(screen.getAllByRole("link")).toHaveLength(2);
-    });
   });
 
   it("auto-selects the first item when pathname is /todos", async () => {
@@ -161,9 +129,11 @@ describe("/todos layout", () => {
     ]);
 
     render(
-      <TodosLayout>
-        <TodosPage />
-      </TodosLayout>,
+      <SWRTestProvider>
+        <TodosLayout>
+          <TodosPage />
+        </TodosLayout>
+      </SWRTestProvider>,
     );
 
     await waitFor(() => {
@@ -179,9 +149,11 @@ describe("/todos layout", () => {
     ]);
 
     render(
-      <TodosLayout>
-        <TodosPage />
-      </TodosLayout>,
+      <SWRTestProvider>
+        <TodosLayout>
+          <TodosPage />
+        </TodosLayout>
+      </SWRTestProvider>,
     );
 
     await waitFor(() => {
@@ -196,9 +168,11 @@ describe("/todos layout", () => {
     fetchAllWorkflowRunsMock.mockResolvedValue([]);
 
     render(
-      <TodosLayout>
-        <TodosPage />
-      </TodosLayout>,
+      <SWRTestProvider>
+        <TodosLayout>
+          <TodosPage />
+        </TodosLayout>
+      </SWRTestProvider>,
     );
 
     await waitFor(() => {

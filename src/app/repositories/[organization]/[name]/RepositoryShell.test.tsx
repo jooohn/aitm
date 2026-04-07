@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom/vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -23,13 +23,6 @@ vi.mock("@/lib/utils/api", () => ({
   cleanMergedWorktrees: vi.fn().mockResolvedValue(undefined),
 }));
 
-let notificationCallback: (() => void) | null = null;
-vi.mock("@/lib/hooks/useNotificationStream", () => ({
-  useNotificationStream: (cb: () => void) => {
-    notificationCallback = cb;
-  },
-}));
-
 const mockPush = vi.fn();
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: mockPush }),
@@ -51,6 +44,7 @@ vi.mock("next/link", () => ({
   ),
 }));
 
+import { SWRTestProvider } from "@/test-swr-provider";
 import RepositoryShell from "./RepositoryShell";
 
 const repo = {
@@ -87,45 +81,15 @@ afterEach(() => {
 });
 
 describe("RepositoryShell", () => {
-  it("re-fetches data after RunWorkflowModal creation", async () => {
+  it("calls create APIs after RunWorkflowModal submission", async () => {
     const user = userEvent.setup();
 
     render(
-      <RepositoryShell organization="org" name="repo">
-        <div>child</div>
-      </RepositoryShell>,
-    );
-
-    // Wait for initial data load in WorktreeRunsSection
-    await waitFor(() => {
-      expect(mockFetchWorktrees).toHaveBeenCalledTimes(1);
-    });
-
-    const initialWorkflowRunsCalls = mockFetchWorkflowRuns.mock.calls.length;
-    const initialWorktreesCalls = mockFetchWorktrees.mock.calls.length;
-
-    // Open modal and submit
-    await user.click(screen.getByText("Run Workflow"));
-    const branchInput = screen.getByPlaceholderText("e.g. feature/my-change");
-    await user.type(branchInput, "new-branch");
-    await user.click(screen.getByText("Create & launch"));
-
-    // After creation, WorktreeRunsSection should re-fetch due to refreshKey change
-    await waitFor(() => {
-      expect(mockFetchWorkflowRuns.mock.calls.length).toBeGreaterThan(
-        initialWorkflowRunsCalls,
-      );
-      expect(mockFetchWorktrees.mock.calls.length).toBeGreaterThan(
-        initialWorktreesCalls,
-      );
-    });
-  });
-
-  it("re-fetches data when notification stream fires", async () => {
-    render(
-      <RepositoryShell organization="org" name="repo">
-        <div>child</div>
-      </RepositoryShell>,
+      <SWRTestProvider>
+        <RepositoryShell organization="org" name="repo">
+          <div>child</div>
+        </RepositoryShell>
+      </SWRTestProvider>,
     );
 
     // Wait for initial data load
@@ -133,22 +97,32 @@ describe("RepositoryShell", () => {
       expect(mockFetchWorktrees).toHaveBeenCalledTimes(1);
     });
 
-    const initialWorkflowRunsCalls = mockFetchWorkflowRuns.mock.calls.length;
-    const initialWorktreesCalls = mockFetchWorktrees.mock.calls.length;
+    // Open modal and submit
+    await user.click(screen.getByText("Run Workflow"));
+    const branchInput = screen.getByPlaceholderText("e.g. feature/my-change");
+    await user.type(branchInput, "new-branch");
+    await user.click(screen.getByText("Create & launch"));
 
-    // Simulate a notification stream event
-    act(() => {
-      notificationCallback?.();
-    });
-
-    // WorktreeRunsSection should re-fetch due to refreshKey change
+    // After creation, the create APIs should have been called
     await waitFor(() => {
-      expect(mockFetchWorkflowRuns.mock.calls.length).toBeGreaterThan(
-        initialWorkflowRunsCalls,
-      );
-      expect(mockFetchWorktrees.mock.calls.length).toBeGreaterThan(
-        initialWorktreesCalls,
-      );
+      expect(mockCreateWorktree).toHaveBeenCalled();
+      expect(mockCreateWorkflowRun).toHaveBeenCalled();
     });
+  });
+
+  it("renders child content", async () => {
+    render(
+      <SWRTestProvider>
+        <RepositoryShell organization="org" name="repo">
+          <div>child</div>
+        </RepositoryShell>
+      </SWRTestProvider>,
+    );
+
+    await waitFor(() => {
+      expect(mockFetchWorktrees).toHaveBeenCalledTimes(1);
+    });
+
+    expect(screen.getByText("child")).toBeInTheDocument();
   });
 });

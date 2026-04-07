@@ -4,15 +4,13 @@ import { notFound, useParams, usePathname } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import CloseIcon from "@/app/components/icons/CloseIcon";
 import SessionDetail from "@/app/sessions/[id]/SessionDetail";
-import { fetchSession, type Session } from "@/lib/utils/api";
+import { useSession } from "@/lib/hooks/swr";
 import styles from "./SessionDrawer.module.css";
 
 export default function SessionDrawer() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const pathname = usePathname();
-  const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [notFoundError, setNotFoundError] = useState(false);
+  const { data: session, error, isLoading: loading } = useSession(sessionId);
   const [closing, setClosing] = useState(false);
   const [closed, setClosed] = useState(false);
 
@@ -35,16 +33,9 @@ export default function SessionDrawer() {
     }, 200);
   }, [pathname]);
 
-  useEffect(() => {
-    fetchSession(sessionId)
-      .then(setSession)
-      .catch(() => setNotFoundError(true))
-      .finally(() => setLoading(false));
-  }, [sessionId]);
-
   if (closed) return null;
   if (loading) return null;
-  if (notFoundError || !session) return notFound();
+  if (error || !session) return notFound();
 
   return (
     <div className={styles.overlay}>

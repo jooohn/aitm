@@ -1,17 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import GitHubIcon from "@/app/components/icons/GitHubIcon";
-import { useNotificationStream } from "@/lib/hooks/useNotificationStream";
-import {
-  fetchRepository,
-  fetchWorkflowRuns,
-  fetchWorktrees,
-  type RepositoryDetail,
-  type WorkflowRun,
-  type Worktree,
-} from "@/lib/utils/api";
+import { useRepository, useWorkflowRuns, useWorktrees } from "@/lib/hooks/swr";
 import styles from "./RepositoryShell.module.css";
 import WorktreeRunsSection from "./WorktreeRunsSection";
 import RunWorkflowModal from "./workflow-runs/RunWorkflowModal";
@@ -28,57 +20,29 @@ export default function RepositoryShell({
   children,
 }: Props) {
   const alias = `${organization}/${name}`;
-  const [repo, setRepo] = useState<RepositoryDetail | null>(null);
   const [showLaunchModal, setShowLaunchModal] = useState(false);
-  const [worktrees, setWorktrees] = useState<Worktree[]>([]);
-  const [runs, setRuns] = useState<WorkflowRun[]>([]);
-  const [dataLoading, setDataLoading] = useState(true);
-  const [dataHasLoadedOnce, setDataHasLoadedOnce] = useState(false);
-  const [dataError, setDataError] = useState<string | null>(null);
 
-  const loadWorktreeData = useCallback(
-    async (repositoryPath: string) => {
-      setDataLoading(true);
-      setDataError(null);
-      try {
-        const [wt, wr] = await Promise.all([
-          fetchWorktrees(organization, name),
-          fetchWorkflowRuns(repositoryPath),
-        ]);
-        setWorktrees(wt);
-        setRuns(wr);
-      } catch (err) {
-        setDataError(
-          err instanceof Error ? err.message : "Failed to load data",
-        );
-      } finally {
-        setDataHasLoadedOnce(true);
-        setDataLoading(false);
-      }
-    },
-    [organization, name],
-  );
+  const { data: repo } = useRepository(organization, name);
+  const {
+    data: worktrees,
+    error: worktreesError,
+    isLoading: worktreesLoading,
+  } = useWorktrees(organization, name);
+  const {
+    data: runs,
+    error: runsError,
+    isLoading: runsLoading,
+  } = useWorkflowRuns(repo?.path ?? null);
 
-  useEffect(() => {
-    fetchRepository(organization, name)
-      .then(async (repo) => {
-        await loadWorktreeData(repo.path);
-        setRepo(repo);
-      })
-      .catch(() => setRepo(null));
-  }, [organization, name, loadWorktreeData]);
-
-  useNotificationStream(() => {
-    if (repo) {
-      loadWorktreeData(repo.path);
-    }
-  });
-
-  const handleReload = useCallback(() => {
-    if (repo) {
-      loadWorktreeData(repo.path);
-    }
-  }, [repo, loadWorktreeData]);
+  const dataLoading = worktreesLoading || runsLoading;
+  const dataHasLoadedOnce =
+    !!worktrees || !!worktreesError || !!runs || !!runsError;
+  const dataError = worktreesError || runsError;
+  const dataErrorMessage = dataError
+    ? dataError instanceof Error
+      ? dataError.message
+      : "Failed to load data"
+    : null;
 
   return (
     <div className={styles.shell}>
@@ -117,12 +81,11 @@ export default function RepositoryShell({
           <WorktreeRunsSection
             organization={organization}
             name={name}
-            worktrees={worktrees}
-            runs={runs}
+            worktrees={worktrees ?? []}
+            runs={runs ?? []}
             loading={dataLoading}
             hasLoadedOnce={dataHasLoadedOnce}
-            error={dataError}
-            onReload={handleReload}
+            error={dataErrorMessage}
           />
         )}
       </aside>
@@ -131,7 +94,6 @@ export default function RepositoryShell({
         <RunWorkflowModal
           onClose={() => setShowLaunchModal(false)}
           fixedAlias={alias}
-          onCreated={handleReload}
         />
       )}
     </div>

@@ -1,36 +1,32 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
 import WorkflowKanbanBoard from "@/app/workflows/WorkflowKanbanBoard";
-import { fetchRepositories, type Repository } from "@/lib/utils/api";
+import { useRepositories } from "@/lib/hooks/swr";
 import styles from "./page.module.css";
 
 export default function Home() {
-  const [repos, setRepos] = useState<Repository[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [repoError, setRepoError] = useState<string | null>(null);
-
-  useEffect(() => {
-    fetchRepositories()
-      .then(setRepos)
-      .catch((err) => {
-        setRepoError(
-          err instanceof Error ? err.message : "Failed to load repositories",
-        );
-      })
-      .finally(() => setLoading(false));
-  }, []);
+  const {
+    data: repos,
+    error: repoError,
+    isLoading: loading,
+  } = useRepositories();
 
   return (
     <div className={styles.shell}>
       <aside className={styles.sidebar}>
         <section className={styles.paneSection}>
           <h2 className={styles.paneHeading}>Repositories</h2>
-          {repoError && <p className={styles.error}>{repoError}</p>}
+          {repoError && (
+            <p className={styles.error}>
+              {repoError instanceof Error
+                ? repoError.message
+                : "Failed to load repositories"}
+            </p>
+          )}
           {loading ? (
             <p className={styles.empty}>Loading…</p>
-          ) : repos.length === 0 ? (
+          ) : !repos || repos.length === 0 ? (
             <p className={styles.empty}>
               No repositories configured. Add entries to{" "}
               <code>~/.aitm/config.yaml</code>.

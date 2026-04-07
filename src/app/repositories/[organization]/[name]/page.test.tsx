@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -13,13 +13,6 @@ vi.mock("@/lib/utils/api", () => ({
   fetchWorktrees: (...args: unknown[]) => mockFetchWorktrees(...args),
   fetchWorkflows: (...args: unknown[]) => mockFetchWorkflows(...args),
   fetchWorkflowRuns: (...args: unknown[]) => mockFetchWorkflowRuns(...args),
-}));
-
-let notificationCallback: (() => void) | null = null;
-vi.mock("@/lib/hooks/useNotificationStream", () => ({
-  useNotificationStream: (cb: () => void) => {
-    notificationCallback = cb;
-  },
 }));
 
 vi.mock("next/navigation", () => ({
@@ -45,6 +38,7 @@ vi.mock("next/link", () => ({
   ),
 }));
 
+import { SWRTestProvider } from "@/test-swr-provider";
 import RepositoryPage from "./page";
 
 beforeEach(() => {
@@ -76,36 +70,28 @@ afterEach(() => {
 
 describe("RepositoryPage", () => {
   it("renders the workflow kanban board", async () => {
-    render(<RepositoryPage />);
+    render(
+      <SWRTestProvider>
+        <RepositoryPage />
+      </SWRTestProvider>,
+    );
 
     expect(
       await screen.findByRole("heading", { name: "Workflow Runs" }),
     ).toBeInTheDocument();
   });
 
-  it("re-fetches repository data and workflow runs when notification stream fires", async () => {
-    render(<RepositoryPage />);
+  it("fetches repository data and workflow runs on mount", async () => {
+    render(
+      <SWRTestProvider>
+        <RepositoryPage />
+      </SWRTestProvider>,
+    );
 
     await screen.findByRole("heading", { name: "Workflow Runs" });
 
-    const initialRepositoryCalls = mockFetchRepository.mock.calls.length;
-    const initialWorktreeCalls = mockFetchWorktrees.mock.calls.length;
-    const initialWorkflowRunCalls = mockFetchWorkflowRuns.mock.calls.length;
-
-    act(() => {
-      notificationCallback?.();
-    });
-
-    await waitFor(() => {
-      expect(mockFetchRepository.mock.calls.length).toBeGreaterThan(
-        initialRepositoryCalls,
-      );
-      expect(mockFetchWorktrees.mock.calls.length).toBeGreaterThan(
-        initialWorktreeCalls,
-      );
-      expect(mockFetchWorkflowRuns.mock.calls.length).toBeGreaterThan(
-        initialWorkflowRunCalls,
-      );
-    });
+    expect(mockFetchRepository).toHaveBeenCalled();
+    expect(mockFetchWorktrees).toHaveBeenCalled();
+    expect(mockFetchWorkflowRuns).toHaveBeenCalled();
   });
 });
