@@ -73,6 +73,21 @@ workflows:
             when: "blocked"
 `;
 
+const MANUAL_APPROVAL_RERUN_WORKFLOW_CONFIG = `
+workflows:
+  approval-flow:
+    initial_step: review
+    steps:
+      review:
+        type: manual-approval
+        prompt: "Approve the workflow?"
+        transitions:
+          - terminal: success
+            when: "approved"
+          - terminal: failure
+            when: "rejected"
+`;
+
 beforeEach(() => {
   db.prepare("DELETE FROM sessions").run();
   db.prepare("DELETE FROM step_executions").run();
@@ -1493,6 +1508,46 @@ workflows:
       workflowRunId: run.id,
       status: "running",
     });
+  });
+
+  it("persists awaiting status when rerunning a failed manual-approval step", async () => {
+    process.env.AITM_CONFIG_PATH = await writeTempConfig(
+      MANUAL_APPROVAL_RERUN_WORKFLOW_CONFIG,
+    );
+    const repoPath = await makeFakeGitRepo();
+    const run = await createWorkflowRun({
+      repository_path: repoPath,
+      worktree_branch: "feat/test",
+      workflow_name: "approval-flow",
+    });
+
+    const [reviewExec] = db
+      .prepare(
+        "SELECT * FROM step_executions WHERE workflow_run_id = ? ORDER BY created_at ASC",
+      )
+      .all(run.id) as { id: string }[];
+
+    await completeStepExecution(reviewExec.id, {
+      transition: "failure",
+      reason: "rejected",
+      handoff_summary: "Needs more work",
+    });
+
+    expect(getWorkflowRun(run.id)?.status).toBe("failure");
+
+    await rerunWorkflowRunFromFailedState(run.id);
+
+    const rerun = getWorkflowRun(run.id);
+    const activeExecution = db
+      .prepare(
+        "SELECT * FROM step_executions WHERE workflow_run_id = ? AND completed_at IS NULL ORDER BY created_at DESC LIMIT 1",
+      )
+      .get(run.id) as { status: string; step_type: string };
+
+    expect(rerun?.current_step).toBe("review");
+    expect(rerun?.status).toBe("awaiting");
+    expect(activeExecution.step_type).toBe("manual-approval");
+    expect(activeExecution.status).toBe("awaiting");
   });
 });
 
