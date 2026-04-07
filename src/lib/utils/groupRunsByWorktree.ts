@@ -10,7 +10,8 @@ export function groupRunsByWorktree(
   worktrees: Worktree[],
   runs: WorkflowRun[],
 ): WorktreeGroup[] {
-  const branchSet = new Set(worktrees.map((w) => w.branch));
+  const nonMainWorktrees = worktrees.filter((w) => !w.is_main);
+  const branchSet = new Set(nonMainWorktrees.map((w) => w.branch));
 
   // Bucket runs by branch
   const runsByBranch = new Map<string, WorkflowRun[]>();
@@ -28,8 +29,8 @@ export function groupRunsByWorktree(
     }
   }
 
-  // Build groups for each worktree
-  const groups: WorktreeGroup[] = worktrees.map((worktree) => {
+  // Build groups for each worktree (excluding main)
+  const groups: WorktreeGroup[] = nonMainWorktrees.map((worktree) => {
     const branchRuns = runsByBranch.get(worktree.branch) ?? [];
     return {
       worktree,
@@ -38,15 +39,23 @@ export function groupRunsByWorktree(
     };
   });
 
-  // Sort: main first, then worktrees with running workflows, then alphabetically
+  // Sort by oldest workflow run created_at descending (most recently started worktrees first)
+  function oldestRunTime(group: WorktreeGroup): string {
+    if (group.runs.length === 0) return "";
+    return group.runs.reduce(
+      (min, r) => (r.created_at < min ? r.created_at : min),
+      group.runs[0].created_at,
+    );
+  }
+
   groups.sort((a, b) => {
-    if (a.worktree!.is_main !== b.worktree!.is_main) {
-      return a.worktree!.is_main ? -1 : 1;
-    }
-    if (a.hasRunningWorkflow !== b.hasRunningWorkflow) {
-      return a.hasRunningWorkflow ? -1 : 1;
-    }
-    return a.worktree!.branch.localeCompare(b.worktree!.branch);
+    const oldestA = oldestRunTime(a);
+    const oldestB = oldestRunTime(b);
+    if (!oldestA && !oldestB)
+      return a.worktree!.branch.localeCompare(b.worktree!.branch);
+    if (!oldestA) return 1;
+    if (!oldestB) return -1;
+    return oldestB.localeCompare(oldestA);
   });
 
   // Append orphaned group if any

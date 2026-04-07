@@ -30,18 +30,16 @@ function makeRun(overrides: Partial<WorkflowRun> = {}): WorkflowRun {
 }
 
 describe("groupRunsByWorktree", () => {
-  it("returns worktrees with no runs as empty groups", () => {
+  it("excludes main worktree from results", () => {
     const worktrees = [
       makeWorktree({ branch: "main", is_main: true }),
       makeWorktree({ branch: "feature-a", is_main: false }),
     ];
     const result = groupRunsByWorktree(worktrees, []);
 
-    expect(result).toHaveLength(2);
-    expect(result[0].worktree.branch).toBe("main");
+    expect(result).toHaveLength(1);
+    expect(result[0].worktree!.branch).toBe("feature-a");
     expect(result[0].runs).toEqual([]);
-    expect(result[1].worktree.branch).toBe("feature-a");
-    expect(result[1].runs).toEqual([]);
   });
 
   it("groups runs under their matching worktree by branch", () => {
@@ -60,12 +58,17 @@ describe("groupRunsByWorktree", () => {
     ];
     const result = groupRunsByWorktree(worktrees, runs);
 
-    const mainGroup = result.find((g) => g.worktree.branch === "main")!;
-    expect(mainGroup.runs).toHaveLength(1);
-    expect(mainGroup.runs[0].id).toBe("r3");
-
-    const featureGroup = result.find((g) => g.worktree.branch === "feature-a")!;
+    // main is excluded, r3 goes to orphaned
+    const featureGroup = result.find(
+      (g) => g.worktree?.branch === "feature-a",
+    )!;
     expect(featureGroup.runs).toHaveLength(2);
+
+    // main's run becomes orphaned since main worktree is hidden
+    const orphaned = result.find((g) => g.worktree === null);
+    expect(orphaned).toBeDefined();
+    expect(orphaned!.runs).toHaveLength(1);
+    expect(orphaned!.runs[0].id).toBe("r3");
   });
 
   it("puts orphaned runs (no matching worktree) in a separate group at the end", () => {
@@ -76,7 +79,7 @@ describe("groupRunsByWorktree", () => {
     ];
     const result = groupRunsByWorktree(worktrees, runs);
 
-    expect(result).toHaveLength(2); // main + orphaned
+    expect(result).toHaveLength(1); // orphaned only (main excluded)
     const orphaned = result[result.length - 1];
     expect(orphaned.worktree).toBeNull();
     expect(orphaned.runs).toHaveLength(2);
@@ -91,37 +94,87 @@ describe("groupRunsByWorktree", () => {
     expect(result[0].worktree).not.toBeNull();
   });
 
-  it("sorts worktrees with running runs first, then by branch name", () => {
+  it("sorts by oldest run created_at descending (most recently started first)", () => {
     const worktrees = [
       makeWorktree({ branch: "alpha", is_main: false }),
       makeWorktree({ branch: "beta", is_main: false }),
       makeWorktree({ branch: "gamma", is_main: false }),
-      makeWorktree({ branch: "main", is_main: true }),
     ];
     const runs = [
-      makeRun({ id: "r1", worktree_branch: "gamma", status: "running" }),
-      makeRun({ id: "r2", worktree_branch: "alpha", status: "success" }),
+      makeRun({
+        id: "r1",
+        worktree_branch: "gamma",
+        created_at: "2026-04-03T00:00:00Z",
+      }),
+      makeRun({
+        id: "r2",
+        worktree_branch: "alpha",
+        created_at: "2026-04-01T00:00:00Z",
+      }),
+      makeRun({
+        id: "r3",
+        worktree_branch: "beta",
+        created_at: "2026-04-02T00:00:00Z",
+      }),
     ];
     const result = groupRunsByWorktree(worktrees, runs);
 
-    // gamma has a running run, should come first among non-main
-    // main worktree stays at top
     const branches = result.map((g) => g.worktree?.branch ?? "(orphaned)");
-    expect(branches[0]).toBe("main");
-    expect(branches[1]).toBe("gamma"); // has running run
+    expect(branches[0]).toBe("gamma"); // oldest run: Apr 3
+    expect(branches[1]).toBe("beta"); // oldest run: Apr 2
+    expect(branches[2]).toBe("alpha"); // oldest run: Apr 1
   });
 
-  it("keeps main worktree first regardless of run status", () => {
+  it("sorts worktrees with no runs after those with runs, alphabetically", () => {
     const worktrees = [
-      makeWorktree({ branch: "feature-a", is_main: false }),
-      makeWorktree({ branch: "main", is_main: true }),
+      makeWorktree({ branch: "zebra", is_main: false }),
+      makeWorktree({ branch: "alpha", is_main: false }),
+      makeWorktree({ branch: "beta", is_main: false }),
     ];
     const runs = [
-      makeRun({ id: "r1", worktree_branch: "feature-a", status: "running" }),
+      makeRun({
+        id: "r1",
+        worktree_branch: "beta",
+        created_at: "2026-04-01T00:00:00Z",
+      }),
     ];
     const result = groupRunsByWorktree(worktrees, runs);
 
-    expect(result[0].worktree!.branch).toBe("main");
+    const branches = result.map((g) => g.worktree?.branch);
+    expect(branches[0]).toBe("beta"); // has runs
+    expect(branches[1]).toBe("alpha"); // no runs, alphabetical
+    expect(branches[2]).toBe("zebra"); // no runs, alphabetical
+  });
+
+  it("uses oldest (earliest) run when worktree has multiple runs", () => {
+    const worktrees = [
+      makeWorktree({ branch: "feature-a", is_main: false }),
+      makeWorktree({ branch: "feature-b", is_main: false }),
+    ];
+    const runs = [
+      // feature-a has runs from Apr 3 and Apr 5 — oldest is Apr 3
+      makeRun({
+        id: "r1",
+        worktree_branch: "feature-a",
+        created_at: "2026-04-05T00:00:00Z",
+      }),
+      makeRun({
+        id: "r2",
+        worktree_branch: "feature-a",
+        created_at: "2026-04-03T00:00:00Z",
+      }),
+      // feature-b has a single run from Apr 4
+      makeRun({
+        id: "r3",
+        worktree_branch: "feature-b",
+        created_at: "2026-04-04T00:00:00Z",
+      }),
+    ];
+    const result = groupRunsByWorktree(worktrees, runs);
+
+    // feature-b oldest=Apr 4 > feature-a oldest=Apr 3
+    expect(result[0].worktree!.branch).toBe("feature-b");
+    expect(result[1].worktree!.branch).toBe("feature-a");
   });
 
   it("preserves run order (most recent first) within each group", () => {
