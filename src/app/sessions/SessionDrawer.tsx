@@ -1,6 +1,6 @@
 "use client";
 
-import { notFound, useParams, useRouter } from "next/navigation";
+import { notFound, useParams, usePathname } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import CloseIcon from "@/app/components/icons/CloseIcon";
 import SessionDetail from "@/app/sessions/[id]/SessionDetail";
@@ -9,16 +9,31 @@ import styles from "./SessionDrawer.module.css";
 
 export default function SessionDrawer() {
   const { sessionId } = useParams<{ sessionId: string }>();
-  const router = useRouter();
+  const pathname = usePathname();
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFoundError, setNotFoundError] = useState(false);
   const [closing, setClosing] = useState(false);
+  const [closed, setClosed] = useState(false);
+
+  const shouldShow = /\/sessions\/[^/]+$/.test(pathname);
+
+  // Reset closed/closing state when the URL indicates the drawer should be open
+  useEffect(() => {
+    if (shouldShow) {
+      setClosed(false);
+      setClosing(false);
+    }
+  }, [shouldShow]);
 
   const handleClose = useCallback(() => {
     setClosing(true);
-    setTimeout(() => router.back(), 200);
-  }, [router]);
+    const parentPath = pathname.replace(/\/sessions\/[^/]+$/, "");
+    setTimeout(() => {
+      setClosed(true);
+      window.history.replaceState(null, "", parentPath);
+    }, 200);
+  }, [pathname]);
 
   useEffect(() => {
     fetchSession(sessionId)
@@ -27,6 +42,7 @@ export default function SessionDrawer() {
       .finally(() => setLoading(false));
   }, [sessionId]);
 
+  if (closed) return null;
   if (loading) return null;
   if (notFoundError || !session) return notFound();
 
