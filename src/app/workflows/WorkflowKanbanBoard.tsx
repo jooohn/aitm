@@ -1,14 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import StatusBadge from "@/app/components/StatusBadge";
 import {
   fetchAllWorkflowRuns,
   fetchWorkflowRuns,
   fetchWorkflows,
   type WorkflowDefinition,
   type WorkflowRun,
-  type WorkflowRunStatus,
 } from "@/lib/utils/api";
 import { getOrderedSteps } from "@/lib/utils/workflowStepOrder";
 import KanbanCard from "./KanbanCard";
@@ -19,13 +17,6 @@ interface Props {
   activeWorktreeBranches: string[] | null;
   refreshKey?: number;
 }
-
-const STATUS_LABELS: Record<WorkflowRunStatus, string> = {
-  running: "Running",
-  awaiting: "Awaiting",
-  success: "Success",
-  failure: "Failure",
-};
 
 const TERMINAL_COLUMNS = ["Success"] as const;
 
@@ -181,27 +172,9 @@ export default function WorkflowKanbanBoard({
           runsByColumn.get(col)?.push(run);
         }
 
-        const statusCounts = new Map<WorkflowRunStatus, number>();
-        for (const run of wfRuns) {
-          statusCounts.set(run.status, (statusCounts.get(run.status) ?? 0) + 1);
-        }
-
         return (
           <div key={wfName}>
-            {workflowNames.length > 1 && (
-              <h3 className={styles.workflowHeading}>{wfName}</h3>
-            )}
-            <div className={styles.summaryBar} data-testid="status-summary">
-              {(["running", "success", "failure"] as const).map((status) => {
-                const count = statusCounts.get(status);
-                if (!count) return null;
-                return (
-                  <StatusBadge key={status} variant={status}>
-                    {count} {STATUS_LABELS[status]}
-                  </StatusBadge>
-                );
-              })}
-            </div>
+            <h3 className={styles.workflowHeading}>{wfName}</h3>
             <div className={styles.boardScroll}>
               <div className={styles.board} role="table">
                 {columns.map((col) => (
