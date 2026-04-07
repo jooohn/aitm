@@ -179,8 +179,8 @@ describe("WorktreeRunsSection", () => {
     // Wait for data to load
     await screen.findByText("feature-a");
 
-    // Both worktrees should be visible
-    expect(screen.getByText("main")).toBeInTheDocument();
+    // Main worktree is hidden; only non-main worktrees are shown
+    expect(screen.queryByText("main")).not.toBeInTheDocument();
     expect(screen.getByText("feature-a")).toBeInTheDocument();
 
     // Runs should be visible under feature-a
@@ -203,8 +203,8 @@ describe("WorktreeRunsSection", () => {
       />,
     );
 
-    await screen.findByText("main");
-    expect(screen.getByText("empty-branch")).toBeInTheDocument();
+    await screen.findByText("empty-branch");
+    expect(screen.queryByText("main")).not.toBeInTheDocument();
   });
 
   it("shows orphaned runs in a separate group", async () => {
@@ -223,10 +223,10 @@ describe("WorktreeRunsSection", () => {
       />,
     );
 
-    await screen.findByText("main");
-    // The orphaned group should have a label
-    expect(screen.getByText("Archived")).toBeInTheDocument();
+    // Main is hidden; wait for orphaned group to appear
+    await screen.findByText("Archived");
     expect(screen.getByText("deleted-branch")).toBeInTheDocument();
+    expect(screen.queryByText("main")).not.toBeInTheDocument();
   });
 
   it("always shows runs without any expand/collapse toggle", async () => {
