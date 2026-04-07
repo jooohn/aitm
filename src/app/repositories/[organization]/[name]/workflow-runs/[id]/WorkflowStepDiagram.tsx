@@ -49,6 +49,12 @@ export default function WorkflowStepDiagram({
   // Determine which steps have been executed
   const executedSteps = new Set(stepExecutions.map((e) => e.step));
 
+  // Build a map from step name to the latest execution's status
+  const stepStatusMap = new Map<string, StepExecution["status"]>();
+  for (const execution of stepExecutions) {
+    stepStatusMap.set(execution.step, execution.status);
+  }
+
   // Determine executed edges: step -> transition target
   const executedEdges = new Set<string>();
   for (const execution of stepExecutions) {
@@ -241,6 +247,26 @@ export default function WorkflowStepDiagram({
           const isFailed = status === "failure" && currentStep === node.id;
           const isClickable =
             onStepClick && (isExecuted || isCurrent || isFailed);
+          const nodeStatus = stepStatusMap.get(node.id);
+
+          // Determine the status-based CSS class for the node
+          const nodeStatusClass =
+            isFailed || nodeStatus === "failure"
+              ? styles.nodeFailure
+              : nodeStatus === "awaiting"
+                ? styles.nodeAwaiting
+                : nodeStatus === "success"
+                  ? styles.nodeSuccess
+                  : isCurrent
+                    ? styles.nodeCurrent
+                    : isExecuted
+                      ? styles.nodeExecuted
+                      : styles.nodeDimmed;
+
+          const nodeStatusAttr: Record<string, string> = {};
+          if (nodeStatus) {
+            nodeStatusAttr["data-node-status"] = nodeStatus;
+          }
 
           return (
             <g
@@ -249,6 +275,7 @@ export default function WorkflowStepDiagram({
               data-executed={isExecuted ? "true" : "false"}
               data-current={isCurrent ? "true" : "false"}
               data-failed={isFailed ? "true" : "false"}
+              {...nodeStatusAttr}
               className={isClickable ? styles.clickable : undefined}
               onClick={isClickable ? () => onStepClick(node.id) : undefined}
             >
@@ -259,11 +286,7 @@ export default function WorkflowStepDiagram({
                 height={NODE_HEIGHT}
                 rx={8}
                 ry={8}
-                className={`${styles.stateNode} ${
-                  isFailed ? styles.nodeFailure : ""
-                } ${isCurrent && !isFailed ? styles.nodeCurrent : ""} ${
-                  isExecuted && !isFailed ? styles.nodeExecuted : ""
-                } ${!isExecuted && !isCurrent && !isFailed ? styles.nodeDimmed : ""}`}
+                className={`${styles.stateNode} ${nodeStatusClass}`}
               />
               <text
                 x={center.x}

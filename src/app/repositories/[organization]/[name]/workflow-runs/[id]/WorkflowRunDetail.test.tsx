@@ -307,3 +307,92 @@ describe("WorkflowRunDetail", () => {
     expect(screen.queryByText("Awaiting Input")).not.toBeInTheDocument();
   });
 });
+
+describe("StepExecutionItem status-based border", () => {
+  it("sets data-status='running' on a running step execution", () => {
+    const execution = makeExecution({
+      step: "implement",
+      status: "running",
+      completed_at: null,
+    });
+
+    render(
+      <WorkflowRunDetail
+        run={makeRun({
+          status: "running",
+          step_executions: [execution],
+        })}
+      />,
+    );
+
+    const executionItem = document.getElementById(
+      "step-execution-implement-execution",
+    )!;
+    expect(executionItem.getAttribute("data-status")).toBe("running");
+  });
+
+  it("sets data-status='awaiting' on an awaiting step execution", () => {
+    const execution = makeExecution({
+      step: "implement",
+      status: "awaiting",
+      completed_at: null,
+    });
+
+    render(
+      <WorkflowRunDetail
+        run={makeRun({
+          status: "awaiting",
+          step_executions: [execution],
+        })}
+      />,
+    );
+
+    const executionItem = document.getElementById(
+      "step-execution-implement-execution",
+    )!;
+    expect(executionItem.getAttribute("data-status")).toBe("awaiting");
+  });
+
+  it("sets data-status='success' on a completed step execution", () => {
+    const execution = makeExecution({
+      step: "implement",
+      status: "success",
+    });
+
+    render(
+      <WorkflowRunDetail
+        run={makeRun({
+          status: "success",
+          step_executions: [execution],
+        })}
+      />,
+    );
+
+    const executionItem = document.getElementById(
+      "step-execution-implement-execution",
+    )!;
+    expect(executionItem.getAttribute("data-status")).toBe("success");
+  });
+
+  it("sets data-status='pending-approval' on a pending manual approval", () => {
+    const execution = makeExecution({
+      step: "review",
+      step_type: "manual-approval",
+      completed_at: null,
+    });
+
+    render(
+      <WorkflowRunDetail
+        run={makeRun({
+          status: "running",
+          step_executions: [execution],
+        })}
+      />,
+    );
+
+    const executionItem = document.getElementById(
+      "step-execution-review-execution",
+    )!;
+    expect(executionItem.getAttribute("data-status")).toBe("pending-approval");
+  });
+});

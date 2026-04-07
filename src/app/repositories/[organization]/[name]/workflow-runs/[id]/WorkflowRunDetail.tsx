@@ -112,8 +112,22 @@ function StepExecutionItem({
   const isCommandExecution = execution.step_type === "command";
   const isPendingApproval = displayStatus === "pending-approval";
 
+  const statusVariant: StatusBadgeVariant = isPendingApproval
+    ? "pending-approval"
+    : displayStatus === "awaiting"
+      ? "awaiting"
+      : displayStatus === "running"
+        ? "running"
+        : execution.status === "failure"
+          ? "failure"
+          : "success";
+
   return (
-    <li id={`step-execution-${execution.id}`} className={styles.execution}>
+    <li
+      id={`step-execution-${execution.id}`}
+      className={`${styles.execution} ${styles[`execution-${statusVariant}`] ?? ""}`}
+      data-status={statusVariant}
+    >
       <div className={styles.executionHeader}>
         <span className={styles.stateName}>{execution.step}</span>
         <StatusBadge variant={badge.variant}>{badge.label}</StatusBadge>
