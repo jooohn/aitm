@@ -104,6 +104,7 @@ const transitionSchema = z
     if (ctx.value.step !== undefined && ctx.value.terminal !== undefined) {
       ctx.issues.push({
         code: "custom",
+        input: ctx.value,
         message: "cannot define both step and terminal",
         path: [],
       });
@@ -111,6 +112,7 @@ const transitionSchema = z
     if (ctx.value.step === undefined && ctx.value.terminal === undefined) {
       ctx.issues.push({
         code: "custom",
+        input: ctx.value,
         message: "must define either step or terminal (success|failure)",
         path: [],
       });
