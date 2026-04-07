@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import EllipsisIcon from "@/app/components/icons/EllipsisIcon";
 import ExternalLinkIcon from "@/app/components/icons/ExternalLinkIcon";
 import RunWorkflowModal from "@/app/components/RunWorkflowModal";
+import type { StatusBadgeVariant } from "@/app/components/StatusBadge";
 import StatusBadge from "@/app/components/StatusBadge";
 import {
   canStopWorkflowRun,
@@ -42,6 +43,36 @@ const STATUS_LABELS: Record<WorkflowRunStatus, string> = {
 
 const TERMINAL_STATUSES: WorkflowRunStatus[] = ["success", "failure"];
 
+type StepExecutionDisplayStatus =
+  | "pending-approval"
+  | "awaiting"
+  | "running"
+  | "completed";
+
+function getStepExecutionDisplayStatus(
+  execution: StepExecution,
+): StepExecutionDisplayStatus {
+  const isRunning = execution.completed_at === null;
+  if (execution.step_type === "manual-approval" && isRunning)
+    return "pending-approval";
+  if (execution.status === "awaiting") return "awaiting";
+  if (isRunning) return "running";
+  return "completed";
+}
+
+const STEP_EXECUTION_BADGE: Record<
+  StepExecutionDisplayStatus,
+  { variant: StatusBadgeVariant; label: string }
+> = {
+  "pending-approval": {
+    variant: "pending-approval",
+    label: "Awaiting Approval",
+  },
+  awaiting: { variant: "awaiting", label: "Awaiting Input" },
+  running: { variant: "running", label: "Running" },
+  completed: { variant: "success", label: "Completed" },
+};
+
 interface TransitionDecision {
   transition: string;
   reason: string;
@@ -76,27 +107,16 @@ function StepExecutionItem({
 }: StepExecutionItemProps) {
   const [approvalReason, setApprovalReason] = useState("");
   const decision = parseDecision(execution.transition_decision);
-  const isRunning = execution.completed_at === null;
-  const isAwaiting = execution.status === "awaiting";
+  const displayStatus = getStepExecutionDisplayStatus(execution);
+  const badge = STEP_EXECUTION_BADGE[displayStatus];
   const isCommandExecution = execution.step_type === "command";
-  const isManualApproval = execution.step_type === "manual-approval";
-  const isPendingApproval = isManualApproval && isRunning;
+  const isPendingApproval = displayStatus === "pending-approval";
 
   return (
     <li id={`step-execution-${execution.id}`} className={styles.execution}>
       <div className={styles.executionHeader}>
         <span className={styles.stateName}>{execution.step}</span>
-        {isPendingApproval ? (
-          <StatusBadge variant="pending-approval">
-            Awaiting Approval
-          </StatusBadge>
-        ) : isAwaiting ? (
-          <StatusBadge variant="awaiting">Awaiting Input</StatusBadge>
-        ) : isRunning ? (
-          <StatusBadge variant="running">Running</StatusBadge>
-        ) : (
-          <StatusBadge variant="success">Completed</StatusBadge>
-        )}
+        <StatusBadge variant={badge.variant}>{badge.label}</StatusBadge>
       </div>
       <div className={styles.executionMeta}>
         {execution.session_id && (

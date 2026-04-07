@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { notFound, useParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import type { StatusBadgeVariant } from "@/app/components/StatusBadge";
 import StatusBadge from "@/app/components/StatusBadge";
 import WorkflowBreadcrumb from "@/app/components/WorkflowBreadcrumb";
 import {
@@ -11,6 +12,14 @@ import {
   type WorkflowRunDetail,
 } from "@/lib/utils/api";
 import styles from "./page.module.css";
+
+const STEP_EXECUTION_BADGE: Record<
+  "running" | "completed",
+  { variant: StatusBadgeVariant; label: string }
+> = {
+  running: { variant: "running", label: "Running" },
+  completed: { variant: "success", label: "Completed" },
+};
 
 interface TransitionDecision {
   transition: string;
@@ -51,7 +60,10 @@ export default function StepExecutionPage() {
   if (!execution) return notFound();
 
   const decision = parseDecision(execution.transition_decision);
-  const isRunning = execution.completed_at === null;
+  const badge =
+    STEP_EXECUTION_BADGE[
+      execution.completed_at === null ? "running" : "completed"
+    ];
 
   return (
     <main className={styles.page}>
@@ -68,11 +80,7 @@ export default function StepExecutionPage() {
 
       <div className={styles.header}>
         <div className={styles.headerLeft}>
-          {isRunning ? (
-            <StatusBadge variant="running">Running</StatusBadge>
-          ) : (
-            <StatusBadge variant="success">Completed</StatusBadge>
-          )}
+          <StatusBadge variant={badge.variant}>{badge.label}</StatusBadge>
           <h1 className={styles.title}>{execution.step}</h1>
         </div>
       </div>
