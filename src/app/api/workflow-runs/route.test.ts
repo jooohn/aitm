@@ -4,6 +4,7 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { worktreeService } from "@/backend/container";
+import { initializeConfig, resetConfigForTests } from "@/backend/infra/config";
 import { db } from "@/backend/infra/db";
 import { GET, POST } from "./route";
 
@@ -18,6 +19,12 @@ async function makeFakeGitRepo(): Promise<string> {
 
 let configFile: string;
 
+async function writeConfig(content: string) {
+  await writeFile(configFile, content);
+  resetConfigForTests();
+  await initializeConfig();
+}
+
 beforeEach(async () => {
   const dir = join(
     tmpdir(),
@@ -26,6 +33,7 @@ beforeEach(async () => {
   await mkdir(dir, { recursive: true });
   configFile = join(dir, "config.yaml");
   process.env.AITM_CONFIG_PATH = configFile;
+  resetConfigForTests();
 
   db.prepare("DELETE FROM sessions").run();
   db.prepare("DELETE FROM step_executions").run();
@@ -60,13 +68,13 @@ beforeEach(async () => {
 
 afterEach(() => {
   delete process.env.AITM_CONFIG_PATH;
+  resetConfigForTests();
 });
 
 describe("POST /api/workflow-runs", () => {
   it("creates a workflow run and returns 201", async () => {
     const repoPath = await makeFakeGitRepo();
-    await writeFile(
-      configFile,
+    await writeConfig(
       `
 workflows:
   my-flow:
@@ -102,7 +110,7 @@ workflows:
   });
 
   it("returns 422 when required fields are missing", async () => {
-    await writeFile(configFile, "");
+    await writeConfig("workflows: {}\n");
     const res = await POST(
       new NextRequest("http://localhost/api/workflow-runs", {
         method: "POST",
@@ -115,7 +123,7 @@ workflows:
 
   it("returns 404 when workflow is not found in config", async () => {
     const repoPath = await makeFakeGitRepo();
-    await writeFile(configFile, "workflows: {}\n");
+    await writeConfig("workflows: {}\n");
     const res = await POST(
       new NextRequest("http://localhost/api/workflow-runs", {
         method: "POST",
@@ -133,8 +141,7 @@ workflows:
 
 describe("GET /api/workflow-runs", () => {
   it("returns 200 with all workflow runs", async () => {
-    await writeFile(
-      configFile,
+    await writeConfig(
       `
 workflows:
   my-flow:
@@ -172,8 +179,7 @@ workflows:
   });
 
   it("filters by repository_path and worktree_branch", async () => {
-    await writeFile(
-      configFile,
+    await writeConfig(
       `
 workflows:
   my-flow:

@@ -2,6 +2,7 @@ import { mkdir, writeFile } from "fs/promises";
 import { tmpdir } from "os";
 import { join } from "path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { initializeConfig, resetConfigForTests } from "@/backend/infra/config";
 import { GET } from "./route";
 
 let configFile: string;
@@ -14,15 +15,18 @@ beforeEach(async () => {
   await mkdir(dir, { recursive: true });
   configFile = join(dir, "config.yaml");
   process.env.AITM_CONFIG_PATH = configFile;
+  resetConfigForTests();
 });
 
 afterEach(() => {
   delete process.env.AITM_CONFIG_PATH;
+  resetConfigForTests();
 });
 
 describe("GET /api/workflows", () => {
   it("returns 200 with empty object when no workflows configured", async () => {
     await writeFile(configFile, "repositories: []\n");
+    await initializeConfig();
     const res = await GET();
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({});
@@ -43,6 +47,7 @@ workflows:
             when: "done"
 `,
     );
+    await initializeConfig();
     const res = await GET();
     expect(res.status).toBe(200);
     const body = await res.json();

@@ -1,12 +1,13 @@
 import { mkdir, readFile, writeFile } from "fs/promises";
 import { tmpdir } from "os";
 import { join } from "path";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   agentService,
   sessionService,
   worktreeService,
 } from "@/backend/container";
+import { initializeConfig, resetConfigForTests } from "@/backend/infra/config";
 import { db } from "@/backend/infra/db";
 import { eventBus } from "@/backend/infra/event-bus";
 
@@ -46,6 +47,7 @@ vi.spyOn(worktreeService, "listWorktrees").mockImplementation(
 );
 
 const DEFAULT_TRANSITIONS = [{ terminal: "success" as const, when: "Done" }];
+let configFile: string;
 
 async function makeFakeGitRepo(): Promise<string> {
   const dir = join(
@@ -56,9 +58,24 @@ async function makeFakeGitRepo(): Promise<string> {
   return dir;
 }
 
-beforeEach(() => {
+beforeEach(async () => {
+  const dir = join(
+    tmpdir(),
+    `aitm-config-test-${Math.random().toString(36).slice(2)}`,
+  );
+  await mkdir(dir, { recursive: true });
+  configFile = join(dir, "config.yaml");
+  process.env.AITM_CONFIG_PATH = configFile;
+  await writeFile(configFile, "workflows: {}\n");
+  resetConfigForTests();
+  await initializeConfig();
   db.prepare("DELETE FROM sessions").run();
   vi.clearAllMocks();
+});
+
+afterEach(() => {
+  delete process.env.AITM_CONFIG_PATH;
+  resetConfigForTests();
 });
 
 describe("createSession", () => {
@@ -111,18 +128,10 @@ describe("createSession", () => {
   });
 
   it("uses the top-level agent config when no override is provided", async () => {
-    const dir = join(
-      tmpdir(),
-      `aitm-config-test-${Math.random().toString(36).slice(2)}`,
-    );
-    const configPath = join(dir, "config.yaml");
-    await mkdir(dir, { recursive: true });
-    process.env.AITM_CONFIG_PATH = configPath;
-
     const repoPath = await makeFakeGitRepo();
     try {
       await writeFile(
-        configPath,
+        configFile,
         `
 agent:
   provider: codex
@@ -131,6 +140,8 @@ agent:
 workflows: {}
 `,
       );
+      resetConfigForTests();
+      await initializeConfig();
 
       const session = await createSession({
         repository_path: repoPath,
@@ -155,6 +166,7 @@ workflows: {}
       );
     } finally {
       delete process.env.AITM_CONFIG_PATH;
+      resetConfigForTests();
     }
   });
 });

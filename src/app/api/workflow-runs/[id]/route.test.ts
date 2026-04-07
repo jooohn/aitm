@@ -8,6 +8,7 @@ import {
   workflowRunService,
   worktreeService,
 } from "@/backend/container";
+import { initializeConfig, resetConfigForTests } from "@/backend/infra/config";
 
 const createWorkflowRun =
   workflowRunService.createWorkflowRun.bind(workflowRunService);
@@ -26,6 +27,12 @@ async function makeFakeGitRepo(): Promise<string> {
 
 let configFile: string;
 
+async function writeConfig(content: string) {
+  await writeFile(configFile, content);
+  resetConfigForTests();
+  await initializeConfig();
+}
+
 beforeEach(async () => {
   const dir = join(
     tmpdir(),
@@ -34,8 +41,7 @@ beforeEach(async () => {
   await mkdir(dir, { recursive: true });
   configFile = join(dir, "config.yaml");
   process.env.AITM_CONFIG_PATH = configFile;
-  await writeFile(
-    configFile,
+  await writeConfig(
     `
 workflows:
   my-flow:
@@ -85,6 +91,7 @@ workflows:
 
 afterEach(() => {
   delete process.env.AITM_CONFIG_PATH;
+  resetConfigForTests();
 });
 
 function makeParams(id: string): { params: Promise<{ id: string }> } {

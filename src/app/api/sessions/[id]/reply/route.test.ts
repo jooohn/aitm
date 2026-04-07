@@ -1,13 +1,14 @@
-import { mkdir } from "fs/promises";
+import { mkdir, writeFile } from "fs/promises";
 import { NextRequest } from "next/server";
 import { tmpdir } from "os";
 import { join } from "path";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   agentService,
   sessionService,
   worktreeService,
 } from "@/backend/container";
+import { initializeConfig, resetConfigForTests } from "@/backend/infra/config";
 import { db } from "@/backend/infra/db";
 import { POST } from "./route";
 
@@ -42,7 +43,23 @@ function makeParams(id: string): { params: Promise<{ id: string }> } {
 }
 
 beforeEach(() => {
-  db.prepare("DELETE FROM sessions").run();
+  const configDir = join(
+    tmpdir(),
+    `aitm-config-test-${Math.random().toString(36).slice(2)}`,
+  );
+  return (async () => {
+    await mkdir(configDir, { recursive: true });
+    process.env.AITM_CONFIG_PATH = join(configDir, "config.yaml");
+    await writeFile(process.env.AITM_CONFIG_PATH, "workflows: {}\n");
+    resetConfigForTests();
+    await initializeConfig();
+    db.prepare("DELETE FROM sessions").run();
+  })();
+});
+
+afterEach(() => {
+  delete process.env.AITM_CONFIG_PATH;
+  resetConfigForTests();
 });
 
 describe("POST /api/sessions/:id/reply", () => {

@@ -8,6 +8,7 @@ import {
   workflowRunService,
   worktreeService,
 } from "@/backend/container";
+import { initializeConfig, resetConfigForTests } from "@/backend/infra/config";
 
 const createWorkflowRun =
   workflowRunService.createWorkflowRun.bind(workflowRunService);
@@ -49,6 +50,12 @@ workflows:
 
 let configFile: string;
 
+async function writeConfig(content: string) {
+  await writeFile(configFile, content);
+  resetConfigForTests();
+  await initializeConfig();
+}
+
 beforeEach(async () => {
   const dir = join(
     tmpdir(),
@@ -57,7 +64,7 @@ beforeEach(async () => {
   await mkdir(dir, { recursive: true });
   configFile = join(dir, "config.yaml");
   process.env.AITM_CONFIG_PATH = configFile;
-  await writeFile(configFile, WORKFLOW_CONFIG);
+  await writeConfig(WORKFLOW_CONFIG);
 
   db.prepare("DELETE FROM sessions").run();
   db.prepare("DELETE FROM step_executions").run();
@@ -79,6 +86,7 @@ beforeEach(async () => {
 
 afterEach(() => {
   delete process.env.AITM_CONFIG_PATH;
+  resetConfigForTests();
 });
 
 function makeParams(id: string): { params: Promise<{ id: string }> } {

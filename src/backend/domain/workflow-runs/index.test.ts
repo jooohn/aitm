@@ -8,6 +8,7 @@ import {
   workflowRunService,
   worktreeService,
 } from "@/backend/container";
+import { initializeConfig, resetConfigForTests } from "@/backend/infra/config";
 import { db } from "@/backend/infra/db";
 import { eventBus } from "@/backend/infra/event-bus";
 
@@ -53,6 +54,9 @@ async function writeTempConfig(content: string): Promise<string> {
   await mkdir(dir, { recursive: true });
   const configPath = join(dir, "config.yaml");
   await writeFile(configPath, content, "utf8");
+  process.env.AITM_CONFIG_PATH = configPath;
+  resetConfigForTests();
+  await initializeConfig();
   return configPath;
 }
 
@@ -81,6 +85,7 @@ let originalConfigPath: string | undefined;
 
 beforeEach(() => {
   originalConfigPath = process.env.AITM_CONFIG_PATH;
+  resetConfigForTests();
   db.prepare("DELETE FROM sessions").run();
   db.prepare("DELETE FROM step_executions").run();
   db.prepare("DELETE FROM workflow_runs").run();
@@ -119,6 +124,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.clearAllMocks();
+  resetConfigForTests();
   if (originalConfigPath === undefined) {
     delete process.env.AITM_CONFIG_PATH;
   } else {
@@ -1007,59 +1013,29 @@ workflows:
   });
 });
 
-describe("workflow config missing `steps` key", () => {
+describe("workflow config validation", () => {
   const NO_STATES_CONFIG = `
 workflows:
   no-states-flow:
     initial_step: goal
 `;
 
-  it("createWorkflowRun throws a descriptive error instead of TypeError", async () => {
-    process.env.AITM_CONFIG_PATH = await writeTempConfig(NO_STATES_CONFIG);
-    const repoPath = await makeFakeGitRepo();
-
-    await expect(() =>
-      createWorkflowRun({
-        repository_path: repoPath,
-        worktree_branch: "feat/test",
-        workflow_name: "no-states-flow",
-      }),
-    ).rejects.toThrow("Step not found: goal");
+  it("fails initialization when a workflow omits steps", async () => {
+    await expect(writeTempConfig(NO_STATES_CONFIG)).rejects.toThrow(
+      "workflows.no-states-flow.steps must be a non-empty object",
+    );
   });
 
-  it("completeStepExecution terminates run as failure when workflow.steps is undefined at transition time", async () => {
-    // Create the run with a valid config first
-    process.env.AITM_CONFIG_PATH = await writeTempConfig(
-      SIMPLE_WORKFLOW_CONFIG,
-    );
-    const repoPath = await makeFakeGitRepo();
-    const run = await createWorkflowRun({
-      repository_path: repoPath,
-      worktree_branch: "feat/test",
-      workflow_name: "my-flow",
-    });
+  it("fails initialization before runtime code can observe a workflow without steps", async () => {
+    await writeTempConfig(SIMPLE_WORKFLOW_CONFIG);
 
-    const [exec] = db
-      .prepare("SELECT * FROM step_executions WHERE workflow_run_id = ?")
-      .all(run.id) as { id: string }[];
-
-    // Swap to a config where my-flow exists but has no steps key
-    process.env.AITM_CONFIG_PATH = await writeTempConfig(`
+    await expect(
+      writeTempConfig(`
 workflows:
   my-flow:
     initial_step: plan
-`);
-
-    // Should not throw — should terminate as failure
-    await completeStepExecution(exec.id, {
-      transition: "implement",
-      reason: "Ready",
-      handoff_summary: "Plan done",
-    });
-
-    const updatedRun = getWorkflowRun(run.id);
-    expect(updatedRun?.status).toBe("failure");
-    expect(updatedRun?.current_step).toBe("plan");
+`),
+    ).rejects.toThrow("workflows.my-flow.steps must be a non-empty object");
   });
 });
 

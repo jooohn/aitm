@@ -3,6 +3,7 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { repositoryService } from "@/backend/container";
+import { initializeConfig, resetConfigForTests } from "@/backend/infra/config";
 import { spawnAsync } from "@/backend/utils/process";
 import { inferAlias } from "./index";
 
@@ -35,16 +36,19 @@ beforeEach(async () => {
   const dir = await makeTempDir();
   configFile = join(dir, "config.yaml");
   process.env.AITM_CONFIG_PATH = configFile;
+  resetConfigForTests();
 });
 
 afterEach(() => {
   delete process.env.AITM_CONFIG_PATH;
+  resetConfigForTests();
 });
 
 async function writeConfig(paths: string[]) {
   const lines = ["repositories:"];
   for (const p of paths) lines.push(`  - path: ${p}`);
   await writeFile(configFile, lines.join("\n"));
+  await initializeConfig();
 }
 
 describe("inferAlias", () => {
@@ -63,6 +67,8 @@ describe("inferAlias", () => {
 
 describe("listRepositories", () => {
   it("returns empty array when config has no repositories", async () => {
+    await writeFile(configFile, "workflows: {}\n");
+    await initializeConfig();
     expect(await listRepositories()).toEqual([]);
   });
 
@@ -104,6 +110,8 @@ describe("getRepositoryByAlias", () => {
   });
 
   it("returns undefined for unknown alias", async () => {
+    await writeFile(configFile, "workflows: {}\n");
+    await initializeConfig();
     expect(await getRepositoryByAlias("no/such")).toBeUndefined();
   });
 });

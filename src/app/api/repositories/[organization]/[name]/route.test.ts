@@ -3,6 +3,7 @@ import { NextRequest } from "next/server";
 import { tmpdir } from "os";
 import { join } from "path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { initializeConfig, resetConfigForTests } from "@/backend/infra/config";
 import { GET } from "./route";
 
 let configFile: string;
@@ -23,9 +24,10 @@ async function makeFakeGitRepo(): Promise<string> {
 }
 
 async function writeConfig(paths: string[]) {
-  const lines = ["repositories:"];
+  const lines = paths.length === 0 ? ["repositories: []"] : ["repositories:"];
   for (const p of paths) lines.push(`  - path: ${p}`);
   await writeFile(configFile, lines.join("\n"));
+  await initializeConfig();
 }
 
 function makeParams(
@@ -39,10 +41,12 @@ beforeEach(async () => {
   const dir = await makeTempDir();
   configFile = join(dir, "config.yaml");
   process.env.AITM_CONFIG_PATH = configFile;
+  resetConfigForTests();
 });
 
 afterEach(() => {
   delete process.env.AITM_CONFIG_PATH;
+  resetConfigForTests();
 });
 
 describe("GET /api/repositories/:organization/:name", () => {
