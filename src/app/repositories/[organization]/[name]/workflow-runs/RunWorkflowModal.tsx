@@ -7,6 +7,7 @@ import {
   createWorkflowRun,
   createWorktree,
   fetchRepository,
+  generateBranchName,
   type Repository,
 } from "@/lib/utils/api";
 import { workflowRunPath } from "@/lib/utils/workflowRunPath";
@@ -31,6 +32,7 @@ export default function RunWorkflowModal({
   const [branch, setBranch] = useState(fixedBranch ?? "");
   const [selectedWorkflow, setSelectedWorkflow] = useState("");
   const [inputValues, setInputValues] = useState<Record<string, string>>({});
+  const [autoGenerate, setAutoGenerate] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -89,19 +91,27 @@ export default function RunWorkflowModal({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!branch.trim() || !selectedWorkflow || !selectedAlias) return;
+    if (!autoGenerate && !branch.trim()) return;
+    if (!selectedWorkflow || !selectedAlias) return;
     const repo = repos.find((r) => r.alias === selectedAlias);
     if (!repo) return;
     const [organization, name] = repo.alias.split("/");
     setSubmitting(true);
     setSubmitError(null);
     try {
+      let effectiveBranch = branch;
+      if (autoGenerate) {
+        const inputs =
+          Object.keys(inputValues).length > 0 ? inputValues : undefined;
+        const result = await generateBranchName(selectedWorkflow, inputs);
+        effectiveBranch = result.branch;
+      }
       if (!fixedBranch) {
-        await createWorktree(organization, name, { branch });
+        await createWorktree(organization, name, { branch: effectiveBranch });
       }
       const run = await createWorkflowRun({
         repository_path: repo.path,
-        worktree_branch: branch,
+        worktree_branch: effectiveBranch,
         workflow_name: selectedWorkflow,
         inputs: Object.keys(inputValues).length > 0 ? inputValues : undefined,
       });
@@ -173,7 +183,7 @@ export default function RunWorkflowModal({
               }
               onSubmit={handleSubmit}
               disabled={submitting}
-              submitDisabled={submitting || !branch.trim()}
+              submitDisabled={submitting || (!autoGenerate && !branch.trim())}
               isSubmitting={submitting}
               submitLabel="Create & launch"
               submittingLabel="Launching…"
@@ -206,21 +216,43 @@ export default function RunWorkflowModal({
               <div className={styles.fieldGroup}>
                 <label htmlFor="rwm-branch" className={styles.label}>
                   Branch name
-                  {!fixedBranch && <span className={styles.required}>*</span>}
+                  {!fixedBranch && !autoGenerate && (
+                    <span className={styles.required}>*</span>
+                  )}
                 </label>
                 {fixedBranch ? (
                   <span className={styles.fixedValue}>{fixedBranch}</span>
                 ) : (
-                  <input
-                    id="rwm-branch"
-                    type="text"
-                    className={styles.input}
-                    placeholder="e.g. feature/my-change"
-                    value={branch}
-                    onChange={(e) => setBranch(e.target.value)}
-                    disabled={submitting}
-                    required
-                  />
+                  <>
+                    <label className={styles.checkboxRow}>
+                      <input
+                        type="checkbox"
+                        checked={autoGenerate}
+                        onChange={(e) => {
+                          setAutoGenerate(e.target.checked);
+                          if (e.target.checked) setBranch("");
+                        }}
+                        disabled={submitting}
+                      />
+                      <span className={styles.checkboxLabel}>
+                        Auto-generate
+                      </span>
+                    </label>
+                    <input
+                      id="rwm-branch"
+                      type="text"
+                      className={styles.input}
+                      placeholder={
+                        autoGenerate
+                          ? "Will be generated automatically"
+                          : "e.g. feature/my-change"
+                      }
+                      value={branch}
+                      onChange={(e) => setBranch(e.target.value)}
+                      disabled={submitting || autoGenerate}
+                      required={!autoGenerate}
+                    />
+                  </>
                 )}
               </div>
             </WorkflowLaunchForm>

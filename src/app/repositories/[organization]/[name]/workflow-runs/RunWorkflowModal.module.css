@@ -51,3 +51,11 @@
 .fixedValue {
   @apply text-sm py-1.5 text-zinc-900 dark:text-zinc-100;
 }
+
+.checkboxRow {
+  @apply flex items-center gap-1.5 cursor-pointer;
+}
+
+.checkboxLabel {
+  @apply text-xs text-zinc-600 dark:text-zinc-400;
+}
