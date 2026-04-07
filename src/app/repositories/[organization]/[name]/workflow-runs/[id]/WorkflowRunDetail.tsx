@@ -90,6 +90,7 @@ function parseDecision(raw: string | null): TransitionDecision | null {
 
 interface StepExecutionItemProps {
   execution: StepExecution;
+  isCurrent: boolean;
   runBasePath: string;
   onResolve?: (
     executionId: string,
@@ -101,6 +102,7 @@ interface StepExecutionItemProps {
 
 function StepExecutionItem({
   execution,
+  isCurrent,
   runBasePath,
   onResolve,
   resolvingId,
@@ -125,7 +127,7 @@ function StepExecutionItem({
   return (
     <li
       id={`step-execution-${execution.id}`}
-      className={`${styles.execution} ${styles[`execution-${statusVariant}`] ?? ""}`}
+      className={`${styles.execution} ${isCurrent ? (styles[`execution-${statusVariant}`] ?? "") : ""}`}
       data-status={statusVariant}
     >
       <div className={styles.executionHeader}>
@@ -562,10 +564,11 @@ export default function WorkflowRunDetail({ run: initial, basePath }: Props) {
           <p className={styles.empty}>No step executions yet.</p>
         ) : (
           <ul className={styles.executions}>
-            {[...run.step_executions].reverse().map((execution) => (
+            {[...run.step_executions].reverse().map((execution, index) => (
               <StepExecutionItem
                 key={execution.id}
                 execution={execution}
+                isCurrent={index === 0}
                 runBasePath={
                   basePath ??
                   `/repositories/${inferAlias(run.repository_path)}/workflow-runs/${run.id}`

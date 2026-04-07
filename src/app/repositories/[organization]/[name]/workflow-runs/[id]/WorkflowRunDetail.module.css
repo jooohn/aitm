@@ -154,18 +154,15 @@
 }
 
 .execution-running {
-  @apply border-blue-400 dark:border-blue-500;
-  animation: border-blink 1.5s ease-in-out infinite;
+  animation: border-blink-blue 1.5s ease-in-out infinite;
 }
 
 .execution-awaiting {
-  @apply border-amber-400 dark:border-amber-500;
-  animation: border-blink 1.5s ease-in-out infinite;
+  animation: border-blink-amber 1.5s ease-in-out infinite;
 }
 
 .execution-pending-approval {
-  @apply border-amber-400 dark:border-amber-500;
-  animation: border-blink 1.5s ease-in-out infinite;
+  animation: border-blink-amber 1.5s ease-in-out infinite;
 }
 
 .execution-success {
@@ -176,13 +173,23 @@
   @apply border-red-400 dark:border-red-500;
 }
 
-@keyframes border-blink {
+@keyframes border-blink-blue {
   0%,
   100% {
-    opacity: 1;
+    border-color: rgb(96 165 250); /* blue-400 */
   }
   50% {
-    opacity: 0.3;
+    border-color: rgb(96 165 250 / 0.3);
+  }
+}
+
+@keyframes border-blink-amber {
+  0%,
+  100% {
+    border-color: rgb(251 191 36); /* amber-400 */
+  }
+  50% {
+    border-color: rgb(251 191 36 / 0.3);
   }
 }
 
