@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import ExternalLinkIcon from "@/app/components/icons/ExternalLinkIcon";
 import StatusBadge from "@/app/components/StatusBadge";
 import {
   fetchAllWorkflowRuns,
@@ -12,7 +11,6 @@ import {
   type WorkflowRun,
   type WorkflowRunStatus,
 } from "@/lib/utils/api";
-import { extractPullRequestUrl } from "@/lib/utils/extractPullRequestUrl";
 import { inferAlias } from "@/lib/utils/inferAlias";
 import { timeAgo } from "@/lib/utils/timeAgo";
 import { workflowRunPath } from "@/lib/utils/workflowRunPath";
@@ -222,57 +220,30 @@ export default function WorkflowKanbanBoard({
                       {col}
                     </div>
                     <div className={styles.columnCards}>
-                      {(runsByColumn.get(col) ?? []).map((run) => {
-                        const prUrl = extractPullRequestUrl(run.metadata);
-                        return (
-                          <div
-                            key={run.id}
-                            className={[
-                              styles.card,
-                              statusCardClass[run.status],
-                            ]
-                              .filter(Boolean)
-                              .join(" ")}
-                            role="row"
-                          >
-                            {multiRepo && (
-                              <span className={styles.cardRepo}>
-                                {inferAlias(run.repository_path)}
-                              </span>
-                            )}
-                            <Link
-                              href={workflowRunPath(run)}
-                              className={styles.cardBranch}
-                            >
-                              {run.worktree_branch}
-                            </Link>
-                            <div className={styles.cardMeta}>
-                              <StatusBadge variant={run.status}>
-                                {STATUS_LABELS[run.status]}
-                              </StatusBadge>
-                              <span>{timeAgo(run.created_at)}</span>
-                              {prUrl && (
-                                <a
-                                  href={prUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className={styles.prLink}
-                                >
-                                  PR
-                                  <ExternalLinkIcon
-                                    size={12}
-                                    style={{
-                                      display: "inline",
-                                      verticalAlign: "middle",
-                                      marginLeft: 2,
-                                    }}
-                                  />
-                                </a>
-                              )}
-                            </div>
+                      {(runsByColumn.get(col) ?? []).map((run) => (
+                        <Link
+                          key={run.id}
+                          href={workflowRunPath(run)}
+                          className={[styles.card, statusCardClass[run.status]]
+                            .filter(Boolean)
+                            .join(" ")}
+                        >
+                          {multiRepo && (
+                            <span className={styles.cardRepo}>
+                              {inferAlias(run.repository_path)}
+                            </span>
+                          )}
+                          <span className={styles.cardBranch}>
+                            {run.worktree_branch}
+                          </span>
+                          <div className={styles.cardMeta}>
+                            <StatusBadge variant={run.status}>
+                              {STATUS_LABELS[run.status]}
+                            </StatusBadge>
+                            <span>{timeAgo(run.created_at)}</span>
                           </div>
-                        );
-                      })}
+                        </Link>
+                      ))}
                     </div>
                   </div>
                 ))}

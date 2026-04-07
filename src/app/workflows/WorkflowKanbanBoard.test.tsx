@@ -157,7 +157,7 @@ describe("WorkflowKanbanBoard", () => {
     await screen.findByText("feat-a");
 
     // The card should link to the workflow run detail page
-    const link = screen.getByRole("link", { name: "feat-a" });
+    const link = screen.getByRole("link", { name: /feat-a/ });
     expect(link).toHaveAttribute(
       "href",
       "/repositories/org/name/workflow-runs/r1",
@@ -220,7 +220,7 @@ describe("WorkflowKanbanBoard", () => {
     ).toBeInTheDocument();
 
     // Should have failure card styling
-    const card = screen.getByText("feat-fail").closest("[role='row']")!;
+    const card = screen.getByText("feat-fail").closest("a")!;
     expect(card.className).toContain("cardFailure");
   });
 
@@ -334,15 +334,9 @@ describe("WorkflowKanbanBoard", () => {
     ]);
   });
 
-  it("renders a PR link when metadata contains a pull request URL", async () => {
+  it("makes the entire card a link to the workflow run detail", async () => {
     fetchWorkflowRunsMock.mockResolvedValue([
-      makeRun({
-        id: "r1",
-        current_step: "review",
-        metadata: JSON.stringify({
-          presets__pull_request_url: "https://github.com/org/repo/pull/99",
-        }),
-      }),
+      makeRun({ id: "r1", current_step: "review" }),
     ]);
 
     render(
@@ -354,28 +348,8 @@ describe("WorkflowKanbanBoard", () => {
 
     await screen.findByText("feature-branch");
 
-    const prLink = screen.getByRole("link", { name: /PR/ });
-    expect(prLink).toHaveAttribute(
-      "href",
-      "https://github.com/org/repo/pull/99",
-    );
-    expect(prLink).toHaveAttribute("target", "_blank");
-  });
-
-  it("does not render a PR link when metadata is null", async () => {
-    fetchWorkflowRunsMock.mockResolvedValue([
-      makeRun({ id: "r1", current_step: "plan", metadata: null }),
-    ]);
-
-    render(
-      <WorkflowKanbanBoard
-        repositoryPath="/repos/org/name"
-        activeWorktreeBranches={null}
-      />,
-    );
-
-    await screen.findByText("feature-branch");
-    expect(screen.queryByRole("link", { name: /PR/ })).not.toBeInTheDocument();
+    const cardLink = screen.getByRole("link", { name: /feature-branch/ });
+    expect(cardLink).toBeInTheDocument();
   });
 
   it("shows status badge on cards", async () => {
@@ -474,7 +448,7 @@ describe("WorkflowKanbanBoard", () => {
 
       await screen.findByText("feat-done");
 
-      const card = screen.getByText("feat-done").closest("[role='row']")!;
+      const card = screen.getByText("feat-done").closest("a")!;
       expect(card.className).toContain("cardSuccess");
     });
 
@@ -497,7 +471,7 @@ describe("WorkflowKanbanBoard", () => {
 
       await screen.findByText("feat-wip");
 
-      const card = screen.getByText("feat-wip").closest("[role='row']")!;
+      const card = screen.getByText("feat-wip").closest("a")!;
       expect(card.className).toContain("cardRunning");
     });
   });
