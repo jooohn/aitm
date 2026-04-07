@@ -2,22 +2,17 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import EllipsisIcon from "@/app/components/icons/EllipsisIcon";
 import PrChip, { extractPrInfos } from "@/app/components/PrChip";
 import StatusDot from "@/app/components/StatusDot";
 import {
   cleanMergedWorktrees,
   createWorktree,
-  fetchWorkflowRuns,
-  fetchWorktrees,
   type WorkflowRun,
   type Worktree,
 } from "@/lib/utils/api";
-import {
-  groupRunsByWorktree,
-  type WorktreeGroup,
-} from "@/lib/utils/groupRunsByWorktree";
+import { groupRunsByWorktree } from "@/lib/utils/groupRunsByWorktree";
 import { timeAgo } from "@/lib/utils/timeAgo";
 import styles from "./WorktreeRunsSection.module.css";
 
@@ -26,21 +21,29 @@ const INITIAL_VISIBLE_RUNS = 3;
 interface Props {
   organization: string;
   name: string;
-  repositoryPath: string;
-  refreshKey?: number;
+  worktrees: Worktree[];
+  runs: WorkflowRun[];
+  loading: boolean;
+  hasLoadedOnce: boolean;
+  error: string | null;
+  onReload: () => void;
 }
 
 export default function WorktreeRunsSection({
   organization,
   name,
-  repositoryPath,
-  refreshKey,
+  worktrees,
+  runs,
+  loading,
+  hasLoadedOnce,
+  error,
+  onReload,
 }: Props) {
   const pathname = usePathname();
-  const [groups, setGroups] = useState<WorktreeGroup[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const groups = useMemo(
+    () => groupRunsByWorktree(worktrees, runs),
+    [worktrees, runs],
+  );
   const [showAllRunsBranches, setShowAllRunsBranches] = useState<Set<string>>(
     new Set(),
   );
@@ -54,29 +57,6 @@ export default function WorktreeRunsSection({
   const [cleanMergedError, setCleanMergedError] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-
-  async function loadData() {
-    setLoading(true);
-    setError(null);
-    try {
-      const [worktrees, runs] = await Promise.all([
-        fetchWorktrees(organization, name),
-        fetchWorkflowRuns(repositoryPath),
-      ]);
-      const grouped = groupRunsByWorktree(worktrees, runs);
-      setGroups(grouped);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load data");
-    } finally {
-      setHasLoadedOnce(true);
-      setLoading(false);
-    }
-  }
-
-  // biome-ignore lint/correctness/useExhaustiveDependencies: load on mount and when refreshKey changes
-  useEffect(() => {
-    loadData();
-  }, [refreshKey]);
 
   useEffect(() => {
     if (!showCreateModal) return;
@@ -113,7 +93,7 @@ export default function WorktreeRunsSection({
       await createWorktree(organization, name, { branch });
       setBranch("");
       setShowCreateModal(false);
-      await loadData();
+      onReload();
     } catch (err) {
       setCreateError(
         err instanceof Error ? err.message : "Failed to create worktree",
@@ -128,7 +108,7 @@ export default function WorktreeRunsSection({
     setCleanMergedError(null);
     try {
       await cleanMergedWorktrees(organization, name);
-      await loadData();
+      onReload();
     } catch (err) {
       setCleanMergedError(
         err instanceof Error ? err.message : "Failed to clean merged worktrees",
