@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import EllipsisIcon from "@/app/components/icons/EllipsisIcon";
+import PrChip, { extractPrInfos } from "@/app/components/PrChip";
 import StatusDot from "@/app/components/StatusDot";
 import {
   cleanMergedWorktrees,
@@ -18,7 +19,6 @@ import {
   type WorktreeGroup,
 } from "@/lib/utils/groupRunsByWorktree";
 import { timeAgo } from "@/lib/utils/timeAgo";
-import PrChip, { extractPrInfos } from "./PrChip";
 import styles from "./WorktreeRunsSection.module.css";
 
 const INITIAL_VISIBLE_RUNS = 3;

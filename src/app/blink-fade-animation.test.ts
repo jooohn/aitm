@@ -24,19 +24,19 @@ describe("blink-fade animation", () => {
   });
 
   it("does NOT apply blink-fade animation to .badge-running in WorkflowKanbanBoard", () => {
-    const css = readCss("components/WorkflowKanbanBoard.module.css");
+    const css = readCss("workflows/WorkflowKanbanBoard.module.css");
     expect(css).not.toContain("@keyframes blink-fade");
     expect(css).not.toMatch(/\.badge-running[\s\S]*?blink-fade/);
   });
 
   it("does NOT apply blink-fade animation to .badge-running in WorkflowSection", () => {
-    const css = readCss("components/WorkflowSection.module.css");
+    const css = readCss("workflows/WorkflowSection.module.css");
     expect(css).not.toContain("@keyframes blink-fade");
     expect(css).not.toMatch(/\.badge-running[\s\S]*?blink-fade/);
   });
 
   it("does NOT apply blink-fade animation to .badge in ActiveWorkflowsSection", () => {
-    const css = readCss("components/ActiveWorkflowsSection.module.css");
+    const css = readCss("workflows/ActiveWorkflowsSection.module.css");
     expect(css).not.toContain("@keyframes blink-fade");
     expect(css).not.toMatch(/\.badge[\s\S]*?blink-fade/);
   });

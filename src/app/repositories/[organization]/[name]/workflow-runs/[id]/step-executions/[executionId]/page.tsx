@@ -5,12 +5,12 @@ import { notFound, useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { StatusBadgeVariant } from "@/app/components/StatusBadge";
 import StatusBadge from "@/app/components/StatusBadge";
-import WorkflowBreadcrumb from "@/app/components/WorkflowBreadcrumb";
 import {
   fetchWorkflowRun,
   type StepExecution,
   type WorkflowRunDetail,
 } from "@/lib/utils/api";
+import WorkflowBreadcrumb from "../../WorkflowBreadcrumb";
 import styles from "./page.module.css";
 
 const STEP_EXECUTION_BADGE: Record<

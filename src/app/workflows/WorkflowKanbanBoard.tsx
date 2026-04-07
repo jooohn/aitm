@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import ExternalLinkIcon from "@/app/components/icons/ExternalLinkIcon";
+import StatusBadge from "@/app/components/StatusBadge";
 import {
   fetchAllWorkflowRuns,
   fetchWorkflowRuns,
@@ -16,7 +17,6 @@ import { inferAlias } from "@/lib/utils/inferAlias";
 import { timeAgo } from "@/lib/utils/timeAgo";
 import { workflowRunPath } from "@/lib/utils/workflowRunPath";
 import { getOrderedSteps } from "@/lib/utils/workflowStepOrder";
-import StatusBadge from "./StatusBadge";
 import styles from "./WorkflowKanbanBoard.module.css";
 
 interface Props {

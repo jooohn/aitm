@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import StatusBadge from "@/app/components/StatusBadge";
+import WorkflowLaunchForm from "@/app/repositories/[organization]/[name]/workflow-runs/WorkflowLaunchForm";
 import {
   createWorkflowRun,
   fetchWorkflowRuns,
@@ -11,8 +13,6 @@ import {
   type WorkflowRunStatus,
 } from "@/lib/utils/api";
 import { workflowRunPath } from "@/lib/utils/workflowRunPath";
-import StatusBadge from "./StatusBadge";
-import WorkflowLaunchForm from "./WorkflowLaunchForm";
 
 import styles from "./WorkflowSection.module.css";
 

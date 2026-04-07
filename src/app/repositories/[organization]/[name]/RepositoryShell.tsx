@@ -3,11 +3,11 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import GitHubIcon from "@/app/components/icons/GitHubIcon";
-import RunWorkflowModal from "@/app/components/RunWorkflowModal";
-import WorktreeRunsSection from "@/app/components/WorktreeRunsSection";
 import { useNotificationStream } from "@/lib/hooks/useNotificationStream";
 import { fetchRepository, type RepositoryDetail } from "@/lib/utils/api";
 import styles from "./RepositoryShell.module.css";
+import WorktreeRunsSection from "./WorktreeRunsSection";
+import RunWorkflowModal from "./workflow-runs/RunWorkflowModal";
 
 interface Props {
   organization: string;

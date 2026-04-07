@@ -2,7 +2,7 @@
 
 import { notFound, useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import WorkflowKanbanBoard from "@/app/components/WorkflowKanbanBoard";
+import WorkflowKanbanBoard from "@/app/workflows/WorkflowKanbanBoard";
 import { useNotificationStream } from "@/lib/hooks/useNotificationStream";
 import {
   fetchRepository,

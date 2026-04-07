@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import WorkflowRunPage from "@/app/components/WorkflowRunPage";
+import WorkflowRunPage from "../WorkflowRunPage";
 import styles from "./page.module.css";
 
 export default function WorkflowRunRoute() {

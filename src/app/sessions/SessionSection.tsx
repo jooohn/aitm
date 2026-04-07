@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import type { StatusBadgeVariant } from "@/app/components/StatusBadge";
+import StatusBadge from "@/app/components/StatusBadge";
 import {
   fetchSessions,
   type Session,
@@ -9,8 +11,6 @@ import {
 } from "@/lib/utils/api";
 import { inferAlias } from "@/lib/utils/inferAlias";
 import styles from "./SessionSection.module.css";
-import type { StatusBadgeVariant } from "./StatusBadge";
-import StatusBadge from "./StatusBadge";
 
 interface Props {
   repositoryPath: string;

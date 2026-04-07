@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import WorkflowKanbanBoard from "@/app/workflows/WorkflowKanbanBoard";
 import { fetchRepositories, type Repository } from "@/lib/utils/api";
-import WorkflowKanbanBoard from "./components/WorkflowKanbanBoard";
 import styles from "./page.module.css";
 
 export default function Home() {

@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import EllipsisIcon from "@/app/components/icons/EllipsisIcon";
 import ExternalLinkIcon from "@/app/components/icons/ExternalLinkIcon";
-import RunWorkflowModal from "@/app/components/RunWorkflowModal";
 import type { StatusBadgeVariant } from "@/app/components/StatusBadge";
 import StatusBadge from "@/app/components/StatusBadge";
 import {
@@ -25,6 +24,7 @@ import { extractPullRequestUrl } from "@/lib/utils/extractPullRequestUrl";
 import { inferAlias } from "@/lib/utils/inferAlias";
 import { timeAgo } from "@/lib/utils/timeAgo";
 import { workflowRunPath } from "@/lib/utils/workflowRunPath";
+import RunWorkflowModal from "../RunWorkflowModal";
 import { parseWorkflowRunInputs } from "./parseWorkflowRunInputs";
 import styles from "./WorkflowRunDetail.module.css";
 import WorkflowStepDiagram from "./WorkflowStepDiagram";

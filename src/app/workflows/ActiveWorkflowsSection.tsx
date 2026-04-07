@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import StatusBadge from "@/app/components/StatusBadge";
 import { fetchAllWorkflowRuns, type WorkflowRun } from "@/lib/utils/api";
 import { workflowRunPath } from "@/lib/utils/workflowRunPath";
 import styles from "./ActiveWorkflowsSection.module.css";
-import StatusBadge from "./StatusBadge";
 
 function repoAlias(repositoryPath: string): string {
   const parts = repositoryPath.replace(/\/$/, "").split("/");

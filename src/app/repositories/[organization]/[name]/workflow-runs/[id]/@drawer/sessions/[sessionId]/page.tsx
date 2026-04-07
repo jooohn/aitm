@@ -1,1 +1,1 @@
-export { default } from "@/app/components/SessionDrawer";
+export { default } from "@/app/sessions/SessionDrawer";

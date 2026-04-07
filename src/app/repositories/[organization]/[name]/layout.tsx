@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import RepositoryShell from "@/app/components/RepositoryShell";
+import RepositoryShell from "./RepositoryShell";
 
 export default function RepositoryLayout({
   children,

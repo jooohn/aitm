@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import WorkflowLaunchForm from "@/app/repositories/[organization]/[name]/workflow-runs/WorkflowLaunchForm";
 import {
   createWorkflowRun,
   createWorktree,
@@ -12,7 +13,6 @@ import {
 } from "@/lib/utils/api";
 import { workflowRunPath } from "@/lib/utils/workflowRunPath";
 import styles from "./HomeQuickLaunchSection.module.css";
-import WorkflowLaunchForm from "./WorkflowLaunchForm";
 
 export default function HomeQuickLaunchSection() {
   const router = useRouter();

@@ -4,7 +4,7 @@ import { notFound, useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import TrashIcon from "@/app/components/icons/TrashIcon";
 import PrChip, { extractPrInfos } from "@/app/components/PrChip";
-import WorkflowKanbanBoard from "@/app/components/WorkflowKanbanBoard";
+import WorkflowKanbanBoard from "@/app/workflows/WorkflowKanbanBoard";
 import {
   fetchRepository,
   fetchWorkflowRuns,
