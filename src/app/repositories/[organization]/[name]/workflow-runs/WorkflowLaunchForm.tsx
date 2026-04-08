@@ -41,9 +41,21 @@ export default function WorkflowLaunchForm({
   idPrefix = "wlf",
 }: Props) {
   const isSubmitDisabled = submitDisabled ?? disabled;
+  function handleKeyDown(event: React.KeyboardEvent<HTMLFormElement>) {
+    if (
+      event.key === "Enter" &&
+      event.metaKey &&
+      !event.shiftKey &&
+      !event.altKey &&
+      !isSubmitDisabled
+    ) {
+      event.preventDefault();
+      event.currentTarget.requestSubmit();
+    }
+  }
 
   return (
-    <form onSubmit={onSubmit} className={styles.form}>
+    <form onSubmit={onSubmit} onKeyDown={handleKeyDown} className={styles.form}>
       {children}
 
       <div className={styles.fieldGroup}>

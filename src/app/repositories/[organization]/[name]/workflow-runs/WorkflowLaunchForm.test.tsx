@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import WorkflowLaunchForm from "./WorkflowLaunchForm";
@@ -76,5 +76,66 @@ describe("WorkflowLaunchForm", () => {
     expect(screen.getByRole("option", { name: "Test Workflow" })).toHaveValue(
       "test-workflow",
     );
+  });
+
+  it("submits when Command+Enter is pressed in a multiline input", () => {
+    const onSubmit = vi.fn((e: React.FormEvent) => e.preventDefault());
+
+    render(
+      <WorkflowLaunchForm
+        {...defaultProps}
+        onSubmit={onSubmit}
+        workflows={{
+          "test-workflow": {
+            ...defaultProps.workflows["test-workflow"],
+            inputs: [
+              {
+                name: "prompt",
+                label: "Prompt",
+                type: "multiline-text",
+                required: false,
+              },
+            ],
+          },
+        }}
+      />,
+    );
+
+    fireEvent.keyDown(screen.getByLabelText("Prompt"), {
+      key: "Enter",
+      metaKey: true,
+    });
+
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not submit on plain Enter in a multiline input", () => {
+    const onSubmit = vi.fn((e: React.FormEvent) => e.preventDefault());
+
+    render(
+      <WorkflowLaunchForm
+        {...defaultProps}
+        onSubmit={onSubmit}
+        workflows={{
+          "test-workflow": {
+            ...defaultProps.workflows["test-workflow"],
+            inputs: [
+              {
+                name: "prompt",
+                label: "Prompt",
+                type: "multiline-text",
+                required: false,
+              },
+            ],
+          },
+        }}
+      />,
+    );
+
+    fireEvent.keyDown(screen.getByLabelText("Prompt"), {
+      key: "Enter",
+    });
+
+    expect(onSubmit).not.toHaveBeenCalled();
   });
 });
