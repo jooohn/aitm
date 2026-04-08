@@ -23,8 +23,15 @@ export type CommandExecutionItem = {
   status?: string;
 };
 
+export type CommandGroupItem = {
+  kind: "command_group";
+  summary: string;
+  calls: CommandExecutionItem[];
+};
+
 export type OutputItem =
   | TextItem
   | ToolCallItem
   | ToolGroupItem
-  | CommandExecutionItem;
+  | CommandExecutionItem
+  | CommandGroupItem;

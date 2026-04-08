@@ -10,39 +10,77 @@ import {
   type Session,
   type SessionStatus,
 } from "@/lib/utils/api";
-import type { OutputItem, ToolGroupItem } from "@/lib/utils/outputItem";
+import type {
+  CommandExecutionItem,
+  CommandGroupItem,
+  OutputItem,
+  ToolGroupItem,
+} from "@/lib/utils/outputItem";
 import { parseLogEntry } from "@/lib/utils/parseLogEntry";
 import OutputItemView from "./OutputItemView";
 import styles from "./SessionDetail.module.css";
+
+function summarizeCommand(command: string): string {
+  if (command.includes("rg --files")) return "List repository files";
+  if (command.includes("git status")) return "Check git status";
+  if (command.includes("npm test")) return "Run tests";
+  if (command.includes("sed -n")) return "Read file";
+  return "Run command";
+}
 
 function appendWithGrouping(
   items: OutputItem[],
   newItem: OutputItem,
 ): OutputItem[] {
-  if (newItem.kind !== "tool_call") {
+  const last = items[items.length - 1];
+
+  if (newItem.kind === "tool_call") {
+    if (!last) {
+      return [newItem];
+    }
+    if (last.kind === "tool_call" && last.toolName === newItem.toolName) {
+      const group: ToolGroupItem = {
+        kind: "tool_group",
+        toolName: newItem.toolName,
+        calls: [last, newItem],
+      };
+      return [...items.slice(0, -1), group];
+    }
+    if (last.kind === "tool_group" && last.toolName === newItem.toolName) {
+      const group: ToolGroupItem = {
+        ...last,
+        calls: [...last.calls, newItem],
+      };
+      return [...items.slice(0, -1), group];
+    }
     return [...items, newItem];
   }
-  const last = items[items.length - 1];
-  if (!last) {
-    return [newItem];
+
+  if (newItem.kind === "command_execution") {
+    const summary = summarizeCommand(newItem.command);
+    if (!last) {
+      return [newItem];
+    }
+    if (
+      last.kind === "command_execution" &&
+      summarizeCommand(last.command) === summary
+    ) {
+      const group: CommandGroupItem = {
+        kind: "command_group",
+        summary,
+        calls: [last, newItem],
+      };
+      return [...items.slice(0, -1), group];
+    }
+    if (last.kind === "command_group" && last.summary === summary) {
+      const group: CommandGroupItem = {
+        ...last,
+        calls: [...last.calls, newItem],
+      };
+      return [...items.slice(0, -1), group];
+    }
   }
-  // Last item is a ToolCallItem with the same toolName -> merge into a ToolGroupItem
-  if (last.kind === "tool_call" && last.toolName === newItem.toolName) {
-    const group: ToolGroupItem = {
-      kind: "tool_group",
-      toolName: newItem.toolName,
-      calls: [last, newItem],
-    };
-    return [...items.slice(0, -1), group];
-  }
-  // Last item is a ToolGroupItem with the same toolName -> append to the group
-  if (last.kind === "tool_group" && last.toolName === newItem.toolName) {
-    const group: ToolGroupItem = {
-      ...last,
-      calls: [...last.calls, newItem],
-    };
-    return [...items.slice(0, -1), group];
-  }
+
   return [...items, newItem];
 }
 

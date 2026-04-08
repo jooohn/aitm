@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type {
   CommandExecutionItem,
+  CommandGroupItem,
   OutputItem,
   ToolCallItem,
 } from "@/lib/utils/outputItem";
@@ -153,6 +154,32 @@ function CommandExecutionView({ item }: { item: CommandExecutionItem }) {
   );
 }
 
+function CommandGroupView({ item }: { item: CommandGroupItem }) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <div className={styles.commandGroupRow}>
+      <button
+        type="button"
+        className={styles.commandHeader}
+        onClick={() => setExpanded((v) => !v)}
+      >
+        <span className={styles.toolCallChevron}>{expanded ? "▼" : "▶"}</span>
+        <span className={styles.commandSummary}>
+          {item.calls.length} {item.summary}
+        </span>
+      </button>
+      {expanded && (
+        <div className={styles.commandGroupBody}>
+          {item.calls.map((call, i) => (
+            <CommandExecutionView key={i} item={call} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function OutputItemView({ item }: Props) {
   const [groupExpanded, setGroupExpanded] = useState(false);
 
@@ -165,6 +192,9 @@ export default function OutputItemView({ item }: Props) {
 
     case "command_execution":
       return <CommandExecutionView item={item} />;
+
+    case "command_group":
+      return <CommandGroupView item={item} />;
 
     case "tool_group": {
       const count = item.calls.length;

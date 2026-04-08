@@ -184,6 +184,55 @@ describe("SessionDetail – status and updates", () => {
     });
   });
 
+  it("groups consecutive command execution events with the same summary", async () => {
+    render(
+      <SessionDetail
+        session={makeSession({
+          id: "session-1",
+          status: "running",
+        })}
+      />,
+    );
+
+    await act(async () => {
+      MockEventSource.instances[0].simulateMessage({
+        type: "event",
+        event_type: "command_execution",
+        detail: {
+          command: "/bin/zsh -lc \"sed -n '1,200p' file-a.ts\"",
+          aggregated_output: "file a",
+          exit_code: 0,
+          status: "completed",
+        },
+      });
+      MockEventSource.instances[0].simulateMessage({
+        type: "event",
+        event_type: "command_execution",
+        detail: {
+          command: "/bin/zsh -lc \"sed -n '1,200p' file-b.ts\"",
+          aggregated_output: "file b",
+          exit_code: 0,
+          status: "completed",
+        },
+      });
+      MockEventSource.instances[0].simulateMessage({
+        type: "event",
+        event_type: "command_execution",
+        detail: {
+          command: "/bin/zsh -lc \"sed -n '1,200p' file-c.ts\"",
+          aggregated_output: "file c",
+          exit_code: 0,
+          status: "completed",
+        },
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("3 Read file")).toBeInTheDocument();
+    });
+    expect(screen.queryByText("Read file")).not.toBeInTheDocument();
+  });
+
   it("preserves streamed output when the same session is revalidated", async () => {
     const session = makeSession({
       id: "session-1",
