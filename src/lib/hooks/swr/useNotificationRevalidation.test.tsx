@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, waitFor } from "@testing-library/react";
+import { act, render } from "@testing-library/react";
 import { SWRConfig } from "swr";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { _resetForTesting } from "../useNotificationStream";
@@ -30,11 +30,13 @@ beforeEach(() => {
   _resetForTesting();
   MockEventSource.instances = [];
   vi.stubGlobal("EventSource", MockEventSource);
+  vi.useFakeTimers();
 });
 
 afterEach(() => {
   _resetForTesting();
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 describe("useNotificationRevalidation", () => {
@@ -52,10 +54,11 @@ describe("useNotificationRevalidation", () => {
       status: "running",
     });
 
-    await waitFor(() => {
-      expect(mutate).toHaveBeenCalledTimes(2);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(75);
     });
 
+    expect(mutate).toHaveBeenCalledTimes(2);
     expect(mutate).toHaveBeenNthCalledWith(1, ["/api/workflow-runs", "wr1"]);
 
     const [selectorArg, dataArg, optionsArg] = mutate.mock.calls[1];
@@ -85,8 +88,48 @@ describe("useNotificationRevalidation", () => {
 
     MockEventSource.instances[0].simulateMessage({ foo: "bar" });
 
-    await waitFor(() => {
-      expect(mutate).not.toHaveBeenCalled();
+    await act(async () => {
+      await vi.runOnlyPendingTimersAsync();
     });
+
+    expect(mutate).not.toHaveBeenCalled();
+  });
+
+  it("coalesces burst notifications before revalidating workflow-run caches", async () => {
+    const mutate = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <SWRConfig value={{ mutate }}>
+        <TestComponent />
+      </SWRConfig>,
+    );
+
+    MockEventSource.instances[0].simulateMessage({
+      workflowRunId: "wr1",
+      status: "running",
+    });
+    MockEventSource.instances[0].simulateMessage({
+      workflowRunId: "wr1",
+      status: "awaiting",
+    });
+    MockEventSource.instances[0].simulateMessage({
+      workflowRunId: "wr2",
+      status: "running",
+    });
+
+    expect(mutate).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(75);
+    });
+
+    expect(mutate).toHaveBeenCalledTimes(3);
+    expect(mutate).toHaveBeenNthCalledWith(1, ["/api/workflow-runs", "wr1"]);
+    expect(mutate).toHaveBeenNthCalledWith(2, ["/api/workflow-runs", "wr2"]);
+
+    const [selectorArg, dataArg, optionsArg] = mutate.mock.calls[2];
+    expect(typeof selectorArg).toBe("function");
+    expect(dataArg).toBeUndefined();
+    expect(optionsArg).toEqual({ revalidate: true });
   });
 });
