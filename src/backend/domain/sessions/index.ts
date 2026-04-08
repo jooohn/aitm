@@ -179,6 +179,10 @@ export class SessionService {
     return this.sessionRepository.getSession(id);
   }
 
+  listPersistedWorktreeBranches(repositoryPath: string): string[] {
+    return this.sessionRepository.listPersistedWorktreeBranches(repositoryPath);
+  }
+
   failSession(id: string): Session {
     const session = this.getSession(id);
     if (!session) {

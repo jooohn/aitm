@@ -24,9 +24,42 @@ export class HouseKeepingService {
       logger.error({ err, repoPath }, "Failed to clean merged worktrees");
     }
 
-    if (removedBranches.length > 0) {
+    let orphanedBranches: string[] = [];
+    try {
+      const persistedBranches =
+        this.sessionService.listPersistedWorktreeBranches(repoPath);
+      const liveBranches = new Set(
+        (await this.worktreeService.listWorktrees(repoPath)).map(
+          (worktree) => worktree.branch,
+        ),
+      );
+      orphanedBranches = persistedBranches.filter(
+        (branch) => !liveBranches.has(branch),
+      );
+
+      if (orphanedBranches.length > 0) {
+        logger.info(
+          { repoPath, orphanedBranches },
+          "Found orphaned worktree data",
+        );
+      }
+    } catch (err) {
+      logger.error(
+        { err, repoPath },
+        "Failed to discover orphaned worktree data",
+      );
+    }
+
+    const branchesToDelete = [
+      ...new Set([...removedBranches, ...orphanedBranches]),
+    ];
+
+    if (branchesToDelete.length > 0) {
       try {
-        await this.sessionService.deleteWorktreeData(repoPath, removedBranches);
+        await this.sessionService.deleteWorktreeData(
+          repoPath,
+          branchesToDelete,
+        );
       } catch (err) {
         logger.error({ err, repoPath }, "Failed to delete worktree data");
       }

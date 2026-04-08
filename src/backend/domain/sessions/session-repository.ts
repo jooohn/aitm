@@ -317,6 +317,28 @@ export class SessionRepository {
     return rows;
   }
 
+  listPersistedWorktreeBranches(repositoryPath: string): string[] {
+    const rows = this.db
+      .prepare(
+        `SELECT DISTINCT worktree_branch
+         FROM (
+           SELECT worktree_branch
+           FROM sessions
+           WHERE repository_path = ?
+           UNION
+           SELECT worktree_branch
+           FROM workflow_runs
+           WHERE repository_path = ?
+         )
+         ORDER BY worktree_branch ASC`,
+      )
+      .all(repositoryPath, repositoryPath) as Array<{
+      worktree_branch: string;
+    }>;
+
+    return rows.map((row) => row.worktree_branch);
+  }
+
   recoverCrashedSessions(): void {
     const now = new Date().toISOString();
     const runningSessions = this.db
