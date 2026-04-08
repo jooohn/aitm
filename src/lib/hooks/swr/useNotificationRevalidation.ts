@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { useSWRConfig } from "swr";
 import { useNotificationStream } from "../useNotificationStream";
 import { swrKeys } from "./keys";
@@ -39,17 +40,47 @@ function parseNotificationPayload(
   }
 }
 
+const REVALIDATION_DELAY_MS = 75;
+
 export function useNotificationRevalidation(): void {
   const { mutate } = useSWRConfig();
+  const pendingWorkflowRunIdsRef = useRef(new Set<string>());
+  const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (flushTimerRef.current) {
+        clearTimeout(flushTimerRef.current);
+        flushTimerRef.current = null;
+      }
+      pendingWorkflowRunIdsRef.current.clear();
+    };
+  }, []);
+
   useNotificationStream((event) => {
     const payload = parseNotificationPayload(event);
     if (typeof payload?.workflowRunId !== "string") return;
 
-    void mutate(swrKeys.workflowRun(payload.workflowRunId));
-    void mutate(
-      (key) => isWorkflowRunKey(key) || isWorkflowRunListKey(key),
-      undefined,
-      { revalidate: true },
-    );
+    pendingWorkflowRunIdsRef.current.add(payload.workflowRunId);
+
+    if (flushTimerRef.current) {
+      clearTimeout(flushTimerRef.current);
+    }
+
+    flushTimerRef.current = setTimeout(() => {
+      flushTimerRef.current = null;
+      const workflowRunIds = [...pendingWorkflowRunIdsRef.current];
+      pendingWorkflowRunIdsRef.current.clear();
+
+      for (const workflowRunId of workflowRunIds) {
+        void mutate(swrKeys.workflowRun(workflowRunId));
+      }
+
+      void mutate(
+        (key) => isWorkflowRunKey(key) || isWorkflowRunListKey(key),
+        undefined,
+        { revalidate: true },
+      );
+    }, REVALIDATION_DELAY_MS);
   });
 }
