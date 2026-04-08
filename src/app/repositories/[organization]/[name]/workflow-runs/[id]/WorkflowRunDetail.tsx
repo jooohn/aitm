@@ -75,6 +75,7 @@ export default function WorkflowRunDetailView({
   const currentRun = run ?? initial;
   const workflowDefinition = workflows?.[currentRun.workflow_name] ?? null;
   const workflowLabel = workflowDefinition?.label ?? currentRun.workflow_name;
+  const workflowArtifacts = workflowDefinition?.artifacts ?? [];
   const suggestedWorkflows = resolveWorkflowSuggestions(currentRun, workflows);
 
   const inputEntries = parseWorkflowRunInputs(currentRun.inputs);
@@ -349,6 +350,35 @@ export default function WorkflowRunDetailView({
               </div>
             ))}
           </dl>
+        </section>
+      )}
+
+      {workflowArtifacts.length > 0 && (
+        <section>
+          <h2 className={styles.sectionHeading}>Artifacts</h2>
+          <ul className={styles.artifactList}>
+            {workflowArtifacts.map((artifact) => (
+              <li key={artifact.path} className={styles.artifactItem}>
+                <a
+                  href={`/api/workflow-runs/${currentRun.id}/artifacts/${artifact.path}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={styles.artifactLink}
+                >
+                  <span>{artifact.name}</span>
+                  <ExternalLinkIcon
+                    size={14}
+                    className={styles.artifactLinkIcon}
+                  />
+                </a>
+                {artifact.description && (
+                  <p className={styles.artifactDescription}>
+                    {artifact.description}
+                  </p>
+                )}
+              </li>
+            ))}
+          </ul>
         </section>
       )}
 
