@@ -178,4 +178,30 @@ describe("EventBus", () => {
       eventBus.off("session.status-changed", listener),
     ).not.toThrow();
   });
+
+  it("stores the latest house-keeping sync status for later subscribers", () => {
+    const eventBus = new EventBus();
+
+    expect(eventBus.getLatestHouseKeepingSyncStatus()).toBeNull();
+
+    eventBus.emit("house-keeping.sync-status-changed", {
+      syncing: true,
+    });
+
+    expect(eventBus.getLatestHouseKeepingSyncStatus()).toEqual({
+      syncing: true,
+    });
+  });
+
+  it("clears the latest house-keeping sync status when listeners are reset", () => {
+    const eventBus = new EventBus();
+
+    eventBus.emit("house-keeping.sync-status-changed", {
+      syncing: true,
+    });
+
+    eventBus.removeAllListeners();
+
+    expect(eventBus.getLatestHouseKeepingSyncStatus()).toBeNull();
+  });
 });

@@ -6,6 +6,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { WorkflowRun, Worktree } from "@/lib/utils/api";
 import { SWRTestProvider } from "@/test-swr-provider";
 
+const mockUseHouseKeepingSyncing = vi.fn();
+
 vi.mock("next/link", () => ({
   default: ({
     children,
@@ -39,6 +41,10 @@ vi.mock("@/lib/utils/api", async () => {
   };
 });
 
+vi.mock("@/lib/hooks/useHouseKeepingSyncing", () => ({
+  useHouseKeepingSyncing: () => mockUseHouseKeepingSyncing(),
+}));
+
 import WorktreeRunsSection from "./WorktreeRunsSection";
 
 function makeWorktree(overrides: Partial<Worktree> = {}): Worktree {
@@ -71,6 +77,10 @@ function makeRun(overrides: Partial<WorkflowRun> = {}): WorkflowRun {
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+});
+
+beforeEach(() => {
+  mockUseHouseKeepingSyncing.mockReturnValue(false);
 });
 
 describe("WorktreeRunsSection", () => {

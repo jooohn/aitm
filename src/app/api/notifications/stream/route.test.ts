@@ -37,6 +37,46 @@ describe("GET /api/notifications/stream", () => {
     await reader.cancel();
   });
 
+  it("streams house-keeping sync notifications as SSE messages", async () => {
+    const res = await GET(
+      new Request("http://localhost/api/notifications/stream"),
+    );
+
+    eventBus.emit("house-keeping.sync-status-changed", {
+      syncing: true,
+    });
+
+    const reader = res.body!.getReader();
+    const decoder = new TextDecoder();
+    const { value } = await reader.read();
+    const text = decoder.decode(value);
+
+    expect(text).toContain("data:");
+    expect(text).toContain('"syncing":true');
+
+    await reader.cancel();
+  });
+
+  it("replays the latest house-keeping sync status when the stream opens", async () => {
+    eventBus.emit("house-keeping.sync-status-changed", {
+      syncing: true,
+    });
+
+    const res = await GET(
+      new Request("http://localhost/api/notifications/stream"),
+    );
+
+    const reader = res.body!.getReader();
+    const decoder = new TextDecoder();
+    const { value } = await reader.read();
+    const text = decoder.decode(value);
+
+    expect(text).toContain("data:");
+    expect(text).toContain('"syncing":true');
+
+    await reader.cancel();
+  });
+
   it("removes the listener from EventBus when the stream is cancelled", async () => {
     const offSpy = vi.spyOn(eventBus, "off");
 
@@ -47,6 +87,10 @@ describe("GET /api/notifications/stream", () => {
     const reader = res.body!.getReader();
     await reader.cancel();
 
+    expect(offSpy).toHaveBeenCalledWith(
+      "house-keeping.sync-status-changed",
+      expect.any(Function),
+    );
     expect(offSpy).toHaveBeenCalledWith(
       "workflow-run.status-changed",
       expect.any(Function),

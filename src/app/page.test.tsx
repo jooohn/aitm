@@ -7,6 +7,7 @@ import type { Repository, WorkflowRun } from "@/lib/utils/api";
 const mockFetchRepositories = vi.fn();
 const mockFetchAllWorkflowRuns = vi.fn();
 const mockFetchWorkflows = vi.fn();
+const mockUseHouseKeepingSyncing = vi.fn();
 
 vi.mock("@/lib/utils/api", async () => {
   const actual = await vi.importActual("@/lib/utils/api");
@@ -38,6 +39,10 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
 }));
 
+vi.mock("@/lib/hooks/useHouseKeepingSyncing", () => ({
+  useHouseKeepingSyncing: () => mockUseHouseKeepingSyncing(),
+}));
+
 import { SWRTestProvider } from "@/test-swr-provider";
 import Home from "./page";
 
@@ -63,6 +68,7 @@ function makeRun(overrides: Partial<WorkflowRun> = {}): WorkflowRun {
 }
 
 beforeEach(() => {
+  mockUseHouseKeepingSyncing.mockReturnValue(false);
   mockFetchRepositories.mockResolvedValue(REPOS);
   mockFetchAllWorkflowRuns.mockResolvedValue([]);
   mockFetchWorkflows.mockResolvedValue({
@@ -126,6 +132,20 @@ describe("Homepage", () => {
       expect(
         await screen.findByText(/no repositories configured/i),
       ).toBeInTheDocument();
+    });
+
+    it("shows a syncing indicator in the header while house-keeping is active", async () => {
+      mockUseHouseKeepingSyncing.mockReturnValue(true);
+
+      render(
+        <SWRTestProvider>
+          <Home />
+        </SWRTestProvider>,
+      );
+
+      expect(
+        await screen.findByTestId("repositories-sync-indicator"),
+      ).toHaveAttribute("aria-label", "Repositories syncing");
     });
   });
 

@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import LoadingIndicator from "@/app/components/LoadingIndicator";
 import WorkflowKanbanBoard from "@/app/workflows/WorkflowKanbanBoard";
 import { useRepositories } from "@/lib/hooks/swr";
+import { useHouseKeepingSyncing } from "@/lib/hooks/useHouseKeepingSyncing";
 import styles from "./page.module.css";
 
 export default function Home() {
@@ -11,12 +13,21 @@ export default function Home() {
     error: repoError,
     isLoading: loading,
   } = useRepositories();
+  const houseKeepingSyncing = useHouseKeepingSyncing();
 
   return (
     <div className={styles.shell}>
       <aside className={styles.sidebar}>
         <section className={styles.paneSection}>
-          <h2 className={styles.paneHeading}>Repositories</h2>
+          <div className={styles.headingRow}>
+            <h2 className={styles.paneHeading}>Repositories</h2>
+            {houseKeepingSyncing && (
+              <LoadingIndicator
+                label="Repositories syncing"
+                testId="repositories-sync-indicator"
+              />
+            )}
+          </div>
           {repoError && (
             <p className={styles.error}>
               {repoError instanceof Error
