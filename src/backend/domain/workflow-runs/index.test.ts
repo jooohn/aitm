@@ -1,4 +1,4 @@
-import { mkdir } from "fs/promises";
+import { mkdir, readFile } from "fs/promises";
 import { tmpdir } from "os";
 import { join } from "path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -72,6 +72,24 @@ workflows:
             when: "code is done"
           - terminal: failure
             when: "blocked"
+`;
+
+const ARTIFACT_WORKFLOW_CONFIG = `
+workflows:
+  my-flow:
+    artifacts:
+      plan:
+        path: plan.md
+        description: Shared plan for the run
+      notes:
+        path: notes/context.md
+    initial_step: plan
+    steps:
+      plan:
+        goal: "Write a plan"
+        transitions:
+          - terminal: success
+            when: "done"
 `;
 
 const MANUAL_APPROVAL_RERUN_WORKFLOW_CONFIG = `
@@ -447,6 +465,52 @@ workflows:
           payload.workflowRunId === run.id && payload.status === "running",
       ),
     ).toHaveLength(1);
+  });
+
+  it("materializes declared workflow artifacts and excludes them from git", async () => {
+    process.env.AITM_CONFIG_PATH = await writeTempConfig(
+      ARTIFACT_WORKFLOW_CONFIG,
+    );
+    const repoPath = await makeFakeGitRepo();
+
+    const run = await container.workflowRunService.createWorkflowRun({
+      repository_path: repoPath,
+      worktree_branch: "feat/test",
+      workflow_name: "my-flow",
+    });
+
+    const planArtifact = join(
+      repoPath,
+      ".aitm",
+      "runs",
+      run.id,
+      "artifacts",
+      "plan.md",
+    );
+    const notesArtifact = join(
+      repoPath,
+      ".aitm",
+      "runs",
+      run.id,
+      "artifacts",
+      "notes",
+      "context.md",
+    );
+    const excludeContents = await readFile(
+      join(repoPath, ".git", "info", "exclude"),
+      "utf8",
+    );
+
+    await expect(readFile(planArtifact, "utf8")).resolves.toBe("");
+    await expect(readFile(notesArtifact, "utf8")).resolves.toBe("");
+    expect(excludeContents).toContain(`/.aitm/runs/${run.id}/artifacts/`);
+
+    const session = db
+      .prepare("SELECT * FROM sessions WHERE repository_path = ?")
+      .get(repoPath) as { goal: string };
+    expect(session.goal).toContain("<artifacts>");
+    expect(session.goal).toContain(planArtifact);
+    expect(session.goal).toContain(notesArtifact);
   });
 });
 

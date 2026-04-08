@@ -1,9 +1,11 @@
 import { randomUUID } from "crypto";
+import { join } from "path";
 import {
   type AgentConfig,
   type AgentWorkflowStep,
   type CommandWorkflowStep,
   resolveAgentConfig,
+  type WorkflowArtifact,
   type WorkflowDefinition,
   type WorkflowStep,
 } from "@/backend/infra/config";
@@ -20,6 +22,7 @@ import type {
 function buildGoal(
   stepGoal: string,
   previousExecutions: PreviousExecutionHandoff[],
+  artifacts: Array<{ name: string; path: string; description?: string }>,
   inputs?: Record<string, string>,
 ): string {
   const parts = ["<goal>", stepGoal, "</goal>"];
@@ -36,6 +39,18 @@ function buildGoal(
     parts.push("</inputs>");
   }
 
+  if (artifacts.length > 0) {
+    parts.push("", "<artifacts>");
+    for (const artifact of artifacts) {
+      parts.push(`Artifact: ${artifact.name}`, `Path: ${artifact.path}`);
+      if (artifact.description) {
+        parts.push(`Description: ${artifact.description}`);
+      }
+      parts.push("");
+    }
+    parts.push("</artifacts>");
+  }
+
   if (previousExecutions.length > 0) {
     parts.push("", "<handoff>", "Previous steps (oldest first):", "");
     for (const prev of previousExecutions) {
@@ -49,6 +64,27 @@ function buildGoal(
   }
 
   return parts.join("\n");
+}
+
+function resolveWorkflowArtifacts(
+  workflowRunId: string,
+  worktreePath: string,
+  artifacts?: WorkflowArtifact[],
+): Array<{ name: string; path: string; description?: string }> {
+  if (!artifacts || artifacts.length === 0) return [];
+
+  const artifactRoot = join(
+    worktreePath,
+    ".aitm",
+    "runs",
+    workflowRunId,
+    "artifacts",
+  );
+  return artifacts.map((artifact) => ({
+    name: artifact.name,
+    path: join(artifactRoot, artifact.path),
+    description: artifact.description,
+  }));
 }
 
 type StepCompletionHandler = (
@@ -123,6 +159,7 @@ export class StepRunner {
       repositoryPath: input.repositoryPath,
       workflowRunId: input.workflowRunId,
       worktree,
+      workflowArtifacts: workflow.artifacts,
       stepDef,
       inputs: input.inputs,
       previousExecutions: input.previousExecutions,
@@ -137,10 +174,16 @@ export class StepRunner {
     workflowRunId: string;
     repositoryPath: string;
     worktree: Worktree;
+    workflowArtifacts?: WorkflowArtifact[];
     inputs?: Record<string, string>;
     previousExecutions: PreviousExecutionHandoff[];
   }): Promise<void> {
     const { stepDef, worktree, ...remaining } = params;
+    const artifacts = resolveWorkflowArtifacts(
+      params.workflowRunId,
+      worktree.path,
+      params.workflowArtifacts,
+    );
 
     switch (stepDef.type) {
       case "command":
@@ -153,6 +196,7 @@ export class StepRunner {
       case "agent":
         await this.startAgentStepExecution({
           stepDef,
+          artifacts,
           worktree,
           ...remaining,
         });
@@ -208,6 +252,7 @@ export class StepRunner {
   private async startAgentStepExecution({
     executionId,
     stepDef,
+    artifacts,
     repositoryPath,
     worktree,
     inputs,
@@ -215,13 +260,14 @@ export class StepRunner {
   }: {
     stepDef: AgentWorkflowStep;
     executionId: string;
+    artifacts: Array<{ name: string; path: string; description?: string }>;
     repositoryPath: string;
     workflowRunId: string;
     worktree: Worktree;
     inputs?: Record<string, string>;
     previousExecutions: PreviousExecutionHandoff[];
   }): Promise<void> {
-    const goal = buildGoal(stepDef.goal, previousExecutions, inputs);
+    const goal = buildGoal(stepDef.goal, previousExecutions, artifacts, inputs);
     const agentConfig = resolveAgentConfig(this.agentConfig, stepDef.agent);
     await this.sessionService.createSession({
       repository_path: repositoryPath,

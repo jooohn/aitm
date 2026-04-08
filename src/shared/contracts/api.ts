@@ -92,6 +92,12 @@ export interface WorkflowInputDto {
   type?: "text" | "multiline-text";
 }
 
+export interface WorkflowArtifactDto {
+  name: string;
+  path: string;
+  description?: string;
+}
+
 export interface WorkflowSuggestionRuleDto {
   condition: string;
   inputs?: Record<string, string>;
@@ -128,6 +134,7 @@ export interface WorkflowDefinitionDto {
   initial_step: string;
   max_steps?: number;
   inputs?: WorkflowInputDto[];
+  artifacts?: WorkflowArtifactDto[];
   recommended_when?: WorkflowSuggestionRuleDto;
   steps: Record<string, WorkflowStepDto>;
 }

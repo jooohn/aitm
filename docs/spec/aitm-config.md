@@ -63,24 +63,28 @@ workflows:
         description: Name for the feature branch
         required: false
         type: text
+    artifacts:
+      plan:
+        path: plan.md
+        description: Shared working plan for the run
     initial_step: plan
     steps:
       plan:
         goal: |
           Read the task goal. If the spec is ambiguous or missing, ask clarifying
-          questions and document a clear plan in PLAN.md. Otherwise, document your
+          questions and document a clear plan in the plan artifact. Otherwise, document your
           understanding and proceed.
         transitions:
           - step: plan
             when: "specs need clarification or the plan is not yet documented"
           - step: implement
-            when: "a clear plan is documented in PLAN.md"
+            when: "a clear plan is documented in the plan artifact"
           - terminal: failure
             when: "the task is out of scope or cannot be planned"
 
       implement:
         goal: |
-          Implement the plan documented in PLAN.md. Write production-quality code.
+          Implement the plan documented in the plan artifact. Write production-quality code.
         transitions:
           - step: implement
             when: "implementation is incomplete"
@@ -157,6 +161,28 @@ Workflows can declare typed input fields under an `inputs` key. When a user init
 | `type` | `text` \| `multiline-text` | no | Input field type. Defaults to `text`. |
 
 Input values are validated at run creation (required fields must be non-empty) and passed to agents in the step goal wrapped in `<inputs>` tags.
+
+### Workflow artifacts
+
+Workflows may declare run-scoped artifacts under an `artifacts` key. These are files created under the active worktree at `.aitm/runs/<workflow-run-id>/artifacts/` and intended for larger shared context such as plans, notes, or machine-generated JSON.
+
+```yaml
+workflows:
+  development-flow:
+    artifacts:
+      plan:
+        path: plan.md
+        description: Shared working plan for the run
+      notes:
+        path: notes/context.md
+```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `path` | string | yes | Relative POSIX path under the run artifact root |
+| `description` | string | no | Short description injected into the step prompt |
+
+Artifact files are created automatically at workflow start and the artifact root is added to the worktree's effective `info/exclude` so these files are not accidentally committed.
 
 ### Step definition
 
@@ -300,6 +326,8 @@ When a session ends and a transition fires, the full history of all prior step e
 2. **Log file reference** — path to that step's session log file
 
 The next session receives its `goal` wrapped in `<goal>` tags, followed by a `<handoff>` block listing all prior steps oldest-first. Log files are not loaded automatically; the session may read them if deeper context is needed. This design keeps each session's context window small while preserving a full audit trail.
+
+If the workflow declares artifacts, the session also receives an `<artifacts>` block listing each artifact's name, resolved path in the current worktree, and optional description. This gives steps a native way to share larger context by file reference without inflating the structured handoff summary.
 
 ### Initiating a workflow run
 
