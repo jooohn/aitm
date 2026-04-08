@@ -152,6 +152,72 @@ describe("WorkflowRunDetail layout", () => {
 });
 
 describe("WorkflowRunDetail", () => {
+  it("renders declared workflow artifacts as external links", async () => {
+    const { fetchWorkflows } = await import("@/lib/utils/api");
+    vi.mocked(fetchWorkflows).mockResolvedValue({
+      "my-flow": {
+        initial_step: "plan",
+        artifacts: [
+          {
+            name: "plan",
+            path: "plan.md",
+            description: "Shared working plan for the run",
+          },
+        ],
+        steps: {
+          plan: {
+            type: "agent",
+            goal: "Plan",
+            transitions: [{ terminal: "success", when: "done" }],
+          },
+        },
+      },
+    });
+
+    render(
+      <SWRTestProvider>
+        <WorkflowRunDetailComponent run={makeRun()} />
+      </SWRTestProvider>,
+    );
+
+    expect(await screen.findByText("Artifacts")).toBeInTheDocument();
+    const artifactLink = screen.getByRole("link", { name: /plan/i });
+    expect(artifactLink).toHaveAttribute(
+      "href",
+      "/api/workflow-runs/run-1/artifacts/plan.md",
+    );
+    expect(artifactLink).toHaveAttribute("target", "_blank");
+    expect(artifactLink).toHaveAttribute("rel", "noopener noreferrer");
+    expect(artifactLink.querySelector("svg")).not.toBeNull();
+    expect(
+      screen.getByText("Shared working plan for the run"),
+    ).toBeInTheDocument();
+  });
+
+  it("omits the artifacts section when the workflow declares none", async () => {
+    const { fetchWorkflows } = await import("@/lib/utils/api");
+    vi.mocked(fetchWorkflows).mockResolvedValue({
+      "my-flow": {
+        initial_step: "plan",
+        steps: {
+          plan: {
+            type: "agent",
+            goal: "Plan",
+            transitions: [{ terminal: "success", when: "done" }],
+          },
+        },
+      },
+    });
+
+    render(
+      <SWRTestProvider>
+        <WorkflowRunDetailComponent run={makeRun()} />
+      </SWRTestProvider>,
+    );
+
+    expect(screen.queryByText("Artifacts")).not.toBeInTheDocument();
+  });
+
   it("renders command executions in a dedicated output block and leaves agent summaries unchanged", () => {
     const agentExecution = {
       ...makeExecution({

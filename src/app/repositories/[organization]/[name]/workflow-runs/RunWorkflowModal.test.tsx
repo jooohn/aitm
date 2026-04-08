@@ -133,4 +133,36 @@ describe("RunWorkflowModal", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("feature/existing-pr")).toBeInTheDocument();
   });
+
+  it("uses the fixed branch for suggested workflow launches", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <RunWorkflowModal
+        onClose={vi.fn()}
+        fixedAlias="org/repo"
+        fixedBranch="feature/existing-pr"
+        initialWorkflow="maintain-pr"
+        initialInputValues={{
+          "pr-url": "https://github.com/org/repo/pull/42",
+        }}
+      />,
+    );
+
+    await screen.findByText("feature/existing-pr");
+    await user.click(screen.getByText("Create & launch"));
+
+    await vi.waitFor(() => {
+      expect(mockGenerateBranchName).not.toHaveBeenCalled();
+      expect(mockCreateWorktree).not.toHaveBeenCalled();
+      expect(mockCreateWorkflowRun).toHaveBeenCalledWith({
+        repository_path: "/repos/org/repo",
+        worktree_branch: "feature/existing-pr",
+        workflow_name: "maintain-pr",
+        inputs: {
+          "pr-url": "https://github.com/org/repo/pull/42",
+        },
+      });
+    });
+  });
 });
