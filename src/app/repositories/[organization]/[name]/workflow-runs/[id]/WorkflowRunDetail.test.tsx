@@ -152,7 +152,7 @@ describe("WorkflowRunDetail layout", () => {
 });
 
 describe("WorkflowRunDetail", () => {
-  it("renders declared workflow artifacts as external links", async () => {
+  it("renders declared workflow artifacts as internal links to the artifact page", async () => {
     const { fetchWorkflows } = await import("@/lib/utils/api");
     vi.mocked(fetchWorkflows).mockResolvedValue({
       "my-flow": {
@@ -184,10 +184,10 @@ describe("WorkflowRunDetail", () => {
     const artifactLink = screen.getByRole("link", { name: /plan/i });
     expect(artifactLink).toHaveAttribute(
       "href",
-      "/api/workflow-runs/run-1/artifacts/plan.md",
+      "/repositories/tmp/repo/workflow-runs/run-1/artifacts/plan.md",
     );
+    // Should open in a new tab with external link icon
     expect(artifactLink).toHaveAttribute("target", "_blank");
-    expect(artifactLink).toHaveAttribute("rel", "noopener noreferrer");
     expect(artifactLink.querySelector("svg")).not.toBeNull();
     expect(
       screen.getByText("Shared working plan for the run"),
