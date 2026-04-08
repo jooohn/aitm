@@ -66,6 +66,27 @@ describe("parseLogEntry", () => {
     });
   });
 
+  it("formats command_execution event as a structured item", () => {
+    expect(
+      parseLogEntry({
+        type: "event",
+        event_type: "command_execution",
+        detail: {
+          command: "/bin/zsh -lc 'git status --short'",
+          aggregated_output: " M src/app/page.tsx\n",
+          exit_code: 0,
+          status: "completed",
+        },
+      }),
+    ).toEqual({
+      kind: "command_execution",
+      command: "/bin/zsh -lc 'git status --short'",
+      output: " M src/app/page.tsx\n",
+      exitCode: 0,
+      status: "completed",
+    });
+  });
+
   it("formats assistant with single text block", () => {
     const entry = {
       type: "assistant",

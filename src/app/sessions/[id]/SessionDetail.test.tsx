@@ -153,6 +153,37 @@ describe("SessionDetail – status and updates", () => {
     });
   });
 
+  it("renders command execution events with a readable summary and output", async () => {
+    render(
+      <SessionDetail
+        session={makeSession({
+          id: "session-1",
+          status: "running",
+        })}
+      />,
+    );
+
+    await act(async () => {
+      MockEventSource.instances[0].simulateMessage({
+        type: "event",
+        event_type: "command_execution",
+        detail: {
+          command: "/bin/zsh -lc 'git status --short'",
+          aggregated_output: "?? PLAN.md\n",
+          exit_code: 0,
+          status: "completed",
+        },
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Check git status")).toBeInTheDocument();
+      expect(
+        screen.getByText("/bin/zsh -lc 'git status --short'"),
+      ).toBeInTheDocument();
+    });
+  });
+
   it("preserves streamed output when the same session is revalidated", async () => {
     const session = makeSession({
       id: "session-1",

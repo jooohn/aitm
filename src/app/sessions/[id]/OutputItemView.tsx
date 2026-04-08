@@ -1,7 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import type { OutputItem, ToolCallItem } from "@/lib/utils/outputItem";
+import type {
+  CommandExecutionItem,
+  OutputItem,
+  ToolCallItem,
+} from "@/lib/utils/outputItem";
 import styles from "./SessionDetail.module.css";
 
 interface Props {
@@ -83,6 +87,72 @@ function ToolCallView({
   );
 }
 
+function summarizeCommand(command: string): string {
+  if (command.includes("rg --files")) return "List repository files";
+  if (command.includes("git status")) return "Check git status";
+  if (command.includes("npm test")) return "Run tests";
+  if (command.includes("sed -n")) return "Read file";
+  return "Run command";
+}
+
+function formatExitLabel(item: CommandExecutionItem): string | null {
+  if (item.status === "failed") {
+    return item.exitCode !== undefined
+      ? `Failed with exit ${item.exitCode}`
+      : "Failed";
+  }
+  if (item.exitCode !== undefined) {
+    return `Exit ${item.exitCode}`;
+  }
+  if (item.status) {
+    return item.status;
+  }
+  return null;
+}
+
+function CommandExecutionView({ item }: { item: CommandExecutionItem }) {
+  const isFailed =
+    item.status === "failed" ||
+    (typeof item.exitCode === "number" && item.exitCode !== 0);
+  const [expanded, setExpanded] = useState(isFailed);
+  const statusLabel = formatExitLabel(item);
+
+  return (
+    <div
+      className={`${styles.commandRow} ${isFailed ? styles.commandRowFailed : styles.commandRowSuccess}`}
+    >
+      <button
+        type="button"
+        className={styles.commandHeader}
+        onClick={() => setExpanded((v) => !v)}
+      >
+        <span className={styles.toolCallChevron}>{expanded ? "▼" : "▶"}</span>
+        <span className={styles.commandSummary}>
+          {summarizeCommand(item.command)}
+        </span>
+        {statusLabel && (
+          <span
+            className={styles.commandStatus}
+            data-failed={isFailed || undefined}
+          >
+            {statusLabel}
+          </span>
+        )}
+      </button>
+      <div className={styles.commandPreview}>{item.command}</div>
+      {expanded && (
+        <div className={styles.commandBody}>
+          {item.output ? (
+            <pre className={styles.commandOutput}>{item.output}</pre>
+          ) : (
+            <span className={styles.toolCallNoDetails}>No output captured</span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function OutputItemView({ item }: Props) {
   const [groupExpanded, setGroupExpanded] = useState(false);
 
@@ -92,6 +162,9 @@ export default function OutputItemView({ item }: Props) {
 
     case "tool_call":
       return <ToolCallView item={item} />;
+
+    case "command_execution":
+      return <CommandExecutionView item={item} />;
 
     case "tool_group": {
       const count = item.calls.length;

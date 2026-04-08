@@ -60,6 +60,46 @@
   @apply whitespace-pre-wrap break-words;
 }
 
+.commandRow {
+  @apply flex flex-col gap-1 rounded-md border px-3 py-2 my-1;
+}
+
+.commandRowSuccess {
+  @apply border-zinc-800 bg-zinc-950/60;
+}
+
+.commandRowFailed {
+  @apply border-red-800 bg-red-950/30;
+}
+
+.commandHeader {
+  @apply flex items-center gap-2 text-left w-full text-zinc-100 hover:text-white transition-colors;
+}
+
+.commandSummary {
+  @apply font-semibold;
+}
+
+.commandStatus {
+  @apply ml-auto text-[11px] text-zinc-400;
+}
+
+.commandStatus[data-failed] {
+  @apply text-red-300;
+}
+
+.commandPreview {
+  @apply text-zinc-400 break-all;
+}
+
+.commandBody {
+  @apply pt-1;
+}
+
+.commandOutput {
+  @apply whitespace-pre-wrap break-words text-zinc-200 max-h-64 overflow-y-auto;
+}
+
 /* Tool call / group rows */
 .toolCallRow {
   @apply flex flex-col;

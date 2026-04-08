@@ -15,4 +15,16 @@ export type ToolGroupItem = {
   calls: ToolCallItem[]; // at least 2 entries (single calls stay as ToolCallItem)
 };
 
-export type OutputItem = TextItem | ToolCallItem | ToolGroupItem;
+export type CommandExecutionItem = {
+  kind: "command_execution";
+  command: string;
+  output?: string;
+  exitCode?: number;
+  status?: string;
+};
+
+export type OutputItem =
+  | TextItem
+  | ToolCallItem
+  | ToolGroupItem
+  | CommandExecutionItem;

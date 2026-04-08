@@ -1,4 +1,9 @@
-import type { OutputItem, TextItem, ToolCallItem } from "./outputItem";
+import type {
+  CommandExecutionItem,
+  OutputItem,
+  TextItem,
+  ToolCallItem,
+} from "./outputItem";
 
 type ContentBlock = {
   type: string;
@@ -19,6 +24,32 @@ function toolCall(toolName: string, input?: unknown): ToolCallItem {
     toolName,
     ...(input !== undefined ? { input } : {}),
   };
+}
+
+function commandExecution(
+  detail: Record<string, unknown>,
+): CommandExecutionItem | null {
+  const command = detail.command;
+  if (typeof command !== "string" || command.trim() === "") {
+    return null;
+  }
+
+  const item: CommandExecutionItem = {
+    kind: "command_execution",
+    command,
+  };
+
+  if (typeof detail.aggregated_output === "string") {
+    item.output = detail.aggregated_output;
+  }
+  if (typeof detail.exit_code === "number") {
+    item.exitCode = detail.exit_code;
+  }
+  if (typeof detail.status === "string") {
+    item.status = detail.status;
+  }
+
+  return item;
 }
 
 export function parseLogEntry(
@@ -49,6 +80,14 @@ export function parseLogEntry(
       const message = entry.message;
       if (typeof eventType !== "string" || eventType.trim() === "") {
         return null;
+      }
+      if (
+        eventType === "command_execution" &&
+        entry.detail &&
+        typeof entry.detail === "object" &&
+        !Array.isArray(entry.detail)
+      ) {
+        return commandExecution(entry.detail as Record<string, unknown>);
       }
       if (typeof message === "string" && message.trim() !== "") {
         return text(`• ${eventType}: ${message}`);
