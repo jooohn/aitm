@@ -86,7 +86,12 @@ export interface ConfigSnapshot {
   workflows: Record<string, WorkflowDefinition>;
 }
 
-const CORE_DECISION_KEYS = new Set(["transition", "reason", "handoff_summary"]);
+const CORE_DECISION_KEYS = new Set([
+  "transition",
+  "reason",
+  "handoff_summary",
+  "clarifying_question",
+]);
 
 function fail(message: string): never {
   throw new Error(message);

@@ -22,7 +22,7 @@ Sessions are persisted in SQLite.
 | `worktree_branch` | string | no | The worktree branch in which the agent runs |
 | `goal` | string | no | Free-text description of what the agent should accomplish (may include handoff context from prior steps) |
 | `transitions` | string (JSON) | no | Serialised `WorkflowTransition[]` — the workflow-defined transitions (does not include the injected `__REQUIRE_USER_INPUT__`) |
-| `transition_decision` | string (JSON) | yes | Serialised `TransitionDecision` emitted by the agent: `{transition, reason, handoff_summary}` |
+| `transition_decision` | string (JSON) | yes | Serialised `TransitionDecision` emitted by the agent: `{transition, reason, handoff_summary, clarifying_question?}` |
 | `status` | enum | no | `RUNNING` \| `AWAITING_INPUT` \| `SUCCEEDED` \| `FAILED` |
 | `terminal_attach_command` | string | yes | Shell command to attach to the live agent (e.g. `claude --resume <claude-session-id>`) |
 | `log_file_path` | string | no | Absolute path to the append-only stdout/stderr log file (e.g. `~/.aitm/sessions/<id>.log`) |
@@ -98,7 +98,7 @@ The system always injects one `SessionTransition` of type `{ user_input: true, w
 
 ### Flow
 
-1. **Agent selects `__REQUIRE_USER_INPUT__`:** The agent's `TransitionDecision` has `transition: "__REQUIRE_USER_INPUT__"` and `handoff_summary` contains the question for the user.
+1. **Agent selects `__REQUIRE_USER_INPUT__`:** The agent's `TransitionDecision` has `transition: "__REQUIRE_USER_INPUT__"` and `clarifying_question` contains the question for the user. During rollout, the UI may fall back to `handoff_summary` for older rows.
 2. **Session pauses:** `AgentService.startAgent` detects the special transition, sets status to `AWAITING_INPUT`, and suspends (awaits a Promise).
 3. **User replies:** The reply API endpoint (`POST /api/sessions/:id/reply`) resolves the pending Promise with the user's input.
 4. **Agent resumes:** `startAgent` calls `AgentRuntime.resume()` with the stored `claude_session_id` and the user's message. The agent continues in the same conversation context with the same output format and transitions.
@@ -223,7 +223,7 @@ Server restarts mark any `RUNNING` session as `FAILED`. `AWAITING_INPUT` session
 Agent stdout/stderr is written to an append-only log file at `~/.aitm/sessions/<id>.log`. The path is stored in `log_file_path`. The stream endpoint tails this file and replays it from the beginning on each new connection. Log output from resumed sessions is appended to the same file.
 
 ### Structured output
-Sessions use the agent runtime's `outputFormat` with a `json_schema` type. The agent's final output is constrained to `{transition, reason, handoff_summary}`. The `__REQUIRE_USER_INPUT__` transition is included in the schema's enum so the agent can select it. This output is stored in `transition_decision` and consumed by the workflow engine (which never sees `__REQUIRE_USER_INPUT__` because the session resolves it internally).
+Sessions use the agent runtime's `outputFormat` with a `json_schema` type. The agent's final output is constrained to `{transition, reason, handoff_summary, clarifying_question}`. The `__REQUIRE_USER_INPUT__` transition is included in the schema's enum so the agent can select it. `clarifying_question` is the explicit prompt shown to the user for that path, while `handoff_summary` remains the step-to-step summary field. This output is stored in `transition_decision` and consumed by the workflow engine (which never sees `__REQUIRE_USER_INPUT__` because the session resolves it internally).
 
 ### Workflow transparency
 The `AWAITING_INPUT` state and `__REQUIRE_USER_INPUT__` transition are fully encapsulated within the session layer. Session lifecycle changes are communicated via the typed `EventBus` (`src/backend/infra/event-bus.ts`), which emits a discriminated `"session.status-changed"` event. `RUNNING` and `AWAITING_INPUT` carry only `{ sessionId, status }`, `FAILED` carries `{ sessionId, status, decision: null }`, and `SUCCEEDED` carries `{ sessionId, status, decision }`. `WorkflowRunService` subscribes to this event in its constructor to keep the step execution status in sync and to advance the workflow when a session reaches a terminal state. From the workflow's perspective, the session is simply `RUNNING` for longer.

@@ -59,6 +59,7 @@ export interface TransitionDecisionDto {
   transition: string;
   reason: string;
   handoff_summary: string;
+  clarifying_question?: string;
   metadata?: Record<string, string>;
 }
 

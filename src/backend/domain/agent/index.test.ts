@@ -213,6 +213,7 @@ describe("startAgent", () => {
           transition: "__REQUIRE_USER_INPUT__",
           reason: "Need clarification",
           handoff_summary: "What database should I use?",
+          clarifying_question: "What database should I use?",
         },
       };
     });
@@ -229,12 +230,69 @@ describe("startAgent", () => {
 
     // Session should be awaiting_input
     const row = db
-      .prepare("SELECT status FROM sessions WHERE id = ?")
-      .get(sessionId) as { status: string };
+      .prepare("SELECT status, transition_decision FROM sessions WHERE id = ?")
+      .get(sessionId) as { status: string; transition_decision: string };
     expect(row.status).toBe("awaiting_input");
+    expect(JSON.parse(row.transition_decision)).toEqual({
+      transition: "__REQUIRE_USER_INPUT__",
+      reason: "Need clarification",
+      handoff_summary: "What database should I use?",
+      clarifying_question: "What database should I use?",
+    });
 
     // onComplete should NOT have been called
     expect(onComplete).not.toHaveBeenCalled();
+  });
+
+  it("treats clarifying_question as a core decision field instead of metadata", async () => {
+    const agentService = buildAgentService();
+    const repoPath = await makeFakeGitRepo();
+    const sessionId = "session-core-clarifying-question";
+    const logFilePath = join(tmpdir(), `${sessionId}.log`);
+    const onComplete = vi.fn();
+    insertSession(sessionId, repoPath, logFilePath);
+
+    queryMock.mockImplementation(async function* () {
+      yield { type: "system", subtype: "init", session_id: "agent-1" };
+      yield {
+        type: "result",
+        subtype: "success",
+        structured_output: {
+          transition: "__REQUIRE_USER_INPUT__",
+          reason: "Need clarification",
+          handoff_summary: "Need user input",
+          clarifying_question: "Which environment should I target?",
+          pr_url: "https://github.com/org/repo/pull/42",
+        },
+      };
+    });
+
+    await agentService.startAgent(
+      sessionId,
+      repoPath,
+      "Goal",
+      [{ terminal: "success", when: "done" }],
+      agentConfig,
+      logFilePath,
+      onComplete,
+    );
+
+    expect(onComplete).not.toHaveBeenCalled();
+    expect(
+      db
+        .prepare("SELECT transition_decision FROM sessions WHERE id = ?")
+        .get(sessionId),
+    ).toEqual({
+      transition_decision: JSON.stringify({
+        transition: "__REQUIRE_USER_INPUT__",
+        reason: "Need clarification",
+        handoff_summary: "Need user input",
+        clarifying_question: "Which environment should I target?",
+        metadata: {
+          pr_url: "https://github.com/org/repo/pull/42",
+        },
+      }),
+    });
   });
 
   it("emits session.status-changed event when agent sets awaiting_input", async () => {

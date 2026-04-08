@@ -403,8 +403,14 @@ describe("buildTransitionOutputFormatForCodex", () => {
           },
           reason: { type: "string" },
           handoff_summary: { type: "string" },
+          clarifying_question: { type: "string" },
         },
-        required: ["transition", "reason", "handoff_summary"],
+        required: [
+          "transition",
+          "reason",
+          "handoff_summary",
+          "clarifying_question",
+        ],
         additionalProperties: false,
       },
     });
@@ -432,6 +438,7 @@ describe("buildTransitionOutputFormatForCodex", () => {
       "transition",
       "reason",
       "handoff_summary",
+      "clarifying_question",
       "pr_url",
       "pr_number",
     ]);
@@ -455,6 +462,7 @@ describe("buildTransitionOutputFormatForCodex", () => {
       enum: ["success"],
     });
     expect(properties.reason).toEqual({ type: "string" });
+    expect(properties.clarifying_question).toEqual({ type: "string" });
 
     expect(properties.pr_url).toEqual({
       type: "string",
@@ -474,6 +482,7 @@ describe("buildTransitionOutputFormatForCodex", () => {
       "transition",
       "reason",
       "handoff_summary",
+      "clarifying_question",
     ]);
   });
 });

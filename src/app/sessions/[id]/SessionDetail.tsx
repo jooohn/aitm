@@ -169,6 +169,13 @@ export default function SessionDetail({
     }
   }
 
+  const clarifyingQuestion =
+    currentSession.status === "awaiting_input"
+      ? (currentSession.transition_decision?.clarifying_question ??
+        currentSession.transition_decision?.handoff_summary ??
+        null)
+      : null;
+
   return (
     <div className={styles.container}>
       <div className={styles.header}>
@@ -199,6 +206,11 @@ export default function SessionDetail({
 
           {currentSession.status === "awaiting_input" && (
             <form onSubmit={handleReply} className={styles.replyForm}>
+              {clarifyingQuestion && (
+                <p className={styles.clarifyingQuestion}>
+                  {clarifyingQuestion}
+                </p>
+              )}
               <textarea
                 className={styles.replyInput}
                 value={replyText}

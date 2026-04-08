@@ -179,6 +179,7 @@ export function buildTransitionOutputFormatForCodex(
     },
     reason: { type: "string" },
     handoff_summary: { type: "string" },
+    clarifying_question: { type: "string" },
   };
 
   if (metadataFields) {

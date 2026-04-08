@@ -85,6 +85,9 @@ export function parseTransitionDecision(
     transition: parsed.transition,
     reason: parsed.reason,
     handoff_summary: parsed.handoff_summary,
+    ...(typeof parsed.clarifying_question === "string"
+      ? { clarifying_question: parsed.clarifying_question }
+      : {}),
     ...(metadata ? { metadata } : {}),
   };
 }

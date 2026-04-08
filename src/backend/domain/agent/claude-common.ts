@@ -78,6 +78,7 @@ export function buildTransitionOutputFormatForClaude(
     transition: { type: "string" },
     reason: { type: "string" },
     handoff_summary: { type: "string" },
+    clarifying_question: { type: "string" },
   };
 
   if (metadataFields) {
@@ -94,7 +95,12 @@ export function buildTransitionOutputFormatForClaude(
     schema: {
       type: "object",
       properties,
-      required: ["transition", "reason", "handoff_summary"],
+      required: [
+        "transition",
+        "reason",
+        "handoff_summary",
+        "clarifying_question",
+      ],
       additionalProperties: false,
     },
   };
