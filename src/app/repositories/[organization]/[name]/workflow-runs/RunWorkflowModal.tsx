@@ -32,7 +32,7 @@ export default function RunWorkflowModal({
   const [branch, setBranch] = useState(fixedBranch ?? "");
   const [selectedWorkflow, setSelectedWorkflow] = useState("");
   const [inputValues, setInputValues] = useState<Record<string, string>>({});
-  const [autoGenerate, setAutoGenerate] = useState(false);
+  const [autoGenerate, setAutoGenerate] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
