@@ -151,4 +151,44 @@ describe("SessionDetail – status and updates", () => {
       expect(screen.getByText("You: Use PostgreSQL")).toBeInTheDocument();
     });
   });
+
+  it("renders clarifying_question above the reply box for awaiting-input sessions", () => {
+    render(
+      <SessionDetail
+        session={makeSession({
+          status: "awaiting_input",
+          transition_decision: {
+            transition: "__REQUIRE_USER_INPUT__",
+            reason: "Need clarification",
+            handoff_summary: "Waiting for a reply",
+            clarifying_question: "Which database should I use?",
+          },
+        })}
+      />,
+    );
+
+    expect(
+      screen.getByText("Which database should I use?"),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("textbox")).toBeInTheDocument();
+  });
+
+  it("falls back to handoff_summary when clarifying_question is missing", () => {
+    render(
+      <SessionDetail
+        session={makeSession({
+          status: "awaiting_input",
+          transition_decision: {
+            transition: "__REQUIRE_USER_INPUT__",
+            reason: "Need clarification",
+            handoff_summary: "Please confirm the deployment target.",
+          },
+        })}
+      />,
+    );
+
+    expect(
+      screen.getByText("Please confirm the deployment target."),
+    ).toBeInTheDocument();
+  });
 });

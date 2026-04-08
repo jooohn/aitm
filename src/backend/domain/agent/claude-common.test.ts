@@ -25,7 +25,19 @@ describe("buildTransitionOutputFormatForClaude", () => {
       "transition",
       "reason",
       "handoff_summary",
+      "clarifying_question",
     ]);
+  });
+
+  it("includes clarifying_question as an optional property for awaiting-input transitions", () => {
+    const outputFormat = buildTransitionOutputFormatForClaude([
+      { terminal: "success", when: "done" },
+    ]);
+
+    const schema = outputFormat.schema as Record<string, unknown>;
+    const properties = schema.properties as Record<string, unknown>;
+
+    expect(properties.clarifying_question).toEqual({ type: "string" });
   });
 
   it("ignores metadata fields that collide with core decision keys", () => {
@@ -46,6 +58,7 @@ describe("buildTransitionOutputFormatForClaude", () => {
     expect(properties.transition).toEqual({ type: "string" });
     expect(properties.reason).toEqual({ type: "string" });
     expect(properties.handoff_summary).toEqual({ type: "string" });
+    expect(properties.clarifying_question).toEqual({ type: "string" });
 
     // Only pr_url should be added from metadata
     expect(properties.pr_url).toEqual({
@@ -66,6 +79,7 @@ describe("buildTransitionOutputFormatForClaude", () => {
       "transition",
       "reason",
       "handoff_summary",
+      "clarifying_question",
     ]);
   });
 });

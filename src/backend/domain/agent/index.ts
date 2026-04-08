@@ -17,6 +17,7 @@ export interface TransitionDecision {
   transition: string;
   reason: string;
   handoff_summary: string;
+  clarifying_question?: string;
   metadata?: Record<string, string>;
 }
 
@@ -66,7 +67,12 @@ function buildTransitionsSection(transitions: SessionTransition[]): string {
   ].join("\n");
 }
 
-const CORE_DECISION_KEYS = new Set(["transition", "reason", "handoff_summary"]);
+const CORE_DECISION_KEYS = new Set([
+  "transition",
+  "reason",
+  "handoff_summary",
+  "clarifying_question",
+]);
 
 function isUserInputTransition(decision: TransitionDecision | null): boolean {
   return decision?.transition === USER_INPUT_TRANSITION_NAME;
@@ -107,6 +113,9 @@ export class AgentService {
         transition: raw.transition as string,
         reason: raw.reason as string,
         handoff_summary: raw.handoff_summary as string,
+        ...(typeof raw.clarifying_question === "string"
+          ? { clarifying_question: raw.clarifying_question }
+          : {}),
       };
 
       // Extract metadata: any keys beyond the three core fields

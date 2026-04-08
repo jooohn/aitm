@@ -207,6 +207,7 @@ describe("WorkflowRunRepository event emission", () => {
         transition: "implement",
         reason: "Ready",
         handoff_summary: "Plan complete",
+        clarifying_question: "Which deployment target should I use?",
       }),
       "Plan complete",
       "2026-04-07T00:00:01.000Z",
@@ -245,6 +246,7 @@ describe("WorkflowRunRepository event emission", () => {
       transition: "implement",
       reason: "Ready",
       handoff_summary: "Plan complete",
+      clarifying_question: "Which deployment target should I use?",
     });
     expect(session?.transitions).toEqual(transitions);
     expect(session?.agent_config).toEqual({
@@ -293,6 +295,46 @@ describe("WorkflowRunRepository event emission", () => {
     expect(run?.inputs).toEqual({ ticket: "42" });
     expect(run?.metadata).toEqual({
       presets__pull_request_url: "https://github.com/org/repo/pull/42",
+    });
+  });
+
+  it("ignores invalid clarifying_question values when reading transition decisions", () => {
+    workflowRunRepository.insertWorkflowRun({
+      id: "run-2",
+      repository_path: "/tmp/repo",
+      worktree_branch: "feat/test",
+      workflow_name: "my-flow",
+      initial_step: "plan",
+      inputs_json: null,
+      now: "2026-04-07T00:00:00.000Z",
+    });
+    workflowRunRepository.insertStepExecution({
+      id: "exec-2",
+      workflowRunId: "run-2",
+      stepName: "plan",
+      stepType: "agent",
+      now: "2026-04-07T00:00:00.000Z",
+    });
+
+    workflowRunRepository.completeStepExecution(
+      "exec-2",
+      JSON.stringify({
+        transition: "__REQUIRE_USER_INPUT__",
+        reason: "Need clarification",
+        handoff_summary: "Waiting",
+        clarifying_question: 42,
+      }),
+      "Waiting",
+      "2026-04-07T00:00:01.000Z",
+      "awaiting",
+    );
+
+    const run = workflowRunRepository.getWorkflowRunWithExecutions("run-2");
+
+    expect(run?.step_executions[0].transition_decision).toEqual({
+      transition: "__REQUIRE_USER_INPUT__",
+      reason: "Need clarification",
+      handoff_summary: "Waiting",
     });
   });
 });

@@ -118,9 +118,10 @@ outputFormat: {
   properties: {
     transition: { type: "string" },   // next step name, "success", or "failure"
     reason: { type: "string" },
-    handoff_summary: { type: "string" }
+    handoff_summary: { type: "string" },
+    clarifying_question: { type: "string" }
   },
-  required: ["transition", "reason", "handoff_summary"],
+  required: ["transition", "reason", "handoff_summary", "clarifying_question"],
   additionalProperties: false
 }
 ```
@@ -194,4 +195,3 @@ On server startup, `recoverCrashedWorkflowRuns()` handles workflow runs and step
 
 - **Transition decision format**: The Agent SDK's `outputFormat` option constrains Claude's final output to a validated JSON schema. No manual JSON parsing; SDK guarantees structure.
 - **Auto-advance**: aitm automatically starts the next session after a transition. A per-transition `confirm: true` option can be added in the config later.
-
