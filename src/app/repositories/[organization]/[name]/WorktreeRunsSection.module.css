@@ -76,8 +76,16 @@
   @apply flex flex-col min-w-0 flex-1;
 }
 
+.runPrimary {
+  @apply flex items-center gap-1 min-w-0;
+}
+
 .runWorkflow {
   @apply text-zinc-700 dark:text-zinc-300 truncate;
+}
+
+.runStepSeparator {
+  @apply shrink-0 text-zinc-400 dark:text-zinc-500;
 }
 
 .runStep {

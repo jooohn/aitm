@@ -218,14 +218,24 @@ export default function WorktreeRunsSection({
                         >
                           <StatusDot variant={run.status} />
                           <span className={styles.runInfo}>
-                            <span className={styles.runWorkflow}>
-                              {run.workflow_name}
-                            </span>
-                            {run.status === "running" && run.current_step && (
-                              <span className={styles.runStep}>
-                                {run.current_step}
+                            <span className={styles.runPrimary}>
+                              <span className={styles.runWorkflow}>
+                                {run.workflow_name}
                               </span>
-                            )}
+                              {run.status === "running" && run.current_step && (
+                                <>
+                                  <span
+                                    className={styles.runStepSeparator}
+                                    aria-hidden="true"
+                                  >
+                                    ·
+                                  </span>
+                                  <span className={styles.runStep}>
+                                    {run.current_step}
+                                  </span>
+                                </>
+                              )}
+                            </span>
                             {group.worktree === null && (
                               <span className={styles.runBranch}>
                                 {run.worktree_branch}

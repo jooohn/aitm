@@ -494,6 +494,7 @@ describe("WorktreeRunsSection", () => {
 
     const runLink = await screen.findByRole("link", { name: /develop/i });
     expect(within(runLink).getByText("develop")).toBeInTheDocument();
+    expect(within(runLink).getByText("·")).toBeInTheDocument();
     expect(within(runLink).getByText("impelment")).toBeInTheDocument();
     expect(runLink).toHaveAttribute(
       "href",
@@ -529,6 +530,7 @@ describe("WorktreeRunsSection", () => {
 
     const runLink = await screen.findByRole("link", { name: /develop/i });
     expect(within(runLink).getByText("develop")).toBeInTheDocument();
+    expect(within(runLink).queryByText("·")).not.toBeInTheDocument();
     expect(within(runLink).queryByText("impelment")).not.toBeInTheDocument();
   });
 });
