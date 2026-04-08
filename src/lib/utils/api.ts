@@ -184,6 +184,17 @@ export function rerunWorkflowRun(id: string): Promise<WorkflowRun> {
   return apiFetch(`/api/workflow-runs/${id}/rerun`, { method: "POST" });
 }
 
+export function generateBranchName(
+  workflow_name: string,
+  inputs?: Record<string, string>,
+): Promise<{ branch: string }> {
+  return apiFetch("/api/branch-name/generate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ workflow_name, inputs }),
+  });
+}
+
 export function rerunWorkflowRunFromFailedState(
   id: string,
 ): Promise<WorkflowRunDetail> {
