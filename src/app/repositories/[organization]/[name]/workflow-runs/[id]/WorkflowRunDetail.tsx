@@ -4,10 +4,16 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { mutate } from "swr";
+import DiffViewer from "@/app/components/DiffViewer";
 import EllipsisIcon from "@/app/components/icons/EllipsisIcon";
 import ExternalLinkIcon from "@/app/components/icons/ExternalLinkIcon";
 import StatusBadge from "@/app/components/StatusBadge";
-import { swrKeys, useWorkflowRun, useWorkflows } from "@/lib/hooks/swr";
+import {
+  swrKeys,
+  useDiff,
+  useWorkflowRun,
+  useWorkflows,
+} from "@/lib/hooks/swr";
 import {
   canStopWorkflowRun,
   rerunWorkflowRun,
@@ -77,6 +83,16 @@ export default function WorkflowRunDetailView({
   const workflowLabel = workflowDefinition?.label ?? currentRun.workflow_name;
   const workflowArtifacts = workflowDefinition?.artifacts ?? [];
   const suggestedWorkflows = resolveWorkflowSuggestions(currentRun, workflows);
+
+  const alias = inferAlias(currentRun.repository_path);
+  const [diffOrg, diffName] = alias.split("/");
+  const isTerminal =
+    currentRun.status === "success" || currentRun.status === "failure";
+  const { data: diffData } = useDiff(
+    diffOrg,
+    diffName,
+    isTerminal ? currentRun.worktree_branch : null,
+  );
 
   const inputEntries = parseWorkflowRunInputs(currentRun.inputs);
   const inputLabelMap = new Map(
@@ -379,6 +395,13 @@ export default function WorkflowRunDetailView({
               </li>
             ))}
           </ul>
+        </section>
+      )}
+
+      {diffData && diffData.files.length > 0 && (
+        <section>
+          <h2 className={styles.sectionHeading}>Review Changes</h2>
+          <DiffViewer files={diffData.files} />
         </section>
       )}
 

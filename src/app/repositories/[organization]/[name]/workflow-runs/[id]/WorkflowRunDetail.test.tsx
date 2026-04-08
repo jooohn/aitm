@@ -62,6 +62,7 @@ vi.mock("@/lib/utils/api", async (importOriginal) => {
       step_executions: [],
     }),
     fetchWorkflows: vi.fn().mockResolvedValue({}),
+    fetchDiff: vi.fn().mockResolvedValue({ files: [] }),
   };
 });
 
@@ -605,5 +606,64 @@ describe("StepExecutionItem status-based border", () => {
       "step-execution-review-execution",
     )!;
     expect(executionItem.getAttribute("data-status")).toBe("awaiting");
+  });
+});
+
+describe("Diff fetching", () => {
+  it("does not fetch diff when the run is in running state", async () => {
+    const { fetchDiff } = await import("@/lib/utils/api");
+    vi.mocked(fetchDiff).mockClear();
+
+    render(
+      <SWRTestProvider>
+        <WorkflowRunDetailComponent run={makeRun({ status: "running" })} />
+      </SWRTestProvider>,
+    );
+
+    // Wait for any async effects
+    await act(async () => {});
+
+    expect(fetchDiff).not.toHaveBeenCalled();
+  });
+
+  it("fetches diff when the run is in success state", async () => {
+    const { fetchDiff } = await import("@/lib/utils/api");
+    vi.mocked(fetchDiff).mockClear();
+    vi.mocked(fetchDiff).mockResolvedValue({
+      files: [
+        {
+          path: "src/index.ts",
+          old_path: null,
+          status: "modified",
+          hunks: [],
+        },
+      ],
+    });
+
+    render(
+      <SWRTestProvider>
+        <WorkflowRunDetailComponent run={makeRun({ status: "success" })} />
+      </SWRTestProvider>,
+    );
+
+    // Wait for SWR to trigger the fetch
+    await screen.findByText("Review Changes");
+
+    expect(fetchDiff).toHaveBeenCalled();
+  });
+
+  it("does not fetch diff when the run is in awaiting state", async () => {
+    const { fetchDiff } = await import("@/lib/utils/api");
+    vi.mocked(fetchDiff).mockClear();
+
+    render(
+      <SWRTestProvider>
+        <WorkflowRunDetailComponent run={makeRun({ status: "awaiting" })} />
+      </SWRTestProvider>,
+    );
+
+    await act(async () => {});
+
+    expect(fetchDiff).not.toHaveBeenCalled();
   });
 });

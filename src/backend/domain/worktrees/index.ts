@@ -1,5 +1,6 @@
 import { logger } from "@/backend/infra/logger";
 import { SpawnTimeoutError, spawnAsync } from "@/backend/utils/process";
+import { type DiffFile, parseDiff } from "./diff";
 
 export interface Worktree {
   branch: string;
@@ -138,6 +139,19 @@ export class WorktreeService {
       (await this.listWorktrees(repoPath)).map((w) => w.branch),
     );
     return before.filter((b) => !after.has(b));
+  }
+
+  async getDiff(worktreePath: string, baseRef?: string): Promise<DiffFile[]> {
+    const base = baseRef ?? "main";
+    const { code, stdout, stderr } = await spawnAsync(
+      "git",
+      ["diff", `${base}...HEAD`],
+      { cwd: worktreePath },
+    );
+    if (code !== 0) {
+      throw new Error(stderr.trim() || "git diff failed");
+    }
+    return parseDiff(stdout);
   }
 
   async pullMainBranchIfOutdated(

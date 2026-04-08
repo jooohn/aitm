@@ -1,4 +1,5 @@
 export { swrKeys } from "./keys";
+export { useDiff } from "./useDiff";
 export { useRepositories } from "./useRepositories";
 export { useRepository } from "./useRepository";
 export { useSession } from "./useSession";

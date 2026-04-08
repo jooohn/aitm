@@ -170,3 +170,26 @@ export interface StepExecutionDto {
 export interface WorkflowRunDetailDto extends WorkflowRunDto {
   step_executions: StepExecutionDto[];
 }
+
+export interface DiffLineDto {
+  type: "added" | "removed" | "context";
+  content: string;
+  old_line: number | null;
+  new_line: number | null;
+}
+
+export interface DiffHunkDto {
+  header: string;
+  lines: DiffLineDto[];
+}
+
+export interface DiffFileDto {
+  path: string;
+  old_path: string | null;
+  status: "added" | "deleted" | "modified" | "renamed";
+  hunks: DiffHunkDto[];
+}
+
+export interface DiffResponseDto {
+  files: DiffFileDto[];
+}

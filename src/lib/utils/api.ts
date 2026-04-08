@@ -1,4 +1,5 @@
 import type {
+  DiffResponseDto,
   RepositoryDetailDto,
   RepositoryDto,
   SessionDto,
@@ -201,6 +202,19 @@ export function rerunWorkflowRunFromFailedState(
   return apiFetch(`/api/workflow-runs/${id}/rerun-from-failed`, {
     method: "POST",
   });
+}
+
+export type DiffResponse = DiffResponseDto;
+
+export function fetchDiff(
+  organization: string,
+  name: string,
+  branch: string,
+  base?: string,
+): Promise<DiffResponse> {
+  const params = new URLSearchParams({ branch });
+  if (base) params.set("base", base);
+  return apiFetch(`/api/repositories/${organization}/${name}/diff?${params}`);
 }
 
 export function resolveManualApproval(
