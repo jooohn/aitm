@@ -1,0 +1,92 @@
+// @vitest-environment jsdom
+import { render, waitFor } from "@testing-library/react";
+import { SWRConfig } from "swr";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { _resetForTesting } from "../useNotificationStream";
+import { useNotificationRevalidation } from "./useNotificationRevalidation";
+
+class MockEventSource {
+  static instances: MockEventSource[] = [];
+
+  onmessage: ((event: MessageEvent) => void) | null = null;
+  onerror: (() => void) | null = null;
+  close = vi.fn();
+
+  constructor(_url: string) {
+    MockEventSource.instances.push(this);
+  }
+
+  simulateMessage(data: unknown) {
+    this.onmessage?.({ data: JSON.stringify(data) } as MessageEvent);
+  }
+}
+
+function TestComponent() {
+  useNotificationRevalidation();
+  return null;
+}
+
+beforeEach(() => {
+  _resetForTesting();
+  MockEventSource.instances = [];
+  vi.stubGlobal("EventSource", MockEventSource);
+});
+
+afterEach(() => {
+  _resetForTesting();
+  vi.unstubAllGlobals();
+});
+
+describe("useNotificationRevalidation", () => {
+  it("revalidates workflow-run caches for workflow notifications only", async () => {
+    const mutate = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <SWRConfig value={{ mutate }}>
+        <TestComponent />
+      </SWRConfig>,
+    );
+
+    MockEventSource.instances[0].simulateMessage({
+      workflowRunId: "wr1",
+      status: "running",
+    });
+
+    await waitFor(() => {
+      expect(mutate).toHaveBeenCalledTimes(2);
+    });
+
+    expect(mutate).toHaveBeenNthCalledWith(1, ["/api/workflow-runs", "wr1"]);
+
+    const [selectorArg, dataArg, optionsArg] = mutate.mock.calls[1];
+    expect(typeof selectorArg).toBe("function");
+    expect(dataArg).toBeUndefined();
+    expect(optionsArg).toEqual({ revalidate: true });
+
+    expect(selectorArg(["/api/workflow-runs", "wr1"])).toBe(false);
+    expect(selectorArg(["/api/workflow-runs"])).toBe(true);
+    expect(
+      selectorArg([
+        "/api/workflow-runs",
+        { repository_path: "/tmp/repo", worktree_branch: "main" },
+      ]),
+    ).toBe(true);
+    expect(selectorArg(["/api/sessions", "session-1"])).toBe(false);
+  });
+
+  it("ignores notifications without a workflow run id", async () => {
+    const mutate = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <SWRConfig value={{ mutate }}>
+        <TestComponent />
+      </SWRConfig>,
+    );
+
+    MockEventSource.instances[0].simulateMessage({ foo: "bar" });
+
+    await waitFor(() => {
+      expect(mutate).not.toHaveBeenCalled();
+    });
+  });
+});

@@ -40,13 +40,15 @@ export function _resetForTesting(): void {
   callbacks.clear();
 }
 
-export function useNotificationStream(onMessage: () => void): void {
+export function useNotificationStream(
+  onMessage: (event: MessageEvent) => void,
+): void {
   const callbackRef = useRef(onMessage);
   callbackRef.current = onMessage;
 
   useEffect(() => {
-    const handler: Callback = () => {
-      callbackRef.current();
+    const handler: Callback = (event) => {
+      callbackRef.current(event);
     };
 
     subscribe(handler);

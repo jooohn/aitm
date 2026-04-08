@@ -93,7 +93,7 @@ export default function SessionDetail({
     setReplying(false);
     setReplyError(null);
     autoScrollRef.current = true;
-  }, [initial]);
+  }, [initial.id]);
 
   // Notify parent when session updates
   useEffect(() => {

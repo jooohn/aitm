@@ -3,6 +3,7 @@ import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
 import type { Session } from "@/lib/utils/api";
+import { SWRTestProvider } from "@/test-swr-provider";
 import SessionDetail from "./SessionDetail";
 
 class MockEventSource {
@@ -150,6 +151,46 @@ describe("SessionDetail – status and updates", () => {
     await waitFor(() => {
       expect(screen.getByText("You: Use PostgreSQL")).toBeInTheDocument();
     });
+  });
+
+  it("preserves streamed output when the same session is revalidated", async () => {
+    const session = makeSession({
+      id: "session-1",
+      status: "running",
+      updated_at: "2024-01-01T00:00:00Z",
+    });
+
+    const { rerender } = render(
+      <SWRTestProvider>
+        <SessionDetail session={session} />
+      </SWRTestProvider>,
+    );
+
+    await act(async () => {
+      MockEventSource.instances[0].simulateMessage({
+        type: "assistant",
+        message: {
+          content: [{ type: "text", text: "Working on it" }],
+        },
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Working on it")).toBeInTheDocument();
+    });
+
+    rerender(
+      <SWRTestProvider>
+        <SessionDetail
+          session={makeSession({
+            ...session,
+            updated_at: "2024-01-01T00:00:05Z",
+          })}
+        />
+      </SWRTestProvider>,
+    );
+
+    expect(screen.getByText("Working on it")).toBeInTheDocument();
   });
 
   it("renders clarifying_question above the reply box for awaiting-input sessions", () => {
