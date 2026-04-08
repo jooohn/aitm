@@ -21,7 +21,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
   const { workflow_name, inputs } = body as Record<string, unknown>;
 
-  if (!workflow_name) {
+  if (typeof workflow_name !== "string" || !workflow_name) {
     return NextResponse.json(
       { error: "workflow_name is required" },
       { status: 422 },
@@ -35,7 +35,10 @@ export async function POST(request: Request): Promise<NextResponse> {
     );
   }
 
-  const branch = branchNameService.generate(workflow_name, inputs ?? {});
+  const branch = branchNameService.generate(
+    workflow_name,
+    isStringRecord(inputs) ? inputs : {},
+  );
 
   return NextResponse.json({ branch });
 }
