@@ -359,12 +359,15 @@ export default function WorkflowRunDetailView({
           <ul className={styles.artifactList}>
             {workflowArtifacts.map((artifact) => (
               <li key={artifact.path} className={styles.artifactItem}>
-                <Link
+                <a
                   href={`/repositories/${inferAlias(currentRun.repository_path)}/workflow-runs/${currentRun.id}/artifacts/${artifact.path}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className={styles.artifactLink}
                 >
                   <span>{artifact.name}</span>
-                </Link>
+                  <ExternalLinkIcon size={14} />
+                </a>
                 {artifact.description && (
                   <p className={styles.artifactDescription}>
                     {artifact.description}

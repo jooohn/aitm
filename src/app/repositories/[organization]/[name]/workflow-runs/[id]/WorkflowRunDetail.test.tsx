@@ -186,10 +186,9 @@ describe("WorkflowRunDetail", () => {
       "href",
       "/repositories/tmp/repo/workflow-runs/run-1/artifacts/plan.md",
     );
-    // Should NOT be an external link
-    expect(artifactLink).not.toHaveAttribute("target", "_blank");
-    // Should NOT have external link icon
-    expect(artifactLink.querySelector("svg")).toBeNull();
+    // Should open in a new tab with external link icon
+    expect(artifactLink).toHaveAttribute("target", "_blank");
+    expect(artifactLink.querySelector("svg")).not.toBeNull();
     expect(
       screen.getByText("Shared working plan for the run"),
     ).toBeInTheDocument();
