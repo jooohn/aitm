@@ -13,6 +13,7 @@ const defaultProps = {
   workflowNames: ["test-workflow"],
   workflows: {
     "test-workflow": {
+      label: "Test Workflow",
       initial_step: "plan",
       inputs: [],
       steps: {
@@ -67,5 +68,13 @@ describe("WorkflowLaunchForm", () => {
 
     const button = screen.getByRole("button");
     expect(button).toHaveClass(styles.submitButtonSubmitting);
+  });
+
+  it("renders the workflow label in the selector", () => {
+    render(<WorkflowLaunchForm {...defaultProps} />);
+
+    expect(screen.getByRole("option", { name: "Test Workflow" })).toHaveValue(
+      "test-workflow",
+    );
   });
 });

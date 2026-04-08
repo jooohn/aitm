@@ -18,6 +18,7 @@ agent:
 
 workflows:
   development-flow:
+    label: Development Flow
     inputs:
       feature-description:
         label: Feature Description
@@ -103,8 +104,8 @@ workflows:
             when: "commit, push, or PR creation failed and cannot be resolved"
 
   maintain-pr:
+    label: Maintain PR
     recommended_when:
-      label: Maintain PR
       condition: $.run.metadata.presets__pull_request_url
       inputs:
         pr-url: $.run.metadata.presets__pull_request_url

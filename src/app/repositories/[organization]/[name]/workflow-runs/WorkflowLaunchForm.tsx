@@ -59,7 +59,7 @@ export default function WorkflowLaunchForm({
         >
           {workflowNames.map((wfName) => (
             <option key={wfName} value={wfName}>
-              {wfName}
+              {workflows[wfName]?.label ?? wfName}
             </option>
           ))}
         </select>

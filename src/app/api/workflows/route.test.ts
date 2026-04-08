@@ -25,6 +25,7 @@ describe("GET /api/workflows", () => {
       `
 workflows:
   my-flow:
+    label: My Flow
     initial_step: plan
     steps:
       plan:
@@ -39,6 +40,7 @@ workflows:
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body).toHaveProperty("my-flow");
+    expect(body["my-flow"].label).toBe("My Flow");
     expect(body["my-flow"].initial_step).toBe("plan");
   });
 });

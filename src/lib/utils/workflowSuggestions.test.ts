@@ -48,8 +48,8 @@ describe("resolveWorkflowSuggestions", () => {
       {
         develop: makeWorkflow(),
         "maintain-pr": makeWorkflow({
+          label: "Maintain PR",
           recommended_when: {
-            label: "Maintain PR",
             condition: "$.run.metadata.presets__pull_request_url",
             inputs: {
               "pr-url": "$.run.metadata.presets__pull_request_url",

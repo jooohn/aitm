@@ -171,6 +171,7 @@ repositories:
   - path: /projects/org/repo1
 workflows:
   my-flow:
+    label: My Flow
     inputs:
       title:
         label: Title
@@ -204,8 +205,8 @@ workflows:
           - terminal: success
             when: approved
   follow-up:
+    label: Maintain PR
     recommended_when:
-      label: Maintain PR
       condition: $.run.metadata.presets__pull_request_url
       inputs:
         pr-url: $.run.metadata.presets__pull_request_url
@@ -224,6 +225,7 @@ workflows:
     expect(snapshot.repositories).toEqual([{ path: "/projects/org/repo1" }]);
     expect(snapshot.workflows).toEqual({
       "my-flow": {
+        label: "My Flow",
         initial_step: "plan",
         inputs: [{ name: "title", label: "Title", type: "text" }],
         recommended_when: undefined,
@@ -261,10 +263,10 @@ workflows:
         },
       },
       "follow-up": {
+        label: "Maintain PR",
         initial_step: "inspect",
         inputs: undefined,
         recommended_when: {
-          label: "Maintain PR",
           condition: "$.run.metadata.presets__pull_request_url",
           inputs: {
             "pr-url": "$.run.metadata.presets__pull_request_url",

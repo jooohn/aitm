@@ -264,7 +264,30 @@ describe("WorkflowKanbanBoard", () => {
     expect(screen.queryByText("stale-branch")).not.toBeInTheDocument();
   });
 
-  it("always renders workflow name as heading", async () => {
+  it("renders workflow label as heading when present", async () => {
+    fetchWorkflowsMock.mockResolvedValue({
+      default: { ...WORKFLOW_DEF, label: "Default Workflow" },
+    });
+    fetchWorkflowRunsMock.mockResolvedValue([
+      makeRun({ id: "r1", current_step: "plan" }),
+    ]);
+
+    render(
+      <SWRTestProvider>
+        <WorkflowKanbanBoard
+          repositoryPath="/repos/org/name"
+          activeWorktreeBranches={null}
+        />
+      </SWRTestProvider>,
+    );
+
+    await screen.findByText("feature-branch");
+    expect(
+      screen.getByRole("heading", { level: 3, name: "Default Workflow" }),
+    ).toBeInTheDocument();
+  });
+
+  it("falls back to workflow name as heading when label is absent", async () => {
     fetchWorkflowRunsMock.mockResolvedValue([
       makeRun({ id: "r1", current_step: "plan" }),
     ]);

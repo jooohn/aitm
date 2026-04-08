@@ -125,7 +125,9 @@ export default function WorkflowKanbanBoard({
 
         return (
           <div key={wfName}>
-            <h3 className={styles.workflowHeading}>{wfName}</h3>
+            <h3 className={styles.workflowHeading}>
+              {definition.label ?? wfName}
+            </h3>
             <div className={styles.boardScroll}>
               <div className={styles.board} role="table">
                 {columns.map((col) => (

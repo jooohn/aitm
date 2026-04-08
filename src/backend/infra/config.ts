@@ -74,12 +74,12 @@ export interface WorkflowInput {
 }
 
 export interface WorkflowSuggestionRule {
-  label?: string;
   condition: string;
   inputs?: Record<string, string>;
 }
 
 export interface WorkflowDefinition {
+  label?: string;
   initial_step: string;
   max_steps?: number;
   inputs?: WorkflowInput[];
@@ -180,7 +180,6 @@ const workflowInputSchema = z.object({
 });
 
 const workflowSuggestionSchema = z.object({
-  label: z.string().optional(),
   condition: z.string(),
   inputs: z.record(z.string(), z.string()).optional(),
 });
@@ -407,6 +406,10 @@ function validateWorkflowDefinition(
   }
 
   return {
+    label:
+      typeof record.label === "string"
+        ? parseZodWithPath(z.string(), record.label, `${path}.label`)
+        : undefined,
     initial_step: record.initial_step,
     max_steps: record.max_steps as number | undefined,
     inputs,

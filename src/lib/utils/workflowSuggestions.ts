@@ -75,7 +75,7 @@ export function resolveWorkflowSuggestions(
     )
     .map(({ workflowName, rule }) => ({
       workflow: workflowName,
-      label: rule.label ?? workflowName,
+      label: allWorkflows[workflowName]?.label ?? workflowName,
       inputValues: Object.fromEntries(
         Object.entries(rule.inputs ?? {})
           .map(([name, selector]) => [

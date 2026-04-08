@@ -74,6 +74,7 @@ export default function WorkflowRunDetailView({
   // Use the SWR data (falls back to initial via fallbackData)
   const currentRun = run ?? initial;
   const workflowDefinition = workflows?.[currentRun.workflow_name] ?? null;
+  const workflowLabel = workflowDefinition?.label ?? currentRun.workflow_name;
   const suggestedWorkflows = resolveWorkflowSuggestions(currentRun, workflows);
 
   const inputEntries = parseWorkflowRunInputs(currentRun.inputs);
@@ -211,7 +212,7 @@ export default function WorkflowRunDetailView({
               {currentRun.worktree_branch}
             </Link>
             <span className={styles.titleSeparator}>/</span>
-            {currentRun.workflow_name}
+            {workflowLabel}
             <span className={styles.titleRunId}>({currentRun.id})</span>
           </h1>
           <div className={styles.headerMeta}>

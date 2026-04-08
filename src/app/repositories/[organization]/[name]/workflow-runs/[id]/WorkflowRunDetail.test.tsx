@@ -110,7 +110,23 @@ afterEach(() => {
 });
 
 describe("WorkflowRunDetail layout", () => {
-  it("renders header, details, and step executions in a single column", () => {
+  it("renders header, details, and step executions in a single column", async () => {
+    const workflows = {
+      "my-flow": {
+        label: "My Flow",
+        initial_step: "plan",
+        steps: {
+          plan: {
+            type: "agent" as const,
+            goal: "Plan",
+            transitions: [{ terminal: "success" as const, when: "done" }],
+          },
+        },
+      },
+    };
+    const { fetchWorkflows } = await import("@/lib/utils/api");
+    vi.mocked(fetchWorkflows).mockResolvedValue(workflows);
+
     render(
       <SWRTestProvider>
         <WorkflowRunDetailComponent
@@ -125,9 +141,9 @@ describe("WorkflowRunDetail layout", () => {
       </SWRTestProvider>,
     );
 
-    const heading = screen.getByRole("heading", { level: 1 });
+    const heading = await screen.findByRole("heading", { level: 1 });
     expect(heading).toHaveTextContent("feat/test");
-    expect(heading).toHaveTextContent("my-flow");
+    expect(heading).toHaveTextContent("My Flow");
     expect(heading).toHaveTextContent("(run-1)");
     expect(screen.getAllByText("Success").length).toBeGreaterThan(0);
     expect(screen.getByText("Step executions")).toBeInTheDocument();
@@ -243,9 +259,9 @@ describe("WorkflowRunDetail", () => {
         },
       },
       "maintain-pr": {
+        label: "Maintain PR",
         initial_step: "inspect",
         recommended_when: {
-          label: "maintain-pr",
           condition: "$.run.metadata.presets__pull_request_url",
           inputs: {
             "pr-url": "$.run.metadata.presets__pull_request_url",
@@ -281,7 +297,7 @@ describe("WorkflowRunDetail", () => {
     );
 
     await user.click(
-      await screen.findByRole("button", { name: "Start maintain-pr" }),
+      await screen.findByRole("button", { name: "Start Maintain PR" }),
     );
 
     const workflowSelect = (await screen.findByLabelText(

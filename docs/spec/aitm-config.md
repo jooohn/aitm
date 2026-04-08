@@ -51,6 +51,7 @@ A workflow is a named directed graph with exactly one `initial_step` and at leas
 ```yaml
 workflows:
   development-flow:
+    label: Development Flow
     inputs:
       task_description:
         label: Task Description
@@ -112,8 +113,8 @@ workflows:
             when: "changes should be abandoned"
 
   maintain-pr:
+    label: Maintain PR
     recommended_when:
-      label: Maintain PR
       condition: $.run.metadata.presets__pull_request_url
       inputs:
         pr-url: $.run.metadata.presets__pull_request_url
@@ -143,6 +144,8 @@ workflows:
 ```
 
 ### Workflow inputs
+
+Workflow definitions may also declare an optional top-level `label` string for display in the UI. If omitted, the workflow's map key is used.
 
 Workflows can declare typed input fields under an `inputs` key. When a user initiates a workflow run, they are prompted to fill in these fields.
 
