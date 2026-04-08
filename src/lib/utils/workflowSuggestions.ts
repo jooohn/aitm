@@ -48,6 +48,19 @@ function evaluateSelector(
   return current;
 }
 
+export function allRequiredInputsProvided(
+  workflow: WorkflowDefinition,
+  inputValues: Record<string, string>,
+): boolean {
+  const inputs = workflow.inputs ?? [];
+  return inputs
+    .filter((input) => input.required !== false)
+    .every((input) => {
+      const value = inputValues[input.name];
+      return typeof value === "string" && value.trim() !== "";
+    });
+}
+
 export function resolveWorkflowSuggestions(
   run: WorkflowRunDetail,
   allWorkflows: Record<string, WorkflowDefinition> | null | undefined,

@@ -10,6 +10,7 @@ import StatusBadge from "@/app/components/StatusBadge";
 import { swrKeys, useWorkflowRun, useWorkflows } from "@/lib/hooks/swr";
 import {
   canStopWorkflowRun,
+  createWorkflowRun,
   rerunWorkflowRun,
   rerunWorkflowRunFromFailedState,
   resolveManualApproval,
@@ -21,7 +22,10 @@ import { extractPullRequestUrl } from "@/lib/utils/extractPullRequestUrl";
 import { inferAlias } from "@/lib/utils/inferAlias";
 import { timeAgo } from "@/lib/utils/timeAgo";
 import { workflowRunPath } from "@/lib/utils/workflowRunPath";
-import { resolveWorkflowSuggestions } from "@/lib/utils/workflowSuggestions";
+import {
+  allRequiredInputsProvided,
+  resolveWorkflowSuggestions,
+} from "@/lib/utils/workflowSuggestions";
 import RunWorkflowModal from "../RunWorkflowModal";
 import { parseWorkflowRunInputs } from "./parseWorkflowRunInputs";
 import StepExecutionItem from "./StepExecutionItem";
@@ -70,6 +74,11 @@ export default function WorkflowRunDetailView({
     workflow: string;
     inputValues: Record<string, string>;
   } | null>(null);
+
+  // Direct suggestion launch state
+  const [submittingSuggestion, setSubmittingSuggestion] = useState<
+    string | null
+  >(null);
 
   // Use the SWR data (falls back to initial via fallbackData)
   const currentRun = run ?? initial;
@@ -194,6 +203,35 @@ export default function WorkflowRunDetailView({
     setMenuOpen(false);
     setLaunchPreset({ workflow, inputValues });
     setShowLaunchModal(true);
+  }
+
+  async function handleSuggestionClick(suggestion: {
+    workflow: string;
+    inputValues: Record<string, string>;
+  }) {
+    const targetWorkflow = workflows?.[suggestion.workflow];
+    if (
+      targetWorkflow &&
+      allRequiredInputsProvided(targetWorkflow, suggestion.inputValues)
+    ) {
+      setSubmittingSuggestion(suggestion.workflow);
+      try {
+        const newRun = await createWorkflowRun({
+          repository_path: currentRun.repository_path,
+          worktree_branch: currentRun.worktree_branch,
+          workflow_name: suggestion.workflow,
+          inputs: suggestion.inputValues,
+        });
+        router.push(workflowRunPath(newRun));
+      } catch {
+        // Fall back to modal on error
+        openSuggestedWorkflow(suggestion.workflow, suggestion.inputValues);
+      } finally {
+        setSubmittingSuggestion(null);
+      }
+    } else {
+      openSuggestedWorkflow(suggestion.workflow, suggestion.inputValues);
+    }
   }
 
   function handleMenuRerun() {
@@ -323,14 +361,12 @@ export default function WorkflowRunDetailView({
                 key={suggestion.workflow}
                 type="button"
                 className={styles.suggestionButton}
-                onClick={() =>
-                  openSuggestedWorkflow(
-                    suggestion.workflow,
-                    suggestion.inputValues,
-                  )
-                }
+                disabled={submittingSuggestion === suggestion.workflow}
+                onClick={() => handleSuggestionClick(suggestion)}
               >
-                Start {suggestion.label}
+                {submittingSuggestion === suggestion.workflow
+                  ? "Starting…"
+                  : `Start ${suggestion.label}`}
               </button>
             ))}
           </div>
