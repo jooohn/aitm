@@ -1,10 +1,11 @@
 import { mkdir, realpath, writeFile } from "fs/promises";
 import { tmpdir } from "os";
 import { join } from "path";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { worktreeService } from "@/backend/container";
-import { spawnAsync } from "@/backend/utils/process";
-import { parseWorktreeList } from "./index";
+import * as processUtils from "@/backend/utils/process";
+import { SpawnTimeoutError, spawnAsync } from "@/backend/utils/process";
+import { parseWorktreeList, WorktreeService } from "./index";
 
 const listWorktrees = worktreeService.listWorktrees.bind(worktreeService);
 const removeWorktree = worktreeService.removeWorktree.bind(worktreeService);
@@ -151,6 +152,118 @@ describe("removeWorktree", () => {
     const dir = await makeGitRepo();
     await expect(removeWorktree(dir, "nonexistent-branch")).rejects.toThrow(
       "not found",
+    );
+  });
+});
+
+describe("pullMainBranchIfOutdated", () => {
+  const repoPath = "/repo";
+  const mainPath = "/repo/main";
+  let service: WorktreeService;
+
+  beforeEach(() => {
+    service = new WorktreeService();
+  });
+
+  it("returns pulled after fetching and fast-forwarding the main worktree with a 10 second timeout", async () => {
+    vi.spyOn(service, "listWorktrees").mockResolvedValue([
+      {
+        branch: "main",
+        path: mainPath,
+        is_main: true,
+        is_bare: false,
+        head: "abcdef0",
+      },
+    ]);
+
+    const spawnSpy = vi
+      .spyOn(processUtils, "spawnAsync")
+      .mockResolvedValueOnce({ code: 0, stdout: "", stderr: "" })
+      .mockResolvedValueOnce({
+        code: 0,
+        stdout: "Updating abc..def",
+        stderr: "",
+      });
+
+    await expect(service.pullMainBranchIfOutdated(repoPath)).resolves.toBe(
+      "pulled",
+    );
+
+    expect(spawnSpy).toHaveBeenNthCalledWith(1, "git", ["fetch", "origin"], {
+      cwd: mainPath,
+      timeoutMs: 10_000,
+    });
+    expect(spawnSpy).toHaveBeenNthCalledWith(
+      2,
+      "git",
+      ["merge", "--ff-only", "@{u}"],
+      { cwd: mainPath, timeoutMs: 10_000 },
+    );
+  });
+
+  it("returns up-to-date when the main worktree is already current", async () => {
+    vi.spyOn(service, "listWorktrees").mockResolvedValue([
+      {
+        branch: "main",
+        path: mainPath,
+        is_main: true,
+        is_bare: false,
+        head: "abcdef0",
+      },
+    ]);
+
+    vi.spyOn(processUtils, "spawnAsync")
+      .mockResolvedValueOnce({ code: 0, stdout: "", stderr: "" })
+      .mockResolvedValueOnce({
+        code: 0,
+        stdout: "Already up to date.",
+        stderr: "",
+      });
+
+    await expect(service.pullMainBranchIfOutdated(repoPath)).resolves.toBe(
+      "up-to-date",
+    );
+  });
+
+  it("surfaces a timeout error when the main-branch update hangs", async () => {
+    vi.spyOn(service, "listWorktrees").mockResolvedValue([
+      {
+        branch: "main",
+        path: mainPath,
+        is_main: true,
+        is_bare: false,
+        head: "abcdef0",
+      },
+    ]);
+
+    vi.spyOn(processUtils, "spawnAsync").mockRejectedValue(
+      new SpawnTimeoutError("git", ["fetch", "origin"], 10_000),
+    );
+
+    await expect(service.pullMainBranchIfOutdated(repoPath)).rejects.toThrow(
+      /timed out/i,
+    );
+  });
+
+  it("surfaces a timeout error when the fast-forward step hangs", async () => {
+    vi.spyOn(service, "listWorktrees").mockResolvedValue([
+      {
+        branch: "main",
+        path: mainPath,
+        is_main: true,
+        is_bare: false,
+        head: "abcdef0",
+      },
+    ]);
+
+    vi.spyOn(processUtils, "spawnAsync")
+      .mockResolvedValueOnce({ code: 0, stdout: "", stderr: "" })
+      .mockRejectedValueOnce(
+        new SpawnTimeoutError("git", ["merge", "--ff-only", "@{u}"], 10_000),
+      );
+
+    await expect(service.pullMainBranchIfOutdated(repoPath)).rejects.toThrow(
+      /timed out/i,
     );
   });
 });
