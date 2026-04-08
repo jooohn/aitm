@@ -78,7 +78,8 @@ export class EventBus {
 
   emit<K extends keyof EventMap>(eventName: K, payload: EventMap[K]): void {
     if (eventName === "house-keeping.sync-status-changed") {
-      this.latestHouseKeepingSyncStatus = payload;
+      this.latestHouseKeepingSyncStatus =
+        payload as EventMap["house-keeping.sync-status-changed"];
     }
     const list = this.listeners.get(eventName);
     if (!list) return;
