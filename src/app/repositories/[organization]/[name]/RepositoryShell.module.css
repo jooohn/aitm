@@ -5,7 +5,7 @@
 }
 
 .content {
-  @apply min-w-0 px-4 py-4 sm:px-6 sm:py-6 lg:px-0 lg:py-0;
+  @apply min-w-0;
 }
 
 .leftPane {
