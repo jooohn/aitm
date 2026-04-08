@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const mockFetchRepositories = vi.fn();
 const mockFetchRepository = vi.fn();
 const mockFetchWorkflows = vi.fn();
+const mockGenerateBranchName = vi.fn();
 const mockCreateWorktree = vi.fn();
 const mockCreateWorkflowRun = vi.fn();
 
@@ -14,6 +15,7 @@ vi.mock("@/lib/utils/api", () => ({
   fetchRepositories: (...args: unknown[]) => mockFetchRepositories(...args),
   fetchRepository: (...args: unknown[]) => mockFetchRepository(...args),
   fetchWorkflows: (...args: unknown[]) => mockFetchWorkflows(...args),
+  generateBranchName: (...args: unknown[]) => mockGenerateBranchName(...args),
   createWorktree: (...args: unknown[]) => mockCreateWorktree(...args),
   createWorkflowRun: (...args: unknown[]) => mockCreateWorkflowRun(...args),
 }));
@@ -37,6 +39,9 @@ beforeEach(() => {
   mockFetchRepositories.mockResolvedValue([repo]);
   mockFetchWorkflows.mockResolvedValue({
     default: { inputs: [] },
+  });
+  mockGenerateBranchName.mockResolvedValue({
+    branch: "new-branch",
   });
   mockCreateWorktree.mockResolvedValue({
     branch: "new-branch",
@@ -70,15 +75,14 @@ describe("RunWorkflowModal", () => {
       />,
     );
 
-    // Wait for the form to load
-    const branchInput = await screen.findByPlaceholderText(
-      "e.g. feature/my-change",
-    );
-    await user.type(branchInput, "new-branch");
+    await screen.findByText("Auto-generate");
     await user.click(screen.getByText("Create & launch"));
 
-    // Wait for async operations to complete
     await vi.waitFor(() => {
+      expect(mockGenerateBranchName).toHaveBeenCalledWith("default", undefined);
+      expect(mockCreateWorktree).toHaveBeenCalledWith("org", "repo", {
+        branch: "new-branch",
+      });
       expect(onCreated).toHaveBeenCalledTimes(1);
     });
   });
@@ -89,14 +93,11 @@ describe("RunWorkflowModal", () => {
 
     render(<RunWorkflowModal onClose={onClose} fixedAlias="org/repo" />);
 
-    const branchInput = await screen.findByPlaceholderText(
-      "e.g. feature/my-change",
-    );
-    await user.type(branchInput, "new-branch");
+    await screen.findByText("Auto-generate");
     await user.click(screen.getByText("Create & launch"));
 
-    // Should navigate without error
     await vi.waitFor(() => {
+      expect(mockGenerateBranchName).toHaveBeenCalledWith("default", undefined);
       expect(mockPush).toHaveBeenCalled();
     });
   });

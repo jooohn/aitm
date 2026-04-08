@@ -8,6 +8,7 @@ const mockFetchRepository = vi.fn();
 const mockFetchWorkflowRuns = vi.fn();
 const mockFetchRepositories = vi.fn();
 const mockFetchWorkflows = vi.fn();
+const mockGenerateBranchName = vi.fn();
 const mockCreateWorkflowRun = vi.fn();
 const mockCreateWorktree = vi.fn();
 const mockFetchWorktrees = vi.fn();
@@ -17,6 +18,7 @@ vi.mock("@/lib/utils/api", () => ({
   fetchWorkflowRuns: (...args: unknown[]) => mockFetchWorkflowRuns(...args),
   fetchRepositories: (...args: unknown[]) => mockFetchRepositories(...args),
   fetchWorkflows: (...args: unknown[]) => mockFetchWorkflows(...args),
+  generateBranchName: (...args: unknown[]) => mockGenerateBranchName(...args),
   createWorkflowRun: (...args: unknown[]) => mockCreateWorkflowRun(...args),
   createWorktree: (...args: unknown[]) => mockCreateWorktree(...args),
   fetchWorktrees: (...args: unknown[]) => mockFetchWorktrees(...args),
@@ -62,6 +64,9 @@ beforeEach(() => {
   mockFetchWorkflows.mockResolvedValue({
     default: { inputs: [] },
   });
+  mockGenerateBranchName.mockResolvedValue({
+    branch: "new-branch",
+  });
   mockCreateWorktree.mockResolvedValue({
     branch: "new-branch",
     path: "/repos/org/repo/worktrees/new-branch",
@@ -99,12 +104,11 @@ describe("RepositoryShell", () => {
 
     // Open modal and submit
     await user.click(screen.getByText("Run Workflow"));
-    const branchInput = screen.getByPlaceholderText("e.g. feature/my-change");
-    await user.type(branchInput, "new-branch");
+    await screen.findByText("Auto-generate");
     await user.click(screen.getByText("Create & launch"));
 
-    // After creation, the create APIs should have been called
     await waitFor(() => {
+      expect(mockGenerateBranchName).toHaveBeenCalledWith("default", undefined);
       expect(mockCreateWorktree).toHaveBeenCalled();
       expect(mockCreateWorkflowRun).toHaveBeenCalled();
     });
