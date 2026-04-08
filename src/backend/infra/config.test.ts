@@ -130,6 +130,27 @@ workflows:
     );
   });
 
+  it("fails when an artifact path escapes the artifact root", async () => {
+    await writeConfig(`
+workflows:
+  my-flow:
+    initial_step: plan
+    artifacts:
+      plan:
+        path: ../PLAN.md
+    steps:
+      plan:
+        goal: "Write a plan"
+        transitions:
+          - terminal: success
+            when: done
+`);
+
+    expect(() => loadConfig()).toThrow(
+      "workflows.my-flow.artifacts.plan.path must not escape the artifact root",
+    );
+  });
+
   it("returns a fresh snapshot on each call", async () => {
     await writeConfig(`
 agent:
@@ -176,6 +197,10 @@ workflows:
       title:
         label: Title
         type: text
+    artifacts:
+      plan:
+        path: plan.md
+        description: Shared plan for the run
     initial_step: plan
     steps:
       plan:
@@ -228,6 +253,13 @@ workflows:
         label: "My Flow",
         initial_step: "plan",
         inputs: [{ name: "title", label: "Title", type: "text" }],
+        artifacts: [
+          {
+            name: "plan",
+            path: "plan.md",
+            description: "Shared plan for the run",
+          },
+        ],
         recommended_when: undefined,
         steps: {
           plan: {

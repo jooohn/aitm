@@ -73,6 +73,12 @@ export interface WorkflowInput {
   type?: "text" | "multiline-text";
 }
 
+export interface WorkflowArtifact {
+  name: string;
+  path: string;
+  description?: string;
+}
+
 export interface WorkflowSuggestionRule {
   condition: string;
   inputs?: Record<string, string>;
@@ -83,6 +89,7 @@ export interface WorkflowDefinition {
   initial_step: string;
   max_steps?: number;
   inputs?: WorkflowInput[];
+  artifacts?: WorkflowArtifact[];
   recommended_when?: WorkflowSuggestionRule;
   steps: Record<string, WorkflowStep>;
 }
@@ -177,6 +184,11 @@ const workflowInputSchema = z.object({
   description: z.string().optional(),
   required: z.boolean().optional(),
   type: z.enum(["text", "multiline-text"]).optional(),
+});
+
+const workflowArtifactSchema = z.object({
+  path: z.string(),
+  description: z.string().optional(),
 });
 
 const workflowSuggestionSchema = z.object({
@@ -373,6 +385,44 @@ function validateWorkflowDefinition(
         }))
       : undefined;
 
+  const artifacts =
+    record.artifacts !== undefined
+      ? Object.entries(
+          parseZodWithPath(
+            z.record(z.string(), workflowArtifactSchema),
+            record.artifacts,
+            `${path}.artifacts`,
+          ),
+        ).map(([artifactName, def]) => {
+          if (def.path.trim() === "") {
+            fail(`${path}.artifacts.${artifactName}.path must not be empty`);
+          }
+          if (def.path.startsWith("/") || def.path.includes("\\")) {
+            fail(
+              `${path}.artifacts.${artifactName}.path must be a relative POSIX path`,
+            );
+          }
+
+          const segments = def.path.split("/");
+          if (segments.some((segment) => segment === "" || segment === ".")) {
+            fail(
+              `${path}.artifacts.${artifactName}.path must not contain empty or '.' segments`,
+            );
+          }
+          if (segments.includes("..")) {
+            fail(
+              `${path}.artifacts.${artifactName}.path must not escape the artifact root`,
+            );
+          }
+
+          return {
+            name: artifactName,
+            path: def.path,
+            description: def.description,
+          };
+        })
+      : undefined;
+
   const recommended_when =
     record.recommended_when !== undefined
       ? parseZodWithPath(
@@ -413,6 +463,7 @@ function validateWorkflowDefinition(
     initial_step: record.initial_step,
     max_steps: record.max_steps as number | undefined,
     inputs,
+    artifacts,
     recommended_when,
     steps,
   };

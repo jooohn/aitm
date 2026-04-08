@@ -1,4 +1,6 @@
 import { randomUUID } from "crypto";
+import { appendFile, mkdir, readFile, stat, writeFile } from "fs/promises";
+import { dirname, join, resolve } from "path";
 import type { AgentConfig, WorkflowDefinition } from "@/backend/infra/config";
 import type { EventBus } from "@/backend/infra/event-bus";
 import { logger } from "@/backend/infra/logger";
@@ -63,6 +65,39 @@ export interface ListWorkflowRunsFilter {
   repository_path?: string;
   worktree_branch?: string;
   status?: WorkflowRunStatus;
+}
+
+function artifactRootPath(worktreePath: string, workflowRunId: string): string {
+  return join(worktreePath, ".aitm", "runs", workflowRunId, "artifacts");
+}
+
+async function resolveGitDir(worktreePath: string): Promise<string> {
+  const dotGitPath = join(worktreePath, ".git");
+  const dotGitStat = await stat(dotGitPath);
+
+  if (dotGitStat.isDirectory()) {
+    return dotGitPath;
+  }
+
+  const content = await readFile(dotGitPath, "utf8");
+  const match = content.match(/^gitdir:\s*(.+)\s*$/m);
+  if (!match) {
+    throw new Error(`Failed to parse gitdir from ${dotGitPath}`);
+  }
+
+  return resolve(worktreePath, match[1]);
+}
+
+async function resolveGitInfoDir(worktreePath: string): Promise<string> {
+  const gitDir = await resolveGitDir(worktreePath);
+  const commonDirPath = join(gitDir, "commondir");
+  const commonDir = await readFile(commonDirPath, "utf8")
+    .then((content) => content.trim())
+    .catch(() => null);
+
+  return commonDir
+    ? join(resolve(gitDir, commonDir), "info")
+    : join(gitDir, "info");
 }
 
 function isAlreadyTerminalSessionError(
@@ -167,6 +202,16 @@ export class WorkflowRunService {
       now,
     });
 
+    if (workflow.artifacts && workflow.artifacts.length > 0) {
+      const worktree = await this.worktreeService.findWorktree(
+        input.repository_path,
+        input.worktree_branch,
+      );
+      if (worktree) {
+        await this.materializeWorkflowArtifacts(id, workflow, worktree.path);
+      }
+    }
+
     const initialExecution = await this.stepRunner.startStepExecution({
       workflowRunId: id,
       stepName: workflow.initial_step,
@@ -182,6 +227,36 @@ export class WorkflowRunService {
     }
 
     return this.workflowRunRepository.getWorkflowRunById(id) as WorkflowRun;
+  }
+
+  private async materializeWorkflowArtifacts(
+    workflowRunId: string,
+    workflow: WorkflowDefinition,
+    worktreePath: string,
+  ): Promise<void> {
+    if (!workflow.artifacts || workflow.artifacts.length === 0) return;
+
+    const root = artifactRootPath(worktreePath, workflowRunId);
+    await mkdir(root, { recursive: true });
+
+    for (const artifact of workflow.artifacts) {
+      const artifactPath = join(root, artifact.path);
+      await mkdir(dirname(artifactPath), { recursive: true });
+      await writeFile(artifactPath, "", { encoding: "utf8", flag: "a" });
+    }
+
+    const infoDir = await resolveGitInfoDir(worktreePath);
+    const excludePath = join(infoDir, "exclude");
+    const excludeEntry = `/.aitm/runs/${workflowRunId}/artifacts/`;
+    await mkdir(infoDir, { recursive: true });
+
+    const existing = await readFile(excludePath, "utf8").catch(() => "");
+    const lines = existing.split(/\r?\n/).filter(Boolean);
+    if (!lines.includes(excludeEntry)) {
+      const prefix =
+        existing.length === 0 || existing.endsWith("\n") ? "" : "\n";
+      await appendFile(excludePath, `${prefix}${excludeEntry}\n`, "utf8");
+    }
   }
 
   async completeStepExecution(

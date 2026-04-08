@@ -24,12 +24,16 @@ workflows:
         label: Feature Description
         description: "Describe the feature you want to implement"
         required: true
+    artifacts:
+      plan:
+        path: plan.md
+        description: Shared working plan for this workflow run
     initial_step: plan
     steps:
       plan:
         goal: |
           Read the task goal. If the spec is ambiguous or missing, ask clarifying
-          questions and document a clear plan in PLAN.md. Otherwise, document your
+          questions and document a clear plan in the plan artifact. Otherwise, document your
           understanding and proceed.
         agent:
           provider: codex
@@ -38,13 +42,13 @@ workflows:
           - step: plan
             when: "specs need clarification or the plan is not yet documented"
           - step: implement
-            when: "a clear plan is documented in PLAN.md"
+            when: "a clear plan is documented in the plan artifact"
           - terminal: failure
             when: "the task is out of scope or cannot be planned"
 
       implement:
         goal: |
-          Implement the plan documented in PLAN.md. Write production-quality code.
+          Implement the plan documented in the plan artifact. Write production-quality code.
         agent:
           # provider is optional here; this step inherits the top-level provider
           # and only overrides the model.

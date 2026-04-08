@@ -27,6 +27,13 @@ describe("StepRunner", () => {
     const workflows: Record<string, WorkflowDefinition> = {
       "my-flow": {
         initial_step: "plan",
+        artifacts: [
+          {
+            name: "plan",
+            path: "plan.md",
+            description: "Shared plan for the run",
+          },
+        ],
         steps: {
           plan: {
             type: "agent",
@@ -92,6 +99,18 @@ describe("StepRunner", () => {
     expect(createSession).toHaveBeenCalledWith(
       expect.objectContaining({
         goal: expect.not.stringContaining("<inputs>"),
+      }),
+    );
+    expect(createSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        goal: expect.stringContaining("<artifacts>"),
+      }),
+    );
+    expect(createSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        goal: expect.stringContaining(
+          "/tmp/worktree/.aitm/runs/run-1/artifacts/plan.md",
+        ),
       }),
     );
     expect(completeStepExecution).not.toHaveBeenCalled();
