@@ -39,7 +39,7 @@ export default function RunWorkflowModal({
   );
   const [inputValues, setInputValues] =
     useState<Record<string, string>>(initialInputValues);
-  const [autoGenerate, setAutoGenerate] = useState(true);
+  const [autoGenerate, setAutoGenerate] = useState(!fixedBranch);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -111,8 +111,8 @@ export default function RunWorkflowModal({
     setSubmitting(true);
     setSubmitError(null);
     try {
-      let effectiveBranch = branch;
-      if (autoGenerate) {
+      let effectiveBranch = fixedBranch ?? branch;
+      if (!fixedBranch && autoGenerate) {
         const inputs =
           Object.keys(inputValues).length > 0 ? inputValues : undefined;
         const result = await generateBranchName(selectedWorkflow, inputs);
