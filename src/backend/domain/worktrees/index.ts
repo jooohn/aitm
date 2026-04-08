@@ -1,5 +1,5 @@
 import { logger } from "@/backend/infra/logger";
-import { spawnAsync } from "@/backend/utils/process";
+import { SpawnTimeoutError, spawnAsync } from "@/backend/utils/process";
 
 export interface Worktree {
   branch: string;
@@ -143,6 +143,7 @@ export class WorktreeService {
   async pullMainBranchIfOutdated(
     repoPath: string,
   ): Promise<"up-to-date" | "pulled"> {
+    const timeoutMs = 10_000;
     const worktrees = await this.listWorktrees(repoPath);
     const main = worktrees.find((w) => w.is_main);
     if (!main) {
@@ -153,23 +154,41 @@ export class WorktreeService {
       return "up-to-date";
     }
 
-    await spawnAsync("git", ["fetch", "origin"], { cwd: main.path });
+    try {
+      const fetchResult = await spawnAsync("git", ["fetch", "origin"], {
+        cwd: main.path,
+        timeoutMs,
+      });
+      if (fetchResult.code !== 0) {
+        throw new Error(
+          `Failed to fetch origin: ${fetchResult.stderr.trim() || fetchResult.stdout.trim()}`,
+        );
+      }
 
-    const { code, stdout, stderr } = await spawnAsync(
-      "git",
-      ["merge", "--ff-only", "@{u}"],
-      { cwd: main.path },
-    );
-
-    if (code !== 0) {
-      throw new Error(
-        `Failed to fast-forward main branch: ${stderr.trim() || stdout.trim()}`,
+      const { code, stdout, stderr } = await spawnAsync(
+        "git",
+        ["merge", "--ff-only", "@{u}"],
+        { cwd: main.path, timeoutMs },
       );
-    }
 
-    if (stdout.trim() === "Already up to date.") {
-      return "up-to-date";
+      if (code !== 0) {
+        throw new Error(
+          `Failed to fast-forward main branch: ${stderr.trim() || stdout.trim()}`,
+        );
+      }
+
+      if (stdout.trim() === "Already up to date.") {
+        return "up-to-date";
+      }
+
+      return "pulled";
+    } catch (error) {
+      if (error instanceof SpawnTimeoutError) {
+        throw new Error(`Timed out updating main branch after ${timeoutMs}ms`, {
+          cause: error,
+        });
+      }
+      throw error;
     }
-    return "pulled";
   }
 }
