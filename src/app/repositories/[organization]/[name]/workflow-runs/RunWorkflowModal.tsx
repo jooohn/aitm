@@ -18,6 +18,8 @@ interface Props {
   onClose: () => void;
   fixedAlias?: string;
   fixedBranch?: string;
+  initialWorkflow?: string;
+  initialInputValues?: Record<string, string>;
   onCreated?: () => void;
 }
 
@@ -25,13 +27,18 @@ export default function RunWorkflowModal({
   onClose,
   fixedAlias,
   fixedBranch,
+  initialWorkflow,
+  initialInputValues = {},
   onCreated,
 }: Props) {
   const router = useRouter();
   const [selectedAlias, setSelectedAlias] = useState(fixedAlias ?? "");
   const [branch, setBranch] = useState(fixedBranch ?? "");
-  const [selectedWorkflow, setSelectedWorkflow] = useState("");
-  const [inputValues, setInputValues] = useState<Record<string, string>>({});
+  const [selectedWorkflow, setSelectedWorkflow] = useState(
+    initialWorkflow ?? "",
+  );
+  const [inputValues, setInputValues] =
+    useState<Record<string, string>>(initialInputValues);
   const [autoGenerate, setAutoGenerate] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -76,10 +83,15 @@ export default function RunWorkflowModal({
 
   useEffect(() => {
     if (workflows && !selectedWorkflow) {
-      const names = Object.keys(workflows);
+      const names = initialWorkflow
+        ? [
+            initialWorkflow,
+            ...Object.keys(workflows).filter((wf) => wf !== initialWorkflow),
+          ]
+        : Object.keys(workflows);
       if (names.length > 0) setSelectedWorkflow(names[0]);
     }
-  }, [workflows, selectedWorkflow]);
+  }, [initialWorkflow, selectedWorkflow, workflows]);
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -175,7 +187,9 @@ export default function RunWorkflowModal({
               selectedWorkflow={selectedWorkflow}
               onWorkflowChange={(wf) => {
                 setSelectedWorkflow(wf);
-                setInputValues({});
+                setInputValues(
+                  wf === initialWorkflow ? initialInputValues : {},
+                );
               }}
               inputValues={inputValues}
               onInputChange={(inputName, value) =>

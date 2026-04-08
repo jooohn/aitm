@@ -203,6 +203,20 @@ workflows:
         transitions:
           - terminal: success
             when: approved
+  follow-up:
+    suggest_if:
+      label: Maintain PR
+      when: $.run.metadata.presets__pull_request_url
+      inputs:
+        pr-url: $.run.metadata.presets__pull_request_url
+        source-run-id: $.run.id
+    initial_step: inspect
+    steps:
+      inspect:
+        goal: "Inspect the pull request"
+        transitions:
+          - terminal: success
+            when: done
 `);
 
     const snapshot = loadConfig();
@@ -212,6 +226,7 @@ workflows:
       "my-flow": {
         initial_step: "plan",
         inputs: [{ name: "title", label: "Title", type: "text" }],
+        suggest_if: undefined,
         steps: {
           plan: {
             type: "agent",
@@ -242,6 +257,27 @@ workflows:
           approve: {
             type: "manual-approval",
             transitions: [{ terminal: "success", when: "approved" }],
+          },
+        },
+      },
+      "follow-up": {
+        initial_step: "inspect",
+        inputs: undefined,
+        suggest_if: {
+          label: "Maintain PR",
+          when: "$.run.metadata.presets__pull_request_url",
+          inputs: {
+            "pr-url": "$.run.metadata.presets__pull_request_url",
+            "source-run-id": "$.run.id",
+          },
+        },
+        steps: {
+          inspect: {
+            type: "agent",
+            goal: "Inspect the pull request",
+            agent: undefined,
+            output: undefined,
+            transitions: [{ terminal: "success", when: "done" }],
           },
         },
       },

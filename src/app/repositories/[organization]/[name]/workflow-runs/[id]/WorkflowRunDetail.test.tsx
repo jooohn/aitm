@@ -42,6 +42,12 @@ vi.mock("@/lib/utils/api", async (importOriginal) => {
   return {
     ...actual,
     resolveManualApproval: vi.fn(),
+    fetchRepository: vi.fn().mockResolvedValue({
+      path: "/tmp/repo",
+      name: "repo",
+      alias: "tmp/repo",
+      github_url: null,
+    }),
     fetchWorkflowRun: vi.fn().mockResolvedValue({
       id: "run-1",
       repository_path: "/tmp/repo",
@@ -212,6 +218,80 @@ describe("WorkflowRunDetail", () => {
     );
 
     expect(screen.queryByText(/Pull request created/)).not.toBeInTheDocument();
+  });
+
+  it("renders a suggested follow-up workflow when conditions match", async () => {
+    const { fetchWorkflowRun, fetchWorkflows } = await import(
+      "@/lib/utils/api"
+    );
+    vi.mocked(fetchWorkflowRun).mockResolvedValueOnce(
+      makeRun({
+        metadata: {
+          presets__pull_request_url: "https://github.com/org/repo/pull/42",
+        },
+      }),
+    );
+    const workflows = {
+      "my-flow": {
+        initial_step: "plan",
+        steps: {
+          plan: {
+            type: "agent",
+            goal: "Plan",
+            transitions: [{ terminal: "success", when: "done" }],
+          },
+        },
+      },
+      "maintain-pr": {
+        initial_step: "inspect",
+        suggest_if: {
+          label: "maintain-pr",
+          when: "$.run.metadata.presets__pull_request_url",
+          inputs: {
+            "pr-url": "$.run.metadata.presets__pull_request_url",
+            "source-run-id": "$.run.id",
+          },
+        },
+        inputs: [
+          { name: "pr-url", label: "Pull Request URL", required: true },
+          { name: "source-run-id", label: "Source Workflow Run ID" },
+        ],
+        steps: {
+          inspect: {
+            type: "agent",
+            goal: "Inspect",
+            transitions: [{ terminal: "success", when: "done" }],
+          },
+        },
+      },
+    };
+    vi.mocked(fetchWorkflows).mockResolvedValue(workflows);
+
+    const user = userEvent.setup();
+    render(
+      <SWRTestProvider>
+        <WorkflowRunDetailComponent
+          run={makeRun({
+            metadata: {
+              presets__pull_request_url: "https://github.com/org/repo/pull/42",
+            },
+          })}
+        />
+      </SWRTestProvider>,
+    );
+
+    await user.click(
+      await screen.findByRole("button", { name: "Start maintain-pr" }),
+    );
+
+    const workflowSelect = (await screen.findByLabelText(
+      "Workflow",
+    )) as HTMLSelectElement;
+    expect(workflowSelect.value).toBe("maintain-pr");
+    expect(
+      screen.getByDisplayValue("https://github.com/org/repo/pull/42"),
+    ).toBeInTheDocument();
+    expect(screen.getByDisplayValue("run-1")).toBeInTheDocument();
   });
 
   it("only disables the approval buttons for the execution being resolved", async () => {

@@ -46,7 +46,7 @@ agent:
 
 ### Workflow definition
 
-A workflow is a named directed graph with exactly one `initial_step` and at least one terminal transition. Workflows may optionally declare `inputs` for parameterized runs.
+A workflow is a named directed graph with exactly one `initial_step` and at least one terminal transition. Workflows may optionally declare `inputs` for parameterized runs, plus `suggest_if` for context-aware follow-up workflows surfaced in the UI.
 
 ```yaml
 workflows:
@@ -110,6 +110,18 @@ workflows:
             when: "code is ready to commit"
           - terminal: failure
             when: "changes should be abandoned"
+
+  maintain-pr:
+    suggest_if:
+      label: Maintain PR
+      when: $.run.metadata.presets__pull_request_url
+      inputs:
+        pr-url: $.run.metadata.presets__pull_request_url
+        source-run-id: $.run.id
+    inputs:
+      pr-url:
+        label: Pull Request URL
+        required: true
 
       commit:
         goal: |

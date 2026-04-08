@@ -93,8 +93,38 @@ workflows:
           branch to the remote repository, and open a pull request.
         agent:
           permission_mode: full
+        output:
+          presets:
+            - pull_request_url
         transitions:
           - terminal: success
             when: "pull request was created successfully"
           - terminal: failure
             when: "commit, push, or PR creation failed and cannot be resolved"
+
+  maintain-pr:
+    suggest_if:
+      label: Maintain PR
+      when: $.run.metadata.presets__pull_request_url
+      inputs:
+        pr-url: $.run.metadata.presets__pull_request_url
+        source-run-id: $.run.id
+    inputs:
+      pr-url:
+        label: Pull Request URL
+        description: "The pull request to monitor and maintain"
+        required: true
+      source-run-id:
+        label: Source Workflow Run ID
+        required: false
+    initial_step: inspect
+    steps:
+      inspect:
+        goal: |
+          Review the current pull request state and determine whether follow-up
+          work is needed.
+        transitions:
+          - terminal: success
+            when: "the pull request is healthy or required updates were made"
+          - terminal: failure
+            when: "the pull request could not be inspected or maintained"

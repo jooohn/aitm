@@ -73,10 +73,17 @@ export interface WorkflowInput {
   type?: "text" | "multiline-text";
 }
 
+export interface WorkflowSuggestionRule {
+  label?: string;
+  when: string;
+  inputs?: Record<string, string>;
+}
+
 export interface WorkflowDefinition {
   initial_step: string;
   max_steps?: number;
   inputs?: WorkflowInput[];
+  suggest_if?: WorkflowSuggestionRule;
   steps: Record<string, WorkflowStep>;
 }
 
@@ -170,6 +177,12 @@ const workflowInputSchema = z.object({
   description: z.string().optional(),
   required: z.boolean().optional(),
   type: z.enum(["text", "multiline-text"]).optional(),
+});
+
+const workflowSuggestionSchema = z.object({
+  label: z.string().optional(),
+  when: z.string(),
+  inputs: z.record(z.string(), z.string()).optional(),
 });
 
 function parseZodWithPath<T>(
@@ -361,6 +374,15 @@ function validateWorkflowDefinition(
         }))
       : undefined;
 
+  const suggest_if =
+    record.suggest_if !== undefined
+      ? parseZodWithPath(
+          workflowSuggestionSchema,
+          record.suggest_if,
+          `${path}.suggest_if`,
+        )
+      : undefined;
+
   const steps = Object.fromEntries(
     Object.entries(record.steps as Record<string, unknown>).map(
       ([stepName, stepDef]) => [
@@ -388,6 +410,7 @@ function validateWorkflowDefinition(
     initial_step: record.initial_step,
     max_steps: record.max_steps as number | undefined,
     inputs,
+    suggest_if,
     steps,
   };
 }

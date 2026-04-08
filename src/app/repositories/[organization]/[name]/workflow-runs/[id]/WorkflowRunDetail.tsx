@@ -21,6 +21,7 @@ import { extractPullRequestUrl } from "@/lib/utils/extractPullRequestUrl";
 import { inferAlias } from "@/lib/utils/inferAlias";
 import { timeAgo } from "@/lib/utils/timeAgo";
 import { workflowRunPath } from "@/lib/utils/workflowRunPath";
+import { resolveWorkflowSuggestions } from "@/lib/utils/workflowSuggestions";
 import RunWorkflowModal from "../RunWorkflowModal";
 import { parseWorkflowRunInputs } from "./parseWorkflowRunInputs";
 import StepExecutionItem from "./StepExecutionItem";
@@ -65,10 +66,15 @@ export default function WorkflowRunDetailView({
 
   // Launch workflow modal state
   const [showLaunchModal, setShowLaunchModal] = useState(false);
+  const [launchPreset, setLaunchPreset] = useState<{
+    workflow: string;
+    inputValues: Record<string, string>;
+  } | null>(null);
 
   // Use the SWR data (falls back to initial via fallbackData)
   const currentRun = run ?? initial;
   const workflowDefinition = workflows?.[currentRun.workflow_name] ?? null;
+  const suggestedWorkflows = resolveWorkflowSuggestions(currentRun, workflows);
 
   const inputEntries = parseWorkflowRunInputs(currentRun.inputs);
   const inputLabelMap = new Map(
@@ -175,6 +181,16 @@ export default function WorkflowRunDetailView({
 
   function openLaunchModal() {
     setMenuOpen(false);
+    setLaunchPreset(null);
+    setShowLaunchModal(true);
+  }
+
+  function openSuggestedWorkflow(
+    workflow: string,
+    inputValues: Record<string, string>,
+  ) {
+    setMenuOpen(false);
+    setLaunchPreset({ workflow, inputValues });
     setShowLaunchModal(true);
   }
 
@@ -294,6 +310,31 @@ export default function WorkflowRunDetailView({
         </a>
       )}
 
+      {suggestedWorkflows.length > 0 && (
+        <section>
+          <div className={styles.sectionHeader}>
+            <h2 className={styles.sectionHeading}>Suggested Next Workflows</h2>
+          </div>
+          <div className={styles.suggestionList}>
+            {suggestedWorkflows.map((suggestion) => (
+              <button
+                key={suggestion.workflow}
+                type="button"
+                className={styles.suggestionButton}
+                onClick={() =>
+                  openSuggestedWorkflow(
+                    suggestion.workflow,
+                    suggestion.inputValues,
+                  )
+                }
+              >
+                Start {suggestion.label}
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
       {inputEntries.length > 0 && (
         <section>
           <h2 className={styles.sectionHeading}>Inputs</h2>
@@ -353,6 +394,8 @@ export default function WorkflowRunDetailView({
           onClose={() => setShowLaunchModal(false)}
           fixedAlias={inferAlias(currentRun.repository_path)}
           fixedBranch={currentRun.worktree_branch}
+          initialWorkflow={launchPreset?.workflow}
+          initialInputValues={launchPreset?.inputValues}
         />
       )}
     </div>

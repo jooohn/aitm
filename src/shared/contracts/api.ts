@@ -92,6 +92,12 @@ export interface WorkflowInputDto {
   type?: "text" | "multiline-text";
 }
 
+export interface WorkflowSuggestionRuleDto {
+  label?: string;
+  when: string;
+  inputs?: Record<string, string>;
+}
+
 export interface AgentWorkflowStepDto {
   type: "agent";
   goal: string;
@@ -122,6 +128,7 @@ export interface WorkflowDefinitionDto {
   initial_step: string;
   max_steps?: number;
   inputs?: WorkflowInputDto[];
+  suggest_if?: WorkflowSuggestionRuleDto;
   steps: Record<string, WorkflowStepDto>;
 }
 

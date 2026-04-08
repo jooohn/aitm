@@ -39,6 +39,15 @@ beforeEach(() => {
   mockFetchRepositories.mockResolvedValue([repo]);
   mockFetchWorkflows.mockResolvedValue({
     default: { inputs: [] },
+    "maintain-pr": {
+      inputs: [
+        {
+          name: "pr-url",
+          label: "Pull Request URL",
+          required: true,
+        },
+      ],
+    },
   });
   mockGenerateBranchName.mockResolvedValue({
     branch: "new-branch",
@@ -100,5 +109,28 @@ describe("RunWorkflowModal", () => {
       expect(mockGenerateBranchName).toHaveBeenCalledWith("default", undefined);
       expect(mockPush).toHaveBeenCalled();
     });
+  });
+
+  it("prefills the selected workflow and suggested inputs", async () => {
+    render(
+      <RunWorkflowModal
+        onClose={vi.fn()}
+        fixedAlias="org/repo"
+        fixedBranch="feature/existing-pr"
+        initialWorkflow="maintain-pr"
+        initialInputValues={{
+          "pr-url": "https://github.com/org/repo/pull/42",
+        }}
+      />,
+    );
+
+    const workflowSelect = (await screen.findByLabelText(
+      "Workflow",
+    )) as HTMLSelectElement;
+    expect(workflowSelect.value).toBe("maintain-pr");
+    expect(
+      screen.getByDisplayValue("https://github.com/org/repo/pull/42"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("feature/existing-pr")).toBeInTheDocument();
   });
 });
