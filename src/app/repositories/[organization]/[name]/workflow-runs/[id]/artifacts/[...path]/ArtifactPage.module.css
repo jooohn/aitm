@@ -1,0 +1,77 @@
+@reference "tailwindcss";
+
+.page {
+  @apply max-w-4xl mx-auto px-4 py-4 flex flex-col gap-6 sm:px-6 sm:py-6;
+}
+
+.error {
+  @apply text-sm text-red-600 dark:text-red-400;
+}
+
+.loading {
+  @apply text-sm text-zinc-500 dark:text-zinc-400;
+}
+
+.header {
+  @apply flex flex-col gap-1;
+}
+
+.title {
+  @apply text-2xl font-semibold text-zinc-900 dark:text-zinc-50 font-mono;
+}
+
+.description {
+  @apply text-sm text-zinc-500 dark:text-zinc-400;
+}
+
+/* Viewer container */
+
+.viewerContainer {
+  @apply rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-6 overflow-auto;
+}
+
+.viewerContainer pre {
+  @apply font-mono text-sm leading-relaxed text-zinc-800 dark:text-zinc-200 whitespace-pre-wrap break-words;
+}
+
+/* Markdown styles */
+
+.viewerContainer h1 {
+  @apply text-2xl font-bold text-zinc-900 dark:text-zinc-50 mb-4 mt-6 first:mt-0;
+}
+
+.viewerContainer h2 {
+  @apply text-xl font-semibold text-zinc-900 dark:text-zinc-50 mb-3 mt-5;
+}
+
+.viewerContainer h3 {
+  @apply text-lg font-semibold text-zinc-900 dark:text-zinc-50 mb-2 mt-4;
+}
+
+.viewerContainer p {
+  @apply text-sm text-zinc-700 dark:text-zinc-300 mb-3 leading-relaxed;
+}
+
+.viewerContainer ul {
+  @apply list-disc pl-6 mb-3;
+}
+
+.viewerContainer li {
+  @apply text-sm text-zinc-700 dark:text-zinc-300 mb-1;
+}
+
+.viewerContainer code {
+  @apply bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded text-sm font-mono;
+}
+
+.viewerContainer strong {
+  @apply font-semibold;
+}
+
+.footer {
+  @apply pt-2;
+}
+
+.backLink {
+  @apply text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors;
+}
