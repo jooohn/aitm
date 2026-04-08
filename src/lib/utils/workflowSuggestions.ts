@@ -60,17 +60,19 @@ export function resolveWorkflowSuggestions(
     .filter(([workflowName]) => workflowName !== run.workflow_name)
     .map(([workflowName, workflow]) => ({
       workflowName,
-      rule: workflow.suggest_if,
+      rule: workflow.recommended_when,
     }))
     .filter(
       (
         entry,
       ): entry is {
         workflowName: string;
-        rule: NonNullable<WorkflowDefinition["suggest_if"]>;
+        rule: NonNullable<WorkflowDefinition["recommended_when"]>;
       } => entry.rule !== undefined,
     )
-    .filter((entry) => hasValue(evaluateSelector(entry.rule.when, context)))
+    .filter((entry) =>
+      hasValue(evaluateSelector(entry.rule.condition, context)),
+    )
     .map(({ workflowName, rule }) => ({
       workflow: workflowName,
       label: rule.label ?? workflowName,

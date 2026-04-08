@@ -244,9 +244,9 @@ describe("WorkflowRunDetail", () => {
       },
       "maintain-pr": {
         initial_step: "inspect",
-        suggest_if: {
+        recommended_when: {
           label: "maintain-pr",
-          when: "$.run.metadata.presets__pull_request_url",
+          condition: "$.run.metadata.presets__pull_request_url",
           inputs: {
             "pr-url": "$.run.metadata.presets__pull_request_url",
             "source-run-id": "$.run.id",

@@ -103,9 +103,9 @@ workflows:
             when: "commit, push, or PR creation failed and cannot be resolved"
 
   maintain-pr:
-    suggest_if:
+    recommended_when:
       label: Maintain PR
-      when: $.run.metadata.presets__pull_request_url
+      condition: $.run.metadata.presets__pull_request_url
       inputs:
         pr-url: $.run.metadata.presets__pull_request_url
         source-run-id: $.run.id

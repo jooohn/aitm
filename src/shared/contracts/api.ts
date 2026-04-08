@@ -94,7 +94,7 @@ export interface WorkflowInputDto {
 
 export interface WorkflowSuggestionRuleDto {
   label?: string;
-  when: string;
+  condition: string;
   inputs?: Record<string, string>;
 }
 
@@ -128,7 +128,7 @@ export interface WorkflowDefinitionDto {
   initial_step: string;
   max_steps?: number;
   inputs?: WorkflowInputDto[];
-  suggest_if?: WorkflowSuggestionRuleDto;
+  recommended_when?: WorkflowSuggestionRuleDto;
   steps: Record<string, WorkflowStepDto>;
 }
 

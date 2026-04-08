@@ -140,7 +140,7 @@ A workflow run detail page shows:
 - For each: step name, session link, transition decision, handoff summary
 - Overall run status and terminal outcome
 - Suggested follow-up workflows when other workflow definitions declare
-  `suggest_if` rules that match the current run context
+  `recommended_when` rules that match the current run context
 
 ### Relationship to sessions
 

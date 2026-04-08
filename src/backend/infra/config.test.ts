@@ -204,9 +204,9 @@ workflows:
           - terminal: success
             when: approved
   follow-up:
-    suggest_if:
+    recommended_when:
       label: Maintain PR
-      when: $.run.metadata.presets__pull_request_url
+      condition: $.run.metadata.presets__pull_request_url
       inputs:
         pr-url: $.run.metadata.presets__pull_request_url
         source-run-id: $.run.id
@@ -226,7 +226,7 @@ workflows:
       "my-flow": {
         initial_step: "plan",
         inputs: [{ name: "title", label: "Title", type: "text" }],
-        suggest_if: undefined,
+        recommended_when: undefined,
         steps: {
           plan: {
             type: "agent",
@@ -263,9 +263,9 @@ workflows:
       "follow-up": {
         initial_step: "inspect",
         inputs: undefined,
-        suggest_if: {
+        recommended_when: {
           label: "Maintain PR",
-          when: "$.run.metadata.presets__pull_request_url",
+          condition: "$.run.metadata.presets__pull_request_url",
           inputs: {
             "pr-url": "$.run.metadata.presets__pull_request_url",
             "source-run-id": "$.run.id",

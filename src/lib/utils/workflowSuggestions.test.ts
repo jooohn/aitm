@@ -38,7 +38,7 @@ function makeWorkflow(
 }
 
 describe("resolveWorkflowSuggestions", () => {
-  it("returns target workflows whose suggest_if selector resolves truthy", () => {
+  it("returns target workflows whose recommended_when selector resolves truthy", () => {
     const suggestions = resolveWorkflowSuggestions(
       makeRun({
         metadata: {
@@ -48,9 +48,9 @@ describe("resolveWorkflowSuggestions", () => {
       {
         develop: makeWorkflow(),
         "maintain-pr": makeWorkflow({
-          suggest_if: {
+          recommended_when: {
             label: "Maintain PR",
-            when: "$.run.metadata.presets__pull_request_url",
+            condition: "$.run.metadata.presets__pull_request_url",
             inputs: {
               "pr-url": "$.run.metadata.presets__pull_request_url",
               "source-run-id": "$.run.id",
@@ -76,8 +76,8 @@ describe("resolveWorkflowSuggestions", () => {
     const suggestions = resolveWorkflowSuggestions(makeRun(), {
       develop: makeWorkflow(),
       "maintain-pr": makeWorkflow({
-        suggest_if: {
-          when: "$.run.metadata.presets__pull_request_url",
+        recommended_when: {
+          condition: "$.run.metadata.presets__pull_request_url",
         },
       }),
     });
