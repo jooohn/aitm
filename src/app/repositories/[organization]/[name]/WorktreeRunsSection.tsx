@@ -5,9 +5,11 @@ import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { mutate } from "swr";
 import EllipsisIcon from "@/app/components/icons/EllipsisIcon";
+import LoadingIndicator from "@/app/components/LoadingIndicator";
 import PrChip, { extractPrInfos } from "@/app/components/PrChip";
 import StatusDot from "@/app/components/StatusDot";
 import { swrKeys } from "@/lib/hooks/swr";
+import { useHouseKeepingSyncing } from "@/lib/hooks/useHouseKeepingSyncing";
 import {
   cleanMergedWorktrees,
   createWorktree,
@@ -44,6 +46,7 @@ export default function WorktreeRunsSection({
     () => groupRunsByWorktree(worktrees, runs),
     [worktrees, runs],
   );
+  const houseKeepingSyncing = useHouseKeepingSyncing();
   const [showAllRunsBranches, setShowAllRunsBranches] = useState<Set<string>>(
     new Set(),
   );
@@ -122,46 +125,54 @@ export default function WorktreeRunsSection({
     <section className={styles.section}>
       <div className={styles.headingRow}>
         <h2 className={styles.heading}>Worktrees</h2>
-        <div className={styles.menuWrapper} ref={menuRef}>
-          <button
-            type="button"
-            className={styles.menuButton}
-            onClick={() => setMenuOpen((open) => !open)}
-            aria-label="Worktree actions"
-            aria-haspopup="menu"
-            aria-expanded={menuOpen}
-            title="Worktree actions"
-          >
-            <EllipsisIcon />
-          </button>
-          {menuOpen && (
-            <div className={styles.menu} role="menu">
-              <button
-                type="button"
-                role="menuitem"
-                className={styles.menuItem}
-                onClick={() => {
-                  setMenuOpen(false);
-                  setCreateError(null);
-                  setShowCreateModal(true);
-                }}
-              >
-                Add new worktree
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                className={styles.menuItem}
-                disabled={cleaningMerged || loading}
-                onClick={() => {
-                  setMenuOpen(false);
-                  handleCleanMerged();
-                }}
-              >
-                {cleaningMerged ? "Cleaning up…" : "Cleanup merged worktrees"}
-              </button>
-            </div>
+        <div className={styles.headingActions}>
+          {houseKeepingSyncing && (
+            <LoadingIndicator
+              label="Worktrees syncing"
+              testId="worktrees-sync-indicator"
+            />
           )}
+          <div className={styles.menuWrapper} ref={menuRef}>
+            <button
+              type="button"
+              className={styles.menuButton}
+              onClick={() => setMenuOpen((open) => !open)}
+              aria-label="Worktree actions"
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              title="Worktree actions"
+            >
+              <EllipsisIcon />
+            </button>
+            {menuOpen && (
+              <div className={styles.menu} role="menu">
+                <button
+                  type="button"
+                  role="menuitem"
+                  className={styles.menuItem}
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setCreateError(null);
+                    setShowCreateModal(true);
+                  }}
+                >
+                  Add new worktree
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className={styles.menuItem}
+                  disabled={cleaningMerged || loading}
+                  onClick={() => {
+                    setMenuOpen(false);
+                    handleCleanMerged();
+                  }}
+                >
+                  {cleaningMerged ? "Cleaning up…" : "Cleanup merged worktrees"}
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

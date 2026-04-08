@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { EventBus } from "@/backend/infra/event-bus";
 import { HouseKeepingService } from "./index";
 
 describe("HouseKeepingService.runHouseKeeping", () => {
   const repoPath = "/tmp/repo";
+  let eventBus: EventBus;
   let sessionService: {
     deleteWorktreeData: ReturnType<typeof vi.fn>;
     listPersistedWorktreeBranches: ReturnType<typeof vi.fn>;
@@ -14,6 +16,7 @@ describe("HouseKeepingService.runHouseKeeping", () => {
   };
 
   beforeEach(() => {
+    eventBus = new EventBus();
     sessionService = {
       deleteWorktreeData: vi.fn().mockResolvedValue(undefined),
       listPersistedWorktreeBranches: vi.fn().mockReturnValue([]),
@@ -59,6 +62,7 @@ describe("HouseKeepingService.runHouseKeeping", () => {
       sessionService as never,
       worktreeService as never,
       [],
+      eventBus,
     );
 
     await service.runHouseKeeping(repoPath);
@@ -89,6 +93,7 @@ describe("HouseKeepingService.runHouseKeeping", () => {
       sessionService as never,
       worktreeService as never,
       [],
+      eventBus,
     );
 
     await service.runHouseKeeping(repoPath);
@@ -128,6 +133,7 @@ describe("HouseKeepingService.runHouseKeeping", () => {
       sessionService as never,
       worktreeService as never,
       [],
+      eventBus,
     );
 
     await service.runHouseKeeping(repoPath);
@@ -147,6 +153,7 @@ describe("HouseKeepingService.runHouseKeeping", () => {
       sessionService as never,
       worktreeService as never,
       [],
+      eventBus,
     );
 
     await service.runHouseKeeping(repoPath);
@@ -166,6 +173,7 @@ describe("HouseKeepingService.runHouseKeeping", () => {
       sessionService as never,
       worktreeService as never,
       [],
+      eventBus,
     );
 
     await service.runHouseKeeping(repoPath);
@@ -173,5 +181,71 @@ describe("HouseKeepingService.runHouseKeeping", () => {
     expect(sessionService.deleteWorktreeData).toHaveBeenCalledWith(repoPath, [
       "feat/merged",
     ]);
+  });
+
+  it("emits syncing notifications while house-keeping is running", async () => {
+    const listener = vi.fn();
+    eventBus.on("house-keeping.sync-status-changed", listener);
+
+    let resolveCleanMerged: ((value: string[]) => void) | undefined;
+    worktreeService.cleanMergedWorktrees.mockImplementation(
+      () =>
+        new Promise<string[]>((resolve) => {
+          resolveCleanMerged = resolve;
+        }),
+    );
+
+    const service = new HouseKeepingService(
+      sessionService as never,
+      worktreeService as never,
+      [],
+      eventBus,
+    );
+
+    const runPromise = service.runHouseKeeping(repoPath);
+    await Promise.resolve();
+
+    expect(listener).toHaveBeenNthCalledWith(1, { syncing: true });
+
+    resolveCleanMerged?.([]);
+    await runPromise;
+
+    expect(listener).toHaveBeenNthCalledWith(2, { syncing: false });
+  });
+
+  it("ignores overlapping runs while house-keeping is already active", async () => {
+    const listener = vi.fn();
+    eventBus.on("house-keeping.sync-status-changed", listener);
+
+    let resolveFirst: ((value: string[]) => void) | undefined;
+    worktreeService.cleanMergedWorktrees.mockImplementationOnce(
+      () =>
+        new Promise<string[]>((resolve) => {
+          resolveFirst = resolve;
+        }),
+    );
+
+    const service = new HouseKeepingService(
+      sessionService as never,
+      worktreeService as never,
+      [],
+      eventBus,
+    );
+
+    const firstRun = service.runHouseKeeping("/repos/org/repo-a");
+    const secondRun = service.runHouseKeeping("/repos/org/repo-b");
+    await Promise.resolve();
+
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(listener).toHaveBeenLastCalledWith({ syncing: true });
+    expect(worktreeService.cleanMergedWorktrees).toHaveBeenCalledTimes(1);
+
+    resolveFirst?.([]);
+    await firstRun;
+    await secondRun;
+
+    expect(worktreeService.cleanMergedWorktrees).toHaveBeenCalledTimes(1);
+    expect(listener).toHaveBeenCalledTimes(2);
+    expect(listener).toHaveBeenLastCalledWith({ syncing: false });
   });
 });

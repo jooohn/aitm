@@ -54,7 +54,7 @@ describe("WorkflowLaunchForm", () => {
 
     const spinner = screen.getByTestId("submit-spinner");
     expect(spinner).toBeInTheDocument();
-    expect(spinner).toHaveClass(styles.spinner);
+    expect(spinner).toHaveAttribute("aria-label", "Loading");
   });
 
   it("shows submittingLabel text when isSubmitting is true", () => {

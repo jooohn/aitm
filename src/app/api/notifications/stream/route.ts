@@ -3,6 +3,10 @@ import { eventBus } from "@/backend/infra/event-bus";
 export async function GET(_request: Request): Promise<Response> {
   const encoder = new TextEncoder();
 
+  let houseKeepingSyncStatusChangedListener:
+    | ((payload: { syncing: boolean }) => void)
+    | null = null;
+
   let statusChangedListener:
     | ((payload: { workflowRunId: string; status: string }) => void)
     | null = null;
@@ -27,9 +31,20 @@ export async function GET(_request: Request): Promise<Response> {
         }
       };
 
+      const latestHouseKeepingSyncStatus =
+        eventBus.getLatestHouseKeepingSyncStatus();
+      if (latestHouseKeepingSyncStatus) {
+        enqueue(latestHouseKeepingSyncStatus);
+      }
+
+      houseKeepingSyncStatusChangedListener = enqueue;
       statusChangedListener = enqueue;
       stepExecutionStatusChangedListener = enqueue;
 
+      eventBus.on(
+        "house-keeping.sync-status-changed",
+        houseKeepingSyncStatusChangedListener,
+      );
       eventBus.on("workflow-run.status-changed", statusChangedListener);
       eventBus.on(
         "step-execution.status-changed",
@@ -37,6 +52,12 @@ export async function GET(_request: Request): Promise<Response> {
       );
     },
     cancel() {
+      if (houseKeepingSyncStatusChangedListener) {
+        eventBus.off(
+          "house-keeping.sync-status-changed",
+          houseKeepingSyncStatusChangedListener,
+        );
+      }
       if (statusChangedListener) {
         eventBus.off("workflow-run.status-changed", statusChangedListener);
       }

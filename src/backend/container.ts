@@ -76,6 +76,7 @@ function buildContainer(cfg: ConfigSnapshot): void {
     sessionService,
     worktreeService,
     config.repositories,
+    eventBus,
   );
 
   if (!tablesEnsured) {

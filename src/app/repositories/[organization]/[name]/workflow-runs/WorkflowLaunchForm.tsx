@@ -1,5 +1,6 @@
 "use client";
 
+import LoadingIndicator from "@/app/components/LoadingIndicator";
 import type { WorkflowDefinition } from "@/lib/utils/api";
 import styles from "./WorkflowLaunchForm.module.css";
 
@@ -124,7 +125,7 @@ export default function WorkflowLaunchForm({
       >
         {isSubmitting ? (
           <>
-            <span data-testid="submit-spinner" className={styles.spinner} />
+            <LoadingIndicator testId="submit-spinner" />
             {submittingLabel}
           </>
         ) : (

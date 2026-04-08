@@ -27,6 +27,9 @@ export interface EventMap {
     sessionId: string;
     decision: TransitionDecision | null;
   };
+  "house-keeping.sync-status-changed": {
+    syncing: boolean;
+  };
   "session.status-changed": SessionStatusChangedEvent;
   "step-execution.status-changed": {
     stepExecutionId: string;
@@ -43,6 +46,9 @@ type Listener<K extends keyof EventMap> = (payload: EventMap[K]) => void;
 
 export class EventBus {
   private listeners = new Map<keyof EventMap, Listener<never>[]>();
+  private latestHouseKeepingSyncStatus:
+    | EventMap["house-keeping.sync-status-changed"]
+    | null = null;
 
   on<K extends keyof EventMap>(eventName: K, listener: Listener<K>): void {
     const list = this.listeners.get(eventName) ?? [];
@@ -61,9 +67,20 @@ export class EventBus {
 
   removeAllListeners(): void {
     this.listeners.clear();
+    this.latestHouseKeepingSyncStatus = null;
+  }
+
+  getLatestHouseKeepingSyncStatus():
+    | EventMap["house-keeping.sync-status-changed"]
+    | null {
+    return this.latestHouseKeepingSyncStatus;
   }
 
   emit<K extends keyof EventMap>(eventName: K, payload: EventMap[K]): void {
+    if (eventName === "house-keeping.sync-status-changed") {
+      this.latestHouseKeepingSyncStatus =
+        payload as EventMap["house-keeping.sync-status-changed"];
+    }
     const list = this.listeners.get(eventName);
     if (!list) return;
     for (const listener of list) {

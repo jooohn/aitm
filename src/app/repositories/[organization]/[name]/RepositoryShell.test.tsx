@@ -12,6 +12,7 @@ const mockGenerateBranchName = vi.fn();
 const mockCreateWorkflowRun = vi.fn();
 const mockCreateWorktree = vi.fn();
 const mockFetchWorktrees = vi.fn();
+const mockUseHouseKeepingSyncing = vi.fn();
 
 vi.mock("@/lib/utils/api", () => ({
   fetchRepository: (...args: unknown[]) => mockFetchRepository(...args),
@@ -46,6 +47,10 @@ vi.mock("next/link", () => ({
   ),
 }));
 
+vi.mock("@/lib/hooks/useHouseKeepingSyncing", () => ({
+  useHouseKeepingSyncing: () => mockUseHouseKeepingSyncing(),
+}));
+
 import { SWRTestProvider } from "@/test-swr-provider";
 import RepositoryShell from "./RepositoryShell";
 
@@ -57,6 +62,7 @@ const repo = {
 };
 
 beforeEach(() => {
+  mockUseHouseKeepingSyncing.mockReturnValue(false);
   mockFetchRepository.mockResolvedValue(repo);
   mockFetchWorkflowRuns.mockResolvedValue([]);
   mockFetchWorktrees.mockResolvedValue([]);
@@ -128,5 +134,26 @@ describe("RepositoryShell", () => {
     });
 
     expect(screen.getByText("child")).toBeInTheDocument();
+  });
+
+  it("shows a syncing indicator beside the worktrees heading while house-keeping is active", async () => {
+    mockUseHouseKeepingSyncing.mockReturnValue(true);
+
+    render(
+      <SWRTestProvider>
+        <RepositoryShell organization="org" name="repo">
+          <div>child</div>
+        </RepositoryShell>
+      </SWRTestProvider>,
+    );
+
+    await waitFor(() => {
+      expect(mockFetchWorktrees).toHaveBeenCalledTimes(1);
+    });
+
+    expect(screen.getByTestId("worktrees-sync-indicator")).toHaveAttribute(
+      "aria-label",
+      "Worktrees syncing",
+    );
   });
 });
