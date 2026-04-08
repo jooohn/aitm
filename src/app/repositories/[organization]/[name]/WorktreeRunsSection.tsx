@@ -221,6 +221,11 @@ export default function WorktreeRunsSection({
                             <span className={styles.runWorkflow}>
                               {run.workflow_name}
                             </span>
+                            {run.status === "running" && run.current_step && (
+                              <span className={styles.runStep}>
+                                {run.current_step}
+                              </span>
+                            )}
                             {group.worktree === null && (
                               <span className={styles.runBranch}>
                                 {run.worktree_branch}

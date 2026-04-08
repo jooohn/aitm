@@ -465,4 +465,70 @@ describe("WorktreeRunsSection", () => {
       "/repositories/org/name/workflow-runs/r1",
     );
   });
+
+  it("shows the current step for running workflow runs", async () => {
+    const worktrees = [makeWorktree({ branch: "feature-a", is_main: false })];
+    const runs = [
+      makeRun({
+        id: "r1",
+        worktree_branch: "feature-a",
+        workflow_name: "develop",
+        current_step: "impelment",
+        status: "running",
+      }),
+    ];
+
+    render(
+      <SWRTestProvider>
+        <WorktreeRunsSection
+          organization="org"
+          name="name"
+          worktrees={worktrees}
+          runs={runs}
+          loading={false}
+          hasLoadedOnce={true}
+          error={null}
+        />
+      </SWRTestProvider>,
+    );
+
+    const runLink = await screen.findByRole("link", { name: /develop/i });
+    expect(within(runLink).getByText("develop")).toBeInTheDocument();
+    expect(within(runLink).getByText("impelment")).toBeInTheDocument();
+    expect(runLink).toHaveAttribute(
+      "href",
+      "/repositories/org/name/workflow-runs/r1",
+    );
+  });
+
+  it("does not show the current step for non-running workflow runs", async () => {
+    const worktrees = [makeWorktree({ branch: "feature-a", is_main: false })];
+    const runs = [
+      makeRun({
+        id: "r1",
+        worktree_branch: "feature-a",
+        workflow_name: "develop",
+        current_step: "impelment",
+        status: "success",
+      }),
+    ];
+
+    render(
+      <SWRTestProvider>
+        <WorktreeRunsSection
+          organization="org"
+          name="name"
+          worktrees={worktrees}
+          runs={runs}
+          loading={false}
+          hasLoadedOnce={true}
+          error={null}
+        />
+      </SWRTestProvider>,
+    );
+
+    const runLink = await screen.findByRole("link", { name: /develop/i });
+    expect(within(runLink).getByText("develop")).toBeInTheDocument();
+    expect(within(runLink).queryByText("impelment")).not.toBeInTheDocument();
+  });
 });
