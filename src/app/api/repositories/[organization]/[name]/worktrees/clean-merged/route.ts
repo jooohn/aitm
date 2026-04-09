@@ -4,6 +4,7 @@ import {
   sessionService,
   worktreeService,
 } from "@/backend/container";
+import { eventBus } from "@/backend/infra/event-bus";
 
 type Params = Promise<{ organization: string; name: string }>;
 
@@ -35,6 +36,9 @@ export async function POST(
       repo.path,
     );
     await sessionService.deleteWorktreeData(repo.path, removedBranches);
+    if (removedBranches.length > 0) {
+      eventBus.emit("worktree.changed", {});
+    }
     return new NextResponse(null, { status: 204 });
   } catch (err) {
     return errorResponse(err);

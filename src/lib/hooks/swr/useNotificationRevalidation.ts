@@ -9,6 +9,7 @@ type NotificationPayload = {
   workflowRunId?: unknown;
   stepExecutionId?: unknown;
   syncing?: unknown;
+  worktreeChanged?: unknown;
 };
 
 function isWorkflowRunKey(
@@ -74,7 +75,7 @@ export function useNotificationRevalidation(): void {
   useNotificationStream((event) => {
     const payload = parseNotificationPayload(event);
 
-    if (payload?.syncing === false) {
+    if (payload?.syncing === false || payload?.worktreeChanged === true) {
       void mutate(isWorktreeListKey, undefined, { revalidate: true });
       return;
     }

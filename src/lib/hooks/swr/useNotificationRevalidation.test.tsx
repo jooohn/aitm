@@ -225,6 +225,34 @@ describe("useNotificationRevalidation", () => {
     expect(selectorArg(["/api/workflow-runs"])).toBe(false);
   });
 
+  it("revalidates worktree caches when worktreeChanged notification is received", async () => {
+    const mutate = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <SWRConfig value={{ mutate }}>
+        <TestComponent />
+      </SWRConfig>,
+    );
+
+    MockEventSource.instances[0].simulateMessage({ worktreeChanged: true });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(75);
+    });
+
+    expect(mutate).toHaveBeenCalledTimes(1);
+
+    const [selectorArg, dataArg, optionsArg] = mutate.mock.calls[0];
+    expect(typeof selectorArg).toBe("function");
+    expect(dataArg).toBeUndefined();
+    expect(optionsArg).toEqual({ revalidate: true });
+
+    expect(selectorArg(["/api/repositories", "org", "repo", "worktrees"])).toBe(
+      true,
+    );
+    expect(selectorArg(["/api/workflow-runs"])).toBe(false);
+  });
+
   it("does not revalidate worktree caches when syncing starts (syncing: true)", async () => {
     const mutate = vi.fn().mockResolvedValue(undefined);
 

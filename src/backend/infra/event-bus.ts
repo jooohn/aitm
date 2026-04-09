@@ -40,6 +40,7 @@ export interface EventMap {
     workflowRunId: string;
     status: WorkflowRunStatus;
   };
+  "worktree.changed": Record<string, never>;
 }
 
 type Listener<K extends keyof EventMap> = (payload: EventMap[K]) => void;
