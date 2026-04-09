@@ -4,6 +4,7 @@ import {
   sessionService,
   worktreeService,
 } from "@/backend/container";
+import { eventBus } from "@/backend/infra/event-bus";
 
 type Params = Promise<{ organization: string; name: string; branch: string[] }>;
 
@@ -36,6 +37,7 @@ export async function DELETE(
     const branchName = branch.join("/");
     await worktreeService.removeWorktree(repo.path, branchName);
     await sessionService.deleteWorktreeData(repo.path, [branchName]);
+    eventBus.emit("worktree.changed", {});
     return NextResponse.json({ success: true });
   } catch (err) {
     return errorResponse(err);

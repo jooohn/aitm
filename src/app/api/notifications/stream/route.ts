@@ -19,6 +19,10 @@ export async function GET(_request: Request): Promise<Response> {
       }) => void)
     | null = null;
 
+  let worktreeChangedListener:
+    | ((payload: Record<string, never>) => void)
+    | null = null;
+
   const stream = new ReadableStream({
     start(controller) {
       const enqueue = (payload: unknown) => {
@@ -40,6 +44,7 @@ export async function GET(_request: Request): Promise<Response> {
       houseKeepingSyncStatusChangedListener = enqueue;
       statusChangedListener = enqueue;
       stepExecutionStatusChangedListener = enqueue;
+      worktreeChangedListener = () => enqueue({ worktreeChanged: true });
 
       eventBus.on(
         "house-keeping.sync-status-changed",
@@ -50,6 +55,7 @@ export async function GET(_request: Request): Promise<Response> {
         "step-execution.status-changed",
         stepExecutionStatusChangedListener,
       );
+      eventBus.on("worktree.changed", worktreeChangedListener);
     },
     cancel() {
       if (houseKeepingSyncStatusChangedListener) {
@@ -66,6 +72,9 @@ export async function GET(_request: Request): Promise<Response> {
           "step-execution.status-changed",
           stepExecutionStatusChangedListener,
         );
+      }
+      if (worktreeChangedListener) {
+        eventBus.off("worktree.changed", worktreeChangedListener);
       }
     },
   });

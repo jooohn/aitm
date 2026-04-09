@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { repositoryService, worktreeService } from "@/backend/container";
+import { eventBus } from "@/backend/infra/event-bus";
 
 type Params = Promise<{ organization: string; name: string }>;
 
@@ -59,6 +60,7 @@ export async function POST(
         no_fetch: body.no_fetch,
       },
     );
+    eventBus.emit("worktree.changed", {});
     return NextResponse.json(worktree, { status: 201 });
   } catch (err) {
     return errorResponse(err);
