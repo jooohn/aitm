@@ -1,7 +1,12 @@
 import { stat } from "fs/promises";
 import { NextRequest, NextResponse } from "next/server";
 import { join } from "path";
-import { config, workflowRunService } from "@/backend/container";
+import {
+  config,
+  workflowRunService,
+  worktreeService,
+} from "@/backend/container";
+import { resolveArtifactBasePath } from "@/backend/domain/worktrees";
 
 export async function GET(
   _request: NextRequest,
@@ -19,13 +24,14 @@ export async function GET(
   const workflow = config.workflows[run.workflow_name];
   const artifacts = workflow?.artifacts ?? [];
 
-  const artifactRoot = join(
+  const worktree = await worktreeService.findWorktree(
     run.repository_path,
-    ".aitm",
-    "runs",
-    run.id,
-    "artifacts",
+    run.worktree_branch,
   );
+  if (!worktree) {
+    return NextResponse.json({ error: "Worktree not found" }, { status: 404 });
+  }
+  const artifactRoot = resolveArtifactBasePath(worktree, run.id);
 
   const results = await Promise.all(
     artifacts.map(async (artifact) => {

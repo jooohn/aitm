@@ -7,8 +7,11 @@ import { logger } from "@/backend/infra/logger";
 import { spawnAsync } from "@/backend/utils/process";
 import type { TransitionDecision } from "../agent";
 import type { SessionService, SessionStatus } from "../sessions";
-import type { WorktreeService } from "../worktrees";
-import { resolveArtifactBasePath } from "../worktrees";
+import {
+  resolveArtifactBasePath,
+  Worktree,
+  WorktreeService,
+} from "../worktrees";
 import type { CommandStepExecutor } from "./command-step-executor";
 import { StepRunner } from "./step-runner";
 import { WorkflowRunQueries } from "./workflow-run-queries";
@@ -200,12 +203,13 @@ export class WorkflowRunService {
     });
 
     if (workflow.artifacts && workflow.artifacts.length > 0) {
-      await this.materializeWorkflowArtifacts(
-        id,
-        workflow,
+      const worktree = await this.worktreeService.findWorktree(
         input.repository_path,
         input.worktree_branch,
       );
+      if (worktree) {
+        await this.materializeWorkflowArtifacts(id, workflow, worktree);
+      }
     }
 
     const initialExecution = await this.stepRunner.startStepExecution({
@@ -228,13 +232,9 @@ export class WorkflowRunService {
   private async materializeWorkflowArtifacts(
     workflowRunId: string,
     workflow: WorkflowDefinition,
-    repoPath: string,
-    branch: string,
+    worktree: Worktree,
   ): Promise<void> {
     if (!workflow.artifacts || workflow.artifacts.length === 0) return;
-
-    const worktree = await this.worktreeService.findWorktree(repoPath, branch);
-    if (!worktree) return;
 
     const root = resolveArtifactBasePath(worktree, workflowRunId);
     await mkdir(root, { recursive: true });
