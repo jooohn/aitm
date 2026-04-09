@@ -1,7 +1,7 @@
 @reference "tailwindcss";
 
 .page {
-  @apply max-w-4xl mx-auto px-4 py-4 flex flex-col gap-6 sm:px-6 sm:py-6;
+  @apply w-full px-4 py-4 flex flex-col gap-6 sm:px-6 sm:py-6 lg:px-10;
 }
 
 .error {
@@ -24,61 +24,71 @@
   @apply text-sm text-zinc-500 dark:text-zinc-400;
 }
 
-/* View mode toggle */
+/* Viewer panel (toolbar + content) */
+
+.viewerPanel {
+  @apply rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden;
+}
+
+.viewerToolbar {
+  @apply flex items-center justify-between px-4 py-2 bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-700;
+}
+
+.downloadButton {
+  @apply ml-auto p-1.5 rounded-md text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-200/50 dark:hover:bg-zinc-700/50 transition-colors;
+}
 
 .viewModeToggle {
-  @apply flex gap-1 mb-4;
+  @apply flex gap-0.5 rounded-md border border-zinc-200 dark:border-zinc-700 overflow-hidden;
 }
 
 .viewModeButton {
-  @apply px-3 py-1 text-sm rounded-md border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 bg-white dark:bg-zinc-900 cursor-pointer transition-colors;
+  @apply px-3 py-1 text-xs text-zinc-600 dark:text-zinc-400 bg-transparent cursor-pointer transition-colors border-none;
 }
 
 .viewModeButtonActive {
-  @apply bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-medium;
+  @apply bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 font-medium;
 }
 
-/* Viewer container */
-
-.viewerContainer {
-  @apply rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-6 overflow-auto;
+.viewerContent {
+  @apply bg-white dark:bg-zinc-900 p-6 overflow-auto;
 }
 
-.viewerContainer pre {
+.viewerContent pre {
   @apply font-mono text-sm leading-relaxed text-zinc-800 dark:text-zinc-200 whitespace-pre-wrap break-words;
 }
 
 /* Markdown styles */
 
-.viewerContainer h1 {
+.viewerContent h1 {
   @apply text-2xl font-bold text-zinc-900 dark:text-zinc-50 mb-4 mt-6 first:mt-0;
 }
 
-.viewerContainer h2 {
+.viewerContent h2 {
   @apply text-xl font-semibold text-zinc-900 dark:text-zinc-50 mb-3 mt-5;
 }
 
-.viewerContainer h3 {
+.viewerContent h3 {
   @apply text-lg font-semibold text-zinc-900 dark:text-zinc-50 mb-2 mt-4;
 }
 
-.viewerContainer p {
+.viewerContent p {
   @apply text-sm text-zinc-700 dark:text-zinc-300 mb-3 leading-relaxed;
 }
 
-.viewerContainer ul {
+.viewerContent ul {
   @apply list-disc pl-6 mb-3;
 }
 
-.viewerContainer li {
+.viewerContent li {
   @apply text-sm text-zinc-700 dark:text-zinc-300 mb-1;
 }
 
-.viewerContainer code {
+.viewerContent code {
   @apply bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded text-sm font-mono;
 }
 
-.viewerContainer strong {
+.viewerContent strong {
   @apply font-semibold;
 }
 

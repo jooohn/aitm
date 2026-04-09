@@ -140,7 +140,7 @@ function RawViewer({ content }: { content: string }) {
   return <pre>{content}</pre>;
 }
 
-type ViewMode = "formatted" | "raw";
+type ViewMode = "preview" | "raw";
 
 function hasFormattedView(ext: string): boolean {
   return ext === ".md" || ext === ".json";
@@ -157,11 +157,11 @@ function ViewModeToggle({
     <div className={styles.viewModeToggle}>
       <button
         type="button"
-        className={`${styles.viewModeButton} ${viewMode === "formatted" ? styles.viewModeButtonActive : ""}`}
-        aria-pressed={viewMode === "formatted"}
-        onClick={() => onViewModeChange("formatted")}
+        className={`${styles.viewModeButton} ${viewMode === "preview" ? styles.viewModeButtonActive : ""}`}
+        aria-pressed={viewMode === "preview"}
+        onClick={() => onViewModeChange("preview")}
       >
-        Formatted
+        Preview
       </button>
       <button
         type="button"
@@ -175,14 +175,24 @@ function ViewModeToggle({
   );
 }
 
-export default function ArtifactViewer({ path, content }: ArtifactViewerProps) {
+export function useArtifactViewMode(path: string) {
   const ext = getFileExtension(path);
-  const [viewMode, setViewMode] = useState<ViewMode>("formatted");
-
+  const [viewMode, setViewMode] = useState<ViewMode>("preview");
   const showToggle = hasFormattedView(ext);
+  return { viewMode, setViewMode, showToggle };
+}
+
+export { ViewModeToggle };
+
+export default function ArtifactViewer({
+  path,
+  content,
+  viewMode,
+}: ArtifactViewerProps & { viewMode: ViewMode }) {
+  const ext = getFileExtension(path);
 
   const renderContent = () => {
-    if (viewMode === "raw" || !showToggle) {
+    if (viewMode === "raw" || !hasFormattedView(ext)) {
       return <RawViewer content={content} />;
     }
     if (ext === ".md") {
@@ -195,7 +205,7 @@ export default function ArtifactViewer({ path, content }: ArtifactViewerProps) {
   };
 
   const dataType =
-    viewMode === "raw" || !showToggle
+    viewMode === "raw" || !hasFormattedView(ext)
       ? "raw"
       : ext === ".md"
         ? "markdown"
@@ -205,9 +215,6 @@ export default function ArtifactViewer({ path, content }: ArtifactViewerProps) {
 
   return (
     <div data-testid="artifact-viewer" data-type={dataType}>
-      {showToggle && (
-        <ViewModeToggle viewMode={viewMode} onViewModeChange={setViewMode} />
-      )}
       {renderContent()}
     </div>
   );

@@ -3,7 +3,28 @@ import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom/vitest";
 import { afterEach, describe, expect, it } from "vitest";
-import ArtifactViewer from "./ArtifactViewer";
+import ArtifactViewer, {
+  useArtifactViewMode,
+  ViewModeToggle,
+} from "./ArtifactViewer";
+
+function ArtifactViewerWithToggle({
+  path,
+  content,
+}: {
+  path: string;
+  content: string;
+}) {
+  const { viewMode, setViewMode, showToggle } = useArtifactViewMode(path);
+  return (
+    <>
+      {showToggle && (
+        <ViewModeToggle viewMode={viewMode} onViewModeChange={setViewMode} />
+      )}
+      <ArtifactViewer path={path} content={content} viewMode={viewMode} />
+    </>
+  );
+}
 
 afterEach(() => {
   cleanup();
@@ -16,6 +37,7 @@ describe("ArtifactViewer", () => {
         <ArtifactViewer
           path="plan.md"
           content={"# Hello\n\nSome **bold** text"}
+          viewMode="preview"
         />,
       );
 
@@ -30,6 +52,7 @@ describe("ArtifactViewer", () => {
         <ArtifactViewer
           path="notes.md"
           content={"# Title\n\n- item 1\n- item 2"}
+          viewMode="preview"
         />,
       );
 
@@ -43,7 +66,9 @@ describe("ArtifactViewer", () => {
   describe("JSON rendering", () => {
     it("renders formatted JSON for .json files", () => {
       const json = '{"key":"value","nested":{"a":1}}';
-      render(<ArtifactViewer path="data.json" content={json} />);
+      render(
+        <ArtifactViewer path="data.json" content={json} viewMode="preview" />,
+      );
 
       const viewer = screen.getByTestId("artifact-viewer");
       expect(viewer).toHaveAttribute("data-type", "json");
@@ -52,7 +77,13 @@ describe("ArtifactViewer", () => {
     });
 
     it("falls back to raw display for invalid JSON", () => {
-      render(<ArtifactViewer path="bad.json" content="not valid json{" />);
+      render(
+        <ArtifactViewer
+          path="bad.json"
+          content="not valid json{"
+          viewMode="preview"
+        />,
+      );
 
       const viewer = screen.getByTestId("artifact-viewer");
       expect(viewer).toHaveAttribute("data-type", "json");
@@ -62,7 +93,13 @@ describe("ArtifactViewer", () => {
 
   describe("raw text rendering", () => {
     it("renders plain text in a pre block for .txt files", () => {
-      render(<ArtifactViewer path="log.txt" content="line 1\nline 2" />);
+      render(
+        <ArtifactViewer
+          path="log.txt"
+          content="line 1\nline 2"
+          viewMode="preview"
+        />,
+      );
 
       const viewer = screen.getByTestId("artifact-viewer");
       expect(viewer).toHaveAttribute("data-type", "raw");
@@ -71,28 +108,48 @@ describe("ArtifactViewer", () => {
     });
 
     it("renders .yaml files as raw text", () => {
-      render(<ArtifactViewer path="config.yaml" content="key: value" />);
+      render(
+        <ArtifactViewer
+          path="config.yaml"
+          content="key: value"
+          viewMode="preview"
+        />,
+      );
 
       const viewer = screen.getByTestId("artifact-viewer");
       expect(viewer).toHaveAttribute("data-type", "raw");
     });
 
     it("renders .yml files as raw text", () => {
-      render(<ArtifactViewer path="config.yml" content="key: value" />);
+      render(
+        <ArtifactViewer
+          path="config.yml"
+          content="key: value"
+          viewMode="preview"
+        />,
+      );
 
       const viewer = screen.getByTestId("artifact-viewer");
       expect(viewer).toHaveAttribute("data-type", "raw");
     });
 
     it("renders .log files as raw text", () => {
-      render(<ArtifactViewer path="output.log" content="log entry" />);
+      render(
+        <ArtifactViewer
+          path="output.log"
+          content="log entry"
+          viewMode="preview"
+        />,
+      );
 
       const viewer = screen.getByTestId("artifact-viewer");
       expect(viewer).toHaveAttribute("data-type", "raw");
     });
 
     it("renders unknown extensions as raw text", () => {
-      render(<ArtifactViewer path="data.csv" content="a,b,c" />);
+      render(
+        <ArtifactViewer path="data.csv" content="a,b,c" viewMode="preview" />,
+      );
 
       const viewer = screen.getByTestId("artifact-viewer");
       expect(viewer).toHaveAttribute("data-type", "raw");
@@ -100,35 +157,39 @@ describe("ArtifactViewer", () => {
   });
 
   describe("view mode toggle", () => {
-    it("shows toggle for .md files with Formatted selected by default", () => {
-      render(<ArtifactViewer path="plan.md" content="# Hello\n\nWorld" />);
+    it("shows toggle for .md files with Preview selected by default", () => {
+      render(
+        <ArtifactViewerWithToggle path="plan.md" content="# Hello\n\nWorld" />,
+      );
 
-      const formattedBtn = screen.getByRole("button", { name: "Formatted" });
+      const formattedBtn = screen.getByRole("button", { name: "Preview" });
       const rawBtn = screen.getByRole("button", { name: "Raw" });
       expect(formattedBtn).toHaveAttribute("aria-pressed", "true");
       expect(rawBtn).toHaveAttribute("aria-pressed", "false");
     });
 
-    it("shows toggle for .json files with Formatted selected by default", () => {
-      render(<ArtifactViewer path="data.json" content='{"key":"value"}' />);
+    it("shows toggle for .json files with Preview selected by default", () => {
+      render(
+        <ArtifactViewerWithToggle path="data.json" content='{"key":"value"}' />,
+      );
 
-      const formattedBtn = screen.getByRole("button", { name: "Formatted" });
+      const formattedBtn = screen.getByRole("button", { name: "Preview" });
       const rawBtn = screen.getByRole("button", { name: "Raw" });
       expect(formattedBtn).toHaveAttribute("aria-pressed", "true");
       expect(rawBtn).toHaveAttribute("aria-pressed", "false");
     });
 
     it("does not show toggle for raw-only files", () => {
-      render(<ArtifactViewer path="log.txt" content="some text" />);
+      render(<ArtifactViewerWithToggle path="log.txt" content="some text" />);
 
-      expect(screen.queryByRole("button", { name: "Formatted" })).toBeNull();
+      expect(screen.queryByRole("button", { name: "Preview" })).toBeNull();
       expect(screen.queryByRole("button", { name: "Raw" })).toBeNull();
     });
 
     it("switches to raw view when Raw button is clicked for .md files", async () => {
       const user = userEvent.setup();
       const mdContent = "# Hello\n\nSome **bold** text";
-      render(<ArtifactViewer path="plan.md" content={mdContent} />);
+      render(<ArtifactViewerWithToggle path="plan.md" content={mdContent} />);
 
       // Initially shows formatted markdown
       expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
@@ -148,7 +209,7 @@ describe("ArtifactViewer", () => {
     it("switches to raw view when Raw button is clicked for .json files", async () => {
       const user = userEvent.setup();
       const json = '{"key":"value"}';
-      render(<ArtifactViewer path="data.json" content={json} />);
+      render(<ArtifactViewerWithToggle path="data.json" content={json} />);
 
       // Initially shows formatted JSON
       expect(screen.getByTestId("artifact-viewer")).toHaveTextContent(
@@ -163,14 +224,16 @@ describe("ArtifactViewer", () => {
       expect(pre!.textContent).toBe(json);
     });
 
-    it("switches back to formatted view when Formatted button is clicked", async () => {
+    it("switches back to preview when Preview button is clicked", async () => {
       const user = userEvent.setup();
-      render(<ArtifactViewer path="plan.md" content="# Hello\n\nWorld" />);
+      render(
+        <ArtifactViewerWithToggle path="plan.md" content="# Hello\n\nWorld" />,
+      );
 
       await user.click(screen.getByRole("button", { name: "Raw" }));
       expect(screen.queryByRole("heading", { level: 1 })).toBeNull();
 
-      await user.click(screen.getByRole("button", { name: "Formatted" }));
+      await user.click(screen.getByRole("button", { name: "Preview" }));
       expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
         "Hello",
       );

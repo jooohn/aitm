@@ -3,10 +3,14 @@
 import Link from "next/link";
 import { notFound, useParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import DownloadIcon from "@/app/components/icons/DownloadIcon";
 import { useWorkflowRun, useWorkflows } from "@/lib/hooks/swr";
 import { isNotFoundError } from "@/lib/utils/api";
 import styles from "./ArtifactPage.module.css";
-import ArtifactViewer from "./ArtifactViewer";
+import ArtifactViewer, {
+  useArtifactViewMode,
+  ViewModeToggle,
+} from "./ArtifactViewer";
 
 export default function ArtifactPage() {
   const { id, path, organization, name } = useParams<{
@@ -56,6 +60,9 @@ export default function ArtifactPage() {
     };
   }, [id, artifactPath]);
 
+  const { viewMode, setViewMode, showToggle } =
+    useArtifactViewMode(artifactPath);
+
   if (!run && runLoading) return null;
   if (isNotFoundError(runError)) return notFound();
   if (runError) {
@@ -79,7 +86,7 @@ export default function ArtifactPage() {
   return (
     <main className={styles.page}>
       <div className={styles.header}>
-        <h1 className={styles.title}>{artifactMeta?.name ?? artifactPath}</h1>
+        <h1 className={styles.title}>{artifactPath}</h1>
         {artifactMeta?.description && (
           <p className={styles.description}>{artifactMeta.description}</p>
         )}
@@ -88,8 +95,30 @@ export default function ArtifactPage() {
       {contentLoading && <p className={styles.loading}>Loading artifact…</p>}
       {contentError && <p className={styles.error}>{contentError}</p>}
       {content !== null && (
-        <div className={styles.viewerContainer}>
-          <ArtifactViewer path={artifactPath} content={content} />
+        <div className={styles.viewerPanel}>
+          <div className={styles.viewerToolbar}>
+            {showToggle && (
+              <ViewModeToggle
+                viewMode={viewMode}
+                onViewModeChange={setViewMode}
+              />
+            )}
+            <a
+              href={`/api/workflow-runs/${id}/artifacts/${artifactPath}`}
+              download={artifactPath.split("/").pop()}
+              className={styles.downloadButton}
+              title="Download artifact"
+            >
+              <DownloadIcon size={16} />
+            </a>
+          </div>
+          <div className={styles.viewerContent}>
+            <ArtifactViewer
+              path={artifactPath}
+              content={content}
+              viewMode={viewMode}
+            />
+          </div>
         </div>
       )}
 
