@@ -8,6 +8,7 @@ import { SpawnTimeoutError, spawnAsync } from "@/backend/utils/process";
 import {
   parseWorktreeList,
   resolveArtifactBasePath,
+  resolveWorkflowRunDir,
   WorktreeService,
 } from "./index";
 
@@ -156,6 +157,24 @@ describe("removeWorktree", () => {
     const dir = await makeGitRepo();
     await expect(removeWorktree(dir, "nonexistent-branch")).rejects.toThrow(
       "not found",
+    );
+  });
+});
+
+describe("resolveWorkflowRunDir", () => {
+  it("resolves workflow run directory using worktree path and run id", () => {
+    const worktree = {
+      branch: "feat/test",
+      path: "/worktrees/feat-test",
+      is_main: false,
+      is_bare: false,
+      head: "HEAD",
+    };
+
+    const result = resolveWorkflowRunDir(worktree, "run-123");
+
+    expect(result).toBe(
+      join("/worktrees/feat-test", ".aitm", "runs", "run-123"),
     );
   });
 });

@@ -61,11 +61,18 @@ async function runGtrCommand(args: string[], cwd: string): Promise<string> {
   return stdout;
 }
 
+export function resolveWorkflowRunDir(
+  worktree: Worktree,
+  workflowRunId: string,
+): string {
+  return join(worktree.path, ".aitm", "runs", workflowRunId);
+}
+
 export function resolveArtifactBasePath(
   worktree: Worktree,
   workflowRunId: string,
 ): string {
-  return join(worktree.path, ".aitm", "runs", workflowRunId, "artifacts");
+  return join(resolveWorkflowRunDir(worktree, workflowRunId), "artifacts");
 }
 
 export class WorktreeService {

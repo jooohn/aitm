@@ -9,6 +9,7 @@ import type { TransitionDecision } from "../agent";
 import type { SessionService, SessionStatus } from "../sessions";
 import {
   resolveArtifactBasePath,
+  resolveWorkflowRunDir,
   Worktree,
   WorktreeService,
 } from "../worktrees";
@@ -202,12 +203,13 @@ export class WorkflowRunService {
       now,
     });
 
-    if (workflow.artifacts && workflow.artifacts.length > 0) {
-      const worktree = await this.worktreeService.findWorktree(
-        input.repository_path,
-        input.worktree_branch,
-      );
-      if (worktree) {
+    const worktree = await this.worktreeService.findWorktree(
+      input.repository_path,
+      input.worktree_branch,
+    );
+    if (worktree) {
+      await this.ensureWorkflowRunDir(id, worktree);
+      if (workflow.artifacts && workflow.artifacts.length > 0) {
         await this.materializeWorkflowArtifacts(id, workflow, worktree);
       }
     }
@@ -229,6 +231,27 @@ export class WorkflowRunService {
     return this.workflowRunRepository.getWorkflowRunById(id) as WorkflowRun;
   }
 
+  private async ensureWorkflowRunDir(
+    workflowRunId: string,
+    worktree: Worktree,
+  ): Promise<void> {
+    const runDir = resolveWorkflowRunDir(worktree, workflowRunId);
+    await mkdir(runDir, { recursive: true });
+
+    const infoDir = await resolveGitInfoDir(worktree.path);
+    const excludePath = join(infoDir, "exclude");
+    const excludeEntry = `/.aitm/runs/${workflowRunId}/`;
+    await mkdir(infoDir, { recursive: true });
+
+    const existing = await readFile(excludePath, "utf8").catch(() => "");
+    const lines = existing.split(/\r?\n/).filter(Boolean);
+    if (!lines.includes(excludeEntry)) {
+      const prefix =
+        existing.length === 0 || existing.endsWith("\n") ? "" : "\n";
+      await appendFile(excludePath, `${prefix}${excludeEntry}\n`, "utf8");
+    }
+  }
+
   private async materializeWorkflowArtifacts(
     workflowRunId: string,
     workflow: WorkflowDefinition,
@@ -243,19 +266,6 @@ export class WorkflowRunService {
       const artifactPath = join(root, artifact.path);
       await mkdir(dirname(artifactPath), { recursive: true });
       await writeFile(artifactPath, "", { encoding: "utf8", flag: "a" });
-    }
-
-    const infoDir = await resolveGitInfoDir(worktree.path);
-    const excludePath = join(infoDir, "exclude");
-    const excludeEntry = `/.aitm/runs/${workflowRunId}/artifacts/`;
-    await mkdir(infoDir, { recursive: true });
-
-    const existing = await readFile(excludePath, "utf8").catch(() => "");
-    const lines = existing.split(/\r?\n/).filter(Boolean);
-    if (!lines.includes(excludeEntry)) {
-      const prefix =
-        existing.length === 0 || existing.endsWith("\n") ? "" : "\n";
-      await appendFile(excludePath, `${prefix}${excludeEntry}\n`, "utf8");
     }
   }
 
