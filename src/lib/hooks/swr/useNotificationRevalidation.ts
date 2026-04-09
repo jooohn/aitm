@@ -8,6 +8,7 @@ import { swrKeys } from "./keys";
 type NotificationPayload = {
   workflowRunId?: unknown;
   stepExecutionId?: unknown;
+  syncing?: unknown;
 };
 
 function isWorkflowRunKey(
@@ -27,6 +28,19 @@ function isWorkflowRunListKey(
     key[0] === "/api/workflow-runs" &&
     typeof key[1] === "object" &&
     key[1] !== null
+  );
+}
+
+function isWorktreeListKey(
+  key: unknown,
+): key is readonly ["/api/repositories", string, string, "worktrees"] {
+  return (
+    Array.isArray(key) &&
+    key.length === 4 &&
+    key[0] === "/api/repositories" &&
+    typeof key[1] === "string" &&
+    typeof key[2] === "string" &&
+    key[3] === "worktrees"
   );
 }
 
@@ -59,6 +73,12 @@ export function useNotificationRevalidation(): void {
 
   useNotificationStream((event) => {
     const payload = parseNotificationPayload(event);
+
+    if (payload?.syncing === false) {
+      void mutate(isWorktreeListKey, undefined, { revalidate: true });
+      return;
+    }
+
     if (typeof payload?.workflowRunId !== "string") return;
 
     pendingWorkflowRunIdsRef.current.add(payload.workflowRunId);
@@ -81,6 +101,8 @@ export function useNotificationRevalidation(): void {
         undefined,
         { revalidate: true },
       );
+
+      void mutate(isWorktreeListKey, undefined, { revalidate: true });
     }, REVALIDATION_DELAY_MS);
   });
 }
