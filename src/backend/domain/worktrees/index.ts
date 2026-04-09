@@ -1,3 +1,4 @@
+import { join } from "path";
 import { logger } from "@/backend/infra/logger";
 import { SpawnTimeoutError, spawnAsync } from "@/backend/utils/process";
 
@@ -138,6 +139,16 @@ export class WorktreeService {
       (await this.listWorktrees(repoPath)).map((w) => w.branch),
     );
     return before.filter((b) => !after.has(b));
+  }
+
+  async resolveArtifactBasePath(
+    repoPath: string,
+    branch: string,
+    workflowRunId: string,
+  ): Promise<string | undefined> {
+    const worktree = await this.findWorktree(repoPath, branch);
+    if (!worktree) return undefined;
+    return join(worktree.path, ".aitm", "runs", workflowRunId, "artifacts");
   }
 
   async pullMainBranchIfOutdated(

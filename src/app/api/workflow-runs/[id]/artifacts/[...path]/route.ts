@@ -6,7 +6,6 @@ import {
   workflowRunService,
   worktreeService,
 } from "@/backend/container";
-import { resolveArtifactBasePath } from "@/backend/domain/workflow-runs";
 
 function jsonError(message: string, status: number): NextResponse {
   return NextResponse.json({ error: message }, { status });
@@ -64,7 +63,11 @@ export async function GET(
     return jsonError("Artifact not found", 404);
   }
 
-  const artifactRoot = await resolveArtifactBasePath(run, worktreeService);
+  const artifactRoot = await worktreeService.resolveArtifactBasePath(
+    run.repository_path,
+    run.worktree_branch,
+    run.id,
+  );
   if (!artifactRoot) {
     return jsonError("Worktree not found", 404);
   }

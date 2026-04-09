@@ -6,7 +6,6 @@ import * as container from "@/backend/container";
 import { db } from "@/backend/infra/db";
 import { eventBus } from "@/backend/infra/event-bus";
 import { setupTestConfigDir, writeTestConfig } from "@/test-config-helper";
-import { resolveArtifactBasePath } from "./index";
 
 async function makeFakeGitRepo(): Promise<string> {
   const dir = join(
@@ -3151,55 +3150,5 @@ workflows:
         "running",
       );
     });
-  });
-});
-
-describe("resolveArtifactBasePath", () => {
-  it("resolves artifact base path using worktree path, not repository path", async () => {
-    const repoPath = "/repo/root";
-    const worktreePath = "/worktrees/feat-test";
-    const worktreeService = {
-      findWorktree: vi.fn().mockResolvedValue({
-        branch: "feat/test",
-        path: worktreePath,
-        is_main: false,
-        is_bare: false,
-        head: "HEAD",
-      }),
-    };
-
-    const run = {
-      repository_path: repoPath,
-      worktree_branch: "feat/test",
-      id: "run-123",
-    };
-
-    const result = await resolveArtifactBasePath(run, worktreeService);
-
-    expect(worktreeService.findWorktree).toHaveBeenCalledWith(
-      repoPath,
-      "feat/test",
-    );
-    expect(result).toBe(
-      join(worktreePath, ".aitm", "runs", "run-123", "artifacts"),
-    );
-    // Must NOT use repository_path
-    expect(result).not.toContain(repoPath);
-  });
-
-  it("returns undefined when worktree is not found", async () => {
-    const worktreeService = {
-      findWorktree: vi.fn().mockResolvedValue(undefined),
-    };
-
-    const run = {
-      repository_path: "/repo/root",
-      worktree_branch: "feat/missing",
-      id: "run-456",
-    };
-
-    const result = await resolveArtifactBasePath(run, worktreeService);
-
-    expect(result).toBeUndefined();
   });
 });

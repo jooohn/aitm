@@ -156,6 +156,51 @@ describe("removeWorktree", () => {
   });
 });
 
+describe("resolveArtifactBasePath", () => {
+  let service: WorktreeService;
+
+  beforeEach(() => {
+    service = new WorktreeService();
+  });
+
+  it("resolves artifact base path using worktree path, not repository path", async () => {
+    const repoPath = "/repo/root";
+    const worktreePath = "/worktrees/feat-test";
+
+    vi.spyOn(service, "findWorktree").mockResolvedValue({
+      branch: "feat/test",
+      path: worktreePath,
+      is_main: false,
+      is_bare: false,
+      head: "HEAD",
+    });
+
+    const result = await service.resolveArtifactBasePath(
+      repoPath,
+      "feat/test",
+      "run-123",
+    );
+
+    expect(service.findWorktree).toHaveBeenCalledWith(repoPath, "feat/test");
+    expect(result).toBe(
+      join(worktreePath, ".aitm", "runs", "run-123", "artifacts"),
+    );
+    expect(result).not.toContain(repoPath);
+  });
+
+  it("returns undefined when worktree is not found", async () => {
+    vi.spyOn(service, "findWorktree").mockResolvedValue(undefined);
+
+    const result = await service.resolveArtifactBasePath(
+      "/repo/root",
+      "feat/missing",
+      "run-456",
+    );
+
+    expect(result).toBeUndefined();
+  });
+});
+
 describe("pullMainBranchIfOutdated", () => {
   const repoPath = "/repo";
   const mainPath = "/repo/main";
