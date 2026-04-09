@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import { mkdir } from "fs/promises";
 import { NextRequest } from "next/server";
 import { tmpdir } from "os";
@@ -49,6 +50,7 @@ describe("POST /api/sessions/:id/reply", () => {
       worktree_branch: "feat/test",
       goal: "Do something",
       transitions: [{ terminal: "success" as const, when: "Done" }],
+      log_file_path: join(tmpdir(), "aitm-test-logs", `${randomUUID()}.log`),
     });
     db.prepare(
       "UPDATE sessions SET status = 'awaiting_input' WHERE id = ?",
@@ -93,6 +95,7 @@ describe("POST /api/sessions/:id/reply", () => {
       worktree_branch: "feat/test",
       goal: "Do something",
       transitions: [{ terminal: "success" as const, when: "Done" }],
+      log_file_path: join(tmpdir(), "aitm-test-logs", `${randomUUID()}.log`),
     });
 
     const res = await POST(
@@ -112,6 +115,7 @@ describe("POST /api/sessions/:id/reply", () => {
       worktree_branch: "feat/test",
       goal: "Do something",
       transitions: [{ terminal: "success" as const, when: "Done" }],
+      log_file_path: join(tmpdir(), "aitm-test-logs", `${randomUUID()}.log`),
     });
     db.prepare(
       "UPDATE sessions SET status = 'awaiting_input' WHERE id = ?",

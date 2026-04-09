@@ -113,6 +113,14 @@ describe("StepRunner", () => {
         ),
       }),
     );
+    // log_file_path should be under the workflow run directory
+    expect(createSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        log_file_path: expect.stringMatching(
+          /^\/tmp\/worktree\/\.aitm\/runs\/run-1\/logs\/[0-9a-f-]+\.log$/,
+        ),
+      }),
+    );
     expect(completeStepExecution).not.toHaveBeenCalled();
   });
 
