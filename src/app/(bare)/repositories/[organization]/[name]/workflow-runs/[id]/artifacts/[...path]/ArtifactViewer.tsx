@@ -1,4 +1,7 @@
-import type { JSX, ReactNode } from "react";
+"use client";
+
+import { type JSX, type ReactNode, useState } from "react";
+import styles from "./ArtifactPage.module.css";
 
 interface ArtifactViewerProps {
   path: string;
@@ -137,28 +140,75 @@ function RawViewer({ content }: { content: string }) {
   return <pre>{content}</pre>;
 }
 
+type ViewMode = "formatted" | "raw";
+
+function hasFormattedView(ext: string): boolean {
+  return ext === ".md" || ext === ".json";
+}
+
+function ViewModeToggle({
+  viewMode,
+  onViewModeChange,
+}: {
+  viewMode: ViewMode;
+  onViewModeChange: (mode: ViewMode) => void;
+}) {
+  return (
+    <div className={styles.viewModeToggle}>
+      <button
+        type="button"
+        className={`${styles.viewModeButton} ${viewMode === "formatted" ? styles.viewModeButtonActive : ""}`}
+        aria-pressed={viewMode === "formatted"}
+        onClick={() => onViewModeChange("formatted")}
+      >
+        Formatted
+      </button>
+      <button
+        type="button"
+        className={`${styles.viewModeButton} ${viewMode === "raw" ? styles.viewModeButtonActive : ""}`}
+        aria-pressed={viewMode === "raw"}
+        onClick={() => onViewModeChange("raw")}
+      >
+        Raw
+      </button>
+    </div>
+  );
+}
+
 export default function ArtifactViewer({ path, content }: ArtifactViewerProps) {
   const ext = getFileExtension(path);
+  const [viewMode, setViewMode] = useState<ViewMode>("formatted");
 
-  if (ext === ".md") {
-    return (
-      <div data-testid="artifact-viewer" data-type="markdown">
-        <MarkdownViewer content={content} />
-      </div>
-    );
-  }
+  const showToggle = hasFormattedView(ext);
 
-  if (ext === ".json") {
-    return (
-      <div data-testid="artifact-viewer" data-type="json">
-        <JsonViewer content={content} />
-      </div>
-    );
-  }
+  const renderContent = () => {
+    if (viewMode === "raw" || !showToggle) {
+      return <RawViewer content={content} />;
+    }
+    if (ext === ".md") {
+      return <MarkdownViewer content={content} />;
+    }
+    if (ext === ".json") {
+      return <JsonViewer content={content} />;
+    }
+    return <RawViewer content={content} />;
+  };
+
+  const dataType =
+    viewMode === "raw" || !showToggle
+      ? "raw"
+      : ext === ".md"
+        ? "markdown"
+        : ext === ".json"
+          ? "json"
+          : "raw";
 
   return (
-    <div data-testid="artifact-viewer" data-type="raw">
-      <RawViewer content={content} />
+    <div data-testid="artifact-viewer" data-type={dataType}>
+      {showToggle && (
+        <ViewModeToggle viewMode={viewMode} onViewModeChange={setViewMode} />
+      )}
+      {renderContent()}
     </div>
   );
 }
