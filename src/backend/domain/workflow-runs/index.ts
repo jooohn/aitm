@@ -7,7 +7,11 @@ import { logger } from "@/backend/infra/logger";
 import { spawnAsync } from "@/backend/utils/process";
 import type { TransitionDecision } from "../agent";
 import type { SessionService, SessionStatus } from "../sessions";
-import type { WorktreeService } from "../worktrees";
+import {
+  resolveArtifactBasePath,
+  Worktree,
+  WorktreeService,
+} from "../worktrees";
 import type { CommandStepExecutor } from "./command-step-executor";
 import { StepRunner } from "./step-runner";
 import { WorkflowRunQueries } from "./workflow-run-queries";
@@ -65,10 +69,6 @@ export interface ListWorkflowRunsFilter {
   repository_path?: string;
   worktree_branch?: string;
   status?: WorkflowRunStatus;
-}
-
-function artifactRootPath(worktreePath: string, workflowRunId: string): string {
-  return join(worktreePath, ".aitm", "runs", workflowRunId, "artifacts");
 }
 
 async function resolveGitDir(worktreePath: string): Promise<string> {
@@ -208,7 +208,7 @@ export class WorkflowRunService {
         input.worktree_branch,
       );
       if (worktree) {
-        await this.materializeWorkflowArtifacts(id, workflow, worktree.path);
+        await this.materializeWorkflowArtifacts(id, workflow, worktree);
       }
     }
 
@@ -232,11 +232,11 @@ export class WorkflowRunService {
   private async materializeWorkflowArtifacts(
     workflowRunId: string,
     workflow: WorkflowDefinition,
-    worktreePath: string,
+    worktree: Worktree,
   ): Promise<void> {
     if (!workflow.artifacts || workflow.artifacts.length === 0) return;
 
-    const root = artifactRootPath(worktreePath, workflowRunId);
+    const root = resolveArtifactBasePath(worktree, workflowRunId);
     await mkdir(root, { recursive: true });
 
     for (const artifact of workflow.artifacts) {
@@ -245,7 +245,7 @@ export class WorkflowRunService {
       await writeFile(artifactPath, "", { encoding: "utf8", flag: "a" });
     }
 
-    const infoDir = await resolveGitInfoDir(worktreePath);
+    const infoDir = await resolveGitInfoDir(worktree.path);
     const excludePath = join(infoDir, "exclude");
     const excludeEntry = `/.aitm/runs/${workflowRunId}/artifacts/`;
     await mkdir(infoDir, { recursive: true });

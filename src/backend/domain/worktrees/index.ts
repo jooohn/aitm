@@ -1,3 +1,4 @@
+import { join } from "path";
 import { logger } from "@/backend/infra/logger";
 import { SpawnTimeoutError, spawnAsync } from "@/backend/utils/process";
 
@@ -58,6 +59,13 @@ async function runGtrCommand(args: string[], cwd: string): Promise<string> {
     throw new Error(stderr.trim() || `git ${args.join(" ")} failed`);
   }
   return stdout;
+}
+
+export function resolveArtifactBasePath(
+  worktree: Worktree,
+  workflowRunId: string,
+): string {
+  return join(worktree.path, ".aitm", "runs", workflowRunId, "artifacts");
 }
 
 export class WorktreeService {

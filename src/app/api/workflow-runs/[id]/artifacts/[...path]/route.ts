@@ -1,7 +1,12 @@
 import { readFile } from "fs/promises";
 import { NextRequest, NextResponse } from "next/server";
-import { extname, join, posix, resolve, sep } from "path";
-import { config, workflowRunService } from "@/backend/container";
+import { extname, posix, resolve, sep } from "path";
+import {
+  config,
+  workflowRunService,
+  worktreeService,
+} from "@/backend/container";
+import { resolveArtifactBasePath } from "@/backend/domain/worktrees";
 
 function jsonError(message: string, status: number): NextResponse {
   return NextResponse.json({ error: message }, { status });
@@ -59,13 +64,14 @@ export async function GET(
     return jsonError("Artifact not found", 404);
   }
 
-  const artifactRoot = join(
+  const worktree = await worktreeService.findWorktree(
     run.repository_path,
-    ".aitm",
-    "runs",
-    run.id,
-    "artifacts",
+    run.worktree_branch,
   );
+  if (!worktree) {
+    return jsonError("Worktree not found", 404);
+  }
+  const artifactRoot = resolveArtifactBasePath(worktree, run.id);
   const artifactPath = resolve(artifactRoot, requestedPath);
   const normalizedRoot = `${resolve(artifactRoot)}${sep}`;
   if (

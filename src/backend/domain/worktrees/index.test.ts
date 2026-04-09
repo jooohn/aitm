@@ -5,7 +5,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { worktreeService } from "@/backend/container";
 import * as processUtils from "@/backend/utils/process";
 import { SpawnTimeoutError, spawnAsync } from "@/backend/utils/process";
-import { parseWorktreeList, WorktreeService } from "./index";
+import {
+  parseWorktreeList,
+  resolveArtifactBasePath,
+  WorktreeService,
+} from "./index";
 
 const listWorktrees = worktreeService.listWorktrees.bind(worktreeService);
 const removeWorktree = worktreeService.removeWorktree.bind(worktreeService);
@@ -152,6 +156,24 @@ describe("removeWorktree", () => {
     const dir = await makeGitRepo();
     await expect(removeWorktree(dir, "nonexistent-branch")).rejects.toThrow(
       "not found",
+    );
+  });
+});
+
+describe("resolveArtifactBasePath", () => {
+  it("resolves artifact base path using worktree path", () => {
+    const worktree = {
+      branch: "feat/test",
+      path: "/worktrees/feat-test",
+      is_main: false,
+      is_bare: false,
+      head: "HEAD",
+    };
+
+    const result = resolveArtifactBasePath(worktree, "run-123");
+
+    expect(result).toBe(
+      join("/worktrees/feat-test", ".aitm", "runs", "run-123", "artifacts"),
     );
   });
 });

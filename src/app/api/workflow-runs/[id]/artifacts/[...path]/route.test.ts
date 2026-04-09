@@ -8,11 +8,17 @@ import { db } from "@/backend/infra/db";
 import { setupTestConfigDir, writeTestConfig } from "@/test-config-helper";
 import { GET } from "./route";
 
-async function makeFakeGitRepo(): Promise<string> {
+async function makeFakeDir(): Promise<string> {
   const dir = join(
     tmpdir(),
     `aitm-test-${Math.random().toString(36).slice(2)}`,
   );
+  await mkdir(dir, { recursive: true });
+  return dir;
+}
+
+async function makeFakeGitRepo(): Promise<string> {
+  const dir = await makeFakeDir();
   await mkdir(join(dir, ".git"), { recursive: true });
   return dir;
 }
@@ -25,6 +31,7 @@ function makeParams(
 }
 
 let configFile: string;
+let worktreePath: string;
 
 beforeEach(async () => {
   configFile = await setupTestConfigDir();
@@ -54,12 +61,16 @@ workflows:
   db.prepare("DELETE FROM step_executions").run();
   db.prepare("DELETE FROM workflow_runs").run();
 
+  // Use a separate directory for worktree path to ensure the endpoint
+  // resolves artifacts from the worktree, not from repository_path.
+  worktreePath = await makeFakeGitRepo();
+
   vi.spyOn(container.agentService, "startAgent").mockResolvedValue(undefined);
   vi.spyOn(container.worktreeService, "listWorktrees").mockImplementation(
-    async (repoPath) => [
+    async (_repoPath) => [
       {
         branch: "feat/test",
-        path: repoPath,
+        path: worktreePath,
         is_main: false,
         is_bare: false,
         head: "HEAD",
@@ -76,14 +87,18 @@ describe("GET /api/workflow-runs/:id/artifacts/:path*", () => {
       worktree_branch: "feat/test",
       workflow_name: "my-flow",
     });
+    // Artifact is materialized in the worktree directory, not the repo root.
     const artifactPath = join(
-      repoPath,
+      worktreePath,
       ".aitm",
       "runs",
       run.id,
       "artifacts",
       "plan.md",
     );
+    await mkdir(join(worktreePath, ".aitm", "runs", run.id, "artifacts"), {
+      recursive: true,
+    });
     await writeFile(artifactPath, "# Plan\n");
 
     const res = await GET(
