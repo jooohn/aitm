@@ -1,0 +1,45 @@
+@reference "tailwindcss";
+
+.container {
+  @apply flex flex-col h-full;
+}
+
+.header {
+  @apply flex items-center justify-between gap-4 pb-4;
+}
+
+.title {
+  @apply text-lg font-semibold text-zinc-900 dark:text-zinc-50 truncate;
+}
+
+/* Output pane */
+.output {
+  @apply flex-1 overflow-y-auto rounded-lg bg-zinc-900 dark:bg-zinc-950 p-4 font-mono text-xs text-zinc-200 leading-relaxed mb-4;
+  min-height: 200px;
+}
+
+.outputEmpty {
+  @apply text-zinc-500;
+}
+
+.proposalsContainer {
+  @apply flex flex-col gap-3 my-3;
+}
+
+/* Input form */
+.inputForm {
+  @apply flex flex-col gap-2;
+}
+
+.messageInput {
+  @apply text-sm px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y min-h-16;
+}
+
+.sendButton {
+  @apply self-end text-sm px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors;
+}
+
+/* Error */
+.error {
+  @apply text-sm text-red-600 dark:text-red-400;
+}

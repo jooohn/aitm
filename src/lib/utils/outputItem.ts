@@ -29,9 +29,30 @@ export type CommandGroupItem = {
   calls: CommandExecutionItem[];
 };
 
+export type ProposalItem = {
+  kind: "proposals";
+  proposals: Array<{
+    id: string;
+    workflow_name: string;
+    inputs: Record<string, string>;
+    rationale: string;
+  }>;
+};
+
+export type ProposalActionItem = {
+  kind: "proposal_action";
+  proposal_id: string;
+  action: "approved" | "rejected";
+  workflow_run_id?: string;
+  branch?: string;
+  reason?: string;
+};
+
 export type OutputItem =
   | TextItem
   | ToolCallItem
   | ToolGroupItem
   | CommandExecutionItem
-  | CommandGroupItem;
+  | CommandGroupItem
+  | ProposalItem
+  | ProposalActionItem;

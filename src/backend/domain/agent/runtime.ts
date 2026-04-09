@@ -52,6 +52,7 @@ export interface AgentQueryParams {
   permissionMode: PermissionMode;
   abortController: AbortController;
   outputFormat?: OutputFormat;
+  tools?: string[];
 }
 
 export interface AgentResumeParams {
@@ -64,6 +65,7 @@ export interface AgentResumeParams {
   permissionMode: PermissionMode;
   abortController: AbortController;
   outputFormat?: OutputFormat;
+  tools?: string[];
 }
 
 export interface OutputFormat {

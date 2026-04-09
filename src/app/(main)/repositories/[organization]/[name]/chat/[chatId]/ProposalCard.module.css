@@ -1,0 +1,73 @@
+@reference "tailwindcss";
+
+.card {
+  @apply rounded-lg border p-4 text-sm;
+}
+
+.cardPending {
+  @apply border-blue-700/50 bg-blue-950/30;
+}
+
+.cardApproved {
+  @apply border-green-700/50 bg-green-950/20 opacity-80;
+}
+
+.cardRejected {
+  @apply border-zinc-700/50 bg-zinc-950/20 opacity-60;
+}
+
+.header {
+  @apply flex items-center justify-between gap-2 mb-2;
+}
+
+.workflowName {
+  @apply font-semibold text-zinc-100;
+}
+
+.statusBadge {
+  @apply text-xs px-2 py-0.5 rounded-full font-medium;
+}
+
+.badgeApproved {
+  @apply bg-green-800/50 text-green-300;
+}
+
+.badgeRejected {
+  @apply bg-zinc-700/50 text-zinc-400;
+}
+
+.rationale {
+  @apply text-zinc-300 mb-3 leading-relaxed;
+}
+
+.inputs {
+  @apply flex flex-col gap-1 mb-3 pl-2 border-l-2 border-zinc-700;
+}
+
+.inputRow {
+  @apply flex flex-col gap-0.5 sm:flex-row sm:gap-2;
+}
+
+.inputKey {
+  @apply text-zinc-400 font-medium shrink-0;
+}
+
+.inputValue {
+  @apply text-zinc-200 break-words;
+}
+
+.actions {
+  @apply flex gap-2;
+}
+
+.approveButton {
+  @apply px-3 py-1.5 rounded text-xs font-medium bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors;
+}
+
+.rejectButton {
+  @apply px-3 py-1.5 rounded text-xs font-medium bg-zinc-700 text-zinc-200 hover:bg-zinc-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors;
+}
+
+.error {
+  @apply text-xs text-red-400 mt-2;
+}

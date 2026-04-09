@@ -1,9 +1,16 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import GitHubIcon from "@/app/components/icons/GitHubIcon";
-import { useRepository, useWorkflowRuns, useWorktrees } from "@/lib/hooks/swr";
+import {
+  useChats,
+  useRepository,
+  useWorkflowRuns,
+  useWorktrees,
+} from "@/lib/hooks/swr";
+import { type Chat, createChat, deleteChat } from "@/lib/utils/api";
 import styles from "./RepositoryShell.module.css";
 import WorktreeRunsSection from "./WorktreeRunsSection";
 import RunWorkflowModal from "./workflow-runs/RunWorkflowModal";
@@ -14,15 +21,73 @@ interface Props {
   children: React.ReactNode;
 }
 
+function ChatListItem({
+  chat,
+  organization,
+  name,
+  onDeleted,
+}: {
+  chat: Chat;
+  organization: string;
+  name: string;
+  onDeleted: () => void;
+}) {
+  const [deleting, setDeleting] = useState(false);
+
+  return (
+    <div className={styles.runItem}>
+      <Link
+        href={`/repositories/${organization}/${name}/chat/${chat.id}`}
+        className={styles.runInfo}
+      >
+        <span className={styles.runBranch}>
+          {chat.title ?? "Untitled chat"}
+        </span>
+        <span className={styles.runWorkflow}>
+          {chat.status === "running"
+            ? "Running..."
+            : chat.status === "awaiting_input"
+              ? "Awaiting input"
+              : chat.status === "failed"
+                ? "Failed"
+                : "Idle"}
+        </span>
+      </Link>
+      <button
+        type="button"
+        className={styles.chatDeleteButton}
+        onClick={async (e) => {
+          e.preventDefault();
+          if (deleting) return;
+          setDeleting(true);
+          try {
+            await deleteChat(chat.id);
+            onDeleted();
+          } finally {
+            setDeleting(false);
+          }
+        }}
+        disabled={deleting}
+        aria-label="Delete chat"
+      >
+        ✕
+      </button>
+    </div>
+  );
+}
+
 export default function RepositoryShell({
   organization,
   name,
   children,
 }: Props) {
   const alias = `${organization}/${name}`;
+  const router = useRouter();
   const [showLaunchModal, setShowLaunchModal] = useState(false);
+  const [creatingChat, setCreatingChat] = useState(false);
 
   const { data: repo } = useRepository(organization, name);
+  const { data: chats, mutate: mutateChats } = useChats(organization, name);
   const {
     data: worktrees,
     error: worktreesError,
@@ -76,7 +141,43 @@ export default function RepositoryShell({
           >
             Run Workflow
           </button>
+          <button
+            type="button"
+            className={styles.newChatButton}
+            onClick={async () => {
+              if (creatingChat) return;
+              setCreatingChat(true);
+              try {
+                const chat = await createChat(organization, name);
+                await mutateChats();
+                router.push(
+                  `/repositories/${organization}/${name}/chat/${chat.id}`,
+                );
+              } finally {
+                setCreatingChat(false);
+              }
+            }}
+            disabled={creatingChat}
+          >
+            {creatingChat ? "Creating..." : "New Chat"}
+          </button>
         </section>
+        {chats && chats.length > 0 && (
+          <section className={styles.paneSection}>
+            <h3 className={styles.paneHeading}>Chats</h3>
+            <div className={styles.runsList}>
+              {chats.map((chat) => (
+                <ChatListItem
+                  key={chat.id}
+                  chat={chat}
+                  organization={organization}
+                  name={name}
+                  onDeleted={mutateChats}
+                />
+              ))}
+            </div>
+          </section>
+        )}
         {repo && (
           <WorktreeRunsSection
             organization={organization}

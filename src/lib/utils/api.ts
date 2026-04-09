@@ -1,4 +1,7 @@
 import type {
+  ChatDetailDto,
+  ChatDto,
+  ChatProposalDto,
   RepositoryDetailDto,
   RepositoryDto,
   SessionDto,
@@ -10,6 +13,11 @@ import type {
   WorktreeDto,
 } from "@/shared/contracts/api";
 
+export type Chat = ChatDto;
+export type ChatDetail = ChatDetailDto;
+export type ChatProposal = ChatProposalDto;
+export type ChatStatus = ChatDto["status"];
+export type ChatProposalStatus = ChatProposalDto["status"];
 export type Repository = RepositoryDto;
 export type RepositoryDetail = RepositoryDetailDto;
 export type ValidationResult = ValidationResultDto;
@@ -225,5 +233,66 @@ export function resolveManualApproval(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ decision, reason }),
+  });
+}
+
+// -- Chat --
+
+export function createChat(organization: string, name: string): Promise<Chat> {
+  return apiFetch("/api/chats", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ organization, name }),
+  });
+}
+
+export function fetchChats(
+  organization: string,
+  name: string,
+): Promise<Chat[]> {
+  const params = new URLSearchParams({ organization, name });
+  return apiFetch(`/api/chats?${params}`);
+}
+
+export function fetchChat(id: string): Promise<ChatDetail> {
+  return apiFetch(`/api/chats/${id}`);
+}
+
+export function deleteChat(id: string): Promise<void> {
+  return apiFetch(`/api/chats/${id}`, { method: "DELETE" });
+}
+
+export function sendChatMessage(
+  id: string,
+  message: string,
+): Promise<ChatDetail> {
+  return apiFetch(`/api/chats/${id}/messages`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message }),
+  });
+}
+
+export function approveChatProposal(
+  chatId: string,
+  proposalId: string,
+  overrides?: { workflow_name?: string; inputs?: Record<string, string> },
+): Promise<{ workflowRunId: string }> {
+  return apiFetch(`/api/chats/${chatId}/proposals/${proposalId}/approve`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(overrides ?? {}),
+  });
+}
+
+export function rejectChatProposal(
+  chatId: string,
+  proposalId: string,
+  reason?: string,
+): Promise<void> {
+  return apiFetch(`/api/chats/${chatId}/proposals/${proposalId}/reject`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ reason }),
   });
 }
