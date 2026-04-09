@@ -68,6 +68,14 @@
   @apply text-sm text-zinc-500 dark:text-zinc-400;
 }
 
+.newChatButton {
+  @apply text-sm px-3 py-1.5 rounded border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer;
+}
+
+.chatDeleteButton {
+  @apply text-xs text-zinc-400 hover:text-red-500 dark:hover:text-red-400 transition-colors cursor-pointer shrink-0;
+}
+
 .error {
   @apply text-sm text-red-600 dark:text-red-400;
 }

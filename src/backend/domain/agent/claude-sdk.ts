@@ -18,6 +18,7 @@ export class ClaudeSDK implements AgentRuntime {
     permissionMode,
     abortController,
     outputFormat,
+    tools,
   }: AgentQueryParams): AsyncIterable<AgentMessage> {
     const result = query({
       prompt,
@@ -26,7 +27,7 @@ export class ClaudeSDK implements AgentRuntime {
         permissionMode: toClaudePermissionMode(permissionMode),
         abortController,
         outputFormat,
-        tools: CLAUDE_SDK_TOOLS,
+        tools: tools ?? CLAUDE_SDK_TOOLS,
         systemPrompt: { type: "preset", preset: "claude_code" },
         settingSources: ["user", "project", "local"],
       },
@@ -44,6 +45,7 @@ export class ClaudeSDK implements AgentRuntime {
     permissionMode,
     abortController,
     outputFormat,
+    tools,
   }: AgentResumeParams): AsyncIterable<AgentMessage> {
     const result = query({
       prompt,
@@ -53,7 +55,7 @@ export class ClaudeSDK implements AgentRuntime {
         abortController,
         outputFormat,
         resume: agentSessionId,
-        tools: CLAUDE_SDK_TOOLS,
+        tools: tools ?? CLAUDE_SDK_TOOLS,
         systemPrompt: { type: "preset", preset: "claude_code" },
       },
     });

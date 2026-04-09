@@ -20,4 +20,6 @@ export const swrKeys = {
   artifactStatuses: (id: string) =>
     ["/api/workflow-runs", id, "artifacts"] as const,
   session: (id: string) => ["/api/sessions", id] as const,
+  chats: (org: string, name: string) => ["/api/chats", org, name] as const,
+  chat: (id: string) => ["/api/chats", id] as const,
 };

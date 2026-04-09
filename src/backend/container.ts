@@ -1,6 +1,9 @@
 import { AgentService } from "@/backend/domain/agent";
 import { ClaudeSDK } from "@/backend/domain/agent/claude-sdk";
 import { CodexSDK } from "@/backend/domain/agent/codex-sdk";
+import { BranchNameService } from "@/backend/domain/branch-name";
+import { ChatService } from "@/backend/domain/chats";
+import { ChatRepository } from "@/backend/domain/chats/chat-repository";
 import { HouseKeepingService } from "@/backend/domain/house-keeping";
 import { RepositoryService } from "@/backend/domain/repositories";
 import { SessionService } from "@/backend/domain/sessions";
@@ -29,10 +32,12 @@ function shouldUseDefaultConfigOnBootstrap(): boolean {
 export let config: ConfigSnapshot;
 export let workflowRunRepository: WorkflowRunRepository;
 export let sessionRepository: SessionRepository;
+export let chatRepository: ChatRepository;
 export let worktreeService: WorktreeService;
 export let repositoryService: RepositoryService;
 export let agentService: AgentService;
 export let sessionService: SessionService;
+export let chatService: ChatService;
 export let commandStepExecutor: CommandStepExecutor;
 export let workflowRunService: WorkflowRunService;
 export let houseKeepingService: HouseKeepingService;
@@ -45,16 +50,14 @@ function buildContainer(cfg: ConfigSnapshot): void {
 
   workflowRunRepository = new WorkflowRunRepository(db, eventBus);
   sessionRepository = new SessionRepository(db, eventBus);
+  chatRepository = new ChatRepository(db);
   worktreeService = new WorktreeService();
   repositoryService = new RepositoryService(config.repositories);
-  agentService = new AgentService(
-    {
-      claude: new ClaudeSDK(),
-      codex: new CodexSDK(),
-    },
-    sessionRepository,
-    eventBus,
-  );
+  const runtimes = {
+    claude: new ClaudeSDK(),
+    codex: new CodexSDK(),
+  };
+  agentService = new AgentService(runtimes, sessionRepository, eventBus);
   sessionService = new SessionService(
     sessionRepository,
     agentService,
@@ -72,6 +75,15 @@ function buildContainer(cfg: ConfigSnapshot): void {
     config.workflows,
     config.agent,
   );
+  chatService = new ChatService(
+    chatRepository,
+    runtimes,
+    worktreeService,
+    workflowRunService,
+    new BranchNameService(),
+    config.agent,
+    config.workflows,
+  );
   houseKeepingService = new HouseKeepingService(
     sessionService,
     worktreeService,
@@ -82,6 +94,7 @@ function buildContainer(cfg: ConfigSnapshot): void {
   if (!tablesEnsured) {
     workflowRunRepository.ensureTables();
     sessionRepository.ensureTables();
+    chatRepository.ensureTables();
     tablesEnsured = true;
   }
 }

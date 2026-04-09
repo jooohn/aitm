@@ -173,6 +173,38 @@ export interface WorkflowRunDetailDto extends WorkflowRunDto {
   step_executions: StepExecutionDto[];
 }
 
+// -- Chat --
+
+export type ChatStatusDto = "running" | "awaiting_input" | "idle" | "failed";
+
+export type ChatProposalStatusDto = "pending" | "approved" | "rejected";
+
+export interface ChatDto {
+  id: string;
+  organization: string;
+  name: string;
+  title: string | null;
+  status: ChatStatusDto;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ChatProposalDto {
+  id: string;
+  chat_id: string;
+  workflow_name: string;
+  inputs: Record<string, string>;
+  rationale: string;
+  status: ChatProposalStatusDto;
+  workflow_run_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ChatDetailDto extends ChatDto {
+  proposals: ChatProposalDto[];
+}
+
 // Notification stream events (SSE)
 
 export type RepositoryContextDto = {

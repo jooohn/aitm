@@ -1,6 +1,8 @@
 import type {
   CommandExecutionItem,
   OutputItem,
+  ProposalActionItem,
+  ProposalItem,
   TextItem,
   ToolCallItem,
 } from "./outputItem";
@@ -109,6 +111,25 @@ export function parseLogEntry(
       if (items.length === 0) return null;
       if (items.length === 1) return items[0];
       return items;
+    }
+
+    case "proposals_created": {
+      const proposals = entry.proposals as
+        | ProposalItem["proposals"]
+        | undefined;
+      if (!proposals || !Array.isArray(proposals)) return null;
+      return { kind: "proposals", proposals } as ProposalItem;
+    }
+
+    case "proposal_action": {
+      return {
+        kind: "proposal_action",
+        proposal_id: entry.proposal_id as string,
+        action: entry.action as "approved" | "rejected",
+        workflow_run_id: entry.workflow_run_id as string | undefined,
+        branch: entry.branch as string | undefined,
+        reason: entry.reason as string | undefined,
+      } as ProposalActionItem;
     }
 
     default:
