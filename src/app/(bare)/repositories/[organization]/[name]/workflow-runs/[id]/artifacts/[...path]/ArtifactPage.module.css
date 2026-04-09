@@ -84,6 +84,18 @@
   @apply text-sm text-zinc-700 dark:text-zinc-300 mb-1;
 }
 
+.viewerContent table {
+  @apply w-full border-collapse text-sm mb-3;
+}
+
+.viewerContent th {
+  @apply text-left font-semibold text-zinc-900 dark:text-zinc-100 px-3 py-2 border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800;
+}
+
+.viewerContent td {
+  @apply text-zinc-700 dark:text-zinc-300 px-3 py-2 border border-zinc-200 dark:border-zinc-700;
+}
+
 .viewerContent code {
   @apply bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded text-sm font-mono;
 }

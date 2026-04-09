@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Markdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import styles from "./ArtifactPage.module.css";
 
 interface ArtifactViewerProps {
@@ -15,7 +16,7 @@ function getFileExtension(path: string): string {
 }
 
 function MarkdownViewer({ content }: { content: string }) {
-  return <Markdown>{content}</Markdown>;
+  return <Markdown remarkPlugins={[remarkGfm]}>{content}</Markdown>;
 }
 
 function JsonViewer({ content }: { content: string }) {
