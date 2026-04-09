@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { toSessionDto } from "@/backend/api/dto";
-import { sessionService } from "@/backend/container";
+import { repositoryService, sessionService } from "@/backend/container";
 import type { SessionStatus } from "@/backend/domain/sessions";
 
 function errorResponse(err: unknown): NextResponse {
@@ -13,10 +13,22 @@ function errorResponse(err: unknown): NextResponse {
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const { searchParams } = request.nextUrl;
-    const repository_path = searchParams.get("repository_path") ?? undefined;
+    const organization = searchParams.get("organization") ?? undefined;
+    const name = searchParams.get("name") ?? undefined;
     const worktree_branch = searchParams.get("worktree_branch") ?? undefined;
     const statusParam = searchParams.get("status") ?? undefined;
     const status = statusParam as SessionStatus | undefined;
+
+    let repository_path: string | undefined;
+    if (organization && name) {
+      const repo = await repositoryService.getRepositoryByAlias(
+        `${organization}/${name}`,
+      );
+      if (!repo) {
+        return NextResponse.json([]);
+      }
+      repository_path = repo.path;
+    }
 
     return NextResponse.json(
       sessionService

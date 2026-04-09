@@ -143,10 +143,11 @@ export function fetchWorkflows(): Promise<Record<string, WorkflowDefinition>> {
 }
 
 export function fetchWorkflowRuns(
-  repositoryPath: string,
+  organization: string,
+  name: string,
   worktreeBranch?: string,
 ): Promise<WorkflowRun[]> {
-  const params = new URLSearchParams({ repository_path: repositoryPath });
+  const params = new URLSearchParams({ organization, name });
   if (worktreeBranch) params.set("worktree_branch", worktreeBranch);
   return apiFetch(`/api/workflow-runs?${params}`);
 }
@@ -160,7 +161,8 @@ export function fetchAllWorkflowRuns(
 }
 
 export function createWorkflowRun(input: {
-  repository_path: string;
+  organization: string;
+  name: string;
   worktree_branch: string;
   workflow_name: string;
   inputs?: Record<string, string>;

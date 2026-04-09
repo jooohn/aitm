@@ -1,7 +1,6 @@
 import Link from "next/link";
 import StatusBadge from "@/app/components/StatusBadge";
 import type { WorkflowRun, WorkflowRunStatus } from "@/lib/utils/api";
-import { inferAlias } from "@/lib/utils/inferAlias";
 import { syncedAnimationDelay } from "@/lib/utils/syncedAnimationDelay";
 import { timeAgo } from "@/lib/utils/timeAgo";
 import { workflowRunPath } from "@/lib/utils/workflowRunPath";
@@ -45,7 +44,7 @@ export default function KanbanCard({ run, showRepo }: KanbanCardProps) {
     >
       {showRepo && (
         <span className={styles.cardRepo}>
-          {inferAlias(run.repository_path)}
+          {run.organization}/{run.name}
         </span>
       )}
       <span className={styles.cardBranch}>{run.worktree_branch}</span>

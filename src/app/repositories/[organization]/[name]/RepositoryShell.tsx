@@ -32,7 +32,7 @@ export default function RepositoryShell({
     data: runs,
     error: runsError,
     isLoading: runsLoading,
-  } = useWorkflowRuns(repo?.path ?? null);
+  } = useWorkflowRuns(organization, name);
 
   const dataLoading = worktreesLoading || runsLoading;
   const dataHasLoadedOnce =

@@ -42,7 +42,8 @@ vi.mock("next/navigation", () => ({
 function makeWorkflowRun(overrides: Partial<WorkflowRun> = {}): WorkflowRun {
   return {
     id: "run-1",
-    repository_path: "/tmp/acme/widgets",
+    organization: "acme",
+    name: "widgets",
     worktree_branch: "feat/todo-list",
     workflow_name: "default",
     current_step: "implement",

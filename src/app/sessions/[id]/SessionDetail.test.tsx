@@ -42,7 +42,8 @@ vi.mock("next/link", () => ({
 function makeSession(overrides: Partial<Session> = {}): Session {
   return {
     id: "test-session-id",
-    repository_path: "/tmp/repos/acme/app",
+    organization: "acme",
+    name: "app",
     worktree_branch: "main",
     goal: "Implement a feature",
     transitions: [],

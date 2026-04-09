@@ -8,17 +8,19 @@ import {
 import { swrKeys } from "./keys";
 
 export function useWorkflowRuns(
-  repositoryPath: string | null,
+  organization: string | null,
+  name: string | null,
   worktreeBranch?: string,
 ) {
   return useSWR<WorkflowRun[]>(
-    repositoryPath
+    organization && name
       ? swrKeys.workflowRuns({
-          repository_path: repositoryPath,
+          organization,
+          name,
           worktree_branch: worktreeBranch,
         })
       : null,
-    () => fetchWorkflowRuns(repositoryPath!, worktreeBranch),
+    () => fetchWorkflowRuns(organization!, name!, worktreeBranch),
   );
 }
 

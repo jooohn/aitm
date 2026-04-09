@@ -7,7 +7,8 @@ export const swrKeys = {
   workflows: () => ["/api/workflows"] as const,
   workflowRuns: (
     params?: Partial<{
-      repository_path: string;
+      organization: string;
+      name: string;
       worktree_branch: string;
       status: string;
     }>,

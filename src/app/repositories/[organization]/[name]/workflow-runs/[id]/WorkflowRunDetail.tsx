@@ -24,7 +24,6 @@ import {
   type WorkflowRunStatus,
 } from "@/lib/utils/api";
 import { extractPullRequestUrl } from "@/lib/utils/extractPullRequestUrl";
-import { inferAlias } from "@/lib/utils/inferAlias";
 import { timeAgo } from "@/lib/utils/timeAgo";
 import { workflowRunPath } from "@/lib/utils/workflowRunPath";
 import {
@@ -226,7 +225,8 @@ export default function WorkflowRunDetailView({
       setSubmittingSuggestion(suggestion.workflow);
       try {
         const newRun = await createWorkflowRun({
-          repository_path: currentRun.repository_path,
+          organization: currentRun.organization,
+          name: currentRun.name,
           worktree_branch: currentRun.worktree_branch,
           workflow_name: suggestion.workflow,
           inputs: suggestion.inputValues,
@@ -254,7 +254,7 @@ export default function WorkflowRunDetailView({
         <div className={styles.headerLeft}>
           <h1 className={styles.title}>
             <Link
-              href={`/repositories/${inferAlias(currentRun.repository_path)}/worktrees/${currentRun.worktree_branch}`}
+              href={`/repositories/${currentRun.organization}/${currentRun.name}/worktrees/${currentRun.worktree_branch}`}
               className={styles.titleBranchLink}
             >
               {currentRun.worktree_branch}
@@ -405,7 +405,7 @@ export default function WorkflowRunDetailView({
             {existingArtifacts.map((artifact) => (
               <li key={artifact.path} className={styles.artifactItem}>
                 <a
-                  href={`/repositories/${inferAlias(currentRun.repository_path)}/workflow-runs/${currentRun.id}/artifacts/${artifact.path}`}
+                  href={`/repositories/${currentRun.organization}/${currentRun.name}/workflow-runs/${currentRun.id}/artifacts/${artifact.path}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className={styles.artifactLink}
@@ -452,7 +452,7 @@ export default function WorkflowRunDetailView({
                   isCurrent={index === 0}
                   runBasePath={
                     basePath ??
-                    `/repositories/${inferAlias(currentRun.repository_path)}/workflow-runs/${currentRun.id}`
+                    `/repositories/${currentRun.organization}/${currentRun.name}/workflow-runs/${currentRun.id}`
                   }
                   onResolve={handleResolve}
                   resolvingId={resolvingId}
@@ -465,7 +465,7 @@ export default function WorkflowRunDetailView({
       {showLaunchModal && (
         <RunWorkflowModal
           onClose={() => setShowLaunchModal(false)}
-          fixedAlias={inferAlias(currentRun.repository_path)}
+          fixedAlias={`${currentRun.organization}/${currentRun.name}`}
           fixedBranch={currentRun.worktree_branch}
           initialWorkflow={launchPreset?.workflow}
           initialInputValues={launchPreset?.inputValues}

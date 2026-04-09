@@ -61,7 +61,8 @@ const WORKFLOW_DEF: WorkflowDefinition = {
 function makeRun(overrides: Partial<WorkflowRun> = {}): WorkflowRun {
   return {
     id: "run-1",
-    repository_path: "/repos/org/name",
+    organization: "org",
+    name: "name",
     worktree_branch: "feature-branch",
     workflow_name: "default",
     current_step: "plan",
@@ -111,7 +112,8 @@ describe("WorkflowKanbanBoard", () => {
     render(
       <SWRTestProvider>
         <WorkflowKanbanBoard
-          repositoryPath="/repos/org/name"
+          organization="org"
+          name="name"
           activeWorktreeBranches={null}
         />
       </SWRTestProvider>,
@@ -131,7 +133,8 @@ describe("WorkflowKanbanBoard", () => {
     render(
       <SWRTestProvider>
         <WorkflowKanbanBoard
-          repositoryPath="/repos/org/name"
+          organization="org"
+          name="name"
           activeWorktreeBranches={null}
         />
       </SWRTestProvider>,
@@ -157,7 +160,8 @@ describe("WorkflowKanbanBoard", () => {
     render(
       <SWRTestProvider>
         <WorkflowKanbanBoard
-          repositoryPath="/repos/org/name"
+          organization="org"
+          name="name"
           activeWorktreeBranches={null}
         />
       </SWRTestProvider>,
@@ -186,7 +190,8 @@ describe("WorkflowKanbanBoard", () => {
     render(
       <SWRTestProvider>
         <WorkflowKanbanBoard
-          repositoryPath="/repos/org/name"
+          organization="org"
+          name="name"
           activeWorktreeBranches={null}
         />
       </SWRTestProvider>,
@@ -215,7 +220,8 @@ describe("WorkflowKanbanBoard", () => {
     render(
       <SWRTestProvider>
         <WorkflowKanbanBoard
-          repositoryPath="/repos/org/name"
+          organization="org"
+          name="name"
           activeWorktreeBranches={null}
         />
       </SWRTestProvider>,
@@ -254,7 +260,8 @@ describe("WorkflowKanbanBoard", () => {
     render(
       <SWRTestProvider>
         <WorkflowKanbanBoard
-          repositoryPath="/repos/org/name"
+          organization="org"
+          name="name"
           activeWorktreeBranches={["active-branch"]}
         />
       </SWRTestProvider>,
@@ -275,7 +282,8 @@ describe("WorkflowKanbanBoard", () => {
     render(
       <SWRTestProvider>
         <WorkflowKanbanBoard
-          repositoryPath="/repos/org/name"
+          organization="org"
+          name="name"
           activeWorktreeBranches={null}
         />
       </SWRTestProvider>,
@@ -295,7 +303,8 @@ describe("WorkflowKanbanBoard", () => {
     render(
       <SWRTestProvider>
         <WorkflowKanbanBoard
-          repositoryPath="/repos/org/name"
+          organization="org"
+          name="name"
           activeWorktreeBranches={null}
         />
       </SWRTestProvider>,
@@ -333,7 +342,8 @@ describe("WorkflowKanbanBoard", () => {
     render(
       <SWRTestProvider>
         <WorkflowKanbanBoard
-          repositoryPath="/repos/org/name"
+          organization="org"
+          name="name"
           activeWorktreeBranches={null}
         />
       </SWRTestProvider>,
@@ -350,7 +360,8 @@ describe("WorkflowKanbanBoard", () => {
     render(
       <SWRTestProvider>
         <WorkflowKanbanBoard
-          repositoryPath="/repos/org/name"
+          organization="org"
+          name="name"
           activeWorktreeBranches={null}
         />
       </SWRTestProvider>,
@@ -370,7 +381,8 @@ describe("WorkflowKanbanBoard", () => {
     const { rerender } = render(
       <SWRTestProvider>
         <WorkflowKanbanBoard
-          repositoryPath="/repos/org/name"
+          organization="org"
+          name="name"
           activeWorktreeBranches={null}
         />
       </SWRTestProvider>,
@@ -381,7 +393,8 @@ describe("WorkflowKanbanBoard", () => {
     rerender(
       <SWRTestProvider>
         <WorkflowKanbanBoard
-          repositoryPath="/repos/org/name"
+          organization="org"
+          name="name"
           activeWorktreeBranches={null}
         />
       </SWRTestProvider>,
@@ -403,7 +416,8 @@ describe("WorkflowKanbanBoard", () => {
     render(
       <SWRTestProvider>
         <WorkflowKanbanBoard
-          repositoryPath="/repos/org/name"
+          organization="org"
+          name="name"
           activeWorktreeBranches={null}
         />
       </SWRTestProvider>,
@@ -423,7 +437,8 @@ describe("WorkflowKanbanBoard", () => {
     render(
       <SWRTestProvider>
         <WorkflowKanbanBoard
-          repositoryPath="/repos/org/name"
+          organization="org"
+          name="name"
           activeWorktreeBranches={null}
         />
       </SWRTestProvider>,
@@ -447,7 +462,8 @@ describe("WorkflowKanbanBoard", () => {
       render(
         <SWRTestProvider>
           <WorkflowKanbanBoard
-            repositoryPath="/repos/org/name"
+            organization="org"
+            name="name"
             activeWorktreeBranches={null}
           />
         </SWRTestProvider>,
@@ -472,7 +488,8 @@ describe("WorkflowKanbanBoard", () => {
       render(
         <SWRTestProvider>
           <WorkflowKanbanBoard
-            repositoryPath="/repos/org/name"
+            organization="org"
+            name="name"
             activeWorktreeBranches={null}
           />
         </SWRTestProvider>,
@@ -531,7 +548,8 @@ describe("WorkflowKanbanBoard", () => {
     render(
       <SWRTestProvider>
         <WorkflowKanbanBoard
-          repositoryPath="/repos/org/name"
+          organization="org"
+          name="name"
           activeWorktreeBranches={null}
         />
       </SWRTestProvider>,
@@ -569,13 +587,15 @@ describe("WorkflowKanbanBoard", () => {
       fetchAllWorkflowRunsMock.mockResolvedValue([
         makeRun({
           id: "r1",
-          repository_path: "/repos/org/alpha",
+          organization: "org",
+          name: "alpha",
           worktree_branch: "alpha-feat",
           current_step: "plan",
         }),
         makeRun({
           id: "r2",
-          repository_path: "/repos/org/beta",
+          organization: "org",
+          name: "beta",
           worktree_branch: "beta-feat",
           current_step: "implement",
         }),
@@ -595,7 +615,8 @@ describe("WorkflowKanbanBoard", () => {
       fetchAllWorkflowRunsMock.mockResolvedValue([
         makeRun({
           id: "r1",
-          repository_path: "/repos/org/alpha",
+          organization: "org",
+          name: "alpha",
           worktree_branch: "alpha-feat",
           current_step: "plan",
         }),
@@ -615,7 +636,8 @@ describe("WorkflowKanbanBoard", () => {
       fetchWorkflowRunsMock.mockResolvedValue([
         makeRun({
           id: "r1",
-          repository_path: "/repos/org/alpha",
+          organization: "org",
+          name: "alpha",
           worktree_branch: "alpha-feat",
           current_step: "plan",
         }),
@@ -624,7 +646,8 @@ describe("WorkflowKanbanBoard", () => {
       render(
         <SWRTestProvider>
           <WorkflowKanbanBoard
-            repositoryPath="/repos/org/alpha"
+            organization="org"
+            name="alpha"
             activeWorktreeBranches={null}
           />
         </SWRTestProvider>,

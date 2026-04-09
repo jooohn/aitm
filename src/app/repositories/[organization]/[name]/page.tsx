@@ -43,7 +43,8 @@ export default function RepositoryPage() {
     <main className={styles.page}>
       <div className={styles.contentPane}>
         <WorkflowKanbanBoard
-          repositoryPath={repo.path}
+          organization={organization}
+          name={name}
           activeWorktreeBranches={activeWorktreeBranches}
         />
       </div>

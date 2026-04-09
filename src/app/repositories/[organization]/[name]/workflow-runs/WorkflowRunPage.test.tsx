@@ -37,7 +37,8 @@ import WorkflowRunPage from "./WorkflowRunPage";
 beforeEach(() => {
   mockFetchWorkflowRun.mockResolvedValue({
     id: "run-1",
-    repository_path: "/tmp/repo",
+    organization: "tmp",
+    name: "repo",
     worktree_branch: "feat/test",
     workflow_name: "build",
     current_step: "plan",

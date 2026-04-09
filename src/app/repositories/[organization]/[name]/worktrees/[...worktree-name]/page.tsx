@@ -32,7 +32,7 @@ export default function WorktreePage() {
     error: worktreesError,
     isLoading: worktreesLoading,
   } = useWorktrees(organization, name);
-  const { data: workflowRuns } = useWorkflowRuns(repo?.path ?? null, branch);
+  const { data: workflowRuns } = useWorkflowRuns(organization, name, branch);
 
   const [removing, setRemoving] = useState(false);
   const [removeError, setRemoveError] = useState<string | null>(null);
@@ -100,7 +100,8 @@ export default function WorktreePage() {
       </div>
       {removeError && <p className={styles.error}>{removeError}</p>}
       <WorkflowKanbanBoard
-        repositoryPath={repo.path}
+        organization={organization}
+        name={name}
         activeWorktreeBranches={[branch]}
       />
     </main>

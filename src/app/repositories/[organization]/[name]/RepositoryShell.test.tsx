@@ -79,7 +79,8 @@ beforeEach(() => {
   });
   mockCreateWorkflowRun.mockResolvedValue({
     id: "run-new",
-    repository_path: "/repos/org/repo",
+    organization: "org",
+    name: "repo",
     worktree_branch: "new-branch",
     workflow_name: "default",
     status: "running",

@@ -77,7 +77,8 @@ function makeRun(
 ): WorkflowRunDetail {
   return {
     id: "run-1",
-    repository_path: "/tmp/repos/acme/app",
+    organization: "acme",
+    name: "app",
     worktree_branch: "feat/test",
     workflow_name: "my-flow",
     current_step: null,
@@ -282,7 +283,8 @@ describe("StepExecutionPage", () => {
     };
     mockRunData = makeRun({
       id: "run-1",
-      repository_path: "/tmp/repos/acme/app",
+      organization: "acme",
+      name: "app",
       worktree_branch: "feat/test",
       workflow_name: "my-flow",
       step_executions: [makeExecution({ id: "exec-1", step: "plan" })],

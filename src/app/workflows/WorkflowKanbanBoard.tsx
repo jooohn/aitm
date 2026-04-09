@@ -15,17 +15,19 @@ import KanbanCard from "./KanbanCard";
 import styles from "./WorkflowKanbanBoard.module.css";
 
 interface Props {
-  repositoryPath?: string;
+  organization?: string;
+  name?: string;
   activeWorktreeBranches: string[] | null;
 }
 
 const TERMINAL_COLUMNS = ["Success"] as const;
 
 export default function WorkflowKanbanBoard({
-  repositoryPath,
+  organization,
+  name,
   activeWorktreeBranches,
 }: Props) {
-  const multiRepo = !repositoryPath;
+  const multiRepo = !organization || !name;
 
   const { data: workflows } = useSWR<Record<string, WorkflowDefinition>>(
     swrKeys.workflows(),
@@ -37,12 +39,12 @@ export default function WorkflowKanbanBoard({
     error: loadError,
     isLoading,
   } = useSWR<WorkflowRun[]>(
-    repositoryPath
-      ? swrKeys.workflowRuns({ repository_path: repositoryPath })
+    organization && name
+      ? swrKeys.workflowRuns({ organization, name })
       : swrKeys.workflowRuns(),
     () =>
-      repositoryPath
-        ? fetchWorkflowRuns(repositoryPath)
+      organization && name
+        ? fetchWorkflowRuns(organization, name)
         : fetchAllWorkflowRuns(),
     {
       refreshInterval: (data) =>

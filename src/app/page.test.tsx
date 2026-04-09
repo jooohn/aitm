@@ -54,7 +54,8 @@ const REPOS: Repository[] = [
 function makeRun(overrides: Partial<WorkflowRun> = {}): WorkflowRun {
   return {
     id: "run-1",
-    repository_path: "/repos/org/alpha",
+    organization: "org",
+    name: "alpha",
     worktree_branch: "feature-branch",
     workflow_name: "default",
     current_step: "plan",
@@ -182,13 +183,15 @@ describe("Homepage", () => {
       mockFetchAllWorkflowRuns.mockResolvedValue([
         makeRun({
           id: "r1",
-          repository_path: "/repos/org/alpha",
+          organization: "org",
+          name: "alpha",
           worktree_branch: "alpha-feat",
           current_step: "plan",
         }),
         makeRun({
           id: "r2",
-          repository_path: "/repos/org/beta",
+          organization: "org",
+          name: "beta",
           worktree_branch: "beta-feat",
           current_step: "implement",
         }),

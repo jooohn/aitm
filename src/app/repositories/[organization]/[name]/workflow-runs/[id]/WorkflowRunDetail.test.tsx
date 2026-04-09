@@ -50,7 +50,8 @@ vi.mock("@/lib/utils/api", async (importOriginal) => {
     }),
     fetchWorkflowRun: vi.fn().mockResolvedValue({
       id: "run-1",
-      repository_path: "/tmp/repo",
+      organization: "tmp",
+      name: "repo",
       worktree_branch: "feat/test",
       workflow_name: "my-flow",
       current_step: null,
@@ -92,7 +93,8 @@ function makeRun(
 ): WorkflowRunDetailDto {
   return {
     id: "run-1",
-    repository_path: "/tmp/repo",
+    organization: "tmp",
+    name: "repo",
     worktree_branch: "feat/test",
     workflow_name: "my-flow",
     current_step: null,
@@ -134,7 +136,8 @@ describe("WorkflowRunDetail layout", () => {
           run={makeRun({
             status: "success",
             workflow_name: "my-flow",
-            repository_path: "/tmp/repo",
+            organization: "tmp",
+            name: "repo",
             worktree_branch: "feat/test",
             step_executions: [makeExecution({ step: "plan" })],
           })}
