@@ -8,7 +8,7 @@ function read(relativePath: string) {
 
 describe("mobile layout plan", () => {
   it("keeps the home sidebar stacked on mobile and sticky only on desktop", () => {
-    const css = read("src/app/page.module.css");
+    const css = read("src/app/(main)/page.module.css");
 
     expect(css).toContain(
       "@apply w-full flex-1 grid lg:grid-cols-[16rem_minmax(0,1fr)];",
@@ -20,9 +20,9 @@ describe("mobile layout plan", () => {
 
   it("stacks repository and todo split panes on mobile", () => {
     const repositoryCss = read(
-      "src/app/repositories/[organization]/[name]/RepositoryShell.module.css",
+      "src/app/(main)/repositories/[organization]/[name]/RepositoryShell.module.css",
     );
-    const todosCss = read("src/app/todos/page.module.css");
+    const todosCss = read("src/app/(main)/todos/page.module.css");
 
     expect(repositoryCss).toContain(
       "@apply border-b border-zinc-200 dark:border-zinc-800 px-4 py-4 flex flex-col gap-4 lg:border-b-0 lg:border-r sm:px-5 sm:py-6 lg:sticky lg:top-[var(--header-h,49px)] lg:h-[calc(100vh-var(--header-h,49px))] lg:overflow-y-auto;",
@@ -38,10 +38,10 @@ describe("mobile layout plan", () => {
   it("adds responsive wrapping to dense headers and actions", () => {
     const headerCss = read("src/app/components/Header.module.css");
     const workflowRunCss = read(
-      "src/app/repositories/[organization]/[name]/workflow-runs/[id]/WorkflowRunDetail.module.css",
+      "src/app/(main)/repositories/[organization]/[name]/workflow-runs/[id]/WorkflowRunDetail.module.css",
     );
     const worktreeCss = read(
-      "src/app/repositories/[organization]/[name]/worktrees/[...worktree-name]/page.module.css",
+      "src/app/(main)/repositories/[organization]/[name]/worktrees/[...worktree-name]/page.module.css",
     );
 
     expect(headerCss).toContain(
@@ -62,8 +62,10 @@ describe("mobile layout plan", () => {
   });
 
   it("tunes drawer and kanban spacing for narrow screens", () => {
-    const drawerCss = read("src/app/sessions/SessionDrawer.module.css");
-    const kanbanCss = read("src/app/workflows/WorkflowKanbanBoard.module.css");
+    const drawerCss = read("src/app/(main)/sessions/SessionDrawer.module.css");
+    const kanbanCss = read(
+      "src/app/(main)/workflows/WorkflowKanbanBoard.module.css",
+    );
 
     expect(drawerCss).toContain(
       "@apply relative w-full h-full bg-white dark:bg-zinc-900 border-l border-zinc-200 dark:border-zinc-700 shadow-2xl flex flex-col sm:max-w-2xl;",
