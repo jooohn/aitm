@@ -1,4 +1,4 @@
-import { mkdir, readFile } from "fs/promises";
+import { mkdir, readFile, stat } from "fs/promises";
 import { tmpdir } from "os";
 import { join } from "path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -503,7 +503,7 @@ workflows:
 
     await expect(readFile(planArtifact, "utf8")).resolves.toBe("");
     await expect(readFile(notesArtifact, "utf8")).resolves.toBe("");
-    expect(excludeContents).toContain(`/.aitm/runs/${run.id}/artifacts/`);
+    expect(excludeContents).toContain(`/.aitm/runs/${run.id}/`);
 
     const session = db
       .prepare("SELECT * FROM sessions WHERE repository_path = ?")
@@ -511,6 +511,29 @@ workflows:
     expect(session.goal).toContain("<artifacts>");
     expect(session.goal).toContain(planArtifact);
     expect(session.goal).toContain(notesArtifact);
+  });
+
+  it("creates the workflow run directory and git-excludes it even without artifacts", async () => {
+    process.env.AITM_CONFIG_PATH = await writeTempConfig(
+      SIMPLE_WORKFLOW_CONFIG,
+    );
+    const repoPath = await makeFakeGitRepo();
+
+    const run = await container.workflowRunService.createWorkflowRun({
+      repository_path: repoPath,
+      worktree_branch: "feat/test",
+      workflow_name: "my-flow",
+    });
+
+    const runDir = join(repoPath, ".aitm", "runs", run.id);
+    const runDirStat = await stat(runDir);
+    expect(runDirStat.isDirectory()).toBe(true);
+
+    const excludeContents = await readFile(
+      join(repoPath, ".git", "info", "exclude"),
+      "utf8",
+    );
+    expect(excludeContents).toContain(`/.aitm/runs/${run.id}/`);
   });
 });
 
@@ -1831,7 +1854,8 @@ workflows:
       workflow_name: "approval-flow",
     });
 
-    expect(findWorktreeSpy).toHaveBeenCalledOnce();
+    // Called twice: once for ensureWorkflowRunDir, once for step execution
+    expect(findWorktreeSpy).toHaveBeenCalledTimes(2);
   });
 
   it("emits step-execution.status-changed with awaiting status", async () => {
