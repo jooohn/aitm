@@ -71,6 +71,18 @@ function artifactRootPath(worktreePath: string, workflowRunId: string): string {
   return join(worktreePath, ".aitm", "runs", workflowRunId, "artifacts");
 }
 
+export async function resolveArtifactBasePath(
+  run: Pick<WorkflowRun, "id" | "repository_path" | "worktree_branch">,
+  worktreeService: Pick<WorktreeService, "findWorktree">,
+): Promise<string | undefined> {
+  const worktree = await worktreeService.findWorktree(
+    run.repository_path,
+    run.worktree_branch,
+  );
+  if (!worktree) return undefined;
+  return artifactRootPath(worktree.path, run.id);
+}
+
 async function resolveGitDir(worktreePath: string): Promise<string> {
   const dotGitPath = join(worktreePath, ".git");
   const dotGitStat = await stat(dotGitPath);
