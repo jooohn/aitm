@@ -203,6 +203,17 @@ export function rerunWorkflowRunFromFailedState(
   });
 }
 
+export interface ArtifactStatus {
+  name: string;
+  path: string;
+  description?: string;
+  exists: boolean;
+}
+
+export function fetchArtifactStatuses(id: string): Promise<ArtifactStatus[]> {
+  return apiFetch(`/api/workflow-runs/${id}/artifacts`);
+}
+
 export function resolveManualApproval(
   id: string,
   decision: "approved" | "rejected",

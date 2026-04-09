@@ -62,6 +62,7 @@ vi.mock("@/lib/utils/api", async (importOriginal) => {
       step_executions: [],
     }),
     fetchWorkflows: vi.fn().mockResolvedValue({}),
+    fetchArtifactStatuses: vi.fn().mockResolvedValue([]),
   };
 });
 
@@ -152,8 +153,10 @@ describe("WorkflowRunDetail layout", () => {
 });
 
 describe("WorkflowRunDetail", () => {
-  it("renders declared workflow artifacts as internal links to the artifact page", async () => {
-    const { fetchWorkflows } = await import("@/lib/utils/api");
+  it("renders declared workflow artifacts as internal links to the artifact page when they exist on disk", async () => {
+    const { fetchWorkflows, fetchArtifactStatuses } = await import(
+      "@/lib/utils/api"
+    );
     vi.mocked(fetchWorkflows).mockResolvedValue({
       "my-flow": {
         initial_step: "plan",
@@ -173,6 +176,14 @@ describe("WorkflowRunDetail", () => {
         },
       },
     });
+    vi.mocked(fetchArtifactStatuses).mockResolvedValue([
+      {
+        name: "plan",
+        path: "plan.md",
+        description: "Shared working plan for the run",
+        exists: true,
+      },
+    ]);
 
     render(
       <SWRTestProvider>
@@ -192,6 +203,105 @@ describe("WorkflowRunDetail", () => {
     expect(
       screen.getByText("Shared working plan for the run"),
     ).toBeInTheDocument();
+  });
+
+  it("hides artifacts that do not exist on disk yet", async () => {
+    const { fetchWorkflows, fetchArtifactStatuses } = await import(
+      "@/lib/utils/api"
+    );
+    vi.mocked(fetchWorkflows).mockResolvedValue({
+      "my-flow": {
+        initial_step: "plan",
+        artifacts: [
+          {
+            name: "plan",
+            path: "plan.md",
+            description: "Shared working plan for the run",
+          },
+          {
+            name: "report",
+            path: "report.md",
+            description: "Final report",
+          },
+        ],
+        steps: {
+          plan: {
+            type: "agent",
+            goal: "Plan",
+            transitions: [{ terminal: "success", when: "done" }],
+          },
+        },
+      },
+    });
+    vi.mocked(fetchArtifactStatuses).mockResolvedValue([
+      {
+        name: "plan",
+        path: "plan.md",
+        description: "Shared working plan for the run",
+        exists: true,
+      },
+      {
+        name: "report",
+        path: "report.md",
+        description: "Final report",
+        exists: false,
+      },
+    ]);
+
+    render(
+      <SWRTestProvider>
+        <WorkflowRunDetailComponent run={makeRun()} />
+      </SWRTestProvider>,
+    );
+
+    expect(await screen.findByText("Artifacts")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /plan/i })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: /report/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("omits artifacts section when all artifacts have exists: false", async () => {
+    const { fetchWorkflows, fetchArtifactStatuses } = await import(
+      "@/lib/utils/api"
+    );
+    vi.mocked(fetchWorkflows).mockResolvedValue({
+      "my-flow": {
+        initial_step: "plan",
+        artifacts: [
+          {
+            name: "plan",
+            path: "plan.md",
+            description: "Shared working plan for the run",
+          },
+        ],
+        steps: {
+          plan: {
+            type: "agent",
+            goal: "Plan",
+            transitions: [{ terminal: "success", when: "done" }],
+          },
+        },
+      },
+    });
+    vi.mocked(fetchArtifactStatuses).mockResolvedValue([
+      {
+        name: "plan",
+        path: "plan.md",
+        description: "Shared working plan for the run",
+        exists: false,
+      },
+    ]);
+
+    render(
+      <SWRTestProvider>
+        <WorkflowRunDetailComponent run={makeRun()} />
+      </SWRTestProvider>,
+    );
+
+    // Wait for SWR to settle
+    await screen.findByRole("heading", { level: 1 });
+    expect(screen.queryByText("Artifacts")).not.toBeInTheDocument();
   });
 
   it("omits the artifacts section when the workflow declares none", async () => {
