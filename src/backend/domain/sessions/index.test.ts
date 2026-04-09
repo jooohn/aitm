@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import { mkdir, readFile, writeFile } from "fs/promises";
 import { tmpdir } from "os";
 import { join } from "path";
@@ -9,6 +10,15 @@ import { setupTestConfigDir, writeTestConfig } from "@/test-config-helper";
 
 const DEFAULT_TRANSITIONS = [{ terminal: "success" as const, when: "Done" }];
 let configFile: string;
+let logCounter = 0;
+
+function tempLogFilePath(): string {
+  return join(
+    tmpdir(),
+    "aitm-test-logs",
+    `${++logCounter}-${randomUUID()}.log`,
+  );
+}
 
 async function makeFakeGitRepo(): Promise<string> {
   const dir = join(
@@ -57,11 +67,13 @@ beforeEach(async () => {
 describe("createSession", () => {
   it("creates a session with running status", async () => {
     const repoPath = await makeFakeGitRepo();
+    const logPath = tempLogFilePath();
     const session = await container.sessionService.createSession({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       goal: "Write an implementation plan",
       transitions: DEFAULT_TRANSITIONS,
+      log_file_path: logPath,
     });
 
     expect(session.id).toBeTypeOf("string");
@@ -71,7 +83,7 @@ describe("createSession", () => {
     expect(session.goal).toBe("Write an implementation plan");
     expect(session.transitions).toEqual(DEFAULT_TRANSITIONS);
     expect(session.transition_decision).toBeNull();
-    expect(session.log_file_path).toContain(session.id);
+    expect(session.log_file_path).toBe(logPath);
     expect(session.created_at).toMatch(/^\d{4}-\d{2}-\d{2}T/);
   });
 
@@ -82,6 +94,7 @@ describe("createSession", () => {
       worktree_branch: "feat/test",
       goal: "Collect metadata",
       transitions: DEFAULT_TRANSITIONS,
+      log_file_path: tempLogFilePath(),
       agent_config: {
         provider: "codex",
         model: "gpt-5.4",
@@ -121,6 +134,7 @@ describe("createSession", () => {
       worktree_branch: "feat/test",
       goal: "Write code",
       transitions: DEFAULT_TRANSITIONS,
+      log_file_path: tempLogFilePath(),
       agent_config: agentConfig,
     });
 
@@ -167,6 +181,7 @@ workflows: {}
       worktree_branch: "feat/test",
       goal: "Write code",
       transitions: DEFAULT_TRANSITIONS,
+      log_file_path: tempLogFilePath(),
     });
 
     expect(container.agentService.startAgent).toHaveBeenCalledWith(
@@ -194,12 +209,14 @@ describe("listSessions", () => {
       worktree_branch: "feat/a",
       goal: "Goal A",
       transitions: DEFAULT_TRANSITIONS,
+      log_file_path: tempLogFilePath(),
     });
     await container.sessionService.createSession({
       repository_path: repoPath,
       worktree_branch: "feat/b",
       goal: "Goal B",
       transitions: DEFAULT_TRANSITIONS,
+      log_file_path: tempLogFilePath(),
     });
 
     const sessions = container.sessionService.listSessions();
@@ -217,12 +234,14 @@ describe("listSessions", () => {
       worktree_branch: "feat/a",
       goal: "A",
       transitions: DEFAULT_TRANSITIONS,
+      log_file_path: tempLogFilePath(),
     });
     await container.sessionService.createSession({
       repository_path: path2,
       worktree_branch: "feat/b",
       goal: "B",
       transitions: DEFAULT_TRANSITIONS,
+      log_file_path: tempLogFilePath(),
     });
 
     const sessions = container.sessionService.listSessions({
@@ -239,12 +258,14 @@ describe("listSessions", () => {
       worktree_branch: "feat/a",
       goal: "A",
       transitions: DEFAULT_TRANSITIONS,
+      log_file_path: tempLogFilePath(),
     });
     await container.sessionService.createSession({
       repository_path: repoPath,
       worktree_branch: "feat/b",
       goal: "B",
       transitions: DEFAULT_TRANSITIONS,
+      log_file_path: tempLogFilePath(),
     });
 
     const sessions = container.sessionService.listSessions({
@@ -261,6 +282,7 @@ describe("listSessions", () => {
       worktree_branch: "feat/a",
       goal: "A",
       transitions: DEFAULT_TRANSITIONS,
+      log_file_path: tempLogFilePath(),
     });
     container.sessionService.failSession(session.id);
     await container.sessionService.createSession({
@@ -268,6 +290,7 @@ describe("listSessions", () => {
       worktree_branch: "feat/b",
       goal: "B",
       transitions: DEFAULT_TRANSITIONS,
+      log_file_path: tempLogFilePath(),
     });
 
     expect(
@@ -287,6 +310,7 @@ describe("getSession", () => {
       worktree_branch: "feat/a",
       goal: "A",
       transitions: DEFAULT_TRANSITIONS,
+      log_file_path: tempLogFilePath(),
     });
 
     const found = container.sessionService.getSession(created.id);
@@ -307,6 +331,7 @@ describe("failSession", () => {
       worktree_branch: "feat/a",
       goal: "A",
       transitions: DEFAULT_TRANSITIONS,
+      log_file_path: tempLogFilePath(),
     });
 
     const failed = container.sessionService.failSession(session.id);
@@ -320,6 +345,7 @@ describe("failSession", () => {
       worktree_branch: "feat/a",
       goal: "A",
       transitions: DEFAULT_TRANSITIONS,
+      log_file_path: tempLogFilePath(),
     });
     const listener = vi.fn();
 
@@ -349,6 +375,7 @@ describe("failSession", () => {
       worktree_branch: "feat/a",
       goal: "A",
       transitions: DEFAULT_TRANSITIONS,
+      log_file_path: tempLogFilePath(),
     });
     container.sessionService.failSession(session.id);
 
@@ -364,6 +391,7 @@ describe("failSession", () => {
       worktree_branch: "feat/a",
       goal: "A",
       transitions: DEFAULT_TRANSITIONS,
+      log_file_path: tempLogFilePath(),
     });
     // Manually set status to awaiting_input
     db.prepare(
@@ -383,6 +411,7 @@ describe("replyToSession", () => {
       worktree_branch: "feat/a",
       goal: "A",
       transitions: DEFAULT_TRANSITIONS,
+      log_file_path: tempLogFilePath(),
     });
     db.prepare(
       "UPDATE sessions SET status = 'awaiting_input' WHERE id = ?",
@@ -409,6 +438,7 @@ describe("replyToSession", () => {
       worktree_branch: "feat/a",
       goal: "A",
       transitions: DEFAULT_TRANSITIONS,
+      log_file_path: tempLogFilePath(),
     });
     db.prepare(
       "UPDATE sessions SET status = 'awaiting_input' WHERE id = ?",
@@ -434,6 +464,7 @@ describe("replyToSession", () => {
       worktree_branch: "feat/a",
       goal: "A",
       transitions: DEFAULT_TRANSITIONS,
+      log_file_path: tempLogFilePath(),
     });
 
     await expect(
@@ -448,6 +479,7 @@ describe("replyToSession", () => {
       worktree_branch: "feat/a",
       goal: "A",
       transitions: DEFAULT_TRANSITIONS,
+      log_file_path: tempLogFilePath(),
     });
     container.sessionService.failSession(session.id);
 
@@ -469,6 +501,7 @@ describe("replyToSession", () => {
       worktree_branch: "feat/a",
       goal: "A",
       transitions: DEFAULT_TRANSITIONS,
+      log_file_path: tempLogFilePath(),
       agent_config: agentConfig,
     });
     db.prepare(
@@ -498,6 +531,7 @@ describe("agent-session.completed subscription", () => {
       worktree_branch: "feat/a",
       goal: "A",
       transitions: DEFAULT_TRANSITIONS,
+      log_file_path: tempLogFilePath(),
     });
     const statusListener = vi.fn();
 
@@ -535,6 +569,7 @@ describe("agent-session.completed subscription", () => {
       worktree_branch: "feat/a",
       goal: "A",
       transitions: DEFAULT_TRANSITIONS,
+      log_file_path: tempLogFilePath(),
     });
     const statusListener = vi.fn();
     const decision = {

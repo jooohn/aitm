@@ -1,7 +1,6 @@
 import { randomUUID } from "crypto";
-import { access, appendFile, constants, mkdir, unlink } from "fs/promises";
-import { homedir, tmpdir } from "os";
-import { join } from "path";
+import { appendFile, mkdir, unlink } from "fs/promises";
+import { dirname } from "path";
 import type {
   AgentConfig,
   OutputMetadataFieldDef,
@@ -45,6 +44,7 @@ export interface CreateSessionInput {
   worktree_branch: string;
   goal: string;
   transitions: WorkflowTransition[];
+  log_file_path: string;
   agent_config?: AgentConfig;
   step_execution_id?: string;
   metadata_fields?: Record<string, OutputMetadataFieldDef>;
@@ -54,27 +54,6 @@ export interface ListSessionsFilter {
   repository_path?: string;
   worktree_branch?: string;
   status?: SessionStatus;
-}
-
-async function sessionsLogDir(): Promise<string> {
-  const candidates = [
-    process.env.AITM_SESSION_LOG_DIR,
-    process.env.AITM_SESSIONS_DIR,
-    join(homedir(), ".aitm", "sessions"),
-    join(tmpdir(), "aitm", "sessions"),
-  ].filter((candidate): candidate is string => Boolean(candidate));
-
-  for (const dir of candidates) {
-    try {
-      await mkdir(dir, { recursive: true });
-      await access(dir, constants.W_OK);
-      return dir;
-    } catch {
-      // Try the next writable location.
-    }
-  }
-
-  throw new Error("Unable to create a writable session log directory");
 }
 
 async function appendSessionLogEntry(
@@ -116,7 +95,8 @@ export class SessionService {
   async createSession(input: CreateSessionInput): Promise<Session> {
     const id = randomUUID();
     const now = new Date().toISOString();
-    const log_file_path = join(await sessionsLogDir(), `${id}.log`);
+    const log_file_path = input.log_file_path;
+    await mkdir(dirname(log_file_path), { recursive: true });
     const agentConfig = input.agent_config ?? this.defaultAgentConfig;
 
     this.sessionRepository.insertSession({

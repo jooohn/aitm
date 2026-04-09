@@ -11,7 +11,11 @@ import {
 } from "@/backend/infra/config";
 import type { TransitionDecision } from "../agent";
 import type { CreateSessionInput, SessionService } from "../sessions";
-import type { Worktree, WorktreeService } from "../worktrees";
+import {
+  resolveWorkflowRunDir,
+  type Worktree,
+  type WorktreeService,
+} from "../worktrees";
 import type { CommandStepExecutor } from "./command-step-executor";
 import type { StepExecution } from "./index";
 import type {
@@ -254,6 +258,7 @@ export class StepRunner {
     stepDef,
     artifacts,
     repositoryPath,
+    workflowRunId,
     worktree,
     inputs,
     previousExecutions,
@@ -269,11 +274,17 @@ export class StepRunner {
   }): Promise<void> {
     const goal = buildGoal(stepDef.goal, previousExecutions, artifacts, inputs);
     const agentConfig = resolveAgentConfig(this.agentConfig, stepDef.agent);
+    const logFilePath = join(
+      resolveWorkflowRunDir(worktree, workflowRunId),
+      "logs",
+      `${executionId}.log`,
+    );
     await this.sessionService.createSession({
       repository_path: repositoryPath,
       worktree_branch: worktree.branch,
       goal,
       transitions: stepDef.transitions,
+      log_file_path: logFilePath,
       agent_config: agentConfig,
       step_execution_id: executionId,
       metadata_fields: stepDef.output?.metadata,
