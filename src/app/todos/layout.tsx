@@ -5,7 +5,6 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import StatusDot from "@/app/components/StatusDot";
 import { useAllWorkflowRuns } from "@/lib/hooks/swr";
-import { inferAlias } from "@/lib/utils/inferAlias";
 import { timeAgo } from "@/lib/utils/timeAgo";
 import styles from "./page.module.css";
 
@@ -62,7 +61,9 @@ export default function TodosLayout({
                         {run.worktree_branch}
                       </span>
                       <span className={styles.sessionSecondary}>
-                        <span>{inferAlias(run.repository_path)}</span>
+                        <span>
+                          {run.organization}/{run.name}
+                        </span>
                         <span>{timeAgo(run.updated_at)}</span>
                       </span>
                     </Link>

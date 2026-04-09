@@ -16,7 +16,8 @@ function makeWorktree(overrides: Partial<Worktree> = {}): Worktree {
 function makeRun(overrides: Partial<WorkflowRun> = {}): WorkflowRun {
   return {
     id: "run-1",
-    repository_path: "/repos/org/name",
+    organization: "org",
+    name: "name",
     worktree_branch: "feature-a",
     workflow_name: "develop",
     current_step: "code",

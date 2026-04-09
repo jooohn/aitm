@@ -6,7 +6,8 @@ function makeRun(
 ): WorkflowRunDetail {
   return {
     id: "run-1",
-    repository_path: "/tmp/repo",
+    organization: "tmp",
+    name: "repo",
     worktree_branch: "feat/test",
     workflow_name: "my-flow",
     current_step: "plan",

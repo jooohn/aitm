@@ -58,7 +58,8 @@ beforeEach(() => {
   });
   mockCreateWorkflowRun.mockResolvedValue({
     id: "run-1",
-    repository_path: "/repos/org/repo",
+    organization: "org",
+    name: "repo",
     worktree_branch: "new-branch",
     workflow_name: "default",
     status: "running",
@@ -156,7 +157,8 @@ describe("RunWorkflowModal", () => {
       expect(mockGenerateBranchName).not.toHaveBeenCalled();
       expect(mockCreateWorktree).not.toHaveBeenCalled();
       expect(mockCreateWorkflowRun).toHaveBeenCalledWith({
-        repository_path: "/repos/org/repo",
+        organization: "org",
+        name: "repo",
         worktree_branch: "feature/existing-pr",
         workflow_name: "maintain-pr",
         inputs: {

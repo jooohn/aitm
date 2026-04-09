@@ -1,21 +1,20 @@
-import { inferAlias } from "./inferAlias";
-
 export function workflowRunPath(run: {
   id: string;
-  repository_path: string;
+  organization: string;
+  name: string;
 }): string {
-  return `/repositories/${inferAlias(run.repository_path)}/workflow-runs/${run.id}`;
+  return `/repositories/${run.organization}/${run.name}/workflow-runs/${run.id}`;
 }
 
 export function stepExecutionPath(
-  run: { id: string; repository_path: string },
+  run: { id: string; organization: string; name: string },
   executionId: string,
 ): string {
   return `${workflowRunPath(run)}/step-executions/${executionId}`;
 }
 
 export function sessionPath(
-  run: { id: string; repository_path: string },
+  run: { id: string; organization: string; name: string },
   sessionId: string,
 ): string {
   return `${workflowRunPath(run)}/sessions/${sessionId}`;

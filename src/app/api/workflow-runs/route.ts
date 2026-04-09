@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { toWorkflowRunDto } from "@/backend/api/dto";
-import { workflowRunService } from "@/backend/container";
+import { repositoryService, workflowRunService } from "@/backend/container";
 import type { WorkflowRunStatus } from "@/backend/domain/workflow-runs";
 
 function errorResponse(err: unknown): NextResponse {
@@ -15,20 +15,30 @@ function errorResponse(err: unknown): NextResponse {
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const body = await request.json();
-    const { repository_path, worktree_branch, workflow_name, inputs } = body;
+    const { organization, name, worktree_branch, workflow_name, inputs } = body;
 
-    if (!repository_path || !worktree_branch || !workflow_name) {
+    if (!organization || !name || !worktree_branch || !workflow_name) {
       return NextResponse.json(
         {
           error:
-            "repository_path, worktree_branch, and workflow_name are required",
+            "organization, name, worktree_branch, and workflow_name are required",
         },
         { status: 422 },
       );
     }
 
+    const repo = await repositoryService.getRepositoryByAlias(
+      `${organization}/${name}`,
+    );
+    if (!repo) {
+      return NextResponse.json(
+        { error: `Repository ${organization}/${name} not found` },
+        { status: 404 },
+      );
+    }
+
     const run = await workflowRunService.createWorkflowRun({
-      repository_path,
+      repository_path: repo.path,
       worktree_branch,
       workflow_name,
       inputs: inputs as Record<string, string> | undefined,
@@ -39,13 +49,25 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 }
 
-export function GET(request: NextRequest): NextResponse {
+export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const { searchParams } = request.nextUrl;
-    const repository_path = searchParams.get("repository_path") ?? undefined;
+    const organization = searchParams.get("organization") ?? undefined;
+    const name = searchParams.get("name") ?? undefined;
     const worktree_branch = searchParams.get("worktree_branch") ?? undefined;
     const statusParam = searchParams.get("status") ?? undefined;
     const status = statusParam as WorkflowRunStatus | undefined;
+
+    let repository_path: string | undefined;
+    if (organization && name) {
+      const repo = await repositoryService.getRepositoryByAlias(
+        `${organization}/${name}`,
+      );
+      if (!repo) {
+        return NextResponse.json([]);
+      }
+      repository_path = repo.path;
+    }
 
     return NextResponse.json(
       workflowRunService

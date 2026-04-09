@@ -65,7 +65,8 @@ export interface TransitionDecisionDto {
 
 export interface SessionDto {
   id: string;
-  repository_path: string;
+  organization: string;
+  name: string;
   worktree_branch: string;
   goal: string;
   transitions: WorkflowTransitionDto[];
@@ -141,7 +142,8 @@ export interface WorkflowDefinitionDto {
 
 export interface WorkflowRunDto {
   id: string;
-  repository_path: string;
+  organization: string;
+  name: string;
   worktree_branch: string;
   workflow_name: string;
   current_step: string | null;

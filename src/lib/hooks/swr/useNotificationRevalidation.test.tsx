@@ -71,7 +71,7 @@ describe("useNotificationRevalidation", () => {
     expect(
       selectorArg([
         "/api/workflow-runs",
-        { repository_path: "/tmp/repo", worktree_branch: "main" },
+        { organization: "tmp", name: "repo", worktree_branch: "main" },
       ]),
     ).toBe(true);
     expect(selectorArg(["/api/sessions", "session-1"])).toBe(false);

@@ -122,7 +122,8 @@ export default function RunWorkflowModal({
         await createWorktree(organization, name, { branch: effectiveBranch });
       }
       const run = await createWorkflowRun({
-        repository_path: repo.path,
+        organization,
+        name,
         worktree_branch: effectiveBranch,
         workflow_name: selectedWorkflow,
         inputs: Object.keys(inputValues).length > 0 ? inputValues : undefined,
