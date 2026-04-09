@@ -2,15 +2,9 @@
 
 import { useEffect, useRef } from "react";
 import { useSWRConfig } from "swr";
+import type { NotificationEvent } from "@/shared/contracts/api";
 import { useNotificationStream } from "../useNotificationStream";
 import { swrKeys } from "./keys";
-
-type NotificationPayload = {
-  workflowRunId?: unknown;
-  stepExecutionId?: unknown;
-  syncing?: unknown;
-  worktreeChanged?: unknown;
-};
 
 function isWorkflowRunKey(
   key: unknown,
@@ -45,11 +39,13 @@ function isWorktreeListKey(
   );
 }
 
-function parseNotificationPayload(
-  event: MessageEvent,
-): NotificationPayload | null {
+function parseNotificationEvent(event: MessageEvent): NotificationEvent | null {
   try {
-    return JSON.parse(event.data) as NotificationPayload;
+    const data = JSON.parse(event.data);
+    if (typeof data?.type === "string" && "payload" in data) {
+      return data as NotificationEvent;
+    }
+    return null;
   } catch {
     return null;
   }
@@ -73,37 +69,48 @@ export function useNotificationRevalidation(): void {
   }, []);
 
   useNotificationStream((event) => {
-    const payload = parseNotificationPayload(event);
+    const notification = parseNotificationEvent(event);
+    if (!notification) return;
 
-    if (payload?.syncing === false || payload?.worktreeChanged === true) {
+    if (notification.type === "house-keeping.sync-status-changed") {
+      if (notification.payload.syncing === false) {
+        void mutate(isWorktreeListKey, undefined, { revalidate: true });
+      }
+      return;
+    }
+
+    if (notification.type === "worktree.changed") {
       void mutate(isWorktreeListKey, undefined, { revalidate: true });
       return;
     }
 
-    if (typeof payload?.workflowRunId !== "string") return;
+    if (
+      notification.type === "workflow-run.status-changed" ||
+      notification.type === "step-execution.status-changed"
+    ) {
+      pendingWorkflowRunIdsRef.current.add(notification.payload.workflowRunId);
 
-    pendingWorkflowRunIdsRef.current.add(payload.workflowRunId);
-
-    if (flushTimerRef.current) {
-      clearTimeout(flushTimerRef.current);
-    }
-
-    flushTimerRef.current = setTimeout(() => {
-      flushTimerRef.current = null;
-      const workflowRunIds = [...pendingWorkflowRunIdsRef.current];
-      pendingWorkflowRunIdsRef.current.clear();
-
-      for (const workflowRunId of workflowRunIds) {
-        void mutate(swrKeys.workflowRun(workflowRunId));
+      if (flushTimerRef.current) {
+        clearTimeout(flushTimerRef.current);
       }
 
-      void mutate(
-        (key) => isWorkflowRunKey(key) || isWorkflowRunListKey(key),
-        undefined,
-        { revalidate: true },
-      );
+      flushTimerRef.current = setTimeout(() => {
+        flushTimerRef.current = null;
+        const workflowRunIds = [...pendingWorkflowRunIdsRef.current];
+        pendingWorkflowRunIdsRef.current.clear();
 
-      void mutate(isWorktreeListKey, undefined, { revalidate: true });
-    }, REVALIDATION_DELAY_MS);
+        for (const workflowRunId of workflowRunIds) {
+          void mutate(swrKeys.workflowRun(workflowRunId));
+        }
+
+        void mutate(
+          (key) => isWorkflowRunKey(key) || isWorkflowRunListKey(key),
+          undefined,
+          { revalidate: true },
+        );
+
+        void mutate(isWorktreeListKey, undefined, { revalidate: true });
+      }, REVALIDATION_DELAY_MS);
+    }
   });
 }

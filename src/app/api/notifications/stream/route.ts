@@ -1,5 +1,6 @@
 import type { EventMap } from "@/backend/infra/event-bus";
 import { eventBus } from "@/backend/infra/event-bus";
+import type { NotificationEvent } from "@/shared/contracts/api";
 
 export async function GET(_request: Request): Promise<Response> {
   const encoder = new TextEncoder();
@@ -22,10 +23,10 @@ export async function GET(_request: Request): Promise<Response> {
 
   const stream = new ReadableStream({
     start(controller) {
-      const enqueue = (payload: unknown) => {
+      const enqueue = (event: NotificationEvent) => {
         try {
           controller.enqueue(
-            encoder.encode(`data: ${JSON.stringify(payload)}\n\n`),
+            encoder.encode(`data: ${JSON.stringify(event)}\n\n`),
           );
         } catch {
           // stream already closed
@@ -35,13 +36,20 @@ export async function GET(_request: Request): Promise<Response> {
       const latestHouseKeepingSyncStatus =
         eventBus.getLatestHouseKeepingSyncStatus();
       if (latestHouseKeepingSyncStatus) {
-        enqueue(latestHouseKeepingSyncStatus);
+        enqueue({
+          type: "house-keeping.sync-status-changed",
+          payload: latestHouseKeepingSyncStatus,
+        });
       }
 
-      houseKeepingSyncStatusChangedListener = enqueue;
-      statusChangedListener = enqueue;
-      stepExecutionStatusChangedListener = enqueue;
-      worktreeChangedListener = () => enqueue({ worktreeChanged: true });
+      houseKeepingSyncStatusChangedListener = (payload) =>
+        enqueue({ type: "house-keeping.sync-status-changed", payload });
+      statusChangedListener = (payload) =>
+        enqueue({ type: "workflow-run.status-changed", payload });
+      stepExecutionStatusChangedListener = (payload) =>
+        enqueue({ type: "step-execution.status-changed", payload });
+      worktreeChangedListener = () =>
+        enqueue({ type: "worktree.changed", payload: {} });
 
       eventBus.on(
         "house-keeping.sync-status-changed",

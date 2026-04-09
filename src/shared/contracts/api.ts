@@ -172,3 +172,36 @@ export interface StepExecutionDto {
 export interface WorkflowRunDetailDto extends WorkflowRunDto {
   step_executions: StepExecutionDto[];
 }
+
+// Notification stream events (SSE)
+
+export type RepositoryContextDto = {
+  repositoryOrganization: string;
+  repositoryName: string;
+};
+
+export type WorkflowRunContextDto = RepositoryContextDto & {
+  workflowRunId: string;
+  branchName: string;
+};
+
+export type NotificationEvent =
+  | {
+      type: "house-keeping.sync-status-changed";
+      payload: { syncing: boolean };
+    }
+  | {
+      type: "workflow-run.status-changed";
+      payload: WorkflowRunContextDto & { status: WorkflowRunStatusDto };
+    }
+  | {
+      type: "step-execution.status-changed";
+      payload: WorkflowRunContextDto & {
+        stepExecutionId: string;
+        status: StepExecutionStatusDto;
+      };
+    }
+  | {
+      type: "worktree.changed";
+      payload: Record<string, never>;
+    };

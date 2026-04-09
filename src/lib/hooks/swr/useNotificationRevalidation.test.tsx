@@ -2,6 +2,7 @@
 import { act, render } from "@testing-library/react";
 import { SWRConfig } from "swr";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { NotificationEvent } from "@/shared/contracts/api";
 import { _resetForTesting } from "../useNotificationStream";
 import { useNotificationRevalidation } from "./useNotificationRevalidation";
 
@@ -16,7 +17,7 @@ class MockEventSource {
     MockEventSource.instances.push(this);
   }
 
-  simulateMessage(data: unknown) {
+  simulateMessage(data: NotificationEvent) {
     this.onmessage?.({ data: JSON.stringify(data) } as MessageEvent);
   }
 }
@@ -50,8 +51,14 @@ describe("useNotificationRevalidation", () => {
     );
 
     MockEventSource.instances[0].simulateMessage({
-      workflowRunId: "wr1",
-      status: "running",
+      type: "workflow-run.status-changed",
+      payload: {
+        workflowRunId: "wr1",
+        branchName: "feat/test",
+        repositoryOrganization: "org",
+        repositoryName: "repo",
+        status: "running",
+      },
     });
 
     await act(async () => {
@@ -88,7 +95,7 @@ describe("useNotificationRevalidation", () => {
     expect(wtSelectorArg(["/api/workflow-runs"])).toBe(false);
   });
 
-  it("ignores notifications without a workflow run id", async () => {
+  it("ignores notifications without the type/payload structure", async () => {
     const mutate = vi.fn().mockResolvedValue(undefined);
 
     render(
@@ -97,7 +104,10 @@ describe("useNotificationRevalidation", () => {
       </SWRConfig>,
     );
 
-    MockEventSource.instances[0].simulateMessage({ foo: "bar" });
+    // Simulate a raw message without type/payload envelope
+    MockEventSource.instances[0].onmessage?.({
+      data: JSON.stringify({ foo: "bar" }),
+    } as MessageEvent);
 
     await act(async () => {
       await vi.runOnlyPendingTimersAsync();
@@ -116,16 +126,34 @@ describe("useNotificationRevalidation", () => {
     );
 
     MockEventSource.instances[0].simulateMessage({
-      workflowRunId: "wr1",
-      status: "running",
+      type: "workflow-run.status-changed",
+      payload: {
+        workflowRunId: "wr1",
+        branchName: "feat/test",
+        repositoryOrganization: "org",
+        repositoryName: "repo",
+        status: "running",
+      },
     });
     MockEventSource.instances[0].simulateMessage({
-      workflowRunId: "wr1",
-      status: "awaiting",
+      type: "workflow-run.status-changed",
+      payload: {
+        workflowRunId: "wr1",
+        branchName: "feat/test",
+        repositoryOrganization: "org",
+        repositoryName: "repo",
+        status: "awaiting",
+      },
     });
     MockEventSource.instances[0].simulateMessage({
-      workflowRunId: "wr2",
-      status: "running",
+      type: "workflow-run.status-changed",
+      payload: {
+        workflowRunId: "wr2",
+        branchName: "feat/other",
+        repositoryOrganization: "org",
+        repositoryName: "repo",
+        status: "running",
+      },
     });
 
     expect(mutate).not.toHaveBeenCalled();
@@ -158,8 +186,14 @@ describe("useNotificationRevalidation", () => {
     );
 
     MockEventSource.instances[0].simulateMessage({
-      workflowRunId: "wr1",
-      status: "running",
+      type: "workflow-run.status-changed",
+      payload: {
+        workflowRunId: "wr1",
+        branchName: "feat/test",
+        repositoryOrganization: "org",
+        repositoryName: "repo",
+        status: "running",
+      },
     });
 
     await act(async () => {
@@ -203,7 +237,10 @@ describe("useNotificationRevalidation", () => {
       </SWRConfig>,
     );
 
-    MockEventSource.instances[0].simulateMessage({ syncing: false });
+    MockEventSource.instances[0].simulateMessage({
+      type: "house-keeping.sync-status-changed",
+      payload: { syncing: false },
+    });
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(75);
@@ -225,7 +262,7 @@ describe("useNotificationRevalidation", () => {
     expect(selectorArg(["/api/workflow-runs"])).toBe(false);
   });
 
-  it("revalidates worktree caches when worktreeChanged notification is received", async () => {
+  it("revalidates worktree caches when worktree.changed notification is received", async () => {
     const mutate = vi.fn().mockResolvedValue(undefined);
 
     render(
@@ -234,7 +271,10 @@ describe("useNotificationRevalidation", () => {
       </SWRConfig>,
     );
 
-    MockEventSource.instances[0].simulateMessage({ worktreeChanged: true });
+    MockEventSource.instances[0].simulateMessage({
+      type: "worktree.changed",
+      payload: {},
+    });
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(75);
@@ -262,7 +302,10 @@ describe("useNotificationRevalidation", () => {
       </SWRConfig>,
     );
 
-    MockEventSource.instances[0].simulateMessage({ syncing: true });
+    MockEventSource.instances[0].simulateMessage({
+      type: "house-keeping.sync-status-changed",
+      payload: { syncing: true },
+    });
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(75);

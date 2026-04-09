@@ -2,6 +2,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { NotificationEvent } from "@/shared/contracts/api";
 import { useHouseKeepingSyncing } from "./useHouseKeepingSyncing";
 import { _resetForTesting } from "./useNotificationStream";
 
@@ -16,7 +17,7 @@ class MockEventSource {
     MockEventSource.instances.push(this);
   }
 
-  simulateMessage(data: unknown) {
+  simulateMessage(data: NotificationEvent) {
     this.onmessage?.({ data: JSON.stringify(data) } as MessageEvent);
   }
 }
@@ -43,7 +44,10 @@ describe("useHouseKeepingSyncing", () => {
 
     expect(screen.getByText("idle")).toBeInTheDocument();
 
-    MockEventSource.instances[0].simulateMessage({ syncing: true });
+    MockEventSource.instances[0].simulateMessage({
+      type: "house-keeping.sync-status-changed",
+      payload: { syncing: true },
+    });
 
     await waitFor(() => {
       expect(screen.getByText("syncing")).toBeInTheDocument();
@@ -54,8 +58,14 @@ describe("useHouseKeepingSyncing", () => {
     render(<TestComponent />);
 
     MockEventSource.instances[0].simulateMessage({
-      workflowRunId: "wr1",
-      status: "running",
+      type: "workflow-run.status-changed",
+      payload: {
+        workflowRunId: "wr1",
+        branchName: "feat/test",
+        repositoryOrganization: "org",
+        repositoryName: "repo",
+        status: "running",
+      },
     });
 
     await waitFor(() => {

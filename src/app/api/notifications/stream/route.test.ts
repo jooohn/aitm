@@ -13,7 +13,7 @@ describe("GET /api/notifications/stream", () => {
     expect(res.headers.get("Cache-Control")).toBe("no-cache, no-transform");
   });
 
-  it("streams workflow-run.status-changed events as SSE messages", async () => {
+  it("streams workflow-run.status-changed events as SSE messages with type and payload", async () => {
     const res = await GET(
       new Request("http://localhost/api/notifications/stream"),
     );
@@ -33,14 +33,23 @@ describe("GET /api/notifications/stream", () => {
     const text = decoder.decode(value);
 
     expect(text).toContain("data:");
-    expect(text).toContain('"workflowRunId":"wr1"');
-    expect(text).toContain('"status":"awaiting"');
+    const json = JSON.parse(text.replace("data: ", "").trim());
+    expect(json).toEqual({
+      type: "workflow-run.status-changed",
+      payload: {
+        workflowRunId: "wr1",
+        branchName: "feature/test",
+        repositoryOrganization: "org",
+        repositoryName: "repo",
+        status: "awaiting",
+      },
+    });
 
     // Cancel to clean up
     await reader.cancel();
   });
 
-  it("streams house-keeping sync notifications as SSE messages", async () => {
+  it("streams house-keeping sync notifications as SSE messages with type and payload", async () => {
     const res = await GET(
       new Request("http://localhost/api/notifications/stream"),
     );
@@ -55,7 +64,11 @@ describe("GET /api/notifications/stream", () => {
     const text = decoder.decode(value);
 
     expect(text).toContain("data:");
-    expect(text).toContain('"syncing":true');
+    const json = JSON.parse(text.replace("data: ", "").trim());
+    expect(json).toEqual({
+      type: "house-keeping.sync-status-changed",
+      payload: { syncing: true },
+    });
 
     await reader.cancel();
   });
@@ -75,7 +88,11 @@ describe("GET /api/notifications/stream", () => {
     const text = decoder.decode(value);
 
     expect(text).toContain("data:");
-    expect(text).toContain('"syncing":true');
+    const json = JSON.parse(text.replace("data: ", "").trim());
+    expect(json).toEqual({
+      type: "house-keeping.sync-status-changed",
+      payload: { syncing: true },
+    });
 
     await reader.cancel();
   });
