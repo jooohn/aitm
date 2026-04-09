@@ -40,10 +40,12 @@ describe("WorkflowRunRepository event emission", () => {
     });
 
     expect(listener).toHaveBeenCalledOnce();
-    expect(listener).toHaveBeenCalledWith({
-      workflowRunId: "run-1",
-      status: "running",
-    });
+    expect(listener).toHaveBeenCalledWith(
+      expect.objectContaining({
+        workflowRunId: "run-1",
+        status: "running",
+      }),
+    );
   });
 
   it("emits step-execution.status-changed only when the persisted status changes", () => {
@@ -72,11 +74,13 @@ describe("WorkflowRunRepository event emission", () => {
 
     workflowRunRepository.setStepExecutionStatus("exec-1", "awaiting");
     expect(listener).toHaveBeenCalledOnce();
-    expect(listener).toHaveBeenCalledWith({
-      stepExecutionId: "exec-1",
-      workflowRunId: "run-1",
-      status: "awaiting",
-    });
+    expect(listener).toHaveBeenCalledWith(
+      expect.objectContaining({
+        stepExecutionId: "exec-1",
+        workflowRunId: "run-1",
+        status: "awaiting",
+      }),
+    );
   });
 
   it("emits workflow-run.status-changed only when the persisted status changes", () => {
@@ -105,10 +109,12 @@ describe("WorkflowRunRepository event emission", () => {
       "2026-04-07T00:00:02.000Z",
     );
     expect(listener).toHaveBeenCalledOnce();
-    expect(listener).toHaveBeenCalledWith({
-      workflowRunId: "run-1",
-      status: "awaiting",
-    });
+    expect(listener).toHaveBeenCalledWith(
+      expect.objectContaining({
+        workflowRunId: "run-1",
+        status: "awaiting",
+      }),
+    );
   });
 
   it("emits session.status-changed for each recovered crashed session", () => {
@@ -143,16 +149,20 @@ describe("WorkflowRunRepository event emission", () => {
     sessionRepository.recoverCrashedSessions();
 
     expect(listener).toHaveBeenCalledTimes(2);
-    expect(listener).toHaveBeenCalledWith({
-      sessionId: "session-1",
-      status: "failure",
-      decision: null,
-    });
-    expect(listener).toHaveBeenCalledWith({
-      sessionId: "session-2",
-      status: "failure",
-      decision: null,
-    });
+    expect(listener).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sessionId: "session-1",
+        status: "failure",
+        decision: null,
+      }),
+    );
+    expect(listener).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sessionId: "session-2",
+        status: "failure",
+        decision: null,
+      }),
+    );
   });
 
   it("emits workflow-run.status-changed when recovery fails stranded running workflow runs", () => {
@@ -174,10 +184,12 @@ describe("WorkflowRunRepository event emission", () => {
     );
 
     expect(listener).toHaveBeenCalledOnce();
-    expect(listener).toHaveBeenCalledWith({
-      workflowRunId: "run-1",
-      status: "failure",
-    });
+    expect(listener).toHaveBeenCalledWith(
+      expect.objectContaining({
+        workflowRunId: "run-1",
+        status: "failure",
+      }),
+    );
   });
 
   it("deserializes workflow run and session JSON-backed fields when reading", () => {

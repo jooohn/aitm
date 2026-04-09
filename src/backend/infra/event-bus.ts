@@ -6,21 +6,33 @@ import type {
 } from "@/backend/domain/workflow-runs";
 import { logger } from "@/backend/infra/logger";
 
-export type SessionStatusChangedEvent =
-  | {
-      sessionId: string;
-      status: "running" | "awaiting_input";
-    }
-  | {
-      sessionId: string;
-      status: "failure";
-      decision: null;
-    }
-  | {
-      sessionId: string;
-      status: "success";
-      decision: TransitionDecision;
-    };
+export type RepositoryContext = {
+  repositoryOrganization: string;
+  repositoryName: string;
+};
+
+export type WorkflowRunContext = RepositoryContext & {
+  workflowRunId: string;
+  branchName: string;
+};
+
+export type SessionStatusChangedEvent = WorkflowRunContext &
+  (
+    | {
+        sessionId: string;
+        status: "running" | "awaiting_input";
+      }
+    | {
+        sessionId: string;
+        status: "failure";
+        decision: null;
+      }
+    | {
+        sessionId: string;
+        status: "success";
+        decision: TransitionDecision;
+      }
+  );
 
 export interface EventMap {
   "agent-session.completed": {
@@ -31,13 +43,11 @@ export interface EventMap {
     syncing: boolean;
   };
   "session.status-changed": SessionStatusChangedEvent;
-  "step-execution.status-changed": {
+  "step-execution.status-changed": WorkflowRunContext & {
     stepExecutionId: string;
-    workflowRunId: string;
     status: StepExecutionStatus;
   };
-  "workflow-run.status-changed": {
-    workflowRunId: string;
+  "workflow-run.status-changed": WorkflowRunContext & {
     status: WorkflowRunStatus;
   };
   "worktree.changed": Record<string, never>;

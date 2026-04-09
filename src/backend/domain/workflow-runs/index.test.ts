@@ -4,7 +4,8 @@ import { join } from "path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as container from "@/backend/container";
 import { db } from "@/backend/infra/db";
-import { eventBus } from "@/backend/infra/event-bus";
+import { eventBus, type WorkflowRunContext } from "@/backend/infra/event-bus";
+import { splitAlias } from "@/lib/utils/inferAlias";
 import { setupTestConfigDir, writeTestConfig } from "@/test-config-helper";
 
 async function makeFakeGitRepo(): Promise<string> {
@@ -51,6 +52,19 @@ async function writeTempConfig(content: string): Promise<string> {
   container.initializeContainer();
   setupMocks();
   return configFile;
+}
+
+function buildWorkflowRunContext(
+  repoPath: string,
+  workflowRunId: string,
+): WorkflowRunContext {
+  const { organization, name } = splitAlias(repoPath);
+  return {
+    workflowRunId,
+    branchName: "feat/test",
+    repositoryOrganization: organization,
+    repositoryName: name,
+  };
 }
 
 const SIMPLE_WORKFLOW_CONFIG = `
@@ -444,10 +458,10 @@ workflows:
       workflow_name: "my-flow",
     });
 
-    expect(emitSpy).toHaveBeenCalledWith("workflow-run.status-changed", {
-      workflowRunId: run.id,
-      status: "running",
-    });
+    expect(emitSpy).toHaveBeenCalledWith(
+      "workflow-run.status-changed",
+      expect.objectContaining({ workflowRunId: run.id, status: "running" }),
+    );
     const workflowRunStatusCalls = emitSpy.mock.calls.filter(
       ([eventName]) => eventName === "workflow-run.status-changed",
     ) as Array<
@@ -785,10 +799,10 @@ describe("completeStepExecution", () => {
       null,
     );
 
-    expect(emitSpy).toHaveBeenCalledWith("workflow-run.status-changed", {
-      workflowRunId: run.id,
-      status: "failure",
-    });
+    expect(emitSpy).toHaveBeenCalledWith(
+      "workflow-run.status-changed",
+      expect.objectContaining({ workflowRunId: run.id, status: "failure" }),
+    );
   });
 
   it("emits workflow-run.status-changed on terminal success transition", async () => {
@@ -814,10 +828,10 @@ describe("completeStepExecution", () => {
       handoff_summary: "All done",
     });
 
-    expect(emitSpy).toHaveBeenCalledWith("workflow-run.status-changed", {
-      workflowRunId: run.id,
-      status: "success",
-    });
+    expect(emitSpy).toHaveBeenCalledWith(
+      "workflow-run.status-changed",
+      expect.objectContaining({ workflowRunId: run.id, status: "success" }),
+    );
   });
 
   it("emits workflow-run.status-changed on terminal failure transition", async () => {
@@ -830,10 +844,10 @@ describe("completeStepExecution", () => {
       handoff_summary: "Could not proceed",
     });
 
-    expect(emitSpy).toHaveBeenCalledWith("workflow-run.status-changed", {
-      workflowRunId: run.id,
-      status: "failure",
-    });
+    expect(emitSpy).toHaveBeenCalledWith(
+      "workflow-run.status-changed",
+      expect.objectContaining({ workflowRunId: run.id, status: "failure" }),
+    );
   });
 
   it("emits workflow-run.status-changed when transition name is not valid", async () => {
@@ -846,10 +860,10 @@ describe("completeStepExecution", () => {
       handoff_summary: "",
     });
 
-    expect(emitSpy).toHaveBeenCalledWith("workflow-run.status-changed", {
-      workflowRunId: run.id,
-      status: "failure",
-    });
+    expect(emitSpy).toHaveBeenCalledWith(
+      "workflow-run.status-changed",
+      expect.objectContaining({ workflowRunId: run.id, status: "failure" }),
+    );
   });
 });
 
@@ -1586,10 +1600,10 @@ workflows:
 
     await container.workflowRunService.rerunWorkflowRunFromFailedState(run.id);
 
-    expect(emitSpy).toHaveBeenCalledWith("workflow-run.status-changed", {
-      workflowRunId: run.id,
-      status: "running",
-    });
+    expect(emitSpy).toHaveBeenCalledWith(
+      "workflow-run.status-changed",
+      expect.objectContaining({ workflowRunId: run.id, status: "running" }),
+    );
   });
 
   it("persists awaiting status when rerunning a failed manual-approval step", async () => {
@@ -1774,10 +1788,10 @@ workflows:
       await advanceOneStep(run.id, nextStep);
     }
 
-    expect(emitSpy).toHaveBeenCalledWith("workflow-run.status-changed", {
-      workflowRunId: run.id,
-      status: "failure",
-    });
+    expect(emitSpy).toHaveBeenCalledWith(
+      "workflow-run.status-changed",
+      expect.objectContaining({ workflowRunId: run.id, status: "failure" }),
+    );
   });
 });
 
@@ -1866,11 +1880,14 @@ workflows:
       .prepare("SELECT * FROM step_executions WHERE workflow_run_id = ?")
       .all(run.id) as { id: string }[];
 
-    expect(emitSpy).toHaveBeenCalledWith("step-execution.status-changed", {
-      stepExecutionId: executions[0].id,
-      workflowRunId: run.id,
-      status: "awaiting",
-    });
+    expect(emitSpy).toHaveBeenCalledWith(
+      "step-execution.status-changed",
+      expect.objectContaining({
+        stepExecutionId: executions[0].id,
+        workflowRunId: run.id,
+        status: "awaiting",
+      }),
+    );
   });
 
   it("transitions to next step when completed with 'approved' decision", async () => {
@@ -2161,10 +2178,10 @@ workflows:
         workflow_name: "approval-flow",
       });
 
-      expect(emitSpy).toHaveBeenCalledWith("workflow-run.status-changed", {
-        workflowRunId: run.id,
-        status: "awaiting",
-      });
+      expect(emitSpy).toHaveBeenCalledWith(
+        "workflow-run.status-changed",
+        expect.objectContaining({ workflowRunId: run.id, status: "awaiting" }),
+      );
       const workflowRunStatusCalls = emitSpy.mock.calls.filter(
         ([eventName]) => eventName === "workflow-run.status-changed",
       ) as Array<
@@ -2208,6 +2225,7 @@ workflows:
         session.id,
       );
       eventBus.emit("session.status-changed", {
+        ...buildWorkflowRunContext(repoPath, run.id),
         sessionId: session.id,
         status: "success",
         decision: {
@@ -2248,6 +2266,7 @@ workflows:
         "UPDATE sessions SET status = 'awaiting_input' WHERE id = ?",
       ).run(session.id);
       eventBus.emit("session.status-changed", {
+        ...buildWorkflowRunContext(repoPath, run.id),
         sessionId: session.id,
         status: "awaiting_input",
       });
@@ -2280,14 +2299,15 @@ workflows:
         "UPDATE sessions SET status = 'awaiting_input' WHERE id = ?",
       ).run(session.id);
       eventBus.emit("session.status-changed", {
+        ...buildWorkflowRunContext(repoPath, run.id),
         sessionId: session.id,
         status: "awaiting_input",
       });
 
-      expect(emitSpy).toHaveBeenCalledWith("workflow-run.status-changed", {
-        workflowRunId: run.id,
-        status: "awaiting",
-      });
+      expect(emitSpy).toHaveBeenCalledWith(
+        "workflow-run.status-changed",
+        expect.objectContaining({ workflowRunId: run.id, status: "awaiting" }),
+      );
     });
 
     it("sets workflow run back to 'running' when agent session resumes from AWAITING_INPUT", async () => {
@@ -2313,6 +2333,7 @@ workflows:
         "UPDATE sessions SET status = 'awaiting_input' WHERE id = ?",
       ).run(session.id);
       eventBus.emit("session.status-changed", {
+        ...buildWorkflowRunContext(repoPath, run.id),
         sessionId: session.id,
         status: "awaiting_input",
       });
@@ -2326,6 +2347,7 @@ workflows:
         session.id,
       );
       eventBus.emit("session.status-changed", {
+        ...buildWorkflowRunContext(repoPath, run.id),
         sessionId: session.id,
         status: "running",
       });
@@ -2355,6 +2377,7 @@ workflows:
 
       // Should not throw
       eventBus.emit("session.status-changed", {
+        ...buildWorkflowRunContext(repoPath, ""),
         sessionId: standaloneSessionId,
         status: "awaiting_input",
       });
@@ -2447,6 +2470,7 @@ workflows:
         "UPDATE sessions SET status = 'awaiting_input' WHERE id = ?",
       ).run(session.id);
       eventBus.emit("session.status-changed", {
+        ...buildWorkflowRunContext(repoPath, run.id),
         sessionId: session.id,
         status: "awaiting_input",
       });
@@ -2649,6 +2673,7 @@ workflows:
         "UPDATE sessions SET status = 'awaiting_input' WHERE id = ?",
       ).run(session.id);
       eventBus.emit("session.status-changed", {
+        ...buildWorkflowRunContext(repoPath, run.id),
         sessionId: session.id,
         status: "awaiting_input",
       });
@@ -2682,6 +2707,7 @@ workflows:
         "UPDATE sessions SET status = 'awaiting_input' WHERE id = ?",
       ).run(session.id);
       eventBus.emit("session.status-changed", {
+        ...buildWorkflowRunContext(repoPath, run.id),
         sessionId: session.id,
         status: "awaiting_input",
       });
@@ -2691,6 +2717,7 @@ workflows:
         session.id,
       );
       eventBus.emit("session.status-changed", {
+        ...buildWorkflowRunContext(repoPath, run.id),
         sessionId: session.id,
         status: "running",
       });
@@ -2858,11 +2885,14 @@ workflows:
         .prepare("SELECT * FROM step_executions WHERE workflow_run_id = ?")
         .get(run.id) as { id: string };
 
-      expect(emitSpy).toHaveBeenCalledWith("step-execution.status-changed", {
-        stepExecutionId: execution.id,
-        workflowRunId: run.id,
-        status: "running",
-      });
+      expect(emitSpy).toHaveBeenCalledWith(
+        "step-execution.status-changed",
+        expect.objectContaining({
+          stepExecutionId: execution.id,
+          workflowRunId: run.id,
+          status: "running",
+        }),
+      );
     });
 
     it("emits 'awaiting' when a manual-approval step execution starts", async () => {
@@ -2897,11 +2927,14 @@ workflows:
         .prepare("SELECT * FROM step_executions WHERE workflow_run_id = ?")
         .get(run.id) as { id: string };
 
-      expect(emitSpy).toHaveBeenCalledWith("step-execution.status-changed", {
-        stepExecutionId: execution.id,
-        workflowRunId: run.id,
-        status: "awaiting",
-      });
+      expect(emitSpy).toHaveBeenCalledWith(
+        "step-execution.status-changed",
+        expect.objectContaining({
+          stepExecutionId: execution.id,
+          workflowRunId: run.id,
+          status: "awaiting",
+        }),
+      );
       const stepExecutionStatusCalls = emitSpy.mock.calls.filter(
         ([eventName]) => eventName === "step-execution.status-changed",
       ) as Array<
@@ -2948,15 +2981,19 @@ workflows:
         "UPDATE sessions SET status = 'awaiting_input' WHERE id = ?",
       ).run(session.id);
       eventBus.emit("session.status-changed", {
+        ...buildWorkflowRunContext(repoPath, run.id),
         sessionId: session.id,
         status: "awaiting_input",
       });
 
-      expect(emitSpy).toHaveBeenCalledWith("step-execution.status-changed", {
-        stepExecutionId: execution.id,
-        workflowRunId: run.id,
-        status: "awaiting",
-      });
+      expect(emitSpy).toHaveBeenCalledWith(
+        "step-execution.status-changed",
+        expect.objectContaining({
+          stepExecutionId: execution.id,
+          workflowRunId: run.id,
+          status: "awaiting",
+        }),
+      );
     });
 
     it("emits 'running' when agent session resumes from AWAITING_INPUT", async () => {
@@ -2982,6 +3019,7 @@ workflows:
         "UPDATE sessions SET status = 'awaiting_input' WHERE id = ?",
       ).run(session.id);
       eventBus.emit("session.status-changed", {
+        ...buildWorkflowRunContext(repoPath, run.id),
         sessionId: session.id,
         status: "awaiting_input",
       });
@@ -2993,15 +3031,19 @@ workflows:
         session.id,
       );
       eventBus.emit("session.status-changed", {
+        ...buildWorkflowRunContext(repoPath, run.id),
         sessionId: session.id,
         status: "running",
       });
 
-      expect(emitSpy).toHaveBeenCalledWith("step-execution.status-changed", {
-        stepExecutionId: execution.id,
-        workflowRunId: run.id,
-        status: "running",
-      });
+      expect(emitSpy).toHaveBeenCalledWith(
+        "step-execution.status-changed",
+        expect.objectContaining({
+          stepExecutionId: execution.id,
+          workflowRunId: run.id,
+          status: "running",
+        }),
+      );
     });
 
     it("emits 'success' when step execution completes successfully", async () => {
@@ -3027,11 +3069,14 @@ workflows:
         handoff_summary: "Wrote PLAN.md",
       });
 
-      expect(emitSpy).toHaveBeenCalledWith("step-execution.status-changed", {
-        stepExecutionId: execution.id,
-        workflowRunId: run.id,
-        status: "success",
-      });
+      expect(emitSpy).toHaveBeenCalledWith(
+        "step-execution.status-changed",
+        expect.objectContaining({
+          stepExecutionId: execution.id,
+          workflowRunId: run.id,
+          status: "success",
+        }),
+      );
     });
 
     it("emits 'failure' when step execution completes with no decision", async () => {
@@ -3056,11 +3101,14 @@ workflows:
         null,
       );
 
-      expect(emitSpy).toHaveBeenCalledWith("step-execution.status-changed", {
-        stepExecutionId: execution.id,
-        workflowRunId: run.id,
-        status: "failure",
-      });
+      expect(emitSpy).toHaveBeenCalledWith(
+        "step-execution.status-changed",
+        expect.objectContaining({
+          stepExecutionId: execution.id,
+          workflowRunId: run.id,
+          status: "failure",
+        }),
+      );
     });
   });
 
@@ -3088,6 +3136,7 @@ workflows:
         "UPDATE sessions SET status = 'awaiting_input' WHERE id = ?",
       ).run(session.id);
       eventBus.emit("session.status-changed", {
+        ...buildWorkflowRunContext(repoPath, run.id),
         sessionId: session.id,
         status: "awaiting_input",
       });
@@ -3122,6 +3171,7 @@ workflows:
       ).run(session.id);
 
       eventBus.emit("session.status-changed", {
+        ...buildWorkflowRunContext(repoPath, run.id),
         sessionId: session.id,
         status: "awaiting_input",
       });
@@ -3154,6 +3204,7 @@ workflows:
         "UPDATE sessions SET status = 'awaiting_input' WHERE id = ?",
       ).run(session.id);
       eventBus.emit("session.status-changed", {
+        ...buildWorkflowRunContext(repoPath, run.id),
         sessionId: session.id,
         status: "awaiting_input",
       });
@@ -3166,6 +3217,7 @@ workflows:
         session.id,
       );
       eventBus.emit("session.status-changed", {
+        ...buildWorkflowRunContext(repoPath, run.id),
         sessionId: session.id,
         status: "running",
       });

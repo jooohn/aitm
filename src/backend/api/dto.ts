@@ -5,7 +5,7 @@ import type {
   WorkflowRunWithExecutions,
 } from "@/backend/domain/workflow-runs";
 import type { WorkflowDefinition } from "@/backend/infra/config";
-import { inferAlias } from "@/lib/utils/inferAlias";
+import { splitAlias } from "@/lib/utils/inferAlias";
 import type {
   SessionDto,
   StepExecutionDto,
@@ -13,15 +13,6 @@ import type {
   WorkflowRunDetailDto,
   WorkflowRunDto,
 } from "@/shared/contracts/api";
-
-function splitAlias(repositoryPath: string): {
-  organization: string;
-  name: string;
-} {
-  const alias = inferAlias(repositoryPath);
-  const [organization, name] = alias.split("/");
-  return { organization, name };
-}
 
 export function toSessionDto(session: Session): SessionDto {
   const { repository_path, ...rest } = session;

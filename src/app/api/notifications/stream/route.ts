@@ -1,26 +1,23 @@
+import type { EventMap } from "@/backend/infra/event-bus";
 import { eventBus } from "@/backend/infra/event-bus";
 
 export async function GET(_request: Request): Promise<Response> {
   const encoder = new TextEncoder();
 
   let houseKeepingSyncStatusChangedListener:
-    | ((payload: { syncing: boolean }) => void)
+    | ((payload: EventMap["house-keeping.sync-status-changed"]) => void)
     | null = null;
 
   let statusChangedListener:
-    | ((payload: { workflowRunId: string; status: string }) => void)
+    | ((payload: EventMap["workflow-run.status-changed"]) => void)
     | null = null;
 
   let stepExecutionStatusChangedListener:
-    | ((payload: {
-        stepExecutionId: string;
-        workflowRunId: string;
-        status: string;
-      }) => void)
+    | ((payload: EventMap["step-execution.status-changed"]) => void)
     | null = null;
 
   let worktreeChangedListener:
-    | ((payload: Record<string, never>) => void)
+    | ((payload: EventMap["worktree.changed"]) => void)
     | null = null;
 
   const stream = new ReadableStream({

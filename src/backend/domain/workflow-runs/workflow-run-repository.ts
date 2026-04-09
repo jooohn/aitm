@@ -1,6 +1,7 @@
 import type Database from "better-sqlite3";
 import type { TransitionDecision } from "@/backend/domain/agent";
 import type { EventBus } from "@/backend/infra/event-bus";
+import { splitAlias } from "@/lib/utils/inferAlias";
 import type { SessionStatus } from "../sessions";
 import type {
   ListWorkflowRunsFilter,
@@ -38,13 +39,28 @@ export class WorkflowRunRepository {
     if (!this.eventBus) return;
 
     const row = this.db
-      .prepare("SELECT workflow_run_id FROM step_executions WHERE id = ?")
-      .get(stepExecutionId) as { workflow_run_id: string } | undefined;
+      .prepare(
+        `SELECT se.workflow_run_id, wr.worktree_branch, wr.repository_path
+         FROM step_executions se
+         JOIN workflow_runs wr ON wr.id = se.workflow_run_id
+         WHERE se.id = ?`,
+      )
+      .get(stepExecutionId) as
+      | {
+          workflow_run_id: string;
+          worktree_branch: string;
+          repository_path: string;
+        }
+      | undefined;
     if (!row) return;
 
+    const { organization, name } = splitAlias(row.repository_path);
     this.eventBus.emit("step-execution.status-changed", {
       stepExecutionId,
       workflowRunId: row.workflow_run_id,
+      branchName: row.worktree_branch,
+      repositoryOrganization: organization,
+      repositoryName: name,
       status,
     });
   }
@@ -53,8 +69,23 @@ export class WorkflowRunRepository {
     workflowRunId: string,
     status: WorkflowRunStatus,
   ): void {
-    this.eventBus?.emit("workflow-run.status-changed", {
+    if (!this.eventBus) return;
+
+    const row = this.db
+      .prepare(
+        "SELECT repository_path, worktree_branch FROM workflow_runs WHERE id = ?",
+      )
+      .get(workflowRunId) as
+      | { repository_path: string; worktree_branch: string }
+      | undefined;
+    if (!row) return;
+
+    const { organization, name } = splitAlias(row.repository_path);
+    this.eventBus.emit("workflow-run.status-changed", {
       workflowRunId,
+      branchName: row.worktree_branch,
+      repositoryOrganization: organization,
+      repositoryName: name,
       status,
     });
   }

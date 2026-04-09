@@ -1,7 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
-import type { EventMap } from "./event-bus";
+import type { EventMap, WorkflowRunContext } from "./event-bus";
 import { EventBus } from "./event-bus";
 import { logger } from "./logger";
+
+const testContext: WorkflowRunContext = {
+  workflowRunId: "wr1",
+  branchName: "feat/test",
+  repositoryOrganization: "org",
+  repositoryName: "repo",
+};
 
 describe("EventBus", () => {
   it("calls a registered listener when an event is emitted", () => {
@@ -10,12 +17,14 @@ describe("EventBus", () => {
 
     eventBus.on("session.status-changed", listener);
     eventBus.emit("session.status-changed", {
+      ...testContext,
       sessionId: "s1",
       status: "success",
       decision: { transition: "success", reason: "done", handoff_summary: "" },
     });
 
     expect(listener).toHaveBeenCalledWith({
+      ...testContext,
       sessionId: "s1",
       status: "success",
       decision: { transition: "success", reason: "done", handoff_summary: "" },
@@ -46,6 +55,7 @@ describe("EventBus", () => {
     eventBus.on("session.status-changed", listener1);
     eventBus.on("session.status-changed", listener2);
     eventBus.emit("session.status-changed", {
+      ...testContext,
       sessionId: "s1",
       status: "failure",
       decision: null,
@@ -76,6 +86,7 @@ describe("EventBus", () => {
     eventBus.on("session.status-changed", badListener);
     eventBus.on("session.status-changed", goodListener);
     eventBus.emit("session.status-changed", {
+      ...testContext,
       sessionId: "s1",
       status: "failure",
       decision: null,
@@ -96,6 +107,7 @@ describe("EventBus", () => {
     // Should not throw
     expect(() =>
       eventBus.emit("session.status-changed", {
+        ...testContext,
         sessionId: "s1",
         status: "failure",
         decision: null,
@@ -109,11 +121,13 @@ describe("EventBus", () => {
 
     eventBus.on("session.status-changed", listener);
     eventBus.emit("session.status-changed", {
+      ...testContext,
       sessionId: "s1",
       status: "awaiting_input",
     });
 
     expect(listener).toHaveBeenCalledWith({
+      ...testContext,
       sessionId: "s1",
       status: "awaiting_input",
     });
@@ -128,7 +142,7 @@ describe("EventBus", () => {
     eventBus.on("workflow-run.status-changed", statusChangedListener);
 
     eventBus.emit("workflow-run.status-changed", {
-      workflowRunId: "wr1",
+      ...testContext,
       status: "awaiting",
     });
 
@@ -143,6 +157,7 @@ describe("EventBus", () => {
     eventBus.on("session.status-changed", listener);
     eventBus.off("session.status-changed", listener);
     eventBus.emit("session.status-changed", {
+      ...testContext,
       sessionId: "s1",
       status: "failure",
       decision: null,
@@ -160,6 +175,7 @@ describe("EventBus", () => {
     eventBus.on("session.status-changed", listenerB);
     eventBus.off("session.status-changed", listenerA);
     eventBus.emit("session.status-changed", {
+      ...testContext,
       sessionId: "s1",
       status: "failure",
       decision: null,

@@ -1,6 +1,7 @@
 import type Database from "better-sqlite3";
 import type { TransitionDecision } from "@/backend/domain/agent";
-import type { EventBus } from "@/backend/infra/event-bus";
+import type { EventBus, WorkflowRunContext } from "@/backend/infra/event-bus";
+import { splitAlias } from "@/lib/utils/inferAlias";
 import type { ListSessionsFilter, Session, SessionStatus } from "./index";
 import {
   type SessionRow,
@@ -14,12 +15,41 @@ export class SessionRepository {
     private eventBus?: EventBus,
   ) {}
 
+  private getWorkflowRunContext(sessionId: string): WorkflowRunContext | null {
+    const row = this.db
+      .prepare(
+        `SELECT s.repository_path, s.worktree_branch, se.workflow_run_id
+         FROM sessions s
+         LEFT JOIN step_executions se ON se.id = s.step_execution_id
+         WHERE s.id = ?`,
+      )
+      .get(sessionId) as
+      | {
+          repository_path: string;
+          worktree_branch: string;
+          workflow_run_id: string | null;
+        }
+      | undefined;
+    if (!row) return null;
+
+    const { organization, name } = splitAlias(row.repository_path);
+    return {
+      workflowRunId: row.workflow_run_id ?? "",
+      branchName: row.worktree_branch,
+      repositoryOrganization: organization,
+      repositoryName: name,
+    };
+  }
+
   private emitStatusChanged(
     sessionId: string,
     status: SessionStatus,
     decision?: TransitionDecision | null,
   ): void {
     if (!this.eventBus) return;
+
+    const context = this.getWorkflowRunContext(sessionId);
+    if (!context) return;
 
     if (status === "success") {
       if (!decision) {
@@ -28,6 +58,7 @@ export class SessionRepository {
         );
       }
       this.eventBus.emit("session.status-changed", {
+        ...context,
         sessionId,
         status,
         decision,
@@ -37,6 +68,7 @@ export class SessionRepository {
 
     if (status === "failure") {
       this.eventBus.emit("session.status-changed", {
+        ...context,
         sessionId,
         status,
         decision: null,
@@ -45,6 +77,7 @@ export class SessionRepository {
     }
 
     this.eventBus.emit("session.status-changed", {
+      ...context,
       sessionId,
       status,
     });

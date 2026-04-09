@@ -331,10 +331,12 @@ describe("startAgent", () => {
       logFilePath,
     );
 
-    expect(statusChangedListener).toHaveBeenCalledWith({
-      sessionId,
-      status: "awaiting_input",
-    });
+    expect(statusChangedListener).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sessionId,
+        status: "awaiting_input",
+      }),
+    );
 
     eventBus.off("session.status-changed", statusChangedListener);
   });
@@ -730,10 +732,13 @@ describe("resumeAgent", () => {
       logFilePath,
     );
 
-    expect(statusChangedListener).toHaveBeenNthCalledWith(1, {
-      sessionId,
-      status: "running",
-    });
+    expect(statusChangedListener).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        sessionId,
+        status: "running",
+      }),
+    );
 
     eventBus.off("session.status-changed", statusChangedListener);
   });

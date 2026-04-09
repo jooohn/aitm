@@ -326,11 +326,13 @@ describe("failSession", () => {
     eventBus.on("session.status-changed", listener);
     container.sessionService.failSession(session.id);
 
-    expect(listener).toHaveBeenCalledWith({
-      sessionId: session.id,
-      status: "failure",
-      decision: null,
-    });
+    expect(listener).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sessionId: session.id,
+        status: "failure",
+        decision: null,
+      }),
+    );
     eventBus.off("session.status-changed", listener);
   });
 
@@ -512,15 +514,17 @@ describe("agent-session.completed subscription", () => {
     expect(container.sessionService.getSession(session.id)?.status).toBe(
       "success",
     );
-    expect(statusListener).toHaveBeenCalledWith({
-      sessionId: session.id,
-      status: "success",
-      decision: {
-        transition: "implement",
-        reason: "done",
-        handoff_summary: "finished",
-      },
-    });
+    expect(statusListener).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sessionId: session.id,
+        status: "success",
+        decision: {
+          transition: "implement",
+          reason: "done",
+          handoff_summary: "finished",
+        },
+      }),
+    );
     eventBus.off("session.status-changed", statusListener);
   });
 
@@ -552,11 +556,13 @@ describe("agent-session.completed subscription", () => {
     });
 
     expect(statusListener).toHaveBeenCalledTimes(1);
-    expect(statusListener).toHaveBeenCalledWith({
-      sessionId: session.id,
-      status: "success",
-      decision,
-    });
+    expect(statusListener).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sessionId: session.id,
+        status: "success",
+        decision,
+      }),
+    );
 
     eventBus.off("session.status-changed", statusListener);
   });

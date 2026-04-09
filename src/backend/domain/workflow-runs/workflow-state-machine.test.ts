@@ -302,6 +302,10 @@ describe("WorkflowStateMachine", () => {
     );
 
     await stateMachine.handleSessionStatusChanged({
+      workflowRunId: "run-1",
+      branchName: "feat/test",
+      repositoryOrganization: "tmp",
+      repositoryName: "repo",
       sessionId: "session-1",
       status: "awaiting_input",
     });
@@ -313,6 +317,10 @@ describe("WorkflowStateMachine", () => {
     );
 
     await stateMachine.handleSessionStatusChanged({
+      workflowRunId: "run-1",
+      branchName: "feat/test",
+      repositoryOrganization: "tmp",
+      repositoryName: "repo",
       sessionId: "session-1",
       status: "success",
       decision: {

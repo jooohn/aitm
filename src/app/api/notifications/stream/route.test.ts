@@ -21,6 +21,9 @@ describe("GET /api/notifications/stream", () => {
     // Emit event after the stream is opened
     eventBus.emit("workflow-run.status-changed", {
       workflowRunId: "wr1",
+      branchName: "feature/test",
+      repositoryOrganization: "org",
+      repositoryName: "repo",
       status: "awaiting",
     });
 
