@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { NotificationEvent } from "@/shared/contracts/api";
 
-type Callback = (event: MessageEvent) => void;
+type Callback = (event: MessageEvent<NotificationEvent>) => void;
 
 let sharedEventSource: EventSource | null = null;
 const callbacks = new Set<Callback>();
@@ -41,7 +42,7 @@ export function _resetForTesting(): void {
 }
 
 export function useNotificationStream(
-  onMessage: (event: MessageEvent) => void,
+  onMessage: (event: MessageEvent<NotificationEvent>) => void,
 ): void {
   const callbackRef = useRef(onMessage);
   callbackRef.current = onMessage;

@@ -60,7 +60,10 @@ export async function POST(
         no_fetch: body.no_fetch,
       },
     );
-    eventBus.emit("worktree.changed", {});
+    eventBus.emit("worktree.changed", {
+      repositoryOrganization: organization,
+      repositoryName: name,
+    });
     return NextResponse.json(worktree, { status: 201 });
   } catch (err) {
     return errorResponse(err);

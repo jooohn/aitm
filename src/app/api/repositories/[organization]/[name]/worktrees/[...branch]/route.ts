@@ -37,7 +37,10 @@ export async function DELETE(
     const branchName = branch.join("/");
     await worktreeService.removeWorktree(repo.path, branchName);
     await sessionService.deleteWorktreeData(repo.path, [branchName]);
-    eventBus.emit("worktree.changed", {});
+    eventBus.emit("worktree.changed", {
+      repositoryOrganization: organization,
+      repositoryName: name,
+    });
     return NextResponse.json({ success: true });
   } catch (err) {
     return errorResponse(err);

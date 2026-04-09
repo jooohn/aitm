@@ -2,41 +2,22 @@
 
 import { useEffect, useRef } from "react";
 import { useSWRConfig } from "swr";
+import { debounce } from "@/lib/utils/debounce";
 import type { NotificationEvent } from "@/shared/contracts/api";
 import { useNotificationStream } from "../useNotificationStream";
-import { swrKeys } from "./keys";
 
-function isWorkflowRunKey(
-  key: unknown,
-): key is readonly ["/api/workflow-runs"] {
-  return (
-    Array.isArray(key) && key.length === 1 && key[0] === "/api/workflow-runs"
-  );
-}
+type TargetPaths = {
+  exact?: string[];
+  prefix?: string[];
+};
 
-function isWorkflowRunListKey(
-  key: unknown,
-): key is readonly ["/api/workflow-runs", Record<string, string>] {
-  return (
-    Array.isArray(key) &&
-    key.length === 2 &&
-    key[0] === "/api/workflow-runs" &&
-    typeof key[1] === "object" &&
-    key[1] !== null
-  );
-}
+const DEBOUNCE_MILLIS = 75;
 
-function isWorktreeListKey(
-  key: unknown,
-): key is readonly ["/api/repositories", string, string, "worktrees"] {
-  return (
-    Array.isArray(key) &&
-    key.length === 4 &&
-    key[0] === "/api/repositories" &&
-    typeof key[1] === "string" &&
-    typeof key[2] === "string" &&
-    key[3] === "worktrees"
-  );
+function normalizeKey(key: unknown): string {
+  const flattened = Array.isArray(key)
+    ? key.filter((part) => typeof part === "string").join("/")
+    : String(key);
+  return flattened.endsWith("/") ? flattened : `${flattened}/`;
 }
 
 function parseNotificationEvent(event: MessageEvent): NotificationEvent | null {
@@ -51,66 +32,96 @@ function parseNotificationEvent(event: MessageEvent): NotificationEvent | null {
   }
 }
 
-const REVALIDATION_DELAY_MS = 75;
+function matchesTargetPaths(target: TargetPaths) {
+  return (key: unknown) => {
+    const normalizedKey = normalizeKey(key);
+    return (
+      (target.exact ?? []).some((path) => normalizedKey === path) ||
+      (target.prefix ?? []).some((prefix) => normalizedKey.startsWith(prefix))
+    );
+  };
+}
+
+function worktreePrefix(org: string, name: string): string {
+  return `/api/repositories/${org}/${name}/worktrees/`;
+}
+
+function determineTargetPaths(notification: NotificationEvent): TargetPaths {
+  switch (notification.type) {
+    case "house-keeping.sync-status-changed":
+      if (notification.payload.syncing) return {};
+      return {
+        prefix: ["/api/repositories/"],
+      };
+    case "worktree.changed": {
+      const { repositoryOrganization, repositoryName } = notification.payload;
+      return {
+        prefix: [worktreePrefix(repositoryOrganization, repositoryName)],
+      };
+    }
+    case "workflow-run.status-changed": {
+      const { workflowRunId, repositoryOrganization, repositoryName } =
+        notification.payload;
+      return {
+        exact: ["/api/workflow-runs/"],
+        prefix: [
+          `/api/workflow-runs/${workflowRunId}/`,
+          worktreePrefix(repositoryOrganization, repositoryName),
+        ],
+      };
+    }
+    case "step-execution.status-changed": {
+      const { workflowRunId, repositoryOrganization, repositoryName } =
+        notification.payload;
+      return {
+        exact: ["/api/workflow-runs/", "/api/todos/"],
+        prefix: [
+          `/api/workflow-runs/${workflowRunId}/`,
+          worktreePrefix(repositoryOrganization, repositoryName),
+        ],
+      };
+    }
+  }
+}
+
+function mergeTargetPaths(entries: TargetPaths[]): TargetPaths {
+  const merged = entries.reduce((acc, targetPaths) => ({
+    exact: [...(acc.exact ?? []), ...(targetPaths.exact ?? [])],
+    prefix: [...(acc.prefix ?? []), ...(targetPaths.prefix ?? [])],
+  }));
+  return {
+    exact: [...new Set(merged.exact ?? [])],
+    prefix: [...new Set(merged.prefix ?? [])],
+  };
+}
 
 export function useNotificationRevalidation(): void {
   const { mutate } = useSWRConfig();
-  const pendingWorkflowRunIdsRef = useRef(new Set<string>());
-  const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const bufferRef = useRef<NotificationEvent[]>([]);
+
+  const debouncedFlush = useRef(
+    debounce(() => {
+      const notifications = bufferRef.current;
+      if (notifications.length === 0) return;
+      bufferRef.current = [];
+
+      const targetPaths = mergeTargetPaths(
+        notifications.map(determineTargetPaths),
+      );
+      void mutate(matchesTargetPaths(targetPaths), undefined, {
+        revalidate: true,
+      });
+    }, DEBOUNCE_MILLIS),
+  ).current;
 
   useEffect(() => {
-    return () => {
-      if (flushTimerRef.current) {
-        clearTimeout(flushTimerRef.current);
-        flushTimerRef.current = null;
-      }
-      pendingWorkflowRunIdsRef.current.clear();
-    };
-  }, []);
+    return () => debouncedFlush.cancel();
+  }, [debouncedFlush]);
 
   useNotificationStream((event) => {
     const notification = parseNotificationEvent(event);
     if (!notification) return;
-
-    if (notification.type === "house-keeping.sync-status-changed") {
-      if (notification.payload.syncing === false) {
-        void mutate(isWorktreeListKey, undefined, { revalidate: true });
-      }
-      return;
-    }
-
-    if (notification.type === "worktree.changed") {
-      void mutate(isWorktreeListKey, undefined, { revalidate: true });
-      return;
-    }
-
-    if (
-      notification.type === "workflow-run.status-changed" ||
-      notification.type === "step-execution.status-changed"
-    ) {
-      pendingWorkflowRunIdsRef.current.add(notification.payload.workflowRunId);
-
-      if (flushTimerRef.current) {
-        clearTimeout(flushTimerRef.current);
-      }
-
-      flushTimerRef.current = setTimeout(() => {
-        flushTimerRef.current = null;
-        const workflowRunIds = [...pendingWorkflowRunIdsRef.current];
-        pendingWorkflowRunIdsRef.current.clear();
-
-        for (const workflowRunId of workflowRunIds) {
-          void mutate(swrKeys.workflowRun(workflowRunId));
-        }
-
-        void mutate(
-          (key) => isWorkflowRunKey(key) || isWorkflowRunListKey(key),
-          undefined,
-          { revalidate: true },
-        );
-
-        void mutate(isWorktreeListKey, undefined, { revalidate: true });
-      }, REVALIDATION_DELAY_MS);
-    }
+    bufferRef.current = [...bufferRef.current, notification];
+    debouncedFlush();
   });
 }

@@ -48,8 +48,8 @@ export async function GET(_request: Request): Promise<Response> {
         enqueue({ type: "workflow-run.status-changed", payload });
       stepExecutionStatusChangedListener = (payload) =>
         enqueue({ type: "step-execution.status-changed", payload });
-      worktreeChangedListener = () =>
-        enqueue({ type: "worktree.changed", payload: {} });
+      worktreeChangedListener = (payload) =>
+        enqueue({ type: "worktree.changed", payload });
 
       eventBus.on(
         "house-keeping.sync-status-changed",

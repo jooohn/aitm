@@ -37,7 +37,10 @@ export async function POST(
     );
     await sessionService.deleteWorktreeData(repo.path, removedBranches);
     if (removedBranches.length > 0) {
-      eventBus.emit("worktree.changed", {});
+      eventBus.emit("worktree.changed", {
+        repositoryOrganization: organization,
+        repositoryName: name,
+      });
     }
     return new NextResponse(null, { status: 204 });
   } catch (err) {

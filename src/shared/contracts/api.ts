@@ -203,5 +203,5 @@ export type NotificationEvent =
     }
   | {
       type: "worktree.changed";
-      payload: Record<string, never>;
+      payload: RepositoryContextDto;
     };

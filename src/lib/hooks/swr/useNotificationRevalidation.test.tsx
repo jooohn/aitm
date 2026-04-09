@@ -27,6 +27,15 @@ function TestComponent() {
   return null;
 }
 
+function selectorFrom(
+  mutate: ReturnType<typeof vi.fn>,
+  callIndex = 0,
+): (key: unknown) => boolean {
+  const [selectorArg] = mutate.mock.calls[callIndex];
+  expect(typeof selectorArg).toBe("function");
+  return selectorArg;
+}
+
 beforeEach(() => {
   _resetForTesting();
   MockEventSource.instances = [];
@@ -41,7 +50,7 @@ afterEach(() => {
 });
 
 describe("useNotificationRevalidation", () => {
-  it("revalidates workflow-run caches for workflow notifications only", async () => {
+  it("revalidates workflow-run and worktree caches for workflow-run.status-changed", async () => {
     const mutate = vi.fn().mockResolvedValue(undefined);
 
     render(
@@ -65,16 +74,13 @@ describe("useNotificationRevalidation", () => {
       await vi.advanceTimersByTimeAsync(75);
     });
 
-    expect(mutate).toHaveBeenCalledTimes(3);
-    expect(mutate).toHaveBeenNthCalledWith(1, ["/api/workflow-runs", "wr1"]);
-
-    // Second call: workflow-run list selector
-    const [selectorArg, dataArg, optionsArg] = mutate.mock.calls[1];
+    expect(mutate).toHaveBeenCalledTimes(1);
+    const [selectorArg, dataArg, optionsArg] = mutate.mock.calls[0];
     expect(typeof selectorArg).toBe("function");
     expect(dataArg).toBeUndefined();
     expect(optionsArg).toEqual({ revalidate: true });
 
-    expect(selectorArg(["/api/workflow-runs", "wr1"])).toBe(false);
+    // Matches workflow-run list keys
     expect(selectorArg(["/api/workflow-runs"])).toBe(true);
     expect(
       selectorArg([
@@ -82,17 +88,24 @@ describe("useNotificationRevalidation", () => {
         { organization: "tmp", name: "repo", worktree_branch: "main" },
       ]),
     ).toBe(true);
-    expect(selectorArg(["/api/sessions", "session-1"])).toBe(false);
 
-    // Third call: worktree list selector
-    const [wtSelectorArg, wtDataArg, wtOptionsArg] = mutate.mock.calls[2];
-    expect(typeof wtSelectorArg).toBe("function");
-    expect(wtDataArg).toBeUndefined();
-    expect(wtOptionsArg).toEqual({ revalidate: true });
+    // Matches keys under the specific workflow run
+    expect(selectorArg(["/api/workflow-runs", "wr1"])).toBe(true);
+    expect(selectorArg(["/api/workflow-runs", "wr1", "steps"])).toBe(true);
+
+    // Matches worktree list for the same repository
+    expect(selectorArg(["/api/repositories", "org", "repo", "worktrees"])).toBe(
+      true,
+    );
+
+    // Does not match worktrees for a different repository
     expect(
-      wtSelectorArg(["/api/repositories", "org", "repo", "worktrees"]),
-    ).toBe(true);
-    expect(wtSelectorArg(["/api/workflow-runs"])).toBe(false);
+      selectorArg(["/api/repositories", "other-org", "repo", "worktrees"]),
+    ).toBe(false);
+
+    // Does not match unrelated keys
+    expect(selectorArg(["/api/sessions", "session-1"])).toBe(false);
+    expect(selectorArg(["/api/workflow-runs", "wr-other"])).toBe(false);
   });
 
   it("ignores notifications without the type/payload structure", async () => {
@@ -116,7 +129,7 @@ describe("useNotificationRevalidation", () => {
     expect(mutate).not.toHaveBeenCalled();
   });
 
-  it("coalesces burst notifications before revalidating workflow-run caches", async () => {
+  it("coalesces burst notifications into a single mutate call", async () => {
     const mutate = vi.fn().mockResolvedValue(undefined);
 
     render(
@@ -162,21 +175,138 @@ describe("useNotificationRevalidation", () => {
       await vi.advanceTimersByTimeAsync(75);
     });
 
-    expect(mutate).toHaveBeenCalledTimes(4);
-    expect(mutate).toHaveBeenNthCalledWith(1, ["/api/workflow-runs", "wr1"]);
-    expect(mutate).toHaveBeenNthCalledWith(2, ["/api/workflow-runs", "wr2"]);
+    // Single mutate call with merged target paths
+    expect(mutate).toHaveBeenCalledTimes(1);
 
-    const [selectorArg, dataArg, optionsArg] = mutate.mock.calls[2];
-    expect(typeof selectorArg).toBe("function");
-    expect(dataArg).toBeUndefined();
-    expect(optionsArg).toEqual({ revalidate: true });
-
-    // Fourth call: worktree list selector
-    const [wtSelectorArg] = mutate.mock.calls[3];
-    expect(typeof wtSelectorArg).toBe("function");
+    const selector = selectorFrom(mutate);
+    expect(selector(["/api/workflow-runs"])).toBe(true);
+    expect(selector(["/api/workflow-runs", "wr1"])).toBe(true);
+    expect(selector(["/api/workflow-runs", "wr2"])).toBe(true);
+    expect(selector(["/api/workflow-runs", "wr-other"])).toBe(false);
   });
 
-  it("revalidates worktree caches alongside workflow-run caches on workflow-run events", async () => {
+  it("also revalidates /api/todos on step-execution.status-changed", async () => {
+    const mutate = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <SWRConfig value={{ mutate }}>
+        <TestComponent />
+      </SWRConfig>,
+    );
+
+    MockEventSource.instances[0].simulateMessage({
+      type: "step-execution.status-changed",
+      payload: {
+        workflowRunId: "wr1",
+        branchName: "feat/test",
+        repositoryOrganization: "org",
+        repositoryName: "repo",
+        stepExecutionId: "step1",
+        status: "running",
+      },
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(75);
+    });
+
+    expect(mutate).toHaveBeenCalledTimes(1);
+    const selector = selectorFrom(mutate);
+    expect(selector(["/api/workflow-runs"])).toBe(true);
+    expect(selector(["/api/workflow-runs", "wr1"])).toBe(true);
+    expect(selector(["/api/todos"])).toBe(true);
+    expect(selector(["/api/repositories", "org", "repo", "worktrees"])).toBe(
+      true,
+    );
+  });
+
+  it("revalidates worktree caches on worktree.changed", async () => {
+    const mutate = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <SWRConfig value={{ mutate }}>
+        <TestComponent />
+      </SWRConfig>,
+    );
+
+    MockEventSource.instances[0].simulateMessage({
+      type: "worktree.changed",
+      payload: { repositoryOrganization: "org", repositoryName: "repo" },
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(75);
+    });
+
+    expect(mutate).toHaveBeenCalledTimes(1);
+    const selector = selectorFrom(mutate);
+    expect(selector(["/api/repositories", "org", "repo", "worktrees"])).toBe(
+      true,
+    );
+    expect(
+      selector(["/api/repositories", "other-org", "repo", "worktrees"]),
+    ).toBe(false);
+    expect(selector(["/api/workflow-runs"])).toBe(false);
+  });
+
+  it("revalidates all repository caches when house-keeping sync completes", async () => {
+    const mutate = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <SWRConfig value={{ mutate }}>
+        <TestComponent />
+      </SWRConfig>,
+    );
+
+    MockEventSource.instances[0].simulateMessage({
+      type: "house-keeping.sync-status-changed",
+      payload: { syncing: false },
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(75);
+    });
+
+    expect(mutate).toHaveBeenCalledTimes(1);
+    const selector = selectorFrom(mutate);
+    // Broad prefix matches all repository worktree keys
+    expect(selector(["/api/repositories", "org", "repo", "worktrees"])).toBe(
+      true,
+    );
+    expect(
+      selector(["/api/repositories", "other-org", "other-repo", "worktrees"]),
+    ).toBe(true);
+    // Does not match non-repository keys
+    expect(selector(["/api/workflow-runs"])).toBe(false);
+  });
+
+  it("does not revalidate when syncing starts (syncing: true)", async () => {
+    const mutate = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <SWRConfig value={{ mutate }}>
+        <TestComponent />
+      </SWRConfig>,
+    );
+
+    MockEventSource.instances[0].simulateMessage({
+      type: "house-keeping.sync-status-changed",
+      payload: { syncing: true },
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(75);
+    });
+
+    // mutate is called but with an empty matcher that matches nothing
+    expect(mutate).toHaveBeenCalledTimes(1);
+    const selector = selectorFrom(mutate);
+    expect(selector(["/api/repositories", "org", "repo", "worktrees"])).toBe(
+      false,
+    );
+  });
+
+  it("clears buffer after flush so subsequent notifications are handled independently", async () => {
     const mutate = vi.fn().mockResolvedValue(undefined);
 
     render(
@@ -200,117 +330,28 @@ describe("useNotificationRevalidation", () => {
       await vi.advanceTimersByTimeAsync(75);
     });
 
-    // Should have 3 calls: individual workflow-run key, workflow-run list selector, worktree selector
-    expect(mutate).toHaveBeenCalledTimes(3);
-    expect(mutate).toHaveBeenNthCalledWith(1, ["/api/workflow-runs", "wr1"]);
-
-    // Third call should be the worktree list selector
-    const [worktreeSelectorArg, worktreeDataArg, worktreeOptionsArg] =
-      mutate.mock.calls[2];
-    expect(typeof worktreeSelectorArg).toBe("function");
-    expect(worktreeDataArg).toBeUndefined();
-    expect(worktreeOptionsArg).toEqual({ revalidate: true });
-
-    // Worktree selector should match worktree list keys
-    expect(
-      worktreeSelectorArg([
-        "/api/repositories",
-        "my-org",
-        "my-repo",
-        "worktrees",
-      ]),
-    ).toBe(true);
-    // Should not match other keys
-    expect(worktreeSelectorArg(["/api/repositories"])).toBe(false);
-    expect(
-      worktreeSelectorArg(["/api/repositories", "my-org", "my-repo"]),
-    ).toBe(false);
-    expect(worktreeSelectorArg(["/api/workflow-runs"])).toBe(false);
-  });
-
-  it("revalidates worktree caches when house-keeping sync completes (syncing: false)", async () => {
-    const mutate = vi.fn().mockResolvedValue(undefined);
-
-    render(
-      <SWRConfig value={{ mutate }}>
-        <TestComponent />
-      </SWRConfig>,
-    );
-
-    MockEventSource.instances[0].simulateMessage({
-      type: "house-keeping.sync-status-changed",
-      payload: { syncing: false },
-    });
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(75);
-    });
-
-    // Should revalidate worktree caches
     expect(mutate).toHaveBeenCalledTimes(1);
 
-    const [selectorArg, dataArg, optionsArg] = mutate.mock.calls[0];
-    expect(typeof selectorArg).toBe("function");
-    expect(dataArg).toBeUndefined();
-    expect(optionsArg).toEqual({ revalidate: true });
-
-    // Should match worktree list keys
-    expect(selectorArg(["/api/repositories", "org", "repo", "worktrees"])).toBe(
-      true,
-    );
-    // Should not match other keys
-    expect(selectorArg(["/api/workflow-runs"])).toBe(false);
-  });
-
-  it("revalidates worktree caches when worktree.changed notification is received", async () => {
-    const mutate = vi.fn().mockResolvedValue(undefined);
-
-    render(
-      <SWRConfig value={{ mutate }}>
-        <TestComponent />
-      </SWRConfig>,
-    );
-
+    // Second batch — different workflow run
     MockEventSource.instances[0].simulateMessage({
-      type: "worktree.changed",
-      payload: {},
+      type: "workflow-run.status-changed",
+      payload: {
+        workflowRunId: "wr2",
+        branchName: "feat/other",
+        repositoryOrganization: "org",
+        repositoryName: "repo",
+        status: "running",
+      },
     });
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(75);
     });
 
-    expect(mutate).toHaveBeenCalledTimes(1);
-
-    const [selectorArg, dataArg, optionsArg] = mutate.mock.calls[0];
-    expect(typeof selectorArg).toBe("function");
-    expect(dataArg).toBeUndefined();
-    expect(optionsArg).toEqual({ revalidate: true });
-
-    expect(selectorArg(["/api/repositories", "org", "repo", "worktrees"])).toBe(
-      true,
-    );
-    expect(selectorArg(["/api/workflow-runs"])).toBe(false);
-  });
-
-  it("does not revalidate worktree caches when syncing starts (syncing: true)", async () => {
-    const mutate = vi.fn().mockResolvedValue(undefined);
-
-    render(
-      <SWRConfig value={{ mutate }}>
-        <TestComponent />
-      </SWRConfig>,
-    );
-
-    MockEventSource.instances[0].simulateMessage({
-      type: "house-keeping.sync-status-changed",
-      payload: { syncing: true },
-    });
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(75);
-    });
-
-    expect(mutate).not.toHaveBeenCalled();
+    expect(mutate).toHaveBeenCalledTimes(2);
+    const selector = selectorFrom(mutate, 1);
+    expect(selector(["/api/workflow-runs", "wr2"])).toBe(true);
+    // wr1 should not be in this batch
+    expect(selector(["/api/workflow-runs", "wr1"])).toBe(false);
   });
 });

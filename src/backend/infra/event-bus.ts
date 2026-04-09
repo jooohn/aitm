@@ -50,7 +50,7 @@ export interface EventMap {
   "workflow-run.status-changed": WorkflowRunContext & {
     status: WorkflowRunStatus;
   };
-  "worktree.changed": Record<string, never>;
+  "worktree.changed": RepositoryContext;
 }
 
 type Listener<K extends keyof EventMap> = (payload: EventMap[K]) => void;
