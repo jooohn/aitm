@@ -1,12 +1,6 @@
 import useSWR from "swr";
-import {
-  fetchWorkflowRun,
-  type WorkflowRunDetail,
-  type WorkflowRunStatus,
-} from "@/lib/utils/api";
+import { fetchWorkflowRun, type WorkflowRunDetail } from "@/lib/utils/api";
 import { swrKeys } from "./keys";
-
-const TERMINAL_STATUSES: WorkflowRunStatus[] = ["success", "failure"];
 
 export function useWorkflowRun(
   id: string | null,
@@ -17,8 +11,6 @@ export function useWorkflowRun(
     () => fetchWorkflowRun(id!),
     {
       fallbackData: options?.fallbackData,
-      refreshInterval: (data) =>
-        data && TERMINAL_STATUSES.includes(data.status) ? 0 : 2000,
     },
   );
 }
