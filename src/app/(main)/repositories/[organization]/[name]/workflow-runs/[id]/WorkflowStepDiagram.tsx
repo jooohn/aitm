@@ -22,6 +22,10 @@ const LAYER_GAP = 180;
 const ROW_GAP = 64;
 const PADDING = 24;
 const TERMINAL_RADIUS = 30;
+const CORNER_RADIUS = 8;
+const BACK_EDGE_LANE_GAP = 20;
+const SAME_LAYER_BACK_OFFSET = 20;
+const ADJACENT_SIDE_OFFSET = 12;
 
 function parseTransitionTarget(execution: StepExecution): string | null {
   return execution.transition_decision?.transition ?? null;
@@ -63,34 +67,153 @@ export default function WorkflowStepDiagram({
     executedSteps.add("success");
   }
 
+  // Pre-compute back-edge lanes for same-row cross-layer back edges (⊓-shape above)
+  const crossLayerBackEdges: Array<{
+    edgeIndex: number;
+    span: number;
+  }> = [];
+  for (let i = 0; i < graph.edges.length; i++) {
+    const edge = graph.edges[i];
+    const fp = layout.get(edge.from);
+    const tp = layout.get(edge.to);
+    if (fp && tp && fp.layer > tp.layer && fp.index === tp.index) {
+      crossLayerBackEdges.push({
+        edgeIndex: i,
+        span: fp.layer - tp.layer,
+      });
+    }
+  }
+  // Shorter spans get closer lanes to avoid crossing longer-span edges
+  crossLayerBackEdges.sort((a, b) => a.span - b.span);
+  const backEdgeLaneMap = new Map<number, number>();
+  for (let i = 0; i < crossLayerBackEdges.length; i++) {
+    backEdgeLaneMap.set(crossLayerBackEdges[i].edgeIndex, i);
+  }
+
   // Compute SVG dimensions
   const maxLayer = Math.max(...Array.from(layout.values()).map((p) => p.layer));
   const maxIndex = Math.max(...Array.from(layout.values()).map((p) => p.index));
   const svgWidth = (maxLayer + 1) * LAYER_GAP + PADDING * 2;
   const baseHeight = (maxIndex + 1) * ROW_GAP + PADDING * 2;
 
-  // Compute extra height needed for back-edge curves that extend below the base
-  let maxBelowY = 0;
-  for (const edge of graph.edges) {
-    const fromPos = layout.get(edge.from);
-    const toPos = layout.get(edge.to);
-    if (fromPos && toPos && fromPos.layer >= toPos.layer) {
-      const fromCenterY = PADDING + fromPos.index * ROW_GAP + NODE_HEIGHT / 2;
-      const toCenterY = PADDING + toPos.index * ROW_GAP + NODE_HEIGHT / 2;
-      const belowY =
-        Math.max(fromCenterY, toCenterY) + NODE_HEIGHT / 2 + ROW_GAP * 0.6;
-      maxBelowY = Math.max(maxBelowY, belowY);
-    }
-  }
-  const svgHeight = Math.max(baseHeight, maxBelowY + PADDING);
+  const numLanes = crossLayerBackEdges.length;
+  const maxAboveOffset =
+    numLanes > 0 ? NODE_HEIGHT / 2 + BACK_EDGE_LANE_GAP * (numLanes + 0.5) : 0;
+  const topPadding = PADDING + maxAboveOffset;
+  const svgHeight = baseHeight + maxAboveOffset;
 
   function nodeCenter(nodeId: string): { x: number; y: number } {
     const pos = layout.get(nodeId);
     if (!pos) return { x: 0, y: 0 };
     return {
       x: PADDING + pos.layer * LAYER_GAP + NODE_WIDTH / 2,
-      y: PADDING + pos.index * ROW_GAP + NODE_HEIGHT / 2,
+      y: topPadding + pos.index * ROW_GAP + NODE_HEIGHT / 2,
     };
+  }
+
+  // Compute port offsets so edges sharing the same node border are spaced apart
+  type Side = "top" | "right" | "bottom" | "left";
+  interface PortEntry {
+    edgeIndex: number;
+    otherNodeId: string;
+    end: "from" | "to";
+  }
+  const portMap = new Map<string, PortEntry[]>();
+  function addPort(nodeId: string, side: Side, entry: PortEntry) {
+    const key = `${nodeId}:${side}`;
+    const list = portMap.get(key) ?? [];
+    list.push(entry);
+    portMap.set(key, list);
+  }
+  for (let i = 0; i < graph.edges.length; i++) {
+    const edge = graph.edges[i];
+    const fp = layout.get(edge.from);
+    const tp = layout.get(edge.to);
+    if (!fp || !tp) continue;
+    const fc = nodeCenter(edge.from);
+    const tc = nodeCenter(edge.to);
+    const isBackEdge = fp.layer >= tp.layer;
+    const differentRow = fc.y !== tc.y;
+    const sameColumn = fp.layer === tp.layer;
+    const adjacent = sameColumn && Math.abs(fp.index - tp.index) === 1;
+    if (isBackEdge && adjacent) {
+      // Same-column adjacent: ⊃-shape via right sides
+      addPort(edge.from, "right", {
+        edgeIndex: i,
+        otherNodeId: edge.to,
+        end: "from",
+      });
+      addPort(edge.to, "right", {
+        edgeIndex: i,
+        otherNodeId: edge.from,
+        end: "to",
+      });
+    } else if (isBackEdge && differentRow) {
+      // Back edge between different rows: ⊂-shape via left sides
+      addPort(edge.from, "left", {
+        edgeIndex: i,
+        otherNodeId: edge.to,
+        end: "from",
+      });
+      addPort(edge.to, "left", {
+        edgeIndex: i,
+        otherNodeId: edge.from,
+        end: "to",
+      });
+    } else if (fp.layer > tp.layer) {
+      // Back edge on same row: ⊓-shape via top sides
+      addPort(edge.from, "top", {
+        edgeIndex: i,
+        otherNodeId: edge.to,
+        end: "from",
+      });
+      addPort(edge.to, "top", {
+        edgeIndex: i,
+        otherNodeId: edge.from,
+        end: "to",
+      });
+    } else {
+      addPort(edge.from, "right", {
+        edgeIndex: i,
+        otherNodeId: edge.to,
+        end: "from",
+      });
+      addPort(edge.to, "left", {
+        edgeIndex: i,
+        otherNodeId: edge.from,
+        end: "to",
+      });
+    }
+  }
+  const PORT_SPACING = 12;
+  const portOffsets = new Map<string, { dx: number; dy: number }>();
+  for (const [key, entries] of portMap) {
+    if (entries.length <= 1) {
+      portOffsets.set(`${entries[0].edgeIndex}:${entries[0].end}`, {
+        dx: 0,
+        dy: 0,
+      });
+      continue;
+    }
+    const side = key.split(":")[1] as Side;
+    const isHorizontal = side === "top" || side === "bottom";
+    // For top/bottom: sort X descending so outer (farther) edges get left offsets,
+    // preventing descent verticals from crossing inner horizontals
+    entries.sort((a, b) => {
+      const ac = nodeCenter(a.otherNodeId);
+      const bc = nodeCenter(b.otherNodeId);
+      return isHorizontal ? bc.x - ac.x : ac.y - bc.y;
+    });
+    for (let i = 0; i < entries.length; i++) {
+      const offset = (i - (entries.length - 1) / 2) * PORT_SPACING;
+      portOffsets.set(`${entries[i].edgeIndex}:${entries[i].end}`, {
+        dx: isHorizontal ? offset : 0,
+        dy: isHorizontal ? 0 : offset,
+      });
+    }
+  }
+  function getPortOffset(edgeIndex: number, end: "from" | "to") {
+    return portOffsets.get(`${edgeIndex}:${end}`) ?? { dx: 0, dy: 0 };
   }
 
   return (
@@ -134,12 +257,103 @@ export default function WorkflowStepDiagram({
           const edgeKey = `${edge.from}->${edge.to}:${edgeIndex}`;
           const executionKey = `${edge.from}->${edge.to}`;
           const isExecuted = executedEdges.has(executionKey);
+          const edgeClass = isExecuted ? styles.edgeExecuted : styles.edge;
+          const markerEnd = isExecuted
+            ? "url(#arrowhead-executed)"
+            : "url(#arrowhead)";
 
           const fromPos = layout.get(edge.from);
           const toPos = layout.get(edge.to);
-          const isBackEdge = fromPos && toPos && fromPos.layer >= toPos.layer;
+          if (!fromPos || !toPos) return null;
 
-          // Offset start/end to node borders (use terminal radius for circle nodes)
+          const R = CORNER_RADIUS;
+
+          const edgeDataProps = {
+            "data-edge-from": edge.from,
+            "data-edge-to": edge.to,
+            "data-executed": isExecuted ? "true" : "false",
+          };
+
+          const fromPort = getPortOffset(edgeIndex, "from");
+          const toPort = getPortOffset(edgeIndex, "to");
+
+          const isBackEdge = fromPos.layer >= toPos.layer;
+          const differentRow = Math.abs(from.y - to.y) >= 1;
+          const sameColumn = fromPos.layer === toPos.layer;
+          const adjacent =
+            sameColumn && Math.abs(fromPos.index - toPos.index) === 1;
+
+          // Same-column adjacent back edge: ⊃-shape via the right side
+          if (isBackEdge && adjacent) {
+            const exitX = from.x + NODE_WIDTH / 2;
+            const enterX = to.x + NODE_WIDTH / 2;
+            const startY = from.y + fromPort.dy;
+            const endY = to.y + toPort.dy;
+            const sideX = Math.max(exitX, enterX) + ADJACENT_SIDE_OFFSET;
+            const goingUp = endY < startY;
+            const d = [
+              `M ${exitX} ${startY}`,
+              `L ${sideX - R} ${startY}`,
+              `Q ${sideX} ${startY} ${sideX} ${startY + (goingUp ? -R : R)}`,
+              `L ${sideX} ${endY + (goingUp ? R : -R)}`,
+              `Q ${sideX} ${endY} ${sideX - R} ${endY}`,
+              `L ${enterX} ${endY}`,
+            ].join(" ");
+            return (
+              <g key={edgeKey} {...edgeDataProps}>
+                <path d={d} className={edgeClass} markerEnd={markerEnd} />
+              </g>
+            );
+          }
+
+          // Back edge between different rows (non-adjacent): ⊂-shape routing to the left
+          if (isBackEdge && differentRow) {
+            const exitX = from.x - NODE_WIDTH / 2;
+            const enterX = to.x - NODE_WIDTH / 2;
+            const startY = from.y + fromPort.dy;
+            const endY = to.y + toPort.dy;
+            const sideX = Math.min(exitX, enterX) - SAME_LAYER_BACK_OFFSET;
+            const goingUp = endY < startY;
+            const d = [
+              `M ${exitX} ${startY}`,
+              `L ${sideX + R} ${startY}`,
+              `Q ${sideX} ${startY} ${sideX} ${startY + (goingUp ? -R : R)}`,
+              `L ${sideX} ${endY + (goingUp ? R : -R)}`,
+              `Q ${sideX} ${endY} ${sideX + R} ${endY}`,
+              `L ${enterX} ${endY}`,
+            ].join(" ");
+            return (
+              <g key={edgeKey} {...edgeDataProps}>
+                <path d={d} className={edgeClass} markerEnd={markerEnd} />
+              </g>
+            );
+          }
+
+          // Same-row cross-layer back edge: ⊓-shape routing above
+          if (fromPos.layer > toPos.layer) {
+            const laneIdx = backEdgeLaneMap.get(edgeIndex) ?? 0;
+            const laneY =
+              topPadding - NODE_HEIGHT / 2 - BACK_EDGE_LANE_GAP * (laneIdx + 1);
+            const startX = from.x + fromPort.dx;
+            const startY = from.y - NODE_HEIGHT / 2;
+            const endX = to.x + toPort.dx;
+            const endY = to.y - NODE_HEIGHT / 2;
+            const d = [
+              `M ${startX} ${startY}`,
+              `L ${startX} ${laneY + R}`,
+              `Q ${startX} ${laneY} ${startX - R} ${laneY}`,
+              `L ${endX + R} ${laneY}`,
+              `Q ${endX} ${laneY} ${endX} ${laneY + R}`,
+              `L ${endX} ${endY}`,
+            ].join(" ");
+            return (
+              <g key={edgeKey} {...edgeDataProps}>
+                <path d={d} className={edgeClass} markerEnd={markerEnd} />
+              </g>
+            );
+          }
+
+          // Forward edge: compute border offsets
           const fromOffset =
             nodeTypeMap.get(edge.from) === "terminal"
               ? TERMINAL_RADIUS
@@ -148,52 +362,44 @@ export default function WorkflowStepDiagram({
             nodeTypeMap.get(edge.to) === "terminal"
               ? TERMINAL_RADIUS
               : NODE_WIDTH / 2;
+          const startX = from.x + fromOffset;
+          const startY = from.y + fromPort.dy;
+          const endX = to.x - toOffset;
+          const endY = to.y + toPort.dy;
 
-          if (isBackEdge) {
-            // Back-edge: curved path going below the nodes
-            const startX = from.x - fromOffset;
-            const endX = to.x + toOffset;
-            const belowY =
-              Math.max(from.y, to.y) + NODE_HEIGHT / 2 + ROW_GAP * 0.6;
-            const d = `M ${startX} ${from.y} C ${startX - LAYER_GAP * 0.3} ${belowY}, ${endX + LAYER_GAP * 0.3} ${belowY}, ${endX} ${to.y}`;
+          // Forward edge: orthogonal routing
+          if (Math.abs(startY - endY) < 1) {
+            // Same height: straight horizontal line
             return (
-              <g
-                key={edgeKey}
-                data-edge-from={edge.from}
-                data-edge-to={edge.to}
-                data-executed={isExecuted ? "true" : "false"}
-              >
-                <path
-                  d={d}
-                  className={isExecuted ? styles.edgeExecuted : styles.edge}
-                  markerEnd={
-                    isExecuted ? "url(#arrowhead-executed)" : "url(#arrowhead)"
-                  }
+              <g key={edgeKey} {...edgeDataProps}>
+                <line
+                  x1={startX}
+                  y1={startY}
+                  x2={endX}
+                  y2={endY}
+                  className={edgeClass}
+                  markerEnd={markerEnd}
                 />
               </g>
             );
           }
 
-          const startX = from.x + fromOffset;
-          const endX = to.x - toOffset;
-
+          // Different height: orthogonal Z-shape with rounded corners
+          const midX = (startX + endX) / 2;
+          const goingDown = endY > startY;
+          // Clamp radius so the two corners don't overlap
+          const rZ = Math.min(R, Math.abs(endY - startY) / 2);
+          const d = [
+            `M ${startX} ${startY}`,
+            `L ${midX - rZ} ${startY}`,
+            `Q ${midX} ${startY} ${midX} ${startY + (goingDown ? rZ : -rZ)}`,
+            `L ${midX} ${endY + (goingDown ? -rZ : rZ)}`,
+            `Q ${midX} ${endY} ${midX + rZ} ${endY}`,
+            `L ${endX} ${endY}`,
+          ].join(" ");
           return (
-            <g
-              key={edgeKey}
-              data-edge-from={edge.from}
-              data-edge-to={edge.to}
-              data-executed={isExecuted ? "true" : "false"}
-            >
-              <line
-                x1={startX}
-                y1={from.y}
-                x2={endX}
-                y2={to.y}
-                className={isExecuted ? styles.edgeExecuted : styles.edge}
-                markerEnd={
-                  isExecuted ? "url(#arrowhead-executed)" : "url(#arrowhead)"
-                }
-              />
+            <g key={edgeKey} {...edgeDataProps}>
+              <path d={d} className={edgeClass} markerEnd={markerEnd} />
             </g>
           );
         })}
