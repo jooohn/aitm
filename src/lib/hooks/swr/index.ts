@@ -1,4 +1,5 @@
 export { swrKeys } from "./keys";
+export { useArtifactStatuses } from "./useArtifactStatuses";
 export { useRepositories } from "./useRepositories";
 export { useRepository } from "./useRepository";
 export { useSession } from "./useSession";

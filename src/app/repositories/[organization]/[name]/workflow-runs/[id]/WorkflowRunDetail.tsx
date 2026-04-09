@@ -7,7 +7,12 @@ import { mutate } from "swr";
 import EllipsisIcon from "@/app/components/icons/EllipsisIcon";
 import ExternalLinkIcon from "@/app/components/icons/ExternalLinkIcon";
 import StatusBadge from "@/app/components/StatusBadge";
-import { swrKeys, useWorkflowRun, useWorkflows } from "@/lib/hooks/swr";
+import {
+  swrKeys,
+  useArtifactStatuses,
+  useWorkflowRun,
+  useWorkflows,
+} from "@/lib/hooks/swr";
 import {
   canStopWorkflowRun,
   createWorkflowRun,
@@ -53,6 +58,10 @@ export default function WorkflowRunDetailView({
     fallbackData: initial,
   });
   const { data: workflows } = useWorkflows();
+  const { data: artifactStatuses } = useArtifactStatuses(
+    initial.id,
+    (run ?? initial).status,
+  );
 
   const [rerunning, setRerunning] = useState(false);
   const [rerunError, setRerunError] = useState<string | null>(null);
@@ -84,7 +93,7 @@ export default function WorkflowRunDetailView({
   const currentRun = run ?? initial;
   const workflowDefinition = workflows?.[currentRun.workflow_name] ?? null;
   const workflowLabel = workflowDefinition?.label ?? currentRun.workflow_name;
-  const workflowArtifacts = workflowDefinition?.artifacts ?? [];
+  const existingArtifacts = (artifactStatuses ?? []).filter((a) => a.exists);
   const suggestedWorkflows = resolveWorkflowSuggestions(currentRun, workflows);
 
   const inputEntries = parseWorkflowRunInputs(currentRun.inputs);
@@ -389,11 +398,11 @@ export default function WorkflowRunDetailView({
         </section>
       )}
 
-      {workflowArtifacts.length > 0 && (
+      {existingArtifacts.length > 0 && (
         <section>
           <h2 className={styles.sectionHeading}>Artifacts</h2>
           <ul className={styles.artifactList}>
-            {workflowArtifacts.map((artifact) => (
+            {existingArtifacts.map((artifact) => (
               <li key={artifact.path} className={styles.artifactItem}>
                 <a
                   href={`/repositories/${inferAlias(currentRun.repository_path)}/workflow-runs/${currentRun.id}/artifacts/${artifact.path}`}
