@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { notFound, useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import WorkflowBreadcrumb from "@/app/(main)/repositories/[organization]/[name]/workflow-runs/[id]/WorkflowBreadcrumb";
 import { useWorkflowRun, useWorkflows } from "@/lib/hooks/swr";
 import { isNotFoundError } from "@/lib/utils/api";
 import styles from "./ArtifactPage.module.css";
@@ -79,12 +78,6 @@ export default function ArtifactPage() {
 
   return (
     <main className={styles.page}>
-      <WorkflowBreadcrumb
-        repository={{ organization, name }}
-        branch={run.worktree_branch}
-        workflowRun={{ id: run.id, name: run.workflow_name }}
-      />
-
       <div className={styles.header}>
         <h1 className={styles.title}>{artifactMeta?.name ?? artifactPath}</h1>
         {artifactMeta?.description && (
