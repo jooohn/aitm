@@ -8,6 +8,7 @@ import { spawnAsync } from "@/backend/utils/process";
 import type { TransitionDecision } from "../agent";
 import type { SessionService, SessionStatus } from "../sessions";
 import type { WorktreeService } from "../worktrees";
+import { resolveArtifactBasePath } from "../worktrees";
 import type { CommandStepExecutor } from "./command-step-executor";
 import { StepRunner } from "./step-runner";
 import { WorkflowRunQueries } from "./workflow-run-queries";
@@ -235,12 +236,7 @@ export class WorkflowRunService {
     const worktree = await this.worktreeService.findWorktree(repoPath, branch);
     if (!worktree) return;
 
-    const root = await this.worktreeService.resolveArtifactBasePath(
-      repoPath,
-      branch,
-      workflowRunId,
-    );
-    if (!root) return;
+    const root = resolveArtifactBasePath(worktree, workflowRunId);
     await mkdir(root, { recursive: true });
 
     for (const artifact of workflow.artifacts) {

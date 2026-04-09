@@ -61,6 +61,13 @@ async function runGtrCommand(args: string[], cwd: string): Promise<string> {
   return stdout;
 }
 
+export function resolveArtifactBasePath(
+  worktree: Worktree,
+  workflowRunId: string,
+): string {
+  return join(worktree.path, ".aitm", "runs", workflowRunId, "artifacts");
+}
+
 export class WorktreeService {
   async listWorktrees(repoPath: string): Promise<Worktree[]> {
     const { code, stdout, stderr } = await spawnAsync(
@@ -139,16 +146,6 @@ export class WorktreeService {
       (await this.listWorktrees(repoPath)).map((w) => w.branch),
     );
     return before.filter((b) => !after.has(b));
-  }
-
-  async resolveArtifactBasePath(
-    repoPath: string,
-    branch: string,
-    workflowRunId: string,
-  ): Promise<string | undefined> {
-    const worktree = await this.findWorktree(repoPath, branch);
-    if (!worktree) return undefined;
-    return join(worktree.path, ".aitm", "runs", workflowRunId, "artifacts");
   }
 
   async pullMainBranchIfOutdated(
