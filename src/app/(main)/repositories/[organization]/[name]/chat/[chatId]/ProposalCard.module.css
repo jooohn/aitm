@@ -68,6 +68,10 @@
   @apply px-3 py-1.5 rounded text-xs font-medium bg-zinc-700 text-zinc-200 hover:bg-zinc-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors;
 }
 
+.rejectReasonInput {
+  @apply mt-2 w-full text-xs px-3 py-2 rounded border border-zinc-600 bg-zinc-800 text-zinc-200 placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 resize-y;
+}
+
 .error {
   @apply text-xs text-red-400 mt-2;
 }

@@ -17,6 +17,8 @@ interface Props {
 export default function ProposalCard({ chatId, proposal, onActioned }: Props) {
   const [acting, setActing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showRejectForm, setShowRejectForm] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
 
   const isPending = proposal.status === "pending";
 
@@ -37,7 +39,11 @@ export default function ProposalCard({ chatId, proposal, onActioned }: Props) {
     setActing(true);
     setError(null);
     try {
-      await rejectChatProposal(chatId, proposal.id);
+      await rejectChatProposal(
+        chatId,
+        proposal.id,
+        rejectReason.trim() || undefined,
+      );
       onActioned();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to reject");
@@ -85,24 +91,51 @@ export default function ProposalCard({ chatId, proposal, onActioned }: Props) {
       )}
 
       {isPending && (
-        <div className={styles.actions}>
-          <button
-            type="button"
-            className={styles.approveButton}
-            onClick={handleApprove}
-            disabled={acting}
-          >
-            {acting ? "..." : "Approve"}
-          </button>
-          <button
-            type="button"
-            className={styles.rejectButton}
-            onClick={handleReject}
-            disabled={acting}
-          >
-            Reject
-          </button>
-        </div>
+        <>
+          <div className={styles.actions}>
+            <button
+              type="button"
+              className={styles.approveButton}
+              onClick={handleApprove}
+              disabled={acting}
+            >
+              {acting ? "..." : "Approve"}
+            </button>
+            <button
+              type="button"
+              className={styles.rejectButton}
+              onClick={() =>
+                showRejectForm ? handleReject() : setShowRejectForm(true)
+              }
+              disabled={acting}
+            >
+              {showRejectForm ? (acting ? "..." : "Confirm Reject") : "Reject"}
+            </button>
+            {showRejectForm && (
+              <button
+                type="button"
+                className={styles.rejectButton}
+                onClick={() => {
+                  setShowRejectForm(false);
+                  setRejectReason("");
+                }}
+                disabled={acting}
+              >
+                Cancel
+              </button>
+            )}
+          </div>
+          {showRejectForm && (
+            <textarea
+              className={styles.rejectReasonInput}
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder="Reason for rejection (optional)"
+              rows={2}
+              disabled={acting}
+            />
+          )}
+        </>
       )}
 
       {error && <p className={styles.error}>{error}</p>}

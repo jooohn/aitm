@@ -162,6 +162,17 @@ export default function RepositoryShell({
             {creatingChat ? "Creating..." : "New Chat"}
           </button>
         </section>
+        {repo && (
+          <WorktreeRunsSection
+            organization={organization}
+            name={name}
+            worktrees={worktrees ?? []}
+            runs={runs ?? []}
+            loading={dataLoading}
+            hasLoadedOnce={dataHasLoadedOnce}
+            error={dataErrorMessage}
+          />
+        )}
         {chats && chats.length > 0 && (
           <section className={styles.paneSection}>
             <h3 className={styles.paneHeading}>Chats</h3>
@@ -177,17 +188,6 @@ export default function RepositoryShell({
               ))}
             </div>
           </section>
-        )}
-        {repo && (
-          <WorktreeRunsSection
-            organization={organization}
-            name={name}
-            worktrees={worktrees ?? []}
-            runs={runs ?? []}
-            loading={dataLoading}
-            hasLoadedOnce={dataHasLoadedOnce}
-            error={dataErrorMessage}
-          />
         )}
       </aside>
       <div className={styles.content}>{children}</div>
