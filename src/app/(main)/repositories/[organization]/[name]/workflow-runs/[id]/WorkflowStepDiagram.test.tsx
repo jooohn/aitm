@@ -316,7 +316,7 @@ describe("WorkflowStepDiagram", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("renders unique keys when multiple transitions share the same from and to", () => {
+  it("dedupes edges when multiple transitions share the same from and to", () => {
     const workflow: WorkflowDefinition = {
       initial_step: "cleanup",
       steps: {
@@ -339,13 +339,11 @@ describe("WorkflowStepDiagram", () => {
     );
     consoleSpy.mockRestore();
 
-    // Both edges should be rendered (two separate <g> elements for cleanup→commit)
     const edges = container.querySelectorAll(
       '[data-edge-from="cleanup"][data-edge-to="commit"]',
     );
-    expect(edges).toHaveLength(2);
+    expect(edges).toHaveLength(1);
 
-    // React should not have warned about duplicate keys
     const duplicateKeyWarnings = consoleSpy.mock.calls.filter(
       (args) =>
         typeof args[0] === "string" &&
