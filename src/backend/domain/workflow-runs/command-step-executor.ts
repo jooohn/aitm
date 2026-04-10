@@ -1,5 +1,4 @@
-import { env } from "process";
-import { spawnAsync } from "@/backend/utils/process";
+import { sanitizeChildEnv, spawnAsync } from "@/backend/utils/process";
 
 export interface CommandStepExecutionResult {
   outcome: "succeeded" | "failed";
@@ -15,6 +14,7 @@ export class CommandStepExecutor {
   ): Promise<CommandStepExecutionResult> {
     const { code, stdout, stderr } = await spawnAsync("sh", ["-c", command], {
       cwd,
+      env: sanitizeChildEnv(),
     });
 
     const outcome = code === 0 ? "succeeded" : "failed";

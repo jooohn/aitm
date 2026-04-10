@@ -12,6 +12,23 @@ export interface SpawnOptions {
   timeoutMs?: number;
 }
 
+// Strip env vars leaked from the parent `npm run dev` / Next.js process so a
+// child `sh -c` behaves like a fresh console invocation. NODE_ENV=development
+// in particular breaks `next build` in the child, and inherited npm_* vars
+// mis-scope nested `npm run` to the parent package.
+export function sanitizeChildEnv(
+  env: NodeJS.ProcessEnv = process.env,
+): NodeJS.ProcessEnv {
+  const clean: NodeJS.ProcessEnv = {};
+  for (const [key, value] of Object.entries(env)) {
+    if (key === "NODE_ENV") continue;
+    if (key === "INIT_CWD") continue;
+    if (key.startsWith("npm_")) continue;
+    clean[key] = value;
+  }
+  return clean;
+}
+
 export class SpawnTimeoutError extends Error {
   code = "ETIMEDOUT" as const;
 

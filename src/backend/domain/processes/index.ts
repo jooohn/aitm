@@ -3,6 +3,7 @@ import { randomUUID } from "crypto";
 import type { ConfigRepositoryCommand } from "@/backend/infra/config";
 import type { EventBus } from "@/backend/infra/event-bus";
 import { logger } from "@/backend/infra/logger";
+import { sanitizeChildEnv } from "@/backend/utils/process";
 
 export type ProcessStatus = "running" | "stopped" | "crashed";
 
@@ -56,6 +57,7 @@ export class ProcessService {
     const id = randomUUID();
     const child = spawn("sh", ["-c", command.command], {
       cwd: worktreePath,
+      env: sanitizeChildEnv(),
       stdio: ["ignore", "pipe", "pipe"],
       detached: true,
     });
