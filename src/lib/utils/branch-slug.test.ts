@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { branchToSlug } from "./branch-slug";
+import { branchToSlug, slugToBranch } from "./branch-slug";
 
 describe("branchToSlug", () => {
   it("replaces / with __", () => {
@@ -18,5 +18,24 @@ describe("branchToSlug", () => {
 
   it("handles empty string", () => {
     expect(branchToSlug("")).toBe("");
+  });
+});
+
+describe("slugToBranch", () => {
+  it("replaces __ with /", () => {
+    expect(slugToBranch("feat__add-dark-mode")).toBe("feat/add-dark-mode");
+  });
+
+  it("handles multiple separators", () => {
+    expect(slugToBranch("feat__ui__add-dark-mode")).toBe(
+      "feat/ui/add-dark-mode",
+    );
+  });
+
+  it("is the inverse of branchToSlug for typical branches", () => {
+    const samples = ["main", "feat/x", "release/1.2/hotfix", ""];
+    for (const sample of samples) {
+      expect(slugToBranch(branchToSlug(sample))).toBe(sample);
+    }
   });
 });

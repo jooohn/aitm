@@ -4,8 +4,14 @@ export interface RepositoryDto {
   alias: string;
 }
 
+export interface RepositoryCommandDto {
+  id: string;
+  label: string;
+}
+
 export interface RepositoryDetailDto extends RepositoryDto {
   github_url: string | null;
+  commands: RepositoryCommandDto[];
 }
 
 export interface ValidationResultDto {
@@ -205,6 +211,23 @@ export interface ChatDetailDto extends ChatDto {
   proposals: ChatProposalDto[];
 }
 
+// -- Processes --
+
+export type ProcessStatusDto = "running" | "stopped" | "crashed";
+
+export interface ProcessDto {
+  id: string;
+  worktree_branch: string;
+  command_id: string;
+  command_label: string;
+  command: string;
+  status: ProcessStatusDto;
+  pid: number | null;
+  exit_code: number | null;
+  created_at: string;
+  stopped_at: string | null;
+}
+
 // Notification stream events (SSE)
 
 export type RepositoryContextDto = {
@@ -236,4 +259,12 @@ export type NotificationEvent =
   | {
       type: "worktree.changed";
       payload: RepositoryContextDto;
+    }
+  | {
+      type: "process.status-changed";
+      payload: RepositoryContextDto & {
+        worktreeBranch: string;
+        processId: string;
+        status: ProcessStatusDto;
+      };
     };

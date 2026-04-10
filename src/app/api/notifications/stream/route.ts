@@ -21,6 +21,10 @@ export async function GET(_request: Request): Promise<Response> {
     | ((payload: EventMap["worktree.changed"]) => void)
     | null = null;
 
+  let processStatusChangedListener:
+    | ((payload: EventMap["process.status-changed"]) => void)
+    | null = null;
+
   const stream = new ReadableStream({
     start(controller) {
       const enqueue = (event: NotificationEvent) => {
@@ -50,6 +54,18 @@ export async function GET(_request: Request): Promise<Response> {
         enqueue({ type: "step-execution.status-changed", payload });
       worktreeChangedListener = (payload) =>
         enqueue({ type: "worktree.changed", payload });
+      processStatusChangedListener = (payload) => {
+        enqueue({
+          type: "process.status-changed",
+          payload: {
+            repositoryOrganization: payload.repositoryOrganization,
+            repositoryName: payload.repositoryName,
+            worktreeBranch: payload.worktreeBranch,
+            processId: payload.processId,
+            status: payload.status,
+          },
+        });
+      };
 
       eventBus.on(
         "house-keeping.sync-status-changed",
@@ -61,6 +77,7 @@ export async function GET(_request: Request): Promise<Response> {
         stepExecutionStatusChangedListener,
       );
       eventBus.on("worktree.changed", worktreeChangedListener);
+      eventBus.on("process.status-changed", processStatusChangedListener);
     },
     cancel() {
       if (houseKeepingSyncStatusChangedListener) {
@@ -80,6 +97,9 @@ export async function GET(_request: Request): Promise<Response> {
       }
       if (worktreeChangedListener) {
         eventBus.off("worktree.changed", worktreeChangedListener);
+      }
+      if (processStatusChangedListener) {
+        eventBus.off("process.status-changed", processStatusChangedListener);
       }
     },
   });

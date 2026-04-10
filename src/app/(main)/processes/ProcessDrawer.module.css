@@ -1,0 +1,130 @@
+@reference "tailwindcss";
+
+.overlay {
+  @apply fixed inset-0 z-50 flex justify-end;
+}
+
+.backdrop {
+  @apply absolute inset-0 bg-black/30 dark:bg-black/50;
+  animation: fadeIn 200ms ease-out;
+}
+
+.drawer {
+  @apply relative w-full h-full bg-white dark:bg-zinc-900 border-l border-zinc-200 dark:border-zinc-700 shadow-2xl flex flex-col sm:max-w-3xl;
+  animation: slideIn 250ms ease-out;
+}
+
+.drawerHeader {
+  @apply flex items-center gap-3 px-4 py-4 border-b border-zinc-200 dark:border-zinc-700 shrink-0 sm:px-6;
+}
+
+.title {
+  @apply flex-1 min-w-0 text-lg font-semibold text-zinc-900 dark:text-zinc-50 truncate flex items-center gap-2;
+}
+
+.dot {
+  @apply shrink-0 inline-block w-2 h-2 rounded-full;
+}
+
+.dotRunning {
+  @apply bg-blue-500;
+  animation: blink-fade 1.5s ease-in-out infinite;
+}
+
+.dotStopped {
+  @apply bg-zinc-400 dark:bg-zinc-500;
+}
+
+.dotCrashed {
+  @apply bg-red-500;
+}
+
+.headerActions {
+  @apply flex items-center gap-1 shrink-0;
+}
+
+.iconButton {
+  @apply shrink-0 p-1 rounded text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer;
+}
+
+.meta {
+  @apply px-4 py-3 border-b border-zinc-200 dark:border-zinc-700 shrink-0 flex flex-col gap-1 text-xs text-zinc-600 dark:text-zinc-400 sm:px-6;
+}
+
+.metaCommand {
+  @apply font-mono text-zinc-700 dark:text-zinc-300 break-all;
+}
+
+.metaRow {
+  @apply flex flex-wrap gap-x-4 gap-y-1;
+}
+
+.metaLabel {
+  @apply text-zinc-500 dark:text-zinc-500;
+}
+
+.terminal {
+  @apply flex-1 min-h-0 overflow-auto bg-zinc-950 text-zinc-100 font-mono text-xs leading-5 px-4 py-3 sm:px-6 whitespace-pre;
+}
+
+.terminalEmpty {
+  @apply italic text-zinc-500;
+}
+
+.error {
+  @apply text-sm text-red-600 dark:text-red-400 px-4 py-4 sm:px-6;
+}
+
+.backdropClosing {
+  animation: fadeOut 200ms ease-in forwards;
+}
+
+.drawerClosing {
+  animation: slideOut 200ms ease-in forwards;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideOut {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes blink-fade {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}

@@ -97,6 +97,43 @@ describe("GET /api/notifications/stream", () => {
     await reader.cancel();
   });
 
+  it("streams process.status-changed events with correct org/name from event payload", async () => {
+    // Clear any latched state from previous tests
+    eventBus.removeAllListeners();
+
+    const res = await GET(
+      new Request("http://localhost/api/notifications/stream"),
+    );
+
+    eventBus.emit("process.status-changed", {
+      processId: "p1",
+      worktreeBranch: "feat/test",
+      worktreePath: "/some/deep/path/to/worktrees/feat/test",
+      status: "running",
+      repositoryOrganization: "my-org",
+      repositoryName: "my-repo",
+    });
+
+    const reader = res.body!.getReader();
+    const decoder = new TextDecoder();
+    const { value } = await reader.read();
+    const text = decoder.decode(value);
+
+    const json = JSON.parse(text.replace("data: ", "").trim());
+    expect(json).toEqual({
+      type: "process.status-changed",
+      payload: {
+        repositoryOrganization: "my-org",
+        repositoryName: "my-repo",
+        worktreeBranch: "feat/test",
+        processId: "p1",
+        status: "running",
+      },
+    });
+
+    await reader.cancel();
+  });
+
   it("removes the listener from EventBus when the stream is cancelled", async () => {
     const offSpy = vi.spyOn(eventBus, "off");
 

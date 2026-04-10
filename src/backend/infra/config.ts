@@ -26,8 +26,15 @@ export interface AgentConfig {
 
 export type AgentConfigOverride = Partial<AgentConfig>;
 
+export interface ConfigRepositoryCommand {
+  id: string;
+  label: string;
+  command: string;
+}
+
 export interface ConfigRepository {
   path: string;
+  commands?: ConfigRepositoryCommand[];
 }
 
 export type WorkflowTransition =
@@ -497,14 +504,38 @@ function validateConfig(raw: unknown): ConfigSnapshot {
         })()
       : { provider: "claude" };
 
-  const repositories =
+  const repositoryCommandSchema = z.object({
+    label: z.string().optional(),
+    command: z.string(),
+  });
+
+  const rawRepositories =
     record.repositories !== undefined
       ? parseZodWithPath(
-          z.array(z.object({ path: z.string() })),
+          z.array(
+            z.object({
+              path: z.string(),
+              commands: z
+                .record(z.string(), repositoryCommandSchema)
+                .optional(),
+            }),
+          ),
           record.repositories,
           "repositories",
         )
       : [];
+
+  const repositories: ConfigRepository[] = rawRepositories.map((r) => {
+    const result: ConfigRepository = { path: r.path };
+    if (r.commands) {
+      result.commands = Object.entries(r.commands).map(([id, def]) => ({
+        id,
+        label: def.label ?? id,
+        command: def.command,
+      }));
+    }
+    return result;
+  });
 
   const workflows =
     record.workflows !== undefined

@@ -10,12 +10,14 @@ const {
   mockRemoveWorktree,
   mockFetchWorkflows,
   mockFetchWorkflowRuns,
+  mockFetchProcesses,
 } = vi.hoisted(() => ({
   mockFetchRepository: vi.fn(),
   mockFetchWorktrees: vi.fn(),
   mockRemoveWorktree: vi.fn(),
   mockFetchWorkflows: vi.fn(),
   mockFetchWorkflowRuns: vi.fn(),
+  mockFetchProcesses: vi.fn(),
 }));
 
 vi.mock("@/lib/utils/api", async () => {
@@ -27,6 +29,7 @@ vi.mock("@/lib/utils/api", async () => {
     removeWorktree: mockRemoveWorktree,
     fetchWorkflows: mockFetchWorkflows,
     fetchWorkflowRuns: mockFetchWorkflowRuns,
+    fetchProcesses: mockFetchProcesses,
   };
 });
 
@@ -37,6 +40,7 @@ vi.mock("next/navigation", () => ({
     branch: "feature__my-branch",
   }),
   useRouter: () => ({ push: vi.fn() }),
+  usePathname: () => "/repositories/org/repo/worktrees/feature__my-branch",
   notFound: () => {
     throw new Error("notFound");
   },
@@ -65,6 +69,7 @@ const repo = {
   name: "repo",
   alias: "org/repo",
   github_url: null,
+  commands: [],
 };
 
 const worktree = {
@@ -80,6 +85,7 @@ beforeEach(() => {
   mockFetchWorktrees.mockResolvedValue([worktree]);
   mockFetchWorkflows.mockResolvedValue({});
   mockFetchWorkflowRuns.mockResolvedValue([]);
+  mockFetchProcesses.mockResolvedValue([]);
 });
 
 afterEach(() => {

@@ -182,6 +182,81 @@ workflows:
     });
   });
 
+  describe("repository commands", () => {
+    it("parses repositories with commands", async () => {
+      await writeConfig(`
+repositories:
+  - path: /projects/org/repo1
+    commands:
+      nextjs-dev:
+        label: "Launch Next dev server"
+        command: "npm run dev"
+      tests:
+        label: "Run tests"
+        command: "npm run test:watch"
+`);
+
+      const snapshot = loadConfig();
+      expect(snapshot.repositories).toEqual([
+        {
+          path: "/projects/org/repo1",
+          commands: [
+            {
+              id: "nextjs-dev",
+              label: "Launch Next dev server",
+              command: "npm run dev",
+            },
+            {
+              id: "tests",
+              label: "Run tests",
+              command: "npm run test:watch",
+            },
+          ],
+        },
+      ]);
+    });
+
+    it("parses repositories without commands", async () => {
+      await writeConfig(`
+repositories:
+  - path: /projects/org/repo1
+`);
+
+      const snapshot = loadConfig();
+      expect(snapshot.repositories).toEqual([{ path: "/projects/org/repo1" }]);
+    });
+
+    it("defaults the label to the command id when omitted", async () => {
+      await writeConfig(`
+repositories:
+  - path: /projects/org/repo1
+    commands:
+      dev:
+        command: "npm run dev"
+`);
+
+      const snapshot = loadConfig();
+      expect(snapshot.repositories).toEqual([
+        {
+          path: "/projects/org/repo1",
+          commands: [{ id: "dev", label: "dev", command: "npm run dev" }],
+        },
+      ]);
+    });
+
+    it("fails when command entry is missing command", async () => {
+      await writeConfig(`
+repositories:
+  - path: /projects/org/repo1
+    commands:
+      dev:
+        label: "Dev server"
+`);
+
+      expect(() => loadConfig()).toThrow("repositories");
+    });
+  });
+
   it("normalizes valid workflows", async () => {
     await writeConfig(`
 agent:

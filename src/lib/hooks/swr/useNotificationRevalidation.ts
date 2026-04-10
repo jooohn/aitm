@@ -81,6 +81,12 @@ function determineTargetPaths(notification: NotificationEvent): TargetPaths {
         ],
       };
     }
+    case "process.status-changed": {
+      const { repositoryOrganization, repositoryName } = notification.payload;
+      return {
+        prefix: [worktreePrefix(repositoryOrganization, repositoryName)],
+      };
+    }
   }
 }
 

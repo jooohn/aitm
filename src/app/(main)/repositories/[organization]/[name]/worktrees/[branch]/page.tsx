@@ -9,6 +9,7 @@ import { useRepository, useWorkflowRuns, useWorktrees } from "@/lib/hooks/swr";
 import { isNotFoundError, removeWorktree } from "@/lib/utils/api";
 import { branchToSlug } from "@/lib/utils/branch-slug";
 import styles from "./page.module.css";
+import WorktreeProcesses from "./WorktreeProcesses";
 
 export default function WorktreePage() {
   const {
@@ -112,6 +113,12 @@ export default function WorktreePage() {
         organization={organization}
         name={name}
         activeWorktreeBranches={[branch]}
+      />
+      <WorktreeProcesses
+        organization={organization}
+        name={name}
+        branch={branch}
+        commands={repo.commands}
       />
     </main>
   );

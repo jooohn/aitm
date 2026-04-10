@@ -19,6 +19,7 @@ import {
 import { branchToSlug } from "@/lib/utils/branch-slug";
 import { groupRunsByWorktree } from "@/lib/utils/groupRunsByWorktree";
 import { timeAgo } from "@/lib/utils/timeAgo";
+import WorktreeActiveProcesses from "./WorktreeActiveProcesses";
 import styles from "./WorktreeRunsSection.module.css";
 
 const INITIAL_VISIBLE_RUNS = 3;
@@ -218,6 +219,13 @@ export default function WorktreeRunsSection({
                     <PrChip key={pr.url} pr={pr} />
                   ))}
                 </div>
+                {group.worktree && (
+                  <WorktreeActiveProcesses
+                    organization={organization}
+                    name={name}
+                    branch={group.worktree.branch}
+                  />
+                )}
                 <ul className={styles.runsList}>
                   {visibleRuns.map((run) => {
                     const runHref = `/repositories/${organization}/${name}/workflow-runs/${run.id}`;

@@ -27,10 +27,12 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/repositories/org/name",
 }));
 
-const { createWorktreeMock, cleanMergedWorktreesMock } = vi.hoisted(() => ({
-  createWorktreeMock: vi.fn(),
-  cleanMergedWorktreesMock: vi.fn(),
-}));
+const { createWorktreeMock, cleanMergedWorktreesMock, fetchProcessesMock } =
+  vi.hoisted(() => ({
+    createWorktreeMock: vi.fn(),
+    cleanMergedWorktreesMock: vi.fn(),
+    fetchProcessesMock: vi.fn(),
+  }));
 
 vi.mock("@/lib/utils/api", async () => {
   const actual = await vi.importActual("@/lib/utils/api");
@@ -38,6 +40,7 @@ vi.mock("@/lib/utils/api", async () => {
     ...actual,
     createWorktree: createWorktreeMock,
     cleanMergedWorktrees: cleanMergedWorktreesMock,
+    fetchProcesses: fetchProcessesMock,
   };
 });
 
@@ -82,6 +85,7 @@ afterEach(() => {
 
 beforeEach(() => {
   mockUseHouseKeepingSyncing.mockReturnValue(false);
+  fetchProcessesMock.mockResolvedValue([]);
 });
 
 describe("WorktreeRunsSection", () => {
