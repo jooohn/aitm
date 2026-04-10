@@ -282,7 +282,7 @@ export class ChatService {
       ? `${systemPrompt}\n\n---\n\nUser message:\n${message}`
       : message;
 
-    this.runAgent(chatId, chat, prompt, isFirstMessage).catch((err) =>
+    this.runAgent(chatId, chat, prompt, isFirstMessage, message).catch((err) =>
       logger.error({ err, chatId }, "Failed to run chat agent"),
     );
   }
@@ -417,6 +417,7 @@ export class ChatService {
     chat: Chat,
     prompt: string,
     isFirstMessage: boolean,
+    userMessage?: string,
   ): Promise<void> {
     const abortController = new AbortController();
     this.activeAbortControllers.set(chatId, abortController);
@@ -438,7 +439,7 @@ export class ChatService {
       // Re-append the user message since we cleared the file
       await appendToLog(chat.log_file_path, {
         type: "user_input",
-        message: prompt,
+        message: userMessage ?? prompt,
       });
     }
 

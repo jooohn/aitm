@@ -6,7 +6,11 @@ import OutputItemView from "@/app/(main)/sessions/[id]/OutputItemView";
 import type { StatusBadgeVariant } from "@/app/components/StatusBadge";
 import StatusBadge from "@/app/components/StatusBadge";
 import { swrKeys, useChat } from "@/lib/hooks/swr";
-import { type ChatStatus, sendChatMessage } from "@/lib/utils/api";
+import {
+  type ChatStatus,
+  fetchChatHistory,
+  sendChatMessage,
+} from "@/lib/utils/api";
 import type { OutputItem } from "@/lib/utils/outputItem";
 import { parseLogEntry } from "@/lib/utils/parseLogEntry";
 import styles from "./ChatDetail.module.css";
@@ -73,10 +77,34 @@ export default function ChatDetail({ chatId }: Props) {
   const autoScrollRef = useRef(true);
   const prevStatusRef = useRef<ChatStatus | null>(null);
 
+  // Load existing conversation history on mount
+  // biome-ignore lint/correctness/useExhaustiveDependencies: only run once on mount
+  useEffect(() => {
+    fetchChatHistory(chatId)
+      .then((entries) => {
+        let items: OutputItem[] = [];
+        for (const entry of entries) {
+          const parsed = parseLogEntry(entry);
+          if (parsed === null) continue;
+          const newItems = Array.isArray(parsed) ? parsed : [parsed];
+          for (const item of newItems) {
+            items = appendWithGrouping(items, item);
+          }
+        }
+        setOutputItems(items);
+      })
+      .catch(() => {
+        // ignore history load errors
+      });
+  }, [chatId]);
+
   // SSE stream — open when status is "running"
   // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally keyed on chat?.status, not the full chat object
   useEffect(() => {
     if (!chat || chat.status !== "running") return;
+
+    // Reset items — the SSE stream replays the full log file from the beginning
+    setOutputItems([]);
 
     const es = new EventSource(`/api/chats/${chatId}/stream`);
 

@@ -258,6 +258,12 @@ export function fetchChat(id: string): Promise<ChatDetail> {
   return apiFetch(`/api/chats/${id}`);
 }
 
+export function fetchChatHistory(
+  id: string,
+): Promise<Record<string, unknown>[]> {
+  return apiFetch(`/api/chats/${id}/history`);
+}
+
 export function deleteChat(id: string): Promise<void> {
   return apiFetch(`/api/chats/${id}`, { method: "DELETE" });
 }

@@ -3,12 +3,14 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 const initializeContainer = vi.fn();
 const recoverCrashedSessions = vi.fn();
 const recoverCrashedWorkflowRuns = vi.fn();
+const recoverCrashedChats = vi.fn();
 const startPeriodicHouseKeeping = vi.fn();
 
 vi.mock("./backend/container", () => ({
   initializeContainer,
   sessionService: { recoverCrashedSessions },
   workflowRunService: { recoverCrashedWorkflowRuns },
+  chatService: { recoverCrashedChats },
   houseKeepingService: { startPeriodicHouseKeeping },
 }));
 
@@ -27,6 +29,7 @@ describe("register", () => {
     expect(initializeContainer).toHaveBeenCalledOnce();
     expect(recoverCrashedSessions).toHaveBeenCalledOnce();
     expect(recoverCrashedWorkflowRuns).toHaveBeenCalledOnce();
+    expect(recoverCrashedChats).toHaveBeenCalledOnce();
     expect(startPeriodicHouseKeeping).toHaveBeenCalledOnce();
     expect(initializeContainer.mock.invocationCallOrder[0]).toBeLessThan(
       recoverCrashedSessions.mock.invocationCallOrder[0],
@@ -43,6 +46,7 @@ describe("register", () => {
     await expect(register()).rejects.toThrow("bad config");
     expect(recoverCrashedSessions).not.toHaveBeenCalled();
     expect(recoverCrashedWorkflowRuns).not.toHaveBeenCalled();
+    expect(recoverCrashedChats).not.toHaveBeenCalled();
     expect(startPeriodicHouseKeeping).not.toHaveBeenCalled();
   });
 });

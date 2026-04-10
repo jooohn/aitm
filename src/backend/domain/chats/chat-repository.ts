@@ -185,7 +185,7 @@ export class ChatRepository {
     const now = new Date().toISOString();
     this.db
       .prepare(
-        "UPDATE chats SET status = 'failed', updated_at = ? WHERE status = 'running'",
+        "UPDATE chats SET status = 'idle', updated_at = ? WHERE status = 'running'",
       )
       .run(now);
   }
