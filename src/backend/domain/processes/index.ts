@@ -57,6 +57,7 @@ export class ProcessService {
     const child = spawn("sh", ["-c", command.command], {
       cwd: worktreePath,
       stdio: ["ignore", "pipe", "pipe"],
+      detached: true,
     });
 
     const info: ProcessInfo = {
@@ -102,7 +103,7 @@ export class ProcessService {
     child.stdout?.on("data", appendOutput);
     child.stderr?.on("data", appendOutput);
 
-    child.on("close", (code) => {
+    child.on("exit", (code) => {
       if (info.status === "running") {
         info.exit_code = code;
         info.stopped_at = new Date().toISOString();
@@ -186,18 +187,27 @@ export class ProcessService {
     }
 
     return new Promise((resolve) => {
-      managed.child.on("close", (code) => {
+      managed.child.on("exit", (code) => {
         managed.info.exit_code = code;
         emitStopped();
         resolve({ ...managed.info });
       });
 
-      managed.child.kill("SIGTERM");
+      // Kill the entire process group so child processes are also terminated
+      try {
+        process.kill(-managed.child.pid!, "SIGTERM");
+      } catch {
+        managed.child.kill("SIGTERM");
+      }
 
       // Force kill after 5 seconds
       setTimeout(() => {
         if (managed.child.exitCode === null && !managed.child.killed) {
-          managed.child.kill("SIGKILL");
+          try {
+            process.kill(-managed.child.pid!, "SIGKILL");
+          } catch {
+            managed.child.kill("SIGKILL");
+          }
         }
       }, 5000);
     });
