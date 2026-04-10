@@ -126,6 +126,12 @@ export class WorkflowStateMachine {
       return;
     }
 
+    if (!decision.transition) {
+      // No transition means the agent needs user input — set run to awaiting
+      this.workflowRunRepository.setWorkflowRunAwaiting(run.id, now);
+      return;
+    }
+
     if (
       decision.transition === "success" ||
       decision.transition === "failure"

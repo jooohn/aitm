@@ -62,7 +62,7 @@ export interface OutputMetadataFieldDefDto {
 }
 
 export interface TransitionDecisionDto {
-  transition: string;
+  transition?: string;
   reason: string;
   handoff_summary: string;
   clarifying_question?: string;
