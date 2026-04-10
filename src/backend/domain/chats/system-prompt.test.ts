@@ -32,6 +32,20 @@ describe("system-prompt", () => {
       const schema = CHAT_OUTPUT_FORMAT.schema;
       expect(schema.required).toContain("proposals");
     });
+
+    it("disallows unknown fields on proposal items for Codex schema validation", () => {
+      const schema = CHAT_OUTPUT_FORMAT.schema as {
+        properties: {
+          proposals: {
+            items: { additionalProperties?: boolean };
+          };
+        };
+      };
+
+      expect(schema.properties.proposals.items.additionalProperties).toBe(
+        false,
+      );
+    });
   });
 
   describe("buildWorkflowContext", () => {

@@ -29,6 +29,7 @@ export const CHAT_OUTPUT_FORMAT: OutputFormat = {
             rationale: { type: "string" },
           },
           required: ["workflow_name", "inputs", "rationale"],
+          additionalProperties: false,
         },
       },
     },
