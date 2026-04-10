@@ -80,6 +80,8 @@ describe("GET /api/repositories/:org/:name/worktrees/[branch]/processes", () => 
       {
         id: "p1",
         worktree_branch: "feat/test",
+        command_id: "nextjs-dev",
+        command_label: "Dev server",
         command: "npm run dev",
         status: "running",
         pid: 1234,
@@ -116,7 +118,7 @@ describe("POST /api/repositories/:org/:name/worktrees/[branch]/processes", () =>
         "http://localhost/api/repositories/org/repo/worktrees/feat__test/processes",
         {
           method: "POST",
-          body: JSON.stringify({ command_label: "Dev server" }),
+          body: JSON.stringify({ command_id: "nextjs-dev" }),
           headers: { "Content-Type": "application/json" },
         },
       ),
@@ -139,7 +141,7 @@ describe("POST /api/repositories/:org/:name/worktrees/[branch]/processes", () =>
         "http://localhost/api/repositories/org/repo/worktrees/feat__test/processes",
         {
           method: "POST",
-          body: JSON.stringify({ command_label: "Dev server" }),
+          body: JSON.stringify({ command_id: "nextjs-dev" }),
           headers: { "Content-Type": "application/json" },
         },
       ),
@@ -149,7 +151,7 @@ describe("POST /api/repositories/:org/:name/worktrees/[branch]/processes", () =>
     expect(res.status).toBe(404);
   });
 
-  it("returns 400 when command_label is empty", async () => {
+  it("returns 400 when command_id is empty", async () => {
     getRepositoryByAliasSpy.mockResolvedValue({
       path: "/repo/path",
       name: "repo",
@@ -164,7 +166,7 @@ describe("POST /api/repositories/:org/:name/worktrees/[branch]/processes", () =>
         "http://localhost/api/repositories/org/repo/worktrees/feat__test/processes",
         {
           method: "POST",
-          body: JSON.stringify({ command_label: "" }),
+          body: JSON.stringify({ command_id: "" }),
           headers: { "Content-Type": "application/json" },
         },
       ),
@@ -174,14 +176,14 @@ describe("POST /api/repositories/:org/:name/worktrees/[branch]/processes", () =>
     expect(res.status).toBe(400);
   });
 
-  it("returns 400 when command_label does not match any configured command", async () => {
+  it("returns 400 when command_id does not match any configured command", async () => {
     getRepositoryByAliasSpy.mockResolvedValue({
       path: "/repo/path",
       name: "repo",
       alias: "org/repo",
     });
     getCommandsForAliasSpy.mockReturnValue([
-      { label: "Dev server", command: "npm run dev" },
+      { id: "nextjs-dev", label: "Dev server", command: "npm run dev" },
     ]);
     listWorktreesSpy.mockResolvedValue([
       { branch: "feat/test", path: "/repo/worktrees/feat/test" },
@@ -192,7 +194,7 @@ describe("POST /api/repositories/:org/:name/worktrees/[branch]/processes", () =>
         "http://localhost/api/repositories/org/repo/worktrees/feat__test/processes",
         {
           method: "POST",
-          body: JSON.stringify({ command_label: "Unknown command" }),
+          body: JSON.stringify({ command_id: "unknown" }),
           headers: { "Content-Type": "application/json" },
         },
       ),
@@ -211,8 +213,8 @@ describe("POST /api/repositories/:org/:name/worktrees/[branch]/processes", () =>
       alias: "org/repo",
     });
     getCommandsForAliasSpy.mockReturnValue([
-      { label: "Dev server", command: "npm run dev" },
-      { label: "Run tests", command: "npm run test:watch" },
+      { id: "nextjs-dev", label: "Dev server", command: "npm run dev" },
+      { id: "tests", label: "Run tests", command: "npm run test:watch" },
     ]);
     listWorktreesSpy.mockResolvedValue([
       { branch: "feat/test", path: "/repo/worktrees/feat/test" },
@@ -220,6 +222,8 @@ describe("POST /api/repositories/:org/:name/worktrees/[branch]/processes", () =>
     startProcessSpy.mockReturnValue({
       id: "p1",
       worktree_branch: "feat/test",
+      command_id: "nextjs-dev",
+      command_label: "Dev server",
       command: "npm run dev",
       status: "running",
       pid: 1234,
@@ -233,7 +237,7 @@ describe("POST /api/repositories/:org/:name/worktrees/[branch]/processes", () =>
         "http://localhost/api/repositories/org/repo/worktrees/feat__test/processes",
         {
           method: "POST",
-          body: JSON.stringify({ command_label: "Dev server" }),
+          body: JSON.stringify({ command_id: "nextjs-dev" }),
           headers: { "Content-Type": "application/json" },
         },
       ),
@@ -246,7 +250,7 @@ describe("POST /api/repositories/:org/:name/worktrees/[branch]/processes", () =>
     expect(startProcessSpy).toHaveBeenCalledWith(
       "/repo/worktrees/feat/test",
       "feat/test",
-      "npm run dev",
+      { id: "nextjs-dev", label: "Dev server", command: "npm run dev" },
       "org",
       "repo",
     );

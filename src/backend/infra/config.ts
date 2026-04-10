@@ -27,6 +27,7 @@ export interface AgentConfig {
 export type AgentConfigOverride = Partial<AgentConfig>;
 
 export interface ConfigRepositoryCommand {
+  id: string;
   label: string;
   command: string;
 }
@@ -514,7 +515,9 @@ function validateConfig(raw: unknown): ConfigSnapshot {
           z.array(
             z.object({
               path: z.string(),
-              commands: z.array(repositoryCommandSchema).optional(),
+              commands: z
+                .record(z.string(), repositoryCommandSchema)
+                .optional(),
             }),
           ),
           record.repositories,
@@ -522,21 +525,14 @@ function validateConfig(raw: unknown): ConfigSnapshot {
         )
       : [];
 
-  const repositories: ConfigRepository[] = rawRepositories.map((r, i) => {
-    if (r.commands) {
-      const labels = new Set<string>();
-      for (const cmd of r.commands) {
-        if (labels.has(cmd.label)) {
-          fail(
-            `repositories[${i}].commands has duplicate label "${cmd.label}"`,
-          );
-        }
-        labels.add(cmd.label);
-      }
-    }
+  const repositories: ConfigRepository[] = rawRepositories.map((r) => {
     const result: ConfigRepository = { path: r.path };
     if (r.commands) {
-      result.commands = r.commands;
+      result.commands = Object.entries(r.commands).map(([id, def]) => ({
+        id,
+        label: def.label,
+        command: def.command,
+      }));
     }
     return result;
   });

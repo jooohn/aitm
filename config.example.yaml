@@ -4,10 +4,13 @@
 repositories:
   - path: /path/to/git-repository
     # Optional: pre-configured commands that can be launched as processes in worktrees.
+    # Each key (e.g. `nextjs-dev`) is the stable command id; `label` is the display name.
     # commands:
-    #   - label: "Launch Next dev server"
+    #   nextjs-dev:
+    #     label: "Launch Next dev server"
     #     command: "npm run dev"
-    #   - label: "Run tests in watch mode"
+    #   tests:
+    #     label: "Run tests in watch mode"
     #     command: "npm run test:watch"
 
 agent:

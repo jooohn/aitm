@@ -21,6 +21,6 @@ export async function GET(
   const github_url = await repositoryService.getGitHubUrl(repo.path);
   const commands = repositoryService
     .getCommandsForAlias(alias)
-    .map((c) => ({ label: c.label }));
+    .map((c) => ({ id: c.id, label: c.label }));
   return NextResponse.json({ ...repo, github_url, commands });
 }

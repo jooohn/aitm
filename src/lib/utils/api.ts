@@ -329,12 +329,12 @@ export function startProcess(
   organization: string,
   name: string,
   branch: string,
-  commandLabel: string,
+  commandId: string,
 ): Promise<Process> {
   return apiFetch(processBasePath(organization, name, branch), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ command_label: commandLabel }),
+    body: JSON.stringify({ command_id: commandId }),
   });
 }
 

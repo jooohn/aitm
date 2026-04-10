@@ -1,5 +1,6 @@
 import { type ChildProcess, spawn } from "child_process";
 import { randomUUID } from "crypto";
+import type { ConfigRepositoryCommand } from "@/backend/infra/config";
 import type { EventBus } from "@/backend/infra/event-bus";
 import { logger } from "@/backend/infra/logger";
 
@@ -8,6 +9,8 @@ export type ProcessStatus = "running" | "stopped" | "crashed";
 export interface ProcessInfo {
   id: string;
   worktree_branch: string;
+  command_id: string;
+  command_label: string;
   command: string;
   status: ProcessStatus;
   pid: number | null;
@@ -46,12 +49,12 @@ export class ProcessService {
   startProcess(
     worktreePath: string,
     worktreeBranch: string,
-    command: string,
+    command: ConfigRepositoryCommand,
     repositoryOrganization?: string,
     repositoryName?: string,
   ): ProcessInfo {
     const id = randomUUID();
-    const child = spawn("sh", ["-c", command], {
+    const child = spawn("sh", ["-c", command.command], {
       cwd: worktreePath,
       stdio: ["ignore", "pipe", "pipe"],
     });
@@ -59,7 +62,9 @@ export class ProcessService {
     const info: ProcessInfo = {
       id,
       worktree_branch: worktreeBranch,
-      command,
+      command_id: command.id,
+      command_label: command.label,
+      command: command.command,
       status: "running",
       pid: child.pid ?? null,
       exit_code: null,

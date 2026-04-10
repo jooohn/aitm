@@ -188,9 +188,11 @@ workflows:
 repositories:
   - path: /projects/org/repo1
     commands:
-      - label: "Launch Next dev server"
+      nextjs-dev:
+        label: "Launch Next dev server"
         command: "npm run dev"
-      - label: "Run tests"
+      tests:
+        label: "Run tests"
         command: "npm run test:watch"
 `);
 
@@ -199,8 +201,16 @@ repositories:
         {
           path: "/projects/org/repo1",
           commands: [
-            { label: "Launch Next dev server", command: "npm run dev" },
-            { label: "Run tests", command: "npm run test:watch" },
+            {
+              id: "nextjs-dev",
+              label: "Launch Next dev server",
+              command: "npm run dev",
+            },
+            {
+              id: "tests",
+              label: "Run tests",
+              command: "npm run test:watch",
+            },
           ],
         },
       ]);
@@ -221,7 +231,8 @@ repositories:
 repositories:
   - path: /projects/org/repo1
     commands:
-      - command: "npm run dev"
+      dev:
+        command: "npm run dev"
 `);
 
       expect(() => loadConfig()).toThrow("repositories");
@@ -232,26 +243,11 @@ repositories:
 repositories:
   - path: /projects/org/repo1
     commands:
-      - label: "Dev server"
+      dev:
+        label: "Dev server"
 `);
 
       expect(() => loadConfig()).toThrow("repositories");
-    });
-
-    it("fails when commands has duplicate labels", async () => {
-      await writeConfig(`
-repositories:
-  - path: /projects/org/repo1
-    commands:
-      - label: "Dev"
-        command: "npm run dev"
-      - label: "Dev"
-        command: "npm start"
-`);
-
-      expect(() => loadConfig()).toThrow(
-        'repositories[0].commands has duplicate label "Dev"',
-      );
     });
   });
 

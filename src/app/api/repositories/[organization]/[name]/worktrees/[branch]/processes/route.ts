@@ -65,20 +65,20 @@ export async function POST(
   if (!result.ok) return result.response;
 
   const body = await request.json();
-  const commandLabel = body.command_label?.trim();
-  if (!commandLabel) {
+  const commandId = body.command_id?.trim();
+  if (!commandId) {
     return NextResponse.json(
-      { error: "command_label is required and must be non-empty" },
+      { error: "command_id is required and must be non-empty" },
       { status: 400 },
     );
   }
 
   const alias = `${organization}/${name}`;
   const commands = repositoryService.getCommandsForAlias(alias);
-  const matched = commands.find((c) => c.label === commandLabel);
+  const matched = commands.find((c) => c.id === commandId);
   if (!matched) {
     return NextResponse.json(
-      { error: `Command not found: "${commandLabel}"` },
+      { error: `Command not found: "${commandId}"` },
       { status: 400 },
     );
   }
@@ -86,7 +86,7 @@ export async function POST(
   const process = processService.startProcess(
     result.worktreePath,
     result.branchName,
-    matched.command,
+    matched,
     organization,
     name,
   );

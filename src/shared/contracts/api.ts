@@ -5,6 +5,7 @@ export interface RepositoryDto {
 }
 
 export interface RepositoryCommandDto {
+  id: string;
   label: string;
 }
 
@@ -217,6 +218,8 @@ export type ProcessStatusDto = "running" | "stopped" | "crashed";
 export interface ProcessDto {
   id: string;
   worktree_branch: string;
+  command_id: string;
+  command_label: string;
   command: string;
   status: ProcessStatusDto;
   pid: number | null;

@@ -1,6 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { ConfigRepositoryCommand } from "@/backend/infra/config";
 import { EventBus } from "@/backend/infra/event-bus";
 import { ProcessService } from "./index";
+
+function cmd(
+  id: string,
+  command: string,
+  label?: string,
+): ConfigRepositoryCommand {
+  return { id, label: label ?? id, command };
+}
 
 describe("ProcessService", () => {
   let eventBus: EventBus;
@@ -20,11 +29,13 @@ describe("ProcessService", () => {
       const process = service.startProcess(
         "/tmp",
         "feature/test",
-        'echo "hello"',
+        cmd("hello", 'echo "hello"', "Say hello"),
       );
 
       expect(process.id).toBeDefined();
       expect(process.worktree_branch).toBe("feature/test");
+      expect(process.command_id).toBe("hello");
+      expect(process.command_label).toBe("Say hello");
       expect(process.command).toBe('echo "hello"');
       expect(process.status).toBe("running");
       expect(process.pid).toBeGreaterThan(0);
@@ -40,7 +51,7 @@ describe("ProcessService", () => {
       service.startProcess(
         "/tmp",
         "feature/test",
-        "echo hello",
+        cmd("hello", "echo hello"),
         "my-org",
         "my-repo",
       );
@@ -56,7 +67,11 @@ describe("ProcessService", () => {
     });
 
     it("uses worktree path as cwd for the spawned process", async () => {
-      const proc = service.startProcess("/tmp", "feature/test", "pwd");
+      const proc = service.startProcess(
+        "/tmp",
+        "feature/test",
+        cmd("pwd", "pwd"),
+      );
       expect(proc.status).toBe("running");
 
       // Wait for output
@@ -77,7 +92,11 @@ describe("ProcessService", () => {
 
   describe("stopProcess", () => {
     it("stops a running process", async () => {
-      const proc = service.startProcess("/tmp", "feature/test", "sleep 60");
+      const proc = service.startProcess(
+        "/tmp",
+        "feature/test",
+        cmd("sleep", "sleep 60"),
+      );
 
       const stopped = await service.stopProcess(proc.id);
 
@@ -86,7 +105,11 @@ describe("ProcessService", () => {
     });
 
     it("emits process.status-changed event on stop", async () => {
-      const proc = service.startProcess("/tmp", "feature/test", "sleep 60");
+      const proc = service.startProcess(
+        "/tmp",
+        "feature/test",
+        cmd("sleep", "sleep 60"),
+      );
 
       const listener = vi.fn();
       eventBus.on("process.status-changed", listener);
@@ -110,7 +133,11 @@ describe("ProcessService", () => {
 
   describe("getProcess", () => {
     it("returns process by id", () => {
-      const proc = service.startProcess("/tmp", "feature/test", "sleep 60");
+      const proc = service.startProcess(
+        "/tmp",
+        "feature/test",
+        cmd("sleep", "sleep 60"),
+      );
 
       const result = service.getProcess(proc.id);
 
@@ -125,9 +152,9 @@ describe("ProcessService", () => {
 
   describe("listProcesses", () => {
     it("returns all processes for a given worktree path", () => {
-      service.startProcess("/tmp", "feature/a", "sleep 60");
-      service.startProcess("/tmp", "feature/a", "sleep 120");
-      service.startProcess("/tmp", "feature/b", "sleep 60");
+      service.startProcess("/tmp", "feature/a", cmd("sleep", "sleep 60"));
+      service.startProcess("/tmp", "feature/a", cmd("sleep2", "sleep 120"));
+      service.startProcess("/tmp", "feature/b", cmd("sleep", "sleep 60"));
 
       const processes = service.listProcesses("/tmp", "feature/a");
 
@@ -145,7 +172,7 @@ describe("ProcessService", () => {
       const proc = service.startProcess(
         "/tmp",
         "feature/test",
-        "echo line1 && echo line2",
+        cmd("lines", "echo line1 && echo line2"),
       );
 
       // Wait for process to complete and output to be captured
@@ -176,7 +203,7 @@ describe("ProcessService", () => {
       const proc = smallBufferService.startProcess(
         "/tmp",
         "feature/test",
-        'for i in $(seq 1 20); do echo "line $i"; done',
+        cmd("lines", 'for i in $(seq 1 20); do echo "line $i"; done'),
       );
 
       // Wait for process to complete
@@ -191,7 +218,11 @@ describe("ProcessService", () => {
 
   describe("crashed process detection", () => {
     it("marks process as crashed when it exits with non-zero code", async () => {
-      const proc = service.startProcess("/tmp", "feature/test", "exit 1");
+      const proc = service.startProcess(
+        "/tmp",
+        "feature/test",
+        cmd("fail", "exit 1"),
+      );
 
       // Poll until status changes
       let result = service.getProcess(proc.id);
@@ -209,7 +240,7 @@ describe("ProcessService", () => {
       const listener = vi.fn();
       eventBus.on("process.status-changed", listener);
 
-      service.startProcess("/tmp", "feature/test", "exit 1");
+      service.startProcess("/tmp", "feature/test", cmd("fail", "exit 1"));
 
       // Poll until crashed event fires
       for (let i = 0; i < 20; i++) {
@@ -227,9 +258,9 @@ describe("ProcessService", () => {
 
   describe("stopAllForWorktree", () => {
     it("stops all processes for a specific worktree", async () => {
-      service.startProcess("/tmp", "feature/a", "sleep 60");
-      service.startProcess("/tmp", "feature/a", "sleep 120");
-      service.startProcess("/tmp", "feature/b", "sleep 60");
+      service.startProcess("/tmp", "feature/a", cmd("sleep", "sleep 60"));
+      service.startProcess("/tmp", "feature/a", cmd("sleep2", "sleep 120"));
+      service.startProcess("/tmp", "feature/b", cmd("sleep", "sleep 60"));
 
       await service.stopAllForWorktree("/tmp", "feature/a");
 
@@ -243,8 +274,8 @@ describe("ProcessService", () => {
 
   describe("stopAll", () => {
     it("stops all managed processes", async () => {
-      service.startProcess("/tmp", "feature/a", "sleep 60");
-      service.startProcess("/tmp", "feature/b", "sleep 60");
+      service.startProcess("/tmp", "feature/a", cmd("sleep", "sleep 60"));
+      service.startProcess("/tmp", "feature/b", cmd("sleep", "sleep 60"));
 
       await service.stopAll();
 
