@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { appendFile, mkdir, unlink } from "fs/promises";
+import { mkdir, unlink } from "fs/promises";
 import { dirname } from "path";
 import type {
   AgentConfig,
@@ -8,6 +8,7 @@ import type {
 } from "@/backend/infra/config";
 import type { EventBus } from "@/backend/infra/event-bus";
 import { logger } from "@/backend/infra/logger";
+import { appendToLog } from "@/backend/utils/log";
 import type { AgentService, TransitionDecision } from "../agent";
 import type { WorktreeService } from "../worktrees";
 import type { SessionRepository } from "./session-repository";
@@ -54,17 +55,6 @@ export interface ListSessionsFilter {
   repository_path?: string;
   worktree_branch?: string;
   status?: SessionStatus;
-}
-
-async function appendSessionLogEntry(
-  logFilePath: string,
-  entry: unknown,
-): Promise<void> {
-  try {
-    await appendFile(logFilePath, `${JSON.stringify(entry)}\n`, "utf8");
-  } catch {
-    // Non-critical — ignore log write errors.
-  }
 }
 
 export class SessionService {
@@ -208,7 +198,7 @@ export class SessionService {
       );
     }
 
-    await appendSessionLogEntry(session.log_file_path, {
+    await appendToLog(session.log_file_path, {
       type: "user_input",
       message,
     });

@@ -1,4 +1,5 @@
 import type { TransitionDecision } from "@/backend/domain/agent";
+import { parseJson } from "@/backend/utils/json";
 import type {
   StepExecution,
   WorkflowRun,
@@ -32,15 +33,6 @@ export interface StepExecutionRow {
   handoff_summary: string | null;
   created_at: string;
   completed_at: string | null;
-}
-
-function parseJson(value: string | null): unknown {
-  if (value === null) return null;
-  try {
-    return JSON.parse(value) as unknown;
-  } catch {
-    return null;
-  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

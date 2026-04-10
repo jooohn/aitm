@@ -1,4 +1,5 @@
 import type { AgentConfig } from "@/backend/infra/config";
+import { parseJson } from "@/backend/utils/json";
 import type { Chat, ChatProposal, ChatProposalStatus, ChatStatus } from ".";
 
 export interface ChatRow {
@@ -23,15 +24,6 @@ export interface ChatProposalRow {
   workflow_run_id: string | null;
   created_at: string;
   updated_at: string;
-}
-
-function parseJson<T>(value: string | null, fallback: T): T {
-  if (value === null) return fallback;
-  try {
-    return JSON.parse(value) as T;
-  } catch {
-    return fallback;
-  }
 }
 
 export function chatRowToDomain(row: ChatRow): Chat {
