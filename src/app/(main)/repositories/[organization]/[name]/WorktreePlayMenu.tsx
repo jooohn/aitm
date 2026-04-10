@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { mutate } from "swr";
 import PlayIcon from "@/app/components/icons/PlayIcon";
 import { swrKeys, useProcesses } from "@/lib/hooks/swr";
@@ -40,9 +41,14 @@ export default function WorktreePlayMenu({
 }: Props) {
   const router = useRouter();
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(
+    null,
+  );
 
   const { data: processes } = useProcesses(organization, name, branch);
 
@@ -81,21 +87,29 @@ export default function WorktreePlayMenu({
   useEffect(() => {
     if (!open) return;
     function handleClickOutside(e: MouseEvent) {
-      if (
-        wrapperRef.current &&
-        !wrapperRef.current.contains(e.target as Node)
-      ) {
-        setOpen(false);
-      }
+      const target = e.target as Node;
+      if (wrapperRef.current?.contains(target)) return;
+      if (menuRef.current?.contains(target)) return;
+      setOpen(false);
     }
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") setOpen(false);
     }
+    function updatePosition() {
+      const rect = triggerRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      setMenuPos({ top: rect.top, left: rect.right + 4 });
+    }
+    updatePosition();
     document.addEventListener("mousedown", handleClickOutside);
     window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
       window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
     };
   }, [open]);
 
@@ -143,6 +157,7 @@ export default function WorktreePlayMenu({
   return (
     <div className={styles.wrapper} ref={wrapperRef}>
       <button
+        ref={triggerRef}
         type="button"
         className={styles.trigger}
         onClick={() => setOpen((o) => !o)}
@@ -154,50 +169,59 @@ export default function WorktreePlayMenu({
       >
         <PlayIcon size={14} />
       </button>
-      {open && (
-        <div className={styles.menu} role="menu">
-          <div className={styles.groupHeading}>Commands</div>
-          {hasCommands ? (
-            commands.map((command) => {
-              const running = activeCommandIds.has(command.id);
-              return (
+      {open &&
+        menuPos &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            ref={menuRef}
+            className={styles.menu}
+            role="menu"
+            style={{ top: menuPos.top, left: menuPos.left }}
+          >
+            <div className={styles.groupHeading}>Commands</div>
+            {hasCommands ? (
+              commands.map((command) => {
+                const running = activeCommandIds.has(command.id);
+                return (
+                  <button
+                    key={command.id}
+                    type="button"
+                    role="menuitem"
+                    className={styles.item}
+                    disabled={running || busy}
+                    title={running ? "Already running" : undefined}
+                    onClick={() => handleStartCommand(command.id)}
+                  >
+                    {command.label}
+                  </button>
+                );
+              })
+            ) : (
+              <p className={styles.empty}>No commands configured.</p>
+            )}
+            <div className={styles.separator} />
+            <div className={styles.groupHeading}>Workflows</div>
+            {hasSuggestions ? (
+              suggestions.map((suggestion) => (
                 <button
-                  key={command.id}
+                  key={suggestion.workflow}
                   type="button"
                   role="menuitem"
                   className={styles.item}
-                  disabled={running || busy}
-                  title={running ? "Already running" : undefined}
-                  onClick={() => handleStartCommand(command.id)}
+                  disabled={busy}
+                  onClick={() => handleStartWorkflow(suggestion)}
                 >
-                  {command.label}
+                  {suggestion.label}
                 </button>
-              );
-            })
-          ) : (
-            <p className={styles.empty}>No commands configured.</p>
-          )}
-          <div className={styles.separator} />
-          <div className={styles.groupHeading}>Workflows</div>
-          {hasSuggestions ? (
-            suggestions.map((suggestion) => (
-              <button
-                key={suggestion.workflow}
-                type="button"
-                role="menuitem"
-                className={styles.item}
-                disabled={busy}
-                onClick={() => handleStartWorkflow(suggestion)}
-              >
-                {suggestion.label}
-              </button>
-            ))
-          ) : (
-            <p className={styles.empty}>No suggested workflows.</p>
-          )}
-          {error && <p className={styles.error}>{error}</p>}
-        </div>
-      )}
+              ))
+            ) : (
+              <p className={styles.empty}>No suggested workflows.</p>
+            )}
+            {error && <p className={styles.error}>{error}</p>}
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }

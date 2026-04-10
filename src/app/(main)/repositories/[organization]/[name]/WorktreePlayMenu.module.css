@@ -9,7 +9,7 @@
 }
 
 .menu {
-  @apply absolute right-0 top-full mt-1 z-10 min-w-[220px] rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-lg py-1 flex flex-col;
+  @apply fixed z-50 min-w-[220px] rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-lg py-1 flex flex-col;
 }
 
 .groupHeading {
