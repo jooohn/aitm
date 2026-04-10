@@ -176,6 +176,32 @@ describe("POST /api/repositories/:org/:name/worktrees/[branch]/processes", () =>
     expect(res.status).toBe(400);
   });
 
+  it("returns 400 for malformed JSON", async () => {
+    getRepositoryByAliasSpy.mockResolvedValue({
+      path: "/repo/path",
+      name: "repo",
+      alias: "org/repo",
+    });
+    listWorktreesSpy.mockResolvedValue([
+      { branch: "feat/test", path: "/repo/worktrees/feat/test" },
+    ]);
+
+    const res = await POST(
+      new NextRequest(
+        "http://localhost/api/repositories/org/repo/worktrees/feat__test/processes",
+        {
+          method: "POST",
+          body: '{"command_id":',
+          headers: { "Content-Type": "application/json" },
+        },
+      ),
+      makeParams("org", "repo", "feat__test"),
+    );
+
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "Invalid JSON body" });
+  });
+
   it("returns 400 when command_id does not match any configured command", async () => {
     getRepositoryByAliasSpy.mockResolvedValue({
       path: "/repo/path",

@@ -1,32 +1,43 @@
 import { NextRequest, NextResponse } from "next/server";
 import { toSessionDto } from "@/backend/api/dto";
 import { errorResponse } from "@/backend/api/error-response";
-import { repositoryService, sessionService } from "@/backend/container";
-import type { SessionStatus } from "@/backend/domain/sessions";
+import {
+  parseSearchParams,
+  resolveOptionalRepositoryFilter,
+} from "@/backend/api/request";
+import { sessionListQuerySchema } from "@/backend/api/schemas";
+import { sessionService } from "@/backend/container";
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
-    const { searchParams } = request.nextUrl;
-    const organization = searchParams.get("organization") ?? undefined;
-    const name = searchParams.get("name") ?? undefined;
-    const worktree_branch = searchParams.get("worktree_branch") ?? undefined;
-    const statusParam = searchParams.get("status") ?? undefined;
-    const status = statusParam as SessionStatus | undefined;
+    const queryResult = parseSearchParams(
+      request.nextUrl.searchParams,
+      sessionListQuerySchema,
+    );
+    if (!queryResult.ok) {
+      return queryResult.response;
+    }
 
-    let repository_path: string | undefined;
-    if (organization && name) {
-      const repo = await repositoryService.getRepositoryByAlias(
-        `${organization}/${name}`,
-      );
-      if (!repo) {
-        return NextResponse.json([]);
-      }
-      repository_path = repo.path;
+    const repositoryResult = await resolveOptionalRepositoryFilter(
+      {
+        organization: queryResult.data.organization,
+        name: queryResult.data.name,
+      },
+      {
+        onMissingRepository: "empty-array",
+      },
+    );
+    if (!repositoryResult.ok) {
+      return repositoryResult.response;
     }
 
     return NextResponse.json(
       sessionService
-        .listSessions({ repository_path, worktree_branch, status })
+        .listSessions({
+          repository_path: repositoryResult.data.repositoryPath,
+          worktree_branch: queryResult.data.worktree_branch,
+          status: queryResult.data.status,
+        })
         .map(toSessionDto),
     );
   } catch (err) {

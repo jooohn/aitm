@@ -89,4 +89,32 @@ describe("GET /api/sessions", () => {
     expect(body[0].organization).toBe(organization);
     expect(body[0].name).toBe(name);
   });
+
+  it("returns 422 for an unknown status filter", async () => {
+    await setupConfig("workflows: {}\n");
+
+    const res = await GET(
+      new NextRequest("http://localhost/api/sessions?status=not-a-status"),
+    );
+
+    expect(res.status).toBe(422);
+    await expect(res.json()).resolves.toEqual({
+      error: expect.stringMatching(/status/i),
+    });
+  });
+
+  it("uses the first status value when the query repeats the parameter", async () => {
+    await setupConfig("workflows: {}\n");
+
+    const res = await GET(
+      new NextRequest(
+        "http://localhost/api/sessions?status=not-a-status&status=running",
+      ),
+    );
+
+    expect(res.status).toBe(422);
+    await expect(res.json()).resolves.toEqual({
+      error: expect.stringMatching(/status/i),
+    });
+  });
 });

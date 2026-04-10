@@ -1,39 +1,64 @@
 import { NextRequest, NextResponse } from "next/server";
 import { toWorkflowRunDto } from "@/backend/api/dto";
 import { errorResponse } from "@/backend/api/error-response";
-import { repositoryService, workflowRunService } from "@/backend/container";
-import type { WorkflowRunStatus } from "@/backend/domain/workflow-runs";
+import {
+  parseJsonBody,
+  parseSearchParams,
+  resolveOptionalRepositoryFilter,
+  resolveRepositoryFromParams,
+} from "@/backend/api/request";
+import {
+  workflowRunCreateBodySchema,
+  workflowRunListQuerySchema,
+} from "@/backend/api/schemas";
+import { workflowRunService } from "@/backend/container";
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    const body = await request.json();
-    const { organization, name, worktree_branch, workflow_name, inputs } = body;
-
-    if (!organization || !name || !worktree_branch || !workflow_name) {
-      return NextResponse.json(
-        {
-          error:
-            "organization, name, worktree_branch, and workflow_name are required",
+    const bodyResult = await parseJsonBody(
+      request,
+      workflowRunCreateBodySchema,
+      {
+        formatError: (error) => {
+          const firstIssue = error.issues[0];
+          const path = firstIssue?.path[0];
+          if (
+            path === "organization" ||
+            path === "name" ||
+            path === "worktree_branch" ||
+            path === "workflow_name"
+          ) {
+            return "organization, name, worktree_branch, and workflow_name are required";
+          }
+          if (path === "inputs") {
+            return "inputs must be an object with string values";
+          }
+          return firstIssue?.message ?? "Invalid JSON body";
         },
-        { status: 422 },
-      );
+      },
+    );
+    if (!bodyResult.ok) {
+      return bodyResult.response;
     }
 
-    const repo = await repositoryService.getRepositoryByAlias(
-      `${organization}/${name}`,
+    const repositoryResult = await resolveRepositoryFromParams(
+      {
+        organization: bodyResult.data.organization,
+        name: bodyResult.data.name,
+      },
+      {
+        notFoundMessage: (alias) => `Repository ${alias} not found`,
+      },
     );
-    if (!repo) {
-      return NextResponse.json(
-        { error: `Repository ${organization}/${name} not found` },
-        { status: 404 },
-      );
+    if (!repositoryResult.ok) {
+      return repositoryResult.response;
     }
 
     const run = await workflowRunService.createWorkflowRun({
-      repository_path: repo.path,
-      worktree_branch,
-      workflow_name,
-      inputs: inputs as Record<string, string> | undefined,
+      repository_path: repositoryResult.data.repository.path,
+      worktree_branch: bodyResult.data.worktree_branch,
+      workflow_name: bodyResult.data.workflow_name,
+      inputs: bodyResult.data.inputs,
     });
     return NextResponse.json(toWorkflowRunDto(run), { status: 201 });
   } catch (err) {
@@ -43,30 +68,33 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
-    const { searchParams } = request.nextUrl;
-    const organization = searchParams.get("organization") ?? undefined;
-    const name = searchParams.get("name") ?? undefined;
-    const worktree_branch = searchParams.get("worktree_branch") ?? undefined;
-    const statusParam = searchParams.get("status") ?? undefined;
-    const status = statusParam as WorkflowRunStatus | undefined;
+    const queryResult = parseSearchParams(
+      request.nextUrl.searchParams,
+      workflowRunListQuerySchema,
+    );
+    if (!queryResult.ok) {
+      return queryResult.response;
+    }
 
-    let repository_path: string | undefined;
-    if (organization && name) {
-      const repo = await repositoryService.getRepositoryByAlias(
-        `${organization}/${name}`,
-      );
-      if (!repo) {
-        return NextResponse.json([]);
-      }
-      repository_path = repo.path;
+    const repositoryResult = await resolveOptionalRepositoryFilter(
+      {
+        organization: queryResult.data.organization,
+        name: queryResult.data.name,
+      },
+      {
+        onMissingRepository: "empty-array",
+      },
+    );
+    if (!repositoryResult.ok) {
+      return repositoryResult.response;
     }
 
     return NextResponse.json(
       workflowRunService
         .listWorkflowRuns({
-          repository_path,
-          worktree_branch,
-          status,
+          repository_path: repositoryResult.data.repositoryPath,
+          worktree_branch: queryResult.data.worktree_branch,
+          status: queryResult.data.status,
         })
         .map(toWorkflowRunDto),
     );

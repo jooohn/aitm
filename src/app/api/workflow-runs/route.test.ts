@@ -119,6 +119,97 @@ workflows:
     expect(res.status).toBe(422);
   });
 
+  it("returns 422 for malformed JSON", async () => {
+    await setupConfig("workflows: {}\n");
+    const res = await POST(
+      new NextRequest("http://localhost/api/workflow-runs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: '{"organization":',
+      }),
+    );
+
+    expect(res.status).toBe(422);
+    expect(await res.json()).toEqual({ error: "Invalid JSON body" });
+  });
+
+  it("returns 422 when inputs contains non-string values", async () => {
+    const repoPath = await makeFakeGitRepo();
+    const alias = inferAlias(repoPath);
+    const [organization, name] = alias.split("/");
+    await setupConfig(
+      `
+workflows:
+  my-flow:
+    initial_step: plan
+    steps:
+      plan:
+        goal: "Write a plan"
+        transitions:
+          - terminal: success
+            when: "done"
+`,
+      [repoPath],
+    );
+
+    const res = await POST(
+      new NextRequest("http://localhost/api/workflow-runs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          organization,
+          name,
+          worktree_branch: "feat/test",
+          workflow_name: "my-flow",
+          inputs: { count: 1 },
+        }),
+      }),
+    );
+
+    expect(res.status).toBe(422);
+    expect(await res.json()).toEqual({
+      error: "inputs must be an object with string values",
+    });
+  });
+
+  it("treats null inputs as empty inputs", async () => {
+    const repoPath = await makeFakeGitRepo();
+    const alias = inferAlias(repoPath);
+    const [organization, name] = alias.split("/");
+    await setupConfig(
+      `
+workflows:
+  my-flow:
+    initial_step: plan
+    steps:
+      plan:
+        goal: "Write a plan"
+        transitions:
+          - terminal: success
+            when: "done"
+`,
+      [repoPath],
+    );
+
+    const res = await POST(
+      new NextRequest("http://localhost/api/workflow-runs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          organization,
+          name,
+          worktree_branch: "feat/test",
+          workflow_name: "my-flow",
+          inputs: null,
+        }),
+      }),
+    );
+
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.inputs).toBeNull();
+  });
+
   it("returns 404 when repository is not found", async () => {
     await setupConfig("workflows: {}\n");
     const res = await POST(
@@ -302,5 +393,33 @@ workflows:
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body).toHaveLength(0);
+  });
+
+  it("returns 422 for an unknown status filter", async () => {
+    await setupConfig("workflows: {}\n");
+
+    const res = await GET(
+      new NextRequest("http://localhost/api/workflow-runs?status=not-a-status"),
+    );
+
+    expect(res.status).toBe(422);
+    await expect(res.json()).resolves.toEqual({
+      error: expect.stringMatching(/status/i),
+    });
+  });
+
+  it("uses the first status value when the query repeats the parameter", async () => {
+    await setupConfig("workflows: {}\n");
+
+    const res = await GET(
+      new NextRequest(
+        "http://localhost/api/workflow-runs?status=not-a-status&status=running",
+      ),
+    );
+
+    expect(res.status).toBe(422);
+    await expect(res.json()).resolves.toEqual({
+      error: expect.stringMatching(/status/i),
+    });
   });
 });
