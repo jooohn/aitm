@@ -192,7 +192,7 @@ describe("startAgent", () => {
     expect(decision.metadata).toBeUndefined();
   });
 
-  it("sets awaiting_input and returns when agent selects __REQUIRE_USER_INPUT__", async () => {
+  it("sets awaiting_input when agent returns structured output without a transition", async () => {
     const agentService = buildAgentService();
     const repoPath = await makeFakeGitRepo();
     const sessionId = "session-user-input";
@@ -210,7 +210,6 @@ describe("startAgent", () => {
         type: "result",
         subtype: "success",
         structured_output: {
-          transition: "__REQUIRE_USER_INPUT__",
           reason: "Need clarification",
           handoff_summary: "What database should I use?",
           clarifying_question: "What database should I use?",
@@ -233,14 +232,56 @@ describe("startAgent", () => {
       .prepare("SELECT status, transition_decision FROM sessions WHERE id = ?")
       .get(sessionId) as { status: string; transition_decision: string };
     expect(row.status).toBe("awaiting_input");
-    expect(JSON.parse(row.transition_decision)).toEqual({
-      transition: "__REQUIRE_USER_INPUT__",
-      reason: "Need clarification",
-      handoff_summary: "What database should I use?",
-      clarifying_question: "What database should I use?",
-    });
+    const decision = JSON.parse(row.transition_decision);
+    expect(decision.transition).toBeUndefined();
+    expect(decision.reason).toBe("Need clarification");
+    expect(decision.handoff_summary).toBe("What database should I use?");
+    expect(decision.clarifying_question).toBe("What database should I use?");
 
     // onComplete should NOT have been called
+    expect(onComplete).not.toHaveBeenCalled();
+  });
+
+  it("sets awaiting_input when agent returns structured output with empty string transition", async () => {
+    const agentService = buildAgentService();
+    const repoPath = await makeFakeGitRepo();
+    const sessionId = "session-user-input-empty";
+    const logFilePath = join(tmpdir(), `${sessionId}.log`);
+    const onComplete = vi.fn();
+    insertSession(sessionId, repoPath, logFilePath);
+
+    queryMock.mockImplementation(async function* () {
+      yield {
+        type: "system",
+        subtype: "init",
+        session_id: "agent-session-124",
+      };
+      yield {
+        type: "result",
+        subtype: "success",
+        structured_output: {
+          transition: "",
+          reason: "Need clarification",
+          handoff_summary: "What database should I use?",
+          clarifying_question: "What database should I use?",
+        },
+      };
+    });
+
+    await agentService.startAgent(
+      sessionId,
+      repoPath,
+      "Goal",
+      [{ terminal: "success", when: "done" }],
+      agentConfig,
+      logFilePath,
+      onComplete,
+    );
+
+    const row = db
+      .prepare("SELECT status FROM sessions WHERE id = ?")
+      .get(sessionId) as { status: string };
+    expect(row.status).toBe("awaiting_input");
     expect(onComplete).not.toHaveBeenCalled();
   });
 
@@ -258,7 +299,6 @@ describe("startAgent", () => {
         type: "result",
         subtype: "success",
         structured_output: {
-          transition: "__REQUIRE_USER_INPUT__",
           reason: "Need clarification",
           handoff_summary: "Need user input",
           clarifying_question: "Which environment should I target?",
@@ -278,20 +318,18 @@ describe("startAgent", () => {
     );
 
     expect(onComplete).not.toHaveBeenCalled();
-    expect(
-      db
-        .prepare("SELECT transition_decision FROM sessions WHERE id = ?")
-        .get(sessionId),
-    ).toEqual({
-      transition_decision: JSON.stringify({
-        transition: "__REQUIRE_USER_INPUT__",
-        reason: "Need clarification",
-        handoff_summary: "Need user input",
-        clarifying_question: "Which environment should I target?",
-        metadata: {
-          pr_url: "https://github.com/org/repo/pull/42",
-        },
-      }),
+    const row = db
+      .prepare("SELECT transition_decision FROM sessions WHERE id = ?")
+      .get(sessionId) as { transition_decision: string };
+    const decision = JSON.parse(row.transition_decision);
+    expect(decision.transition).toBeUndefined();
+    expect(decision.reason).toBe("Need clarification");
+    expect(decision.handoff_summary).toBe("Need user input");
+    expect(decision.clarifying_question).toBe(
+      "Which environment should I target?",
+    );
+    expect(decision.metadata).toEqual({
+      pr_url: "https://github.com/org/repo/pull/42",
     });
   });
 
@@ -315,9 +353,9 @@ describe("startAgent", () => {
         type: "result",
         subtype: "success",
         structured_output: {
-          transition: "__REQUIRE_USER_INPUT__",
           reason: "Need clarification",
           handoff_summary: "What database?",
+          clarifying_question: "What database?",
         },
       };
     });
@@ -658,7 +696,7 @@ describe("resumeAgent", () => {
     );
   });
 
-  it("sets awaiting_input again when agent requests more input", async () => {
+  it("sets awaiting_input again when agent returns structured output without transition", async () => {
     const agentService = buildAgentService();
     const repoPath = await makeFakeGitRepo();
     const sessionId = "session-resume-more-input";
@@ -674,9 +712,9 @@ describe("resumeAgent", () => {
         type: "result",
         subtype: "success",
         structured_output: {
-          transition: "__REQUIRE_USER_INPUT__",
           reason: "Need port",
           handoff_summary: "Which port?",
+          clarifying_question: "Which port should I use?",
         },
       };
     });
@@ -716,9 +754,9 @@ describe("resumeAgent", () => {
         type: "result",
         subtype: "success",
         structured_output: {
-          transition: "__REQUIRE_USER_INPUT__",
           reason: "Need more detail",
           handoff_summary: "Still need clarification",
+          clarifying_question: "Can you provide more detail?",
         },
       };
     });

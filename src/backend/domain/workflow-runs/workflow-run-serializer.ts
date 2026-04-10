@@ -66,7 +66,6 @@ export function parseTransitionDecision(
   const parsed = parseJson(value);
   if (!isRecord(parsed)) return null;
   if (
-    typeof parsed.transition !== "string" ||
     typeof parsed.reason !== "string" ||
     typeof parsed.handoff_summary !== "string"
   ) {
@@ -82,7 +81,9 @@ export function parseTransitionDecision(
     : undefined;
 
   return {
-    transition: parsed.transition,
+    ...(typeof parsed.transition === "string" && parsed.transition
+      ? { transition: parsed.transition }
+      : {}),
     reason: parsed.reason,
     handoff_summary: parsed.handoff_summary,
     ...(typeof parsed.clarifying_question === "string"

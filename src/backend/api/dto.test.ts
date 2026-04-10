@@ -10,7 +10,6 @@ describe("toSessionDto", () => {
       goal: "Goal",
       transitions: [],
       transition_decision: {
-        transition: "__REQUIRE_USER_INPUT__",
         reason: "Need clarification",
         handoff_summary: "Waiting for user input",
         clarifying_question: "Which branch should I use?",
@@ -30,7 +29,6 @@ describe("toSessionDto", () => {
     });
 
     expect(sessionDto.transition_decision).toEqual({
-      transition: "__REQUIRE_USER_INPUT__",
       reason: "Need clarification",
       handoff_summary: "Waiting for user input",
       clarifying_question: "Which branch should I use?",

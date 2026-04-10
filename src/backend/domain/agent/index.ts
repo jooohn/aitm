@@ -10,11 +10,10 @@ import type {
 } from "@/backend/infra/config";
 import type { EventBus } from "@/backend/infra/event-bus";
 import { DEFAULT_PERMISSION_MODE } from "./permission-mode";
-import type { AgentMessage, AgentRuntime, SessionTransition } from "./runtime";
-import { USER_INPUT_TRANSITION, USER_INPUT_TRANSITION_NAME } from "./runtime";
+import type { AgentMessage, AgentRuntime } from "./runtime";
 
 export interface TransitionDecision {
-  transition: string;
+  transition?: string;
   reason: string;
   handoff_summary: string;
   clarifying_question?: string;
@@ -37,23 +36,10 @@ function isTerminalSessionStatus(status: SessionStatus | null): boolean {
   return status === "failure" || status === "success";
 }
 
-function buildSessionTransitions(
-  transitions: WorkflowTransition[],
-): SessionTransition[] {
-  return [...transitions, USER_INPUT_TRANSITION];
-}
-
-function buildTransitionsSection(transitions: SessionTransition[]): string {
+function buildTransitionsSection(transitions: WorkflowTransition[]): string {
   const list = transitions
     .map((t) => {
-      let name: string;
-      if ("user_input" in t) {
-        name = USER_INPUT_TRANSITION_NAME;
-      } else if ("step" in t) {
-        name = t.step;
-      } else {
-        name = t.terminal;
-      }
+      const name = "step" in t ? t.step : t.terminal;
       return `  - "${name}": ${t.when}`;
     })
     .join("\n");
@@ -63,6 +49,7 @@ function buildTransitionsSection(transitions: SessionTransition[]): string {
     "When you finish your work, evaluate which transition applies and emit it as your final structured output.",
     "Available transitions (emit the exact transition name in the 'transition' field):",
     list,
+    "If you need clarification or input from the user before proceeding, omit the transition field and use clarifying_question to ask.",
     "</transitions>",
   ].join("\n");
 }
@@ -73,10 +60,6 @@ const CORE_DECISION_KEYS = new Set([
   "handoff_summary",
   "clarifying_question",
 ]);
-
-function isUserInputTransition(decision: TransitionDecision | null): boolean {
-  return decision?.transition === USER_INPUT_TRANSITION_NAME;
-}
 
 export class AgentService {
   private activeAbortControllers = new Map<string, AbortController>();
@@ -110,7 +93,9 @@ export class AgentService {
     if (message.subtype === "success" && message.structured_output) {
       const raw = message.structured_output as Record<string, unknown>;
       decision = {
-        transition: raw.transition as string,
+        ...(typeof raw.transition === "string" && raw.transition
+          ? { transition: raw.transition }
+          : {}),
         reason: raw.reason as string,
         handoff_summary: raw.handoff_summary as string,
         ...(typeof raw.clarifying_question === "string"
@@ -138,9 +123,9 @@ export class AgentService {
    * awaiting. All errors are handled internally; terminal persistence is delegated
    * to the consumer of the emitted agent-session.completed event.
    *
-   * If the agent selects __REQUIRE_USER_INPUT__, the session is set to
-   * AWAITING_INPUT and the function returns without calling onComplete.
-   * Call resumeAgent() when the user provides input.
+   * If the agent returns structured output without a transition, the session
+   * is set to AWAITING_INPUT and the function returns without calling
+   * onComplete. Call resumeAgent() when the user provides input.
    *
    * onComplete is an optional notification hook that mirrors the emitted
    * completion event for callers that need an in-process callback.
@@ -178,10 +163,7 @@ export class AgentService {
       // Non-critical — subsequent append attempts are already best-effort.
     }
 
-    const sessionTransitions = buildSessionTransitions(transitions);
-    const prompt = [goal, "", buildTransitionsSection(sessionTransitions)].join(
-      "\n",
-    );
+    const prompt = [goal, "", buildTransitionsSection(transitions)].join("\n");
 
     let decision: TransitionDecision | null = null;
     try {
@@ -197,7 +179,7 @@ export class AgentService {
 
       const agentRuntime = this.selectRuntime(agentConfig);
       const outputFormat = agentRuntime.buildTransitionOutputFormat(
-        sessionTransitions,
+        transitions,
         metadataFields,
       );
 
@@ -247,8 +229,8 @@ export class AgentService {
   /**
    * Resume a session that is awaiting user input. Fire-and-forget — call
    * without awaiting. Behaves like startAgent for the result handling:
-   * if the agent selects __REQUIRE_USER_INPUT__ again, AWAITING_INPUT is
-   * set and onComplete is not called. Otherwise an agent-session.completed
+   * if the agent returns structured output without a transition again,
+   * AWAITING_INPUT is set and onComplete is not called. Otherwise an agent-session.completed
    * event is emitted and any terminal persistence happens in that subscriber.
    */
   async resumeAgent(
@@ -283,13 +265,11 @@ export class AgentService {
     const abortController = new AbortController();
     this.activeAbortControllers.set(sessionId, abortController);
 
-    const sessionTransitions = buildSessionTransitions(transitions);
-
     let decision: TransitionDecision | null = null;
     try {
       const agentRuntime = this.selectRuntime(agentConfig);
       const outputFormat = agentRuntime.buildTransitionOutputFormat(
-        sessionTransitions,
+        transitions,
         metadataFields,
       );
 
@@ -386,14 +366,14 @@ export class AgentService {
     logFilePath: string,
     onComplete?: (decision: TransitionDecision | null) => void,
   ): Promise<void> {
-    if (isUserInputTransition(decision)) {
+    if (decision && !decision.transition) {
       this.sessionRepository.setSessionAwaitingInput(
         sessionId,
         new Date().toISOString(),
       );
       await appendToLog(logFilePath, {
         type: "awaiting_input",
-        message: decision!.handoff_summary,
+        message: decision.handoff_summary,
       });
       // Do NOT call onComplete — session is paused, not finished.
       return;

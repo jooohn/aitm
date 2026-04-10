@@ -10,7 +10,6 @@ import type {
   OutputFormat,
   SessionTransition,
 } from "./runtime";
-import { USER_INPUT_TRANSITION_NAME } from "./runtime";
 
 async function* streamEvents(
   events: AsyncIterable<ThreadEvent>,
@@ -167,7 +166,6 @@ export function buildTransitionOutputFormatForCodex(
   metadataFields?: Record<string, OutputMetadataFieldDef>,
 ): OutputFormat {
   const transitionNames = transitions.map((t) => {
-    if ("user_input" in t) return USER_INPUT_TRANSITION_NAME;
     if ("step" in t) return t.step;
     return t.terminal;
   });
@@ -191,7 +189,7 @@ export function buildTransitionOutputFormatForCodex(
     }
   }
 
-  const required = Object.keys(properties);
+  const required = Object.keys(properties).filter((k) => k !== "transition");
 
   return {
     type: "json_schema" as const,

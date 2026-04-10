@@ -32,16 +32,7 @@ export type AgentMessage =
       structured_output?: unknown;
     };
 
-export type SessionTransition =
-  | WorkflowTransition
-  | { user_input: true; when: string };
-
-export const USER_INPUT_TRANSITION: SessionTransition = {
-  user_input: true,
-  when: "You need clarification or input from the user before proceeding",
-};
-
-export const USER_INPUT_TRANSITION_NAME = "__REQUIRE_USER_INPUT__";
+export type SessionTransition = WorkflowTransition;
 
 export interface AgentQueryParams {
   sessionId: string;

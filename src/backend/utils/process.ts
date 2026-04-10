@@ -19,7 +19,7 @@ export interface SpawnOptions {
 export function sanitizeChildEnv(
   env: NodeJS.ProcessEnv = process.env,
 ): NodeJS.ProcessEnv {
-  const clean: NodeJS.ProcessEnv = {};
+  const clean = {} as NodeJS.ProcessEnv;
   for (const [key, value] of Object.entries(env)) {
     if (key === "NODE_ENV") continue;
     if (key === "INIT_CWD") continue;

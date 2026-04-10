@@ -22,7 +22,6 @@ describe("buildTransitionOutputFormatForClaude", () => {
 
     // Metadata fields should be required alongside core fields
     expect(schema.required).toEqual([
-      "transition",
       "reason",
       "handoff_summary",
       "clarifying_question",

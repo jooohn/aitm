@@ -405,12 +405,7 @@ describe("buildTransitionOutputFormatForCodex", () => {
           handoff_summary: { type: "string" },
           clarifying_question: { type: "string" },
         },
-        required: [
-          "transition",
-          "reason",
-          "handoff_summary",
-          "clarifying_question",
-        ],
+        required: ["reason", "handoff_summary", "clarifying_question"],
         additionalProperties: false,
       },
     });
@@ -435,7 +430,6 @@ describe("buildTransitionOutputFormatForCodex", () => {
     expect(properties.pr_number).toEqual({ type: "string" });
 
     expect(schema.required).toEqual([
-      "transition",
       "reason",
       "handoff_summary",
       "clarifying_question",
