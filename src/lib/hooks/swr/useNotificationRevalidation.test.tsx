@@ -75,11 +75,13 @@ describe("useNotificationRevalidation", () => {
     });
 
     expect(mutate).toHaveBeenCalledTimes(1);
-    // mutate should be called with only the selector — no data arg or options.
-    // Passing `undefined` as the second arg clears the cache, which causes
-    // a flash of loading state. Omitting it triggers revalidation while
-    // keeping existing cached data visible.
-    expect(mutate).toHaveBeenCalledWith(expect.any(Function));
+    // mutate is called with the explicit {revalidate: true, populateCache: false}
+    // options — the documented SWR pattern for refreshing matching keys without
+    // clearing cached data (which would cause a loading flash).
+    expect(mutate).toHaveBeenCalledWith(expect.any(Function), undefined, {
+      revalidate: true,
+      populateCache: false,
+    });
     const [selectorArg] = mutate.mock.calls[0];
 
     // Matches workflow-run list keys

@@ -114,7 +114,14 @@ export function useNotificationRevalidation(): void {
       const targetPaths = mergeTargetPaths(
         notifications.map(determineTargetPaths),
       );
-      void mutate(matchesTargetPaths(targetPaths));
+      // Use the documented SWR pattern for revalidating matching keys
+      // without clearing cached data. `populateCache: false` is critical:
+      // without it, SWR writes `undefined` into the cache before revalidation
+      // completes, causing a flash of loading state.
+      void mutate(matchesTargetPaths(targetPaths), undefined, {
+        revalidate: true,
+        populateCache: false,
+      });
     }, DEBOUNCE_MILLIS),
   ).current;
 
