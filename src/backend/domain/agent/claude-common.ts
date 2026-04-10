@@ -95,12 +95,7 @@ export function buildTransitionOutputFormatForClaude(
     schema: {
       type: "object",
       properties,
-      required: [
-        "transition",
-        "reason",
-        "handoff_summary",
-        "clarifying_question",
-      ],
+      required: Object.keys(properties),
       additionalProperties: false,
     },
   };
