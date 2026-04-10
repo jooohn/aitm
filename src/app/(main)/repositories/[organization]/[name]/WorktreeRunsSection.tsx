@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { mutate } from "swr";
 import EllipsisIcon from "@/app/components/icons/EllipsisIcon";
 import LoadingIndicator from "@/app/components/LoadingIndicator";
-import PrChip, { extractPrInfos } from "@/app/components/PrChip";
+import { extractPrInfos } from "@/app/components/PrChip";
 import StatusDot from "@/app/components/StatusDot";
 import { swrKeys } from "@/lib/hooks/swr";
 import { useHouseKeepingSyncing } from "@/lib/hooks/useHouseKeepingSyncing";
@@ -20,6 +20,7 @@ import { branchToSlug } from "@/lib/utils/branch-slug";
 import { groupRunsByWorktree } from "@/lib/utils/groupRunsByWorktree";
 import { timeAgo } from "@/lib/utils/timeAgo";
 import WorktreeActiveProcesses from "./WorktreeActiveProcesses";
+import WorktreePullRequests from "./WorktreePullRequests";
 import styles from "./WorktreeRunsSection.module.css";
 
 const INITIAL_VISIBLE_RUNS = 3;
@@ -215,10 +216,8 @@ export default function WorktreeRunsSection({
                       <span className={styles.groupLabel}>{label}</span>
                     </span>
                   )}
-                  {prs.map((pr) => (
-                    <PrChip key={pr.url} pr={pr} />
-                  ))}
                 </div>
+                <WorktreePullRequests prs={prs} />
                 {group.worktree && (
                   <WorktreeActiveProcesses
                     organization={organization}
