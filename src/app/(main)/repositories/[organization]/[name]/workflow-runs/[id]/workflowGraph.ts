@@ -26,17 +26,21 @@ export interface NodePosition {
 export function buildGraph(definition: WorkflowDefinition): Graph {
   const nodes: Map<string, GraphNode> = new Map();
   const edges: GraphEdge[] = [];
+  const edgeKeys = new Set<string>();
+
+  function addEdge(from: string, to: string, label: string) {
+    const key = `${from}->${to}`;
+    if (edgeKeys.has(key)) return;
+    edgeKeys.add(key);
+    edges.push({ from, to, label });
+  }
 
   for (const [stateName, state] of Object.entries(definition.steps)) {
     nodes.set(stateName, { id: stateName, type: "step" });
 
     for (const transition of state.transitions) {
       if ("step" in transition) {
-        edges.push({
-          from: stateName,
-          to: transition.step,
-          label: transition.when,
-        });
+        addEdge(stateName, transition.step, transition.when);
       } else if (
         "terminal" in transition &&
         transition.terminal !== "failure"
@@ -48,11 +52,7 @@ export function buildGraph(definition: WorkflowDefinition): Graph {
             terminal: transition.terminal,
           });
         }
-        edges.push({
-          from: stateName,
-          to: transition.terminal,
-          label: transition.when,
-        });
+        addEdge(stateName, transition.terminal, transition.when);
       }
     }
   }
