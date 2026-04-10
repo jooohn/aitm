@@ -395,15 +395,17 @@ workflows:
     expect(body).toHaveLength(0);
   });
 
-  it("returns empty array for an unknown status filter", async () => {
+  it("returns 422 for an unknown status filter", async () => {
     await setupConfig("workflows: {}\n");
 
     const res = await GET(
       new NextRequest("http://localhost/api/workflow-runs?status=not-a-status"),
     );
 
-    expect(res.status).toBe(200);
-    expect(await res.json()).toEqual([]);
+    expect(res.status).toBe(422);
+    await expect(res.json()).resolves.toEqual({
+      error: expect.stringMatching(/status/i),
+    });
   });
 
   it("uses the first status value when the query repeats the parameter", async () => {
@@ -415,7 +417,9 @@ workflows:
       ),
     );
 
-    expect(res.status).toBe(200);
-    expect(await res.json()).toEqual([]);
+    expect(res.status).toBe(422);
+    await expect(res.json()).resolves.toEqual({
+      error: expect.stringMatching(/status/i),
+    });
   });
 });

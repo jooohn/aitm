@@ -6,19 +6,7 @@ import { BranchNameService } from "@/backend/domain/branch-name";
 const branchNameService = new BranchNameService();
 
 export async function POST(request: Request): Promise<NextResponse> {
-  const bodyResult = await parseJsonBody(
-    request,
-    branchNameGenerateBodySchema,
-    {
-      formatError: (error) => {
-        const firstIssue = error.issues[0];
-        if (firstIssue?.path[0] === "inputs") {
-          return "inputs must be an object with string values";
-        }
-        return firstIssue?.message ?? "Invalid JSON body";
-      },
-    },
-  );
+  const bodyResult = await parseJsonBody(request, branchNameGenerateBodySchema);
   if (!bodyResult.ok) {
     return bodyResult.response;
   }

@@ -70,7 +70,7 @@ export interface CreateWorkflowRunInput {
 export interface ListWorkflowRunsFilter {
   repository_path?: string;
   worktree_branch?: string;
-  status?: string;
+  status?: WorkflowRunStatus;
 }
 
 async function resolveGitDir(worktreePath: string): Promise<string> {
