@@ -41,7 +41,7 @@ describe("mobile layout plan", () => {
       "src/app/(main)/repositories/[organization]/[name]/workflow-runs/[id]/WorkflowRunDetail.module.css",
     );
     const worktreeCss = read(
-      "src/app/(main)/repositories/[organization]/[name]/worktrees/[...worktree-name]/page.module.css",
+      "src/app/(main)/repositories/[organization]/[name]/worktrees/[branch]/page.module.css",
     );
 
     expect(headerCss).toContain(

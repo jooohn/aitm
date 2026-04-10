@@ -16,6 +16,7 @@ import {
   type WorkflowRun,
   type Worktree,
 } from "@/lib/utils/api";
+import { branchToSlug } from "@/lib/utils/branch-slug";
 import { groupRunsByWorktree } from "@/lib/utils/groupRunsByWorktree";
 import { timeAgo } from "@/lib/utils/timeAgo";
 import styles from "./WorktreeRunsSection.module.css";
@@ -186,7 +187,7 @@ export default function WorktreeRunsSection({
             const label = group.worktree?.branch ?? "Archived";
             const isWorktreeActive = group.worktree
               ? pathname.startsWith(
-                  `/repositories/${organization}/${name}/worktrees/${group.worktree.branch}`,
+                  `/repositories/${organization}/${name}/worktrees/${branchToSlug(group.worktree.branch)}`,
                 )
               : false;
 
@@ -203,7 +204,7 @@ export default function WorktreeRunsSection({
                 <div className={styles.groupHeader}>
                   {group.worktree ? (
                     <Link
-                      href={`/repositories/${organization}/${name}/worktrees/${group.worktree.branch}`}
+                      href={`/repositories/${organization}/${name}/worktrees/${branchToSlug(group.worktree.branch)}`}
                       className={`${styles.groupToggle} ${isWorktreeActive ? styles.groupToggleActive : ""}`}
                     >
                       <span className={styles.groupLabel}>{label}</span>

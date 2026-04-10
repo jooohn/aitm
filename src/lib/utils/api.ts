@@ -1,3 +1,4 @@
+import { branchToSlug } from "@/lib/utils/branch-slug";
 import type {
   ChatDetailDto,
   ChatDto,
@@ -108,7 +109,7 @@ export async function removeWorktree(
   branch: string,
 ): Promise<void> {
   await apiFetch(
-    `/api/repositories/${organization}/${name}/worktrees/${branch}`,
+    `/api/repositories/${organization}/${name}/worktrees/${branchToSlug(branch)}`,
     { method: "DELETE" },
   );
 }

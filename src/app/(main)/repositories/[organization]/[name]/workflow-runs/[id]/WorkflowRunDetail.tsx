@@ -24,6 +24,7 @@ import {
   type WorkflowRunDetail,
   type WorkflowRunStatus,
 } from "@/lib/utils/api";
+import { branchToSlug } from "@/lib/utils/branch-slug";
 import { extractPullRequestUrl } from "@/lib/utils/extractPullRequestUrl";
 import { timeAgo } from "@/lib/utils/timeAgo";
 import { workflowRunPath } from "@/lib/utils/workflowRunPath";
@@ -255,7 +256,7 @@ export default function WorkflowRunDetailView({
         <div className={styles.headerLeft}>
           <h1 className={styles.title}>
             <Link
-              href={`/repositories/${currentRun.organization}/${currentRun.name}/worktrees/${currentRun.worktree_branch}`}
+              href={`/repositories/${currentRun.organization}/${currentRun.name}/worktrees/${branchToSlug(currentRun.worktree_branch)}`}
               className={styles.titleBranchLink}
             >
               {currentRun.worktree_branch}

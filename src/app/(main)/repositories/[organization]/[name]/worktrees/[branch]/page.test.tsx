@@ -34,7 +34,7 @@ vi.mock("next/navigation", () => ({
   useParams: () => ({
     organization: "org",
     name: "repo",
-    "worktree-name": ["feature", "my-branch"],
+    branch: "feature__my-branch",
   }),
   useRouter: () => ({ push: vi.fn() }),
   notFound: () => {

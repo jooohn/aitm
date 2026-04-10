@@ -45,7 +45,7 @@ describe("WorkflowBreadcrumb", () => {
 
     expect(screen.getByRole("link", { name: "feat/new" })).toHaveAttribute(
       "href",
-      "/repositories/acme/app/worktrees/feat/new",
+      "/repositories/acme/app/worktrees/feat__new",
     );
 
     // Workflow name should be plain text (current page)

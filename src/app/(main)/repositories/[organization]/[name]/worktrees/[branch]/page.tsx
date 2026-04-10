@@ -7,19 +7,19 @@ import TrashIcon from "@/app/components/icons/TrashIcon";
 import PrChip, { extractPrInfos } from "@/app/components/PrChip";
 import { useRepository, useWorkflowRuns, useWorktrees } from "@/lib/hooks/swr";
 import { isNotFoundError, removeWorktree } from "@/lib/utils/api";
+import { branchToSlug } from "@/lib/utils/branch-slug";
 import styles from "./page.module.css";
 
 export default function WorktreePage() {
   const {
     organization,
     name,
-    "worktree-name": worktreeNameSegments,
+    branch: branchSlug,
   } = useParams<{
     organization: string;
     name: string;
-    "worktree-name": string[];
+    branch: string;
   }>();
-  const branch = worktreeNameSegments.join("/");
   const router = useRouter();
 
   const {
@@ -32,13 +32,22 @@ export default function WorktreePage() {
     error: worktreesError,
     isLoading: worktreesLoading,
   } = useWorktrees(organization, name);
-  const { data: workflowRuns } = useWorkflowRuns(organization, name, branch);
+
+  const worktree = worktrees?.find(
+    (w) => branchToSlug(w.branch) === branchSlug,
+  );
+  const branch = worktree?.branch ?? "";
+
+  const { data: workflowRuns } = useWorkflowRuns(
+    organization,
+    name,
+    branch || undefined,
+  );
 
   const [removing, setRemoving] = useState(false);
   const [removeError, setRemoveError] = useState<string | null>(null);
 
   const loading = repoLoading || worktreesLoading;
-  const worktree = worktrees?.find((w) => w.branch === branch);
 
   async function handleRemove() {
     setRemoving(true);

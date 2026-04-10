@@ -5,8 +5,9 @@ import {
   worktreeService,
 } from "@/backend/container";
 import { eventBus } from "@/backend/infra/event-bus";
+import { branchToSlug } from "@/lib/utils/branch-slug";
 
-type Params = Promise<{ organization: string; name: string; branch: string[] }>;
+type Params = Promise<{ organization: string; name: string; branch: string }>;
 
 function errorResponse(err: unknown): NextResponse {
   const message = err instanceof Error ? err.message : "Internal server error";
@@ -24,7 +25,7 @@ export async function DELETE(
   { params }: { params: Params },
 ): Promise<NextResponse> {
   try {
-    const { organization, name, branch } = await params;
+    const { organization, name, branch: branchSlug } = await params;
     const repo = await repositoryService.getRepositoryByAlias(
       `${organization}/${name}`,
     );
@@ -34,7 +35,17 @@ export async function DELETE(
         { status: 404 },
       );
     }
-    const branchName = branch.join("/");
+    const worktrees = await worktreeService.listWorktrees(repo.path);
+    const worktree = worktrees.find(
+      (w) => branchToSlug(w.branch) === branchSlug,
+    );
+    if (!worktree) {
+      return NextResponse.json(
+        { error: "Worktree not found" },
+        { status: 404 },
+      );
+    }
+    const branchName = worktree.branch;
     await worktreeService.removeWorktree(repo.path, branchName);
     await sessionService.deleteWorktreeData(repo.path, [branchName]);
     eventBus.emit("worktree.changed", {

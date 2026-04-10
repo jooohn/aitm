@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { branchToSlug } from "@/lib/utils/branch-slug";
 import styles from "./WorkflowBreadcrumb.module.css";
 
 interface WorkflowBreadcrumbProps {
@@ -31,7 +32,7 @@ export default function WorkflowBreadcrumb({
     <nav className={styles.breadcrumb}>
       {/* Branch */}
       <Link
-        href={`${repoHref}/worktrees/${branch}`}
+        href={`${repoHref}/worktrees/${branchToSlug(branch)}`}
         className={styles.breadcrumbLink}
       >
         {branch}

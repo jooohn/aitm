@@ -7,6 +7,7 @@ import { mutate } from "swr";
 import EllipsisIcon from "@/app/components/icons/EllipsisIcon";
 import { swrKeys, useWorktrees } from "@/lib/hooks/swr";
 import { cleanMergedWorktrees, createWorktree } from "@/lib/utils/api";
+import { branchToSlug } from "@/lib/utils/branch-slug";
 import styles from "./WorktreeSection.module.css";
 
 interface Props {
@@ -152,7 +153,7 @@ export default function WorktreeSection({ organization, name }: Props) {
       {(hasLoadedOnce || !loading) && !loadError && worktrees && (
         <ul className={styles.list}>
           {worktrees.map((w) => {
-            const wtHref = `/repositories/${organization}/${name}/worktrees/${w.branch}`;
+            const wtHref = `/repositories/${organization}/${name}/worktrees/${branchToSlug(w.branch)}`;
             const isActive = pathname.startsWith(wtHref);
             return (
               <li key={w.branch || w.path}>
