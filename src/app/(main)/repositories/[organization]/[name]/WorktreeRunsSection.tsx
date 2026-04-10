@@ -8,7 +8,7 @@ import EllipsisIcon from "@/app/components/icons/EllipsisIcon";
 import LoadingIndicator from "@/app/components/LoadingIndicator";
 import { extractPrInfos } from "@/app/components/PrChip";
 import StatusDot from "@/app/components/StatusDot";
-import { swrKeys } from "@/lib/hooks/swr";
+import { swrKeys, useRepository, useWorkflows } from "@/lib/hooks/swr";
 import { useHouseKeepingSyncing } from "@/lib/hooks/useHouseKeepingSyncing";
 import {
   cleanMergedWorktrees,
@@ -20,6 +20,7 @@ import { branchToSlug } from "@/lib/utils/branch-slug";
 import { groupRunsByWorktree } from "@/lib/utils/groupRunsByWorktree";
 import { timeAgo } from "@/lib/utils/timeAgo";
 import WorktreeActiveProcesses from "./WorktreeActiveProcesses";
+import WorktreePlayMenu from "./WorktreePlayMenu";
 import WorktreePullRequests from "./WorktreePullRequests";
 import styles from "./WorktreeRunsSection.module.css";
 
@@ -45,6 +46,9 @@ export default function WorktreeRunsSection({
   error,
 }: Props) {
   const pathname = usePathname();
+  const { data: repo } = useRepository(organization, name);
+  const { data: workflows } = useWorkflows();
+  const commands = useMemo(() => repo?.commands ?? [], [repo?.commands]);
   const groups = useMemo(
     () => groupRunsByWorktree(worktrees, runs),
     [worktrees, runs],
@@ -215,6 +219,16 @@ export default function WorktreeRunsSection({
                     <span className={styles.groupToggle}>
                       <span className={styles.groupLabel}>{label}</span>
                     </span>
+                  )}
+                  {group.worktree && (
+                    <WorktreePlayMenu
+                      organization={organization}
+                      name={name}
+                      branch={group.worktree.branch}
+                      runs={group.runs}
+                      commands={commands}
+                      workflows={workflows}
+                    />
                   )}
                 </div>
                 <WorktreePullRequests prs={prs} />
