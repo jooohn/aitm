@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { errorResponse } from "@/backend/api/error-response";
-import { repositoryService, worktreeService } from "@/backend/container";
+import {
+  parseJsonBody,
+  resolveRepositoryFromParams,
+} from "@/backend/api/request";
+import { worktreeCreateBodySchema } from "@/backend/api/schemas";
+import { worktreeService } from "@/backend/container";
 import { eventBus } from "@/backend/infra/event-bus";
 
 type Params = Promise<{ organization: string; name: string }>;
@@ -11,16 +16,18 @@ export async function GET(
 ): Promise<NextResponse> {
   try {
     const { organization, name } = await params;
-    const repo = await repositoryService.getRepositoryByAlias(
-      `${organization}/${name}`,
-    );
-    if (!repo) {
-      return NextResponse.json(
-        { error: "Repository not found" },
-        { status: 404 },
-      );
+    const repositoryResult = await resolveRepositoryFromParams({
+      organization,
+      name,
+    });
+    if (!repositoryResult.ok) {
+      return repositoryResult.response;
     }
-    return NextResponse.json(await worktreeService.listWorktrees(repo.path));
+    return NextResponse.json(
+      await worktreeService.listWorktrees(
+        repositoryResult.data.repository.path,
+      ),
+    );
   } catch (err) {
     return errorResponse(err);
   }
@@ -32,22 +39,25 @@ export async function POST(
 ): Promise<NextResponse> {
   try {
     const { organization, name } = await params;
-    const repo = await repositoryService.getRepositoryByAlias(
-      `${organization}/${name}`,
-    );
-    if (!repo) {
-      return NextResponse.json(
-        { error: "Repository not found" },
-        { status: 404 },
-      );
+    const repositoryResult = await resolveRepositoryFromParams({
+      organization,
+      name,
+    });
+    if (!repositoryResult.ok) {
+      return repositoryResult.response;
     }
-    const body = await request.json();
+
+    const bodyResult = await parseJsonBody(request, worktreeCreateBodySchema);
+    if (!bodyResult.ok) {
+      return bodyResult.response;
+    }
+
     const worktree = await worktreeService.createWorktree(
-      repo.path,
-      body.branch,
+      repositoryResult.data.repository.path,
+      bodyResult.data.branch,
       {
-        name: body.name,
-        no_fetch: body.no_fetch,
+        name: bodyResult.data.name,
+        no_fetch: bodyResult.data.no_fetch,
       },
     );
     eventBus.emit("worktree.changed", {

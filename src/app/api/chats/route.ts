@@ -1,31 +1,49 @@
 import { NextRequest, NextResponse } from "next/server";
 import { toChatDto } from "@/backend/api/dto";
 import { errorResponse } from "@/backend/api/error-response";
-import { chatService, repositoryService } from "@/backend/container";
+import {
+  parseJsonBody,
+  parseSearchParams,
+  resolveOptionalRepositoryFilter,
+  resolveRepositoryFromParams,
+} from "@/backend/api/request";
+import {
+  chatCreateBodySchema,
+  chatListQuerySchema,
+} from "@/backend/api/schemas";
+import { chatService } from "@/backend/container";
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    const body = await request.json();
-    const { organization, name } = body;
-
-    if (!organization || !name) {
-      return NextResponse.json(
-        { error: "organization and name are required" },
-        { status: 422 },
-      );
+    const bodyResult = await parseJsonBody(request, chatCreateBodySchema, {
+      formatError: (error) => {
+        const fields = error.issues
+          .map((issue) => issue.path[0])
+          .filter((field): field is string => typeof field === "string");
+        if (fields.includes("organization") || fields.includes("name")) {
+          return "organization and name are required";
+        }
+        return error.issues[0]?.message ?? "Invalid JSON body";
+      },
+    });
+    if (!bodyResult.ok) {
+      return bodyResult.response;
     }
 
-    const repo = await repositoryService.getRepositoryByAlias(
-      `${organization}/${name}`,
+    const { organization, name } = bodyResult.data;
+    const repositoryResult = await resolveRepositoryFromParams(
+      { organization, name },
+      {
+        notFoundMessage: (alias) => `Repository ${alias} not found`,
+      },
     );
-    if (!repo) {
-      return NextResponse.json(
-        { error: `Repository ${organization}/${name} not found` },
-        { status: 404 },
-      );
+    if (!repositoryResult.ok) {
+      return repositoryResult.response;
     }
 
-    const chat = await chatService.createChat(repo.path);
+    const chat = await chatService.createChat(
+      repositoryResult.data.repository.path,
+    );
     return NextResponse.json(toChatDto(chat), { status: 201 });
   } catch (err) {
     return errorResponse(err);
@@ -34,21 +52,28 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
-    const { searchParams } = request.nextUrl;
-    const organization = searchParams.get("organization") ?? undefined;
-    const name = searchParams.get("name") ?? undefined;
+    const queryResult = parseSearchParams(
+      request.nextUrl.searchParams,
+      chatListQuerySchema,
+    );
+    if (!queryResult.ok) {
+      return queryResult.response;
+    }
 
-    let repositoryPath: string | undefined;
-    if (organization && name) {
-      const repo = await repositoryService.getRepositoryByAlias(
-        `${organization}/${name}`,
-      );
-      if (!repo) return NextResponse.json([]);
-      repositoryPath = repo.path;
+    const repositoryResult = await resolveOptionalRepositoryFilter(
+      queryResult.data,
+      {
+        onMissingRepository: "empty-array",
+      },
+    );
+    if (!repositoryResult.ok) {
+      return repositoryResult.response;
     }
 
     return NextResponse.json(
-      chatService.listChats(repositoryPath).map(toChatDto),
+      chatService
+        .listChats(repositoryResult.data.repositoryPath)
+        .map(toChatDto),
     );
   } catch (err) {
     return errorResponse(err);

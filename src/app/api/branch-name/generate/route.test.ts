@@ -54,6 +54,18 @@ describe("POST /api/branch-name/generate", () => {
     expect(body.branch).toMatch(/^feat\/\d+-[a-z0-9]+$/);
   });
 
+  it("treats null inputs as empty inputs", async () => {
+    const res = await POST(
+      makeRequest({
+        workflow_name: "development-flow",
+        inputs: null,
+      }),
+    );
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.branch).toMatch(/^feat\/\d+-[a-z0-9]+$/);
+  });
+
   it("returns 422 when inputs is not an object", async () => {
     const res = await POST(
       makeRequest({

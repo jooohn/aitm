@@ -55,7 +55,7 @@ export interface CreateSessionInput {
 export interface ListSessionsFilter {
   repository_path?: string;
   worktree_branch?: string;
-  status?: SessionStatus;
+  status?: string;
 }
 
 export class SessionService {
