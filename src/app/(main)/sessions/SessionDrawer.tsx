@@ -1,6 +1,6 @@
 "use client";
 
-import { notFound, useParams, usePathname } from "next/navigation";
+import { notFound, useParams, usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import SessionDetail from "@/app/(main)/sessions/[id]/SessionDetail";
 import CloseIcon from "@/app/components/icons/CloseIcon";
@@ -11,6 +11,7 @@ import styles from "./SessionDrawer.module.css";
 export default function SessionDrawer() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const pathname = usePathname();
+  const router = useRouter();
   const { data: session, error, isLoading: loading } = useSession(sessionId);
   const [closing, setClosing] = useState(false);
   const [closed, setClosed] = useState(false);
@@ -30,9 +31,9 @@ export default function SessionDrawer() {
     const parentPath = pathname.replace(/\/sessions\/[^/]+$/, "");
     setTimeout(() => {
       setClosed(true);
-      window.history.replaceState(null, "", parentPath);
+      router.replace(parentPath);
     }, 200);
-  }, [pathname]);
+  }, [pathname, router]);
 
   if (closed) return null;
   if (!session && loading) return null;
