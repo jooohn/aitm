@@ -14,29 +14,50 @@ export const CHAT_TOOLS: string[] = [
   "ReadMcpResourceTool",
 ];
 
-export const CHAT_OUTPUT_FORMAT: OutputFormat = {
-  type: "json_schema",
-  schema: {
-    type: "object",
-    properties: {
-      proposals: {
-        type: "array",
-        items: {
-          type: "object",
-          properties: {
-            workflow_name: { type: "string" },
-            inputs: { type: "object" },
-            rationale: { type: "string" },
+export function buildChatOutputFormat(
+  workflows: Record<string, WorkflowDefinition>,
+): OutputFormat {
+  const workflowNames = Object.keys(workflows);
+  const workflowNameSchema =
+    workflowNames.length > 0
+      ? { type: "string", enum: workflowNames }
+      : { type: "string" };
+
+  return {
+    type: "json_schema",
+    schema: {
+      type: "object",
+      properties: {
+        proposals: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              workflow_name: workflowNameSchema,
+              inputs: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    name: { type: "string" },
+                    value: { type: "string" },
+                  },
+                  required: ["name", "value"],
+                  additionalProperties: false,
+                },
+              },
+              rationale: { type: "string" },
+            },
+            required: ["workflow_name", "inputs", "rationale"],
+            additionalProperties: false,
           },
-          required: ["workflow_name", "inputs", "rationale"],
-          additionalProperties: false,
         },
       },
+      required: ["proposals"],
+      additionalProperties: false,
     },
-    required: ["proposals"],
-    additionalProperties: false,
-  },
-};
+  };
+}
 
 export function buildWorkflowContext(
   workflows: Record<string, WorkflowDefinition>,
@@ -59,11 +80,11 @@ export function buildSystemPrompt(
     buildWorkflowContext(workflows),
     "",
     "When you have concrete, actionable suggestions for workflow-runs, include them in your structured output's `proposals` array.",
-    "Each proposal must have: workflow_name (one of the available workflows), inputs (matching the workflow's input schema), and rationale (why this workflow-run is being suggested).",
+    "Each proposal must have: workflow_name (one of the available workflows), inputs (an array of {name, value} entries matching the workflow's input schema), and rationale (why this workflow-run is being suggested).",
     'For normal conversational turns (answering questions, exploring code, discussing ideas), emit "proposals": [].',
     "",
     "IMPORTANT: Workflow-runs execute independently with NO access to this conversation's context.",
-    "Every workflow-run input must be entirely self-contained — include all relevant context, background, reasoning, and the 'why' behind the request.",
+    "Every workflow-run input value must be entirely self-contained — include all relevant context, background, reasoning, and the 'why' behind the request.",
     "Do not assume the workflow-run agent knows what was discussed here; spell out the full intent and any constraints explicitly in the input values.",
     "",
     "You have read-only access to the codebase. You cannot modify files.",

@@ -14,8 +14,8 @@ import type { AgentMessage, AgentRuntime } from "../agent/runtime";
 import type { Chat } from ".";
 import type { ChatRepository } from "./chat-repository";
 import {
+  buildChatOutputFormat,
   buildSystemPrompt,
-  CHAT_OUTPUT_FORMAT,
   CHAT_TOOLS,
 } from "./system-prompt";
 
@@ -23,6 +23,37 @@ export interface RawProposal {
   workflow_name: string;
   inputs: Record<string, string>;
   rationale: string;
+}
+
+function normalizeProposalInputs(
+  value: unknown,
+): Record<string, string> | null {
+  if (Array.isArray(value)) {
+    const inputs: Record<string, string> = {};
+    for (const entry of value) {
+      if (typeof entry !== "object" || entry === null || Array.isArray(entry)) {
+        return null;
+      }
+
+      const pair = entry as Record<string, unknown>;
+      if (typeof pair.name !== "string" || typeof pair.value !== "string") {
+        return null;
+      }
+
+      inputs[pair.name] = pair.value;
+    }
+    return inputs;
+  }
+
+  if (typeof value !== "object" || value === null) return null;
+
+  const record = value as Record<string, unknown>;
+  const inputs: Record<string, string> = {};
+  for (const [key, entryValue] of Object.entries(record)) {
+    if (typeof entryValue !== "string") return null;
+    inputs[key] = entryValue;
+  }
+  return inputs;
 }
 
 export async function chatsLogDir(): Promise<string> {
@@ -102,14 +133,33 @@ export class ChatAgent {
           | undefined;
         if (raw?.proposals && Array.isArray(raw.proposals)) {
           proposals = raw.proposals
-            .filter(
-              (p): p is RawProposal =>
-                typeof p === "object" &&
-                p !== null &&
-                "workflow_name" in p &&
-                "inputs" in p &&
-                "rationale" in p,
-            )
+            .map((proposal) => {
+              if (
+                typeof proposal !== "object" ||
+                proposal === null ||
+                Array.isArray(proposal)
+              ) {
+                return null;
+              }
+
+              const candidate = proposal as Record<string, unknown>;
+              if (
+                typeof candidate.workflow_name !== "string" ||
+                typeof candidate.rationale !== "string"
+              ) {
+                return null;
+              }
+
+              const inputs = normalizeProposalInputs(candidate.inputs);
+              if (inputs === null) return null;
+
+              return {
+                workflow_name: candidate.workflow_name,
+                inputs,
+                rationale: candidate.rationale,
+              } satisfies RawProposal;
+            })
+            .filter((p): p is RawProposal => p !== null)
             .filter((p) => p.workflow_name in this.workflows);
         }
       }
@@ -150,6 +200,7 @@ export class ChatAgent {
     }
 
     const runtime = this.selectRuntime(chat.agent_config);
+    const outputFormat = buildChatOutputFormat(this.workflows);
 
     try {
       let stream: AsyncIterable<AgentMessage>;
@@ -162,7 +213,7 @@ export class ChatAgent {
           model: chat.agent_config.model,
           permissionMode: "plan",
           abortController,
-          outputFormat: CHAT_OUTPUT_FORMAT,
+          outputFormat,
           tools: CHAT_TOOLS,
         });
       } else {
@@ -180,7 +231,7 @@ export class ChatAgent {
           model: chat.agent_config.model,
           permissionMode: "plan",
           abortController,
-          outputFormat: CHAT_OUTPUT_FORMAT,
+          outputFormat,
           tools: CHAT_TOOLS,
         });
       }

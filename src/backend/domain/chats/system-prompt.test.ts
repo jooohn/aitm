@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { WorkflowDefinition } from "@/backend/infra/config";
 import {
+  buildChatOutputFormat,
   buildSystemPrompt,
   buildWorkflowContext,
-  CHAT_OUTPUT_FORMAT,
   CHAT_TOOLS,
 } from "./system-prompt";
 
@@ -23,18 +23,18 @@ describe("system-prompt", () => {
     });
   });
 
-  describe("CHAT_OUTPUT_FORMAT", () => {
+  describe("buildChatOutputFormat", () => {
     it("has type json_schema", () => {
-      expect(CHAT_OUTPUT_FORMAT.type).toBe("json_schema");
+      expect(buildChatOutputFormat({}).type).toBe("json_schema");
     });
 
     it("schema requires a proposals array", () => {
-      const schema = CHAT_OUTPUT_FORMAT.schema;
+      const schema = buildChatOutputFormat({}).schema;
       expect(schema.required).toContain("proposals");
     });
 
     it("disallows unknown fields on proposal items for Codex schema validation", () => {
-      const schema = CHAT_OUTPUT_FORMAT.schema as {
+      const schema = buildChatOutputFormat({}).schema as {
         properties: {
           proposals: {
             items: { additionalProperties?: boolean };
@@ -45,6 +45,42 @@ describe("system-prompt", () => {
       expect(schema.properties.proposals.items.additionalProperties).toBe(
         false,
       );
+    });
+
+    it("uses strict input entry objects so Codex accepts the nested schema", () => {
+      const schema = buildChatOutputFormat({
+        "dev-flow": {
+          initial_step: "plan",
+          steps: {
+            plan: {
+              type: "agent",
+              goal: "Plan",
+              transitions: [{ terminal: "success" as const, when: "done" }],
+            },
+          },
+        },
+      }).schema as {
+        properties: {
+          proposals: {
+            items: {
+              properties: {
+                workflow_name: { enum?: string[] };
+                inputs: {
+                  items: { additionalProperties?: boolean };
+                };
+              };
+            };
+          };
+        };
+      };
+
+      expect(
+        schema.properties.proposals.items.properties.workflow_name.enum,
+      ).toEqual(["dev-flow"]);
+      expect(
+        schema.properties.proposals.items.properties.inputs.items
+          .additionalProperties,
+      ).toBe(false);
     });
   });
 

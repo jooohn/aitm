@@ -130,7 +130,7 @@ describe("ChatAgent", () => {
             proposals: [
               {
                 workflow_name: "dev-flow",
-                inputs: { description: "Add feature" },
+                inputs: [{ name: "description", value: "Add feature" }],
                 rationale: "Needed for users",
               },
             ],
@@ -146,6 +146,33 @@ describe("ChatAgent", () => {
 
       expect(proposals).toHaveLength(1);
       expect(proposals[0].workflow_name).toBe("dev-flow");
+      expect(proposals[0].inputs).toEqual({ description: "Add feature" });
+    });
+
+    it("accepts legacy object-shaped inputs when parsing proposals", async () => {
+      const messages: AgentMessage[] = [
+        {
+          type: "result",
+          subtype: "success",
+          structured_output: {
+            proposals: [
+              {
+                workflow_name: "dev-flow",
+                inputs: { description: "Add feature" },
+                rationale: "Needed for users",
+              },
+            ],
+          },
+        },
+      ];
+
+      const proposals = await agent.consumeStream(
+        asyncIterableFrom(messages),
+        "chat-1",
+        "/tmp/log",
+      );
+
+      expect(proposals).toHaveLength(1);
       expect(proposals[0].inputs).toEqual({ description: "Add feature" });
     });
 
