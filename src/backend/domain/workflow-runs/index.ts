@@ -1,6 +1,4 @@
 import { randomUUID } from "crypto";
-import { appendFile, mkdir, readFile, stat, writeFile } from "fs/promises";
-import { dirname, join, resolve } from "path";
 import type { AgentConfig, WorkflowDefinition } from "@/backend/infra/config";
 import type { EventBus } from "@/backend/infra/event-bus";
 import { logger } from "@/backend/infra/logger";
@@ -8,14 +6,11 @@ import { spawnAsync } from "@/backend/utils/process";
 import type { TransitionDecision } from "../agent";
 import { NotFoundError, ValidationError } from "../errors";
 import type { SessionService, SessionStatus } from "../sessions";
-import {
-  resolveArtifactBasePath,
-  resolveWorkflowRunDir,
-  Worktree,
-  WorktreeService,
-} from "../worktrees";
+import { Worktree, WorktreeService } from "../worktrees";
 import type { CommandStepExecutor } from "./command-step-executor";
+import * as gitExcludeManager from "./git-exclude-manager";
 import { StepRunner } from "./step-runner";
+import { WorkflowRunMaterializer } from "./workflow-run-materializer";
 import { WorkflowRunQueries } from "./workflow-run-queries";
 import type { WorkflowRunRepository } from "./workflow-run-repository";
 import { WorkflowStateMachine } from "./workflow-state-machine";
@@ -73,35 +68,6 @@ export interface ListWorkflowRunsFilter {
   status?: WorkflowRunStatus;
 }
 
-async function resolveGitDir(worktreePath: string): Promise<string> {
-  const dotGitPath = join(worktreePath, ".git");
-  const dotGitStat = await stat(dotGitPath);
-
-  if (dotGitStat.isDirectory()) {
-    return dotGitPath;
-  }
-
-  const content = await readFile(dotGitPath, "utf8");
-  const match = content.match(/^gitdir:\s*(.+)\s*$/m);
-  if (!match) {
-    throw new Error(`Failed to parse gitdir from ${dotGitPath}`);
-  }
-
-  return resolve(worktreePath, match[1]);
-}
-
-async function resolveGitInfoDir(worktreePath: string): Promise<string> {
-  const gitDir = await resolveGitDir(worktreePath);
-  const commonDirPath = join(gitDir, "commondir");
-  const commonDir = await readFile(commonDirPath, "utf8")
-    .then((content) => content.trim())
-    .catch(() => null);
-
-  return commonDir
-    ? join(resolve(gitDir, commonDir), "info")
-    : join(gitDir, "info");
-}
-
 function isAlreadyTerminalSessionError(
   err: unknown,
   sessionId: string,
@@ -114,19 +80,11 @@ function isAlreadyTerminalSessionError(
   );
 }
 
-function buildCommandOutputHandoffSummary(
-  reason: string | undefined,
-  outputFilePath: string,
-): string {
-  const summaryPrefix =
-    reason && reason.trim().length > 0 ? reason : "Command completed";
-  return `${summaryPrefix}. Detailed output: ${outputFilePath}`;
-}
-
 export class WorkflowRunService {
   private workflowRunQueries: WorkflowRunQueries;
   private stepRunner: StepRunner;
   private workflowStateMachine: WorkflowStateMachine;
+  private materializer: WorkflowRunMaterializer;
 
   constructor(
     private workflowRunRepository: WorkflowRunRepository,
@@ -138,6 +96,11 @@ export class WorkflowRunService {
     private agentConfig: AgentConfig,
   ) {
     this.workflowRunQueries = new WorkflowRunQueries(workflowRunRepository);
+    this.materializer = new WorkflowRunMaterializer(
+      workflowRunRepository,
+      worktreeService,
+      gitExcludeManager,
+    );
     this.stepRunner = new StepRunner(
       workflowRunRepository,
       sessionService,
@@ -217,9 +180,13 @@ export class WorkflowRunService {
       input.worktree_branch,
     );
     if (worktree) {
-      await this.ensureWorkflowRunDir(id, worktree);
+      await this.materializer.ensureWorkflowRunDir(id, worktree);
       if (workflow.artifacts && workflow.artifacts.length > 0) {
-        await this.materializeWorkflowArtifacts(id, workflow, worktree);
+        await this.materializer.materializeWorkflowArtifacts(
+          id,
+          workflow.artifacts,
+          worktree,
+        );
       }
     }
 
@@ -238,44 +205,6 @@ export class WorkflowRunService {
     }
 
     return this.workflowRunRepository.getWorkflowRunById(id) as WorkflowRun;
-  }
-
-  private async ensureWorkflowRunDir(
-    workflowRunId: string,
-    worktree: Worktree,
-  ): Promise<void> {
-    const runDir = resolveWorkflowRunDir(worktree, workflowRunId);
-    await mkdir(runDir, { recursive: true });
-
-    const infoDir = await resolveGitInfoDir(worktree.path);
-    const excludePath = join(infoDir, "exclude");
-    const excludeEntry = `/.aitm/runs/${workflowRunId}/`;
-    await mkdir(infoDir, { recursive: true });
-
-    const existing = await readFile(excludePath, "utf8").catch(() => "");
-    const lines = existing.split(/\r?\n/).filter(Boolean);
-    if (!lines.includes(excludeEntry)) {
-      const prefix =
-        existing.length === 0 || existing.endsWith("\n") ? "" : "\n";
-      await appendFile(excludePath, `${prefix}${excludeEntry}\n`, "utf8");
-    }
-  }
-
-  private async materializeWorkflowArtifacts(
-    workflowRunId: string,
-    workflow: WorkflowDefinition,
-    worktree: Worktree,
-  ): Promise<void> {
-    if (!workflow.artifacts || workflow.artifacts.length === 0) return;
-
-    const root = resolveArtifactBasePath(worktree, workflowRunId);
-    await mkdir(root, { recursive: true });
-
-    for (const artifact of workflow.artifacts) {
-      const artifactPath = join(root, artifact.path);
-      await mkdir(dirname(artifactPath), { recursive: true });
-      await writeFile(artifactPath, "", { encoding: "utf8", flag: "a" });
-    }
   }
 
   async completeStepExecution(
@@ -382,7 +311,7 @@ export class WorkflowRunService {
   async rerunWorkflowRunFromFailedState(
     id: string,
   ): Promise<WorkflowRunWithExecutions> {
-    await this.ensureLegacyCommandOutputFiles(id);
+    await this.materializer.ensureLegacyCommandOutputFiles(id);
     return this.workflowStateMachine.rerunWorkflowRunFromFailedState(id);
   }
 
@@ -393,56 +322,7 @@ export class WorkflowRunService {
   async getWorkflowRunForDisplay(
     id: string,
   ): Promise<WorkflowRunWithExecutions | undefined> {
-    await this.ensureLegacyCommandOutputFiles(id);
+    await this.materializer.ensureLegacyCommandOutputFiles(id);
     return this.getWorkflowRun(id);
-  }
-
-  private async ensureLegacyCommandOutputFiles(
-    workflowRunId: string,
-  ): Promise<void> {
-    const run = this.workflowRunRepository.getWorkflowRunById(workflowRunId);
-    if (!run) return;
-
-    const candidates =
-      this.workflowRunRepository.listLegacyCommandOutputBackfillCandidates(
-        workflowRunId,
-      );
-    if (candidates.length === 0) return;
-
-    const worktree = await this.worktreeService.findWorktree(
-      run.repository_path,
-      run.worktree_branch,
-    );
-    if (!worktree) return;
-
-    const outputDir = join(
-      resolveWorkflowRunDir(worktree, workflowRunId),
-      "command-output",
-    );
-    await this.ensureWorkflowRunDir(workflowRunId, worktree);
-    await mkdir(outputDir, { recursive: true });
-
-    for (const candidate of candidates) {
-      const outputFilePath = join(outputDir, `${candidate.id}.log`);
-      await writeFile(outputFilePath, candidate.command_output, "utf8");
-
-      const handoffSummary = buildCommandOutputHandoffSummary(
-        candidate.transition_decision?.reason,
-        outputFilePath,
-      );
-      const transitionDecisionJson = candidate.transition_decision
-        ? JSON.stringify({
-            ...candidate.transition_decision,
-            handoff_summary: handoffSummary,
-          })
-        : null;
-
-      this.workflowRunRepository.backfillLegacyCommandOutput({
-        id: candidate.id,
-        output_file_path: outputFilePath,
-        handoff_summary: handoffSummary,
-        transition_decision_json: transitionDecisionJson,
-      });
-    }
   }
 }
