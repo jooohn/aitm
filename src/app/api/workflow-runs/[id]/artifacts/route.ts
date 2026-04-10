@@ -1,17 +1,14 @@
 import { stat } from "fs/promises";
 import { NextRequest, NextResponse } from "next/server";
 import { join } from "path";
-import {
-  config,
-  workflowRunService,
-  worktreeService,
-} from "@/backend/container";
+import { getContainer } from "@/backend/container";
 import { resolveArtifactBasePath } from "@/backend/domain/worktrees";
 
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
+  const { config, workflowRunService, worktreeService } = getContainer();
   const { id } = await params;
   const run = workflowRunService.getWorkflowRun(id);
   if (!run) {

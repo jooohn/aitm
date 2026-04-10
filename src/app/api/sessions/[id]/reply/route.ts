@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { toSessionDto } from "@/backend/api/dto";
 import { errorResponse } from "@/backend/api/error-response";
-import { sessionService } from "@/backend/container";
+import { getContainer } from "@/backend/container";
 
 type Params = Promise<{ id: string }>;
 
@@ -9,6 +9,7 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Params },
 ): Promise<NextResponse> {
+  const { sessionService } = getContainer();
   const { id } = await params;
 
   let body: { message?: string };

@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import * as container from "@/backend/container";
+import { getContainer, processService } from "@/backend/container";
 import { GET } from "./route";
 
 function makeParams(
@@ -27,11 +27,11 @@ let getOutputSpy: ReturnType<typeof vi.spyOn>;
 
 beforeEach(() => {
   getRepositoryByAliasSpy = vi.spyOn(
-    container.repositoryService,
+    getContainer().repositoryService,
     "getRepositoryByAlias",
   );
-  getProcessSpy = vi.spyOn(container.processService, "getProcess");
-  getOutputSpy = vi.spyOn(container.processService, "getOutput");
+  getProcessSpy = vi.spyOn(processService, "getProcess");
+  getOutputSpy = vi.spyOn(processService, "getOutput");
 });
 
 describe("GET /api/repositories/:org/:name/worktrees/[branch]/processes/:processId/output", () => {

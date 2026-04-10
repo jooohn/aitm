@@ -1,11 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { errorResponse } from "@/backend/api/error-response";
 import { resolveWorktreeFromBranchSlug } from "@/backend/api/request";
-import {
-  processService,
-  sessionService,
-  worktreeService,
-} from "@/backend/container";
+import { getContainer, processService } from "@/backend/container";
 import { eventBus } from "@/backend/infra/event-bus";
 
 type Params = Promise<{ organization: string; name: string; branch: string }>;
@@ -14,6 +10,7 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: Params },
 ): Promise<NextResponse> {
+  const { sessionService, worktreeService } = getContainer();
   try {
     const { organization, name, branch: branchSlug } = await params;
     const worktreeResult = await resolveWorktreeFromBranchSlug({

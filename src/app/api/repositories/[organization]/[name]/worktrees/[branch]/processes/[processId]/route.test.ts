@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import * as container from "@/backend/container";
+import { getContainer, processService } from "@/backend/container";
 import { NotFoundError } from "@/backend/domain/errors";
 import { DELETE, GET } from "./route";
 
@@ -28,11 +28,11 @@ let stopProcessSpy: ReturnType<typeof vi.spyOn>;
 
 beforeEach(() => {
   getRepositoryByAliasSpy = vi.spyOn(
-    container.repositoryService,
+    getContainer().repositoryService,
     "getRepositoryByAlias",
   );
-  getProcessSpy = vi.spyOn(container.processService, "getProcess");
-  stopProcessSpy = vi.spyOn(container.processService, "stopProcess");
+  getProcessSpy = vi.spyOn(processService, "getProcess");
+  stopProcessSpy = vi.spyOn(processService, "stopProcess");
 });
 
 describe("GET /api/repositories/:org/:name/worktrees/[branch]/processes/:processId", () => {

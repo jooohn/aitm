@@ -3,7 +3,7 @@ import { NextRequest } from "next/server";
 import { tmpdir } from "os";
 import { join } from "path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import * as container from "@/backend/container";
+import { getContainer, initializeContainer } from "@/backend/container";
 import { db } from "@/backend/infra/db";
 import { inferAlias } from "@/lib/utils/inferAlias";
 import { setupTestConfigDir, writeTestConfig } from "@/test-config-helper";
@@ -26,9 +26,11 @@ async function setupConfig(content: string, repoPaths: string[] = []) {
     ? `repositories:\n${repoLines}\n${content}`
     : content;
   await writeTestConfig(configFile, fullContent);
-  container.initializeContainer();
-  vi.spyOn(container.agentService, "startAgent").mockResolvedValue(undefined);
-  vi.spyOn(container.worktreeService, "listWorktrees").mockImplementation(
+  initializeContainer();
+  vi.spyOn(getContainer().agentService, "startAgent").mockResolvedValue(
+    undefined,
+  );
+  vi.spyOn(getContainer().worktreeService, "listWorktrees").mockImplementation(
     async (repoPath) => [
       {
         branch: "feat/test",
@@ -57,6 +59,7 @@ async function setupConfig(content: string, repoPaths: string[] = []) {
 
 beforeEach(async () => {
   configFile = await setupTestConfigDir();
+  getContainer(); // ensure tables exist via lazy init
 
   db.prepare("DELETE FROM sessions").run();
   db.prepare("DELETE FROM step_executions").run();

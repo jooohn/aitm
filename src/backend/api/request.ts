@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { repositoryService, worktreeService } from "@/backend/container";
+import { getContainer } from "@/backend/container";
 import type { Repository } from "@/backend/domain/repositories";
 import type { Worktree } from "@/backend/domain/worktrees";
 import { branchToSlug } from "@/lib/utils/branch-slug";
@@ -126,6 +126,7 @@ export async function resolveRepositoryFromParams(
   params: { organization: string; name: string },
   options?: { notFoundMessage?: (alias: string) => string },
 ): Promise<ApiResult<{ repository: Repository }>> {
+  const { repositoryService } = getContainer();
   const alias = `${params.organization}/${params.name}`;
   const repository = await repositoryService.getRepositoryByAlias(alias);
   if (!repository) {
@@ -174,6 +175,7 @@ export async function resolveWorktreeFromBranchSlug(params: {
     return repositoryResult;
   }
 
+  const { worktreeService } = getContainer();
   const worktrees = await worktreeService.listWorktrees(
     repositoryResult.data.repository.path,
   );

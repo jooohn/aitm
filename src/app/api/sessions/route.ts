@@ -6,10 +6,11 @@ import {
   resolveOptionalRepositoryFilter,
 } from "@/backend/api/request";
 import { sessionListQuerySchema } from "@/backend/api/schemas";
-import { sessionService } from "@/backend/container";
+import { getContainer } from "@/backend/container";
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
+    const { sessionService } = getContainer();
     const queryResult = parseSearchParams(
       request.nextUrl.searchParams,
       sessionListQuerySchema,

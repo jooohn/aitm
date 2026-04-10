@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import * as container from "@/backend/container";
+import { getContainer, processService } from "@/backend/container";
 import { GET, POST } from "./route";
 
 function makeParams(
@@ -21,18 +21,18 @@ let startProcessSpy: ReturnType<typeof vi.spyOn>;
 
 beforeEach(() => {
   getRepositoryByAliasSpy = vi.spyOn(
-    container.repositoryService,
+    getContainer().repositoryService,
     "getRepositoryByAlias",
   );
   getCommandsForAliasSpy = vi.spyOn(
-    container.repositoryService,
+    getContainer().repositoryService,
     "getCommandsForAlias",
   );
   listWorktreesSpy = vi
-    .spyOn(container.worktreeService, "listWorktrees")
+    .spyOn(getContainer().worktreeService, "listWorktrees")
     .mockResolvedValue([]);
-  listProcessesSpy = vi.spyOn(container.processService, "listProcesses");
-  startProcessSpy = vi.spyOn(container.processService, "startProcess");
+  listProcessesSpy = vi.spyOn(processService, "listProcesses");
+  startProcessSpy = vi.spyOn(processService, "startProcess");
 });
 
 describe("GET /api/repositories/:org/:name/worktrees/[branch]/processes", () => {

@@ -30,69 +30,72 @@ function shouldUseDefaultConfigOnBootstrap(): boolean {
   );
 }
 
+export type Container = {
+  config: ConfigSnapshot;
+  workflowRunRepository: WorkflowRunRepository;
+  sessionRepository: SessionRepository;
+  chatRepository: ChatRepository;
+  worktreeService: WorktreeService;
+  repositoryService: RepositoryService;
+  agentService: AgentService;
+  sessionService: SessionService;
+  chatService: ChatService;
+  commandStepExecutor: CommandStepExecutor;
+  workflowRunService: WorkflowRunService;
+  houseKeepingService: HouseKeepingService;
+};
+
 // ProcessService is a module-level singleton that survives container rebuilds,
 // since it holds live child process references that would be orphaned otherwise.
 export const processService = new ProcessService(eventBus);
 
-export let config: ConfigSnapshot;
-export let workflowRunRepository: WorkflowRunRepository;
-export let sessionRepository: SessionRepository;
-export let chatRepository: ChatRepository;
-export let worktreeService: WorktreeService;
-export let repositoryService: RepositoryService;
-export let agentService: AgentService;
-export let sessionService: SessionService;
-export let chatService: ChatService;
-export let commandStepExecutor: CommandStepExecutor;
-export let workflowRunService: WorkflowRunService;
-export let houseKeepingService: HouseKeepingService;
-
 let tablesEnsured = false;
 
-function buildContainer(cfg: ConfigSnapshot): void {
-  config = cfg;
+function createContainer(cfg: ConfigSnapshot): Container {
+  // Clean up listeners from any previous container's services to avoid
+  // duplicate handlers when the container is rebuilt (e.g. in tests).
   eventBus.removeAllListeners();
 
-  workflowRunRepository = new WorkflowRunRepository(db, eventBus);
-  sessionRepository = new SessionRepository(db, eventBus);
-  chatRepository = new ChatRepository(db);
-  worktreeService = new WorktreeService();
-  repositoryService = new RepositoryService(config.repositories);
+  const workflowRunRepository = new WorkflowRunRepository(db, eventBus);
+  const sessionRepository = new SessionRepository(db, eventBus);
+  const chatRepository = new ChatRepository(db);
+  const worktreeService = new WorktreeService();
+  const repositoryService = new RepositoryService(cfg.repositories);
   const runtimes = {
     claude: new ClaudeSDK(),
     codex: new CodexSDK(),
   };
-  agentService = new AgentService(runtimes, sessionRepository, eventBus);
-  sessionService = new SessionService(
+  const agentService = new AgentService(runtimes, sessionRepository, eventBus);
+  const sessionService = new SessionService(
     sessionRepository,
     agentService,
     worktreeService,
     eventBus,
-    config.agent,
+    cfg.agent,
   );
-  commandStepExecutor = new CommandStepExecutor();
-  workflowRunService = new WorkflowRunService(
+  const commandStepExecutor = new CommandStepExecutor();
+  const workflowRunService = new WorkflowRunService(
     workflowRunRepository,
     sessionService,
     worktreeService,
     commandStepExecutor,
     eventBus,
-    config.workflows,
-    config.agent,
+    cfg.workflows,
+    cfg.agent,
   );
-  chatService = new ChatService(
+  const chatService = new ChatService(
     chatRepository,
     runtimes,
     worktreeService,
     workflowRunService,
     new BranchNameService(),
-    config.agent,
-    config.workflows,
+    cfg.agent,
+    cfg.workflows,
   );
-  houseKeepingService = new HouseKeepingService(
+  const houseKeepingService = new HouseKeepingService(
     sessionService,
     worktreeService,
-    config.repositories,
+    cfg.repositories,
     eventBus,
   );
 
@@ -102,12 +105,35 @@ function buildContainer(cfg: ConfigSnapshot): void {
     chatRepository.ensureTables();
     tablesEnsured = true;
   }
+
+  return {
+    config: cfg,
+    workflowRunRepository,
+    sessionRepository,
+    chatRepository,
+    worktreeService,
+    repositoryService,
+    agentService,
+    sessionService,
+    chatService,
+    commandStepExecutor,
+    workflowRunService,
+    houseKeepingService,
+  };
+}
+
+let currentContainer: Container | null = null;
+
+export function getContainer(): Container {
+  if (!currentContainer) {
+    const cfg = shouldUseDefaultConfigOnBootstrap()
+      ? DEFAULT_CONFIG
+      : loadConfig();
+    currentContainer = createContainer(cfg);
+  }
+  return currentContainer;
 }
 
 export function initializeContainer(): void {
-  buildContainer(loadConfig());
+  currentContainer = createContainer(loadConfig());
 }
-
-buildContainer(
-  shouldUseDefaultConfigOnBootstrap() ? DEFAULT_CONFIG : loadConfig(),
-);

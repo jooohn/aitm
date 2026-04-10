@@ -3,7 +3,7 @@ import { NextRequest } from "next/server";
 import { tmpdir } from "os";
 import { join } from "path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import * as container from "@/backend/container";
+import { getContainer, initializeContainer } from "@/backend/container";
 import { db } from "@/backend/infra/db";
 import { setupTestConfigDir, writeTestConfig } from "@/test-config-helper";
 import { GET } from "./route";
@@ -43,7 +43,7 @@ workflows:
             when: "done"
 `,
   );
-  container.initializeContainer();
+  initializeContainer();
 
   db.prepare("DELETE FROM sessions").run();
   db.prepare("DELETE FROM step_executions").run();
@@ -51,8 +51,10 @@ workflows:
 
   worktreePath = await makeFakeGitRepo();
 
-  vi.spyOn(container.agentService, "startAgent").mockResolvedValue(undefined);
-  vi.spyOn(container.worktreeService, "listWorktrees").mockImplementation(
+  vi.spyOn(getContainer().agentService, "startAgent").mockResolvedValue(
+    undefined,
+  );
+  vi.spyOn(getContainer().worktreeService, "listWorktrees").mockImplementation(
     async () => [
       {
         branch: "feat/test",

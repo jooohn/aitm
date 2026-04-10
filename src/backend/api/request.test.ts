@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
-import * as container from "@/backend/container";
+import { getContainer } from "@/backend/container";
 import {
   parseJsonBody,
   parseSearchParams,
@@ -77,7 +77,7 @@ describe("resolveRepositoryFromParams", () => {
 
   it("returns the repository when the alias exists", async () => {
     vi.spyOn(
-      container.repositoryService,
+      getContainer().repositoryService,
       "getRepositoryByAlias",
     ).mockResolvedValue({
       path: "/repo/path",
@@ -98,7 +98,7 @@ describe("resolveRepositoryFromParams", () => {
 
   it("returns a 404 response when the repository alias does not exist", async () => {
     vi.spyOn(
-      container.repositoryService,
+      getContainer().repositoryService,
       "getRepositoryByAlias",
     ).mockResolvedValue(undefined);
 
@@ -140,22 +140,24 @@ describe("resolveWorktreeFromBranchSlug", () => {
 
   it("returns the matching worktree and branch name", async () => {
     vi.spyOn(
-      container.repositoryService,
+      getContainer().repositoryService,
       "getRepositoryByAlias",
     ).mockResolvedValue({
       path: "/repo/path",
       name: "repo",
       alias: "org/repo",
     });
-    vi.spyOn(container.worktreeService, "listWorktrees").mockResolvedValue([
-      {
-        branch: "feat/test",
-        path: "/repo/path/worktrees/feat/test",
-        is_main: false,
-        is_bare: false,
-        head: "HEAD",
-      },
-    ]);
+    vi.spyOn(getContainer().worktreeService, "listWorktrees").mockResolvedValue(
+      [
+        {
+          branch: "feat/test",
+          path: "/repo/path/worktrees/feat/test",
+          is_main: false,
+          is_bare: false,
+          head: "HEAD",
+        },
+      ],
+    );
 
     const result = await resolveWorktreeFromBranchSlug({
       organization: "org",
@@ -173,14 +175,16 @@ describe("resolveWorktreeFromBranchSlug", () => {
 
   it("returns a 404 response when the worktree does not exist", async () => {
     vi.spyOn(
-      container.repositoryService,
+      getContainer().repositoryService,
       "getRepositoryByAlias",
     ).mockResolvedValue({
       path: "/repo/path",
       name: "repo",
       alias: "org/repo",
     });
-    vi.spyOn(container.worktreeService, "listWorktrees").mockResolvedValue([]);
+    vi.spyOn(getContainer().worktreeService, "listWorktrees").mockResolvedValue(
+      [],
+    );
 
     const result = await resolveWorktreeFromBranchSlug({
       organization: "org",

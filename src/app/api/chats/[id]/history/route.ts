@@ -1,6 +1,6 @@
 import { access, readFile } from "fs/promises";
 import { NextRequest, NextResponse } from "next/server";
-import { chatService } from "@/backend/container";
+import { getContainer } from "@/backend/container";
 
 type Params = Promise<{ id: string }>;
 
@@ -8,6 +8,7 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: Params },
 ): Promise<NextResponse> {
+  const { chatService } = getContainer();
   const { id } = await params;
   const chat = chatService.getChat(id);
   if (!chat) {

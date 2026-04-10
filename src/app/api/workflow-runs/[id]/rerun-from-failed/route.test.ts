@@ -3,7 +3,7 @@ import { NextRequest } from "next/server";
 import { tmpdir } from "os";
 import { join } from "path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import * as container from "@/backend/container";
+import { getContainer, initializeContainer } from "@/backend/container";
 import { db } from "@/backend/infra/db";
 import { setupTestConfigDir, writeTestConfig } from "@/test-config-helper";
 import { POST } from "./route";
@@ -41,14 +41,16 @@ workflows:
 beforeEach(async () => {
   const configFile = await setupTestConfigDir();
   await writeTestConfig(configFile, WORKFLOW_CONFIG);
-  container.initializeContainer();
+  initializeContainer();
 
   db.prepare("DELETE FROM sessions").run();
   db.prepare("DELETE FROM step_executions").run();
   db.prepare("DELETE FROM workflow_runs").run();
 
-  vi.spyOn(container.agentService, "startAgent").mockResolvedValue(undefined);
-  vi.spyOn(container.worktreeService, "listWorktrees").mockImplementation(
+  vi.spyOn(getContainer().agentService, "startAgent").mockResolvedValue(
+    undefined,
+  );
+  vi.spyOn(getContainer().worktreeService, "listWorktrees").mockImplementation(
     async (repoPath) => [
       {
         branch: "feat/test",
@@ -74,7 +76,7 @@ function makeRequest(id: string): NextRequest {
 
 async function setupFailedRun() {
   const repoPath = await makeFakeGitRepo();
-  const run = await container.workflowRunService.createWorkflowRun({
+  const run = await getContainer().workflowRunService.createWorkflowRun({
     repository_path: repoPath,
     worktree_branch: "feat/test",
     workflow_name: "my-flow",
@@ -85,7 +87,7 @@ async function setupFailedRun() {
       "SELECT * FROM step_executions WHERE workflow_run_id = ? ORDER BY created_at ASC",
     )
     .all(run.id) as { id: string }[];
-  await container.workflowRunService.completeStepExecution(planExec.id, {
+  await getContainer().workflowRunService.completeStepExecution(planExec.id, {
     transition: "implement",
     reason: "Plan done",
     handoff_summary: "Wrote PLAN.md",
@@ -96,11 +98,14 @@ async function setupFailedRun() {
       "SELECT * FROM step_executions WHERE workflow_run_id = ? AND step = 'implement'",
     )
     .get(run.id) as { id: string };
-  await container.workflowRunService.completeStepExecution(implementExec.id, {
-    transition: "failure",
-    reason: "Blocked",
-    handoff_summary: "Could not proceed",
-  });
+  await getContainer().workflowRunService.completeStepExecution(
+    implementExec.id,
+    {
+      transition: "failure",
+      reason: "Blocked",
+      handoff_summary: "Could not proceed",
+    },
+  );
 
   return { run, repoPath };
 }

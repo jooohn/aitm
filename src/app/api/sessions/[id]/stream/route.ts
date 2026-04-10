@@ -1,6 +1,6 @@
 import { access, readFile } from "fs/promises";
 import { NextRequest, NextResponse } from "next/server";
-import { sessionService } from "@/backend/container";
+import { getContainer } from "@/backend/container";
 
 type Params = Promise<{ id: string }>;
 
@@ -11,6 +11,7 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: Params },
 ): Promise<Response | NextResponse> {
+  const { sessionService } = getContainer();
   const { id } = await params;
   const session = sessionService.getSession(id);
   if (!session) {

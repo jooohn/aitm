@@ -11,10 +11,11 @@ import {
   chatCreateBodySchema,
   chatListQuerySchema,
 } from "@/backend/api/schemas";
-import { chatService } from "@/backend/container";
+import { getContainer } from "@/backend/container";
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
+    const { chatService } = getContainer();
     const bodyResult = await parseJsonBody(request, chatCreateBodySchema, {
       formatError: (error) => {
         const fields = error.issues
@@ -52,6 +53,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
+    const { chatService } = getContainer();
     const queryResult = parseSearchParams(
       request.nextUrl.searchParams,
       chatListQuerySchema,

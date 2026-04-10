@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import * as container from "@/backend/container";
+import { getContainer } from "@/backend/container";
 import { eventBus } from "@/backend/infra/event-bus";
 import { GET, POST } from "./route";
 
@@ -21,11 +21,14 @@ let emitSpy: ReturnType<typeof vi.spyOn>;
 beforeEach(() => {
   vi.restoreAllMocks();
   getRepositoryByAliasSpy = vi.spyOn(
-    container.repositoryService,
+    getContainer().repositoryService,
     "getRepositoryByAlias",
   );
-  listWorktreesSpy = vi.spyOn(container.worktreeService, "listWorktrees");
-  createWorktreeSpy = vi.spyOn(container.worktreeService, "createWorktree");
+  listWorktreesSpy = vi.spyOn(getContainer().worktreeService, "listWorktrees");
+  createWorktreeSpy = vi.spyOn(
+    getContainer().worktreeService,
+    "createWorktree",
+  );
   emitSpy = vi.spyOn(eventBus, "emit");
 });
 

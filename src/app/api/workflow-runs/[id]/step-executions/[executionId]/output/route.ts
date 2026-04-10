@@ -1,7 +1,7 @@
 import { readFile } from "fs/promises";
 import { NextRequest, NextResponse } from "next/server";
 import { extname, resolve, sep } from "path";
-import { workflowRunService, worktreeService } from "@/backend/container";
+import { getContainer } from "@/backend/container";
 import { resolveWorkflowRunDir } from "@/backend/domain/worktrees";
 
 function jsonError(message: string, status: number): NextResponse {
@@ -26,6 +26,7 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: Params },
 ): Promise<NextResponse> {
+  const { workflowRunService, worktreeService } = getContainer();
   const { id, executionId } = await params;
   const run = await workflowRunService.getWorkflowRunForDisplay(id);
   if (!run) {

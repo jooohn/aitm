@@ -4,7 +4,7 @@ import { NextRequest } from "next/server";
 import { tmpdir } from "os";
 import { join } from "path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import * as container from "@/backend/container";
+import { getContainer, initializeContainer } from "@/backend/container";
 import { db } from "@/backend/infra/db";
 import { inferAlias } from "@/lib/utils/inferAlias";
 import { setupTestConfigDir, writeTestConfig } from "@/test-config-helper";
@@ -27,12 +27,15 @@ async function setupConfig(content: string, repoPaths: string[] = []) {
     ? `repositories:\n${repoLines}\n${content}`
     : content;
   await writeTestConfig(configFile, fullContent);
-  container.initializeContainer();
-  vi.spyOn(container.agentService, "startAgent").mockResolvedValue(undefined);
+  initializeContainer();
+  vi.spyOn(getContainer().agentService, "startAgent").mockResolvedValue(
+    undefined,
+  );
 }
 
 beforeEach(async () => {
   configFile = await setupTestConfigDir();
+  getContainer(); // ensure tables exist via lazy init
 
   db.prepare("DELETE FROM sessions").run();
   db.prepare("DELETE FROM step_executions").run();
@@ -45,7 +48,7 @@ describe("GET /api/sessions", () => {
     await setupConfig("workflows: {}\n", [repoPath]);
 
     // Create a session directly
-    await container.sessionService.createSession({
+    await getContainer().sessionService.createSession({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       goal: "Do something",
@@ -70,7 +73,7 @@ describe("GET /api/sessions", () => {
     const [organization, name] = alias.split("/");
     await setupConfig("workflows: {}\n", [repoPath]);
 
-    await container.sessionService.createSession({
+    await getContainer().sessionService.createSession({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       goal: "Do something",

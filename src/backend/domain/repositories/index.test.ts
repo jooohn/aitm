@@ -2,7 +2,7 @@ import { mkdir, rm, writeFile } from "fs/promises";
 import { tmpdir } from "os";
 import { join } from "path";
 import { beforeEach, describe, expect, it } from "vitest";
-import * as container from "@/backend/container";
+import { getContainer, initializeContainer } from "@/backend/container";
 import { spawnAsync } from "@/backend/utils/process";
 import { setupTestConfigDir, writeTestConfig } from "@/test-config-helper";
 import { inferAlias } from "./index";
@@ -32,7 +32,7 @@ async function writeConfig(paths: string[]) {
   const lines = ["repositories:"];
   for (const p of paths) lines.push(`  - path: ${p}`);
   await writeTestConfig(configFile, lines.join("\n"));
-  container.initializeContainer();
+  initializeContainer();
 }
 
 describe("inferAlias", () => {
@@ -52,15 +52,17 @@ describe("inferAlias", () => {
 describe("listRepositories", () => {
   it("returns empty array when config has no repositories", async () => {
     await writeTestConfig(configFile, "workflows: {}\n");
-    container.initializeContainer();
-    expect(await container.repositoryService.listRepositories()).toEqual([]);
+    initializeContainer();
+    expect(await getContainer().repositoryService.listRepositories()).toEqual(
+      [],
+    );
   });
 
   it("returns repos defined in config", async () => {
     const repoPath = await makeFakeGitRepo();
     await writeConfig([repoPath]);
 
-    const list = await container.repositoryService.listRepositories();
+    const list = await getContainer().repositoryService.listRepositories();
     expect(list).toHaveLength(1);
     expect(list[0].path).toBe(repoPath);
   });
@@ -69,7 +71,7 @@ describe("listRepositories", () => {
     const repoPath = await makeFakeGitRepo();
     await writeConfig([repoPath]);
 
-    const [repo] = await container.repositoryService.listRepositories();
+    const [repo] = await getContainer().repositoryService.listRepositories();
     const parts = repoPath.split("/").filter(Boolean);
     expect(repo.alias).toBe(parts.slice(-2).join("/"));
     expect(repo.name).toBe(parts.at(-1));
@@ -79,7 +81,7 @@ describe("listRepositories", () => {
     const a = "/tmp/aaa/repo";
     const b = "/tmp/bbb/repo";
     await writeConfig([b, a]);
-    const list = await container.repositoryService.listRepositories();
+    const list = await getContainer().repositoryService.listRepositories();
     expect(list.map((r) => r.path)).toEqual([a, b]);
   });
 });
@@ -91,15 +93,16 @@ describe("getRepositoryByAlias", () => {
     const parts = repoPath.split("/").filter(Boolean);
     const alias = parts.slice(-2).join("/");
     expect(
-      (await container.repositoryService.getRepositoryByAlias(alias))?.path,
+      (await getContainer().repositoryService.getRepositoryByAlias(alias))
+        ?.path,
     ).toBe(repoPath);
   });
 
   it("returns undefined for unknown alias", async () => {
     await writeTestConfig(configFile, "workflows: {}\n");
-    container.initializeContainer();
+    initializeContainer();
     expect(
-      await container.repositoryService.getRepositoryByAlias("no/such"),
+      await getContainer().repositoryService.getRepositoryByAlias("no/such"),
     ).toBeUndefined();
   });
 });
@@ -120,7 +123,7 @@ async function makeRealGitRepo(): Promise<string> {
 describe("getGitHubUrl", () => {
   it("returns null when no remote is configured", async () => {
     const dir = await makeRealGitRepo();
-    expect(await container.repositoryService.getGitHubUrl(dir)).toBeNull();
+    expect(await getContainer().repositoryService.getGitHubUrl(dir)).toBeNull();
   });
 
   it("returns null for a non-GitHub HTTPS remote", async () => {
@@ -130,7 +133,7 @@ describe("getGitHubUrl", () => {
       ["remote", "add", "origin", "https://gitlab.com/org/repo.git"],
       { cwd: dir },
     );
-    expect(await container.repositoryService.getGitHubUrl(dir)).toBeNull();
+    expect(await getContainer().repositoryService.getGitHubUrl(dir)).toBeNull();
   });
 
   it("parses an SSH GitHub remote (with .git suffix)", async () => {
@@ -140,7 +143,7 @@ describe("getGitHubUrl", () => {
       ["remote", "add", "origin", "git@github.com:org/repo.git"],
       { cwd: dir },
     );
-    expect(await container.repositoryService.getGitHubUrl(dir)).toBe(
+    expect(await getContainer().repositoryService.getGitHubUrl(dir)).toBe(
       "https://github.com/org/repo",
     );
   });
@@ -152,7 +155,7 @@ describe("getGitHubUrl", () => {
       ["remote", "add", "origin", "git@github.com:org/repo"],
       { cwd: dir },
     );
-    expect(await container.repositoryService.getGitHubUrl(dir)).toBe(
+    expect(await getContainer().repositoryService.getGitHubUrl(dir)).toBe(
       "https://github.com/org/repo",
     );
   });
@@ -164,7 +167,7 @@ describe("getGitHubUrl", () => {
       ["remote", "add", "origin", "https://github.com/org/repo.git"],
       { cwd: dir },
     );
-    expect(await container.repositoryService.getGitHubUrl(dir)).toBe(
+    expect(await getContainer().repositoryService.getGitHubUrl(dir)).toBe(
       "https://github.com/org/repo",
     );
   });
@@ -176,7 +179,7 @@ describe("getGitHubUrl", () => {
       ["remote", "add", "origin", "https://github.com/org/repo"],
       { cwd: dir },
     );
-    expect(await container.repositoryService.getGitHubUrl(dir)).toBe(
+    expect(await getContainer().repositoryService.getGitHubUrl(dir)).toBe(
       "https://github.com/org/repo",
     );
   });
@@ -188,7 +191,7 @@ describe("getGitHubUrl", () => {
       ["remote", "add", "origin", "ssh://git@github.com/org/repo.git"],
       { cwd: dir },
     );
-    expect(await container.repositoryService.getGitHubUrl(dir)).toBe(
+    expect(await getContainer().repositoryService.getGitHubUrl(dir)).toBe(
       "https://github.com/org/repo",
     );
   });
@@ -200,7 +203,7 @@ describe("getGitHubUrl", () => {
       ["remote", "add", "origin", "ssh://git@github.com/org/repo"],
       { cwd: dir },
     );
-    expect(await container.repositoryService.getGitHubUrl(dir)).toBe(
+    expect(await getContainer().repositoryService.getGitHubUrl(dir)).toBe(
       "https://github.com/org/repo",
     );
   });
@@ -212,14 +215,14 @@ describe("getGitHubUrl", () => {
       ["remote", "add", "origin", "https://user:token@github.com/org/repo.git"],
       { cwd: dir },
     );
-    expect(await container.repositoryService.getGitHubUrl(dir)).toBe(
+    expect(await getContainer().repositoryService.getGitHubUrl(dir)).toBe(
       "https://github.com/org/repo",
     );
   });
 
   it("returns null for a non-existent path", async () => {
     expect(
-      await container.repositoryService.getGitHubUrl(
+      await getContainer().repositoryService.getGitHubUrl(
         "/nonexistent/path/that/does/not/exist",
       ),
     ).toBeNull();
@@ -230,7 +233,7 @@ describe("validateRepository", () => {
   it("returns valid:true for an existing git repo", async () => {
     const repoPath = await makeFakeGitRepo();
     expect(
-      await container.repositoryService.validateRepository(repoPath),
+      await getContainer().repositoryService.validateRepository(repoPath),
     ).toEqual({
       valid: true,
     });
@@ -238,14 +241,17 @@ describe("validateRepository", () => {
 
   it("returns valid:false when the path does not exist", async () => {
     const result =
-      await container.repositoryService.validateRepository("/nonexistent/path");
+      await getContainer().repositoryService.validateRepository(
+        "/nonexistent/path",
+      );
     expect(result.valid).toBe(false);
     expect(result.reason).toMatch(/does not exist/i);
   });
 
   it("returns valid:false when the path is not a git repo", async () => {
     const dir = await makeTempDir();
-    const result = await container.repositoryService.validateRepository(dir);
+    const result =
+      await getContainer().repositoryService.validateRepository(dir);
     expect(result.valid).toBe(false);
     expect(result.reason).toMatch(/not a git repository/i);
     await rm(dir, { recursive: true });

@@ -8,10 +8,12 @@ const startPeriodicHouseKeeping = vi.fn();
 
 vi.mock("./backend/container", () => ({
   initializeContainer,
-  sessionService: { recoverCrashedSessions },
-  workflowRunService: { recoverCrashedWorkflowRuns },
-  chatService: { recoverCrashedChats },
-  houseKeepingService: { startPeriodicHouseKeeping },
+  getContainer: () => ({
+    sessionService: { recoverCrashedSessions },
+    workflowRunService: { recoverCrashedWorkflowRuns },
+    chatService: { recoverCrashedChats },
+    houseKeepingService: { startPeriodicHouseKeeping },
+  }),
 }));
 
 afterEach(() => {
