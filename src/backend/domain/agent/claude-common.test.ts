@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildTransitionOutputFormatForClaude } from "./claude-common";
 
 describe("buildTransitionOutputFormatForClaude", () => {
-  it("includes metadata fields as optional properties in the schema", () => {
+  it("includes metadata fields as required properties in the schema", () => {
     const outputFormat = buildTransitionOutputFormatForClaude(
       [{ terminal: "success", when: "done" }],
       {
@@ -20,12 +20,14 @@ describe("buildTransitionOutputFormatForClaude", () => {
     });
     expect(properties.pr_number).toEqual({ type: "string" });
 
-    // Metadata fields should NOT be required
+    // Metadata fields should be required alongside core fields
     expect(schema.required).toEqual([
       "transition",
       "reason",
       "handoff_summary",
       "clarifying_question",
+      "pr_url",
+      "pr_number",
     ]);
   });
 
