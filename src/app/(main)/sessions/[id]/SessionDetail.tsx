@@ -15,6 +15,7 @@ import type {
   CommandExecutionItem,
   CommandGroupItem,
   OutputItem,
+  ProcessingStepsItem,
   ToolGroupItem,
 } from "@/lib/utils/outputItem";
 import { parseLogEntry } from "@/lib/utils/parseLogEntry";
@@ -29,17 +30,25 @@ function summarizeCommand(command: string): string {
   return "Run command";
 }
 
-function appendWithGrouping(
+const NON_CONVERSATIONAL_KINDS = new Set([
+  "tool_call",
+  "tool_group",
+  "command_execution",
+  "command_group",
+]);
+
+function isNonConversational(item: OutputItem): boolean {
+  return NON_CONVERSATIONAL_KINDS.has(item.kind);
+}
+
+function appendToInnerGroup(
   items: OutputItem[],
   newItem: OutputItem,
 ): OutputItem[] {
   const last = items[items.length - 1];
 
   if (newItem.kind === "tool_call") {
-    if (!last) {
-      return [newItem];
-    }
-    if (last.kind === "tool_call" && last.toolName === newItem.toolName) {
+    if (last?.kind === "tool_call" && last.toolName === newItem.toolName) {
       const group: ToolGroupItem = {
         kind: "tool_group",
         toolName: newItem.toolName,
@@ -47,23 +56,19 @@ function appendWithGrouping(
       };
       return [...items.slice(0, -1), group];
     }
-    if (last.kind === "tool_group" && last.toolName === newItem.toolName) {
+    if (last?.kind === "tool_group" && last.toolName === newItem.toolName) {
       const group: ToolGroupItem = {
         ...last,
         calls: [...last.calls, newItem],
       };
       return [...items.slice(0, -1), group];
     }
-    return [...items, newItem];
   }
 
   if (newItem.kind === "command_execution") {
     const summary = summarizeCommand(newItem.command);
-    if (!last) {
-      return [newItem];
-    }
     if (
-      last.kind === "command_execution" &&
+      last?.kind === "command_execution" &&
       summarizeCommand(last.command) === summary
     ) {
       const group: CommandGroupItem = {
@@ -73,7 +78,7 @@ function appendWithGrouping(
       };
       return [...items.slice(0, -1), group];
     }
-    if (last.kind === "command_group" && last.summary === summary) {
+    if (last?.kind === "command_group" && last.summary === summary) {
       const group: CommandGroupItem = {
         ...last,
         calls: [...last.calls, newItem],
@@ -82,6 +87,37 @@ function appendWithGrouping(
     }
   }
 
+  return [...items, newItem];
+}
+
+function appendWithGrouping(
+  items: OutputItem[],
+  newItem: OutputItem,
+): OutputItem[] {
+  const last = items[items.length - 1];
+
+  if (isNonConversational(newItem)) {
+    // Extend existing processing_steps group
+    if (last?.kind === "processing_steps") {
+      const group: ProcessingStepsItem = {
+        ...last,
+        items: appendToInnerGroup(last.items, newItem),
+      };
+      return [...items.slice(0, -1), group];
+    }
+    // Merge previous non-conversational item into a new group
+    if (last && isNonConversational(last)) {
+      const group: ProcessingStepsItem = {
+        kind: "processing_steps",
+        items: appendToInnerGroup([last], newItem),
+      };
+      return [...items.slice(0, -1), group];
+    }
+    // Single non-conversational item (no merge yet)
+    return [...items, newItem];
+  }
+
+  // Conversational item — just append
   return [...items, newItem];
 }
 
@@ -240,7 +276,14 @@ export default function SessionDetail({
           {outputItems.length === 0 ? (
             <span className={styles.outputEmpty}>No output yet…</span>
           ) : (
-            outputItems.map((item, i) => <OutputItemView key={i} item={item} />)
+            outputItems.map((item, i) => (
+              <OutputItemView
+                key={i}
+                item={item}
+                isLastItem={i === outputItems.length - 1}
+                sessionStatus={currentSession.status}
+              />
+            ))
           )}
 
           {currentSession.status === "awaiting_input" && (

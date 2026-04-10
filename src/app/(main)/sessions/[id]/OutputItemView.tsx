@@ -1,16 +1,20 @@
 "use client";
 
 import { useState } from "react";
+import type { SessionStatus } from "@/lib/utils/api";
 import type {
   CommandExecutionItem,
   CommandGroupItem,
   OutputItem,
+  ProcessingStepsItem,
   ToolCallItem,
 } from "@/lib/utils/outputItem";
 import styles from "./SessionDetail.module.css";
 
 interface Props {
   item: OutputItem;
+  isLastItem?: boolean;
+  sessionStatus?: SessionStatus;
 }
 
 function renderInputDetails(input: unknown): React.ReactNode {
@@ -180,12 +184,63 @@ function CommandGroupView({ item }: { item: CommandGroupItem }) {
   );
 }
 
-export default function OutputItemView({ item }: Props) {
+function ProcessingStepsView({
+  item,
+  isActive,
+}: {
+  item: ProcessingStepsItem;
+  isActive: boolean;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const totalCount = item.items.reduce((sum, child) => {
+    if (child.kind === "tool_group") return sum + child.calls.length;
+    if (child.kind === "command_group") return sum + child.calls.length;
+    return sum + 1;
+  }, 0);
+
+  const label = isActive
+    ? `Processing ${totalCount} steps…`
+    : `Processed ${totalCount} steps`;
+
+  return (
+    <div className={styles.processingStepsRow}>
+      <button
+        type="button"
+        className={styles.processingStepsHeader}
+        onClick={() => setExpanded((v) => !v)}
+      >
+        <span className={styles.toolCallChevron}>{expanded ? "▼" : "▶"}</span>
+        <span className={styles.processingStepsLabel}>{label}</span>
+      </button>
+      {expanded && (
+        <div className={styles.processingStepsBody}>
+          {item.items.map((child, i) => (
+            <OutputItemView key={i} item={child} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function OutputItemView({
+  item,
+  isLastItem,
+  sessionStatus,
+}: Props) {
   const [groupExpanded, setGroupExpanded] = useState(false);
 
   switch (item.kind) {
     case "text":
       return <div className={styles.outputLine}>{item.content}</div>;
+
+    case "user_input":
+      return (
+        <div className={styles.userInputRow}>
+          <span className={styles.userInputLabel}>You</span>
+          <span className={styles.userInputContent}>{item.content}</span>
+        </div>
+      );
 
     case "tool_call":
       return <ToolCallView item={item} />;
@@ -195,6 +250,14 @@ export default function OutputItemView({ item }: Props) {
 
     case "command_group":
       return <CommandGroupView item={item} />;
+
+    case "processing_steps":
+      return (
+        <ProcessingStepsView
+          item={item}
+          isActive={!!isLastItem && sessionStatus === "running"}
+        />
+      );
 
     case "tool_group": {
       const count = item.calls.length;

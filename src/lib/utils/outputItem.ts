@@ -48,6 +48,16 @@ export type ProposalActionItem = {
   reason?: string;
 };
 
+export type UserInputItem = {
+  kind: "user_input";
+  content: string;
+};
+
+export type ProcessingStepsItem = {
+  kind: "processing_steps";
+  items: OutputItem[];
+};
+
 export type OutputItem =
   | TextItem
   | ToolCallItem
@@ -55,4 +65,6 @@ export type OutputItem =
   | CommandExecutionItem
   | CommandGroupItem
   | ProposalItem
-  | ProposalActionItem;
+  | ProposalActionItem
+  | UserInputItem
+  | ProcessingStepsItem;

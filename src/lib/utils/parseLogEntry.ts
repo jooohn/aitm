@@ -5,6 +5,7 @@ import type {
   ProposalItem,
   TextItem,
   ToolCallItem,
+  UserInputItem,
 } from "./outputItem";
 
 type ContentBlock = {
@@ -65,14 +66,17 @@ export function parseLogEntry(
       return null;
 
     case "result":
-      if (entry.subtype === "success") return text("✓ Goal completed");
+      if (entry.subtype === "success") return null;
       return text(`✗ Session ended: ${entry.subtype}`);
 
     case "awaiting_input":
       return text(`⏳ Awaiting input: ${entry.message ?? ""}`);
 
     case "user_input":
-      return text(`You: ${entry.message ?? ""}`);
+      return {
+        kind: "user_input",
+        content: String(entry.message ?? ""),
+      } as UserInputItem;
 
     case "error":
       return text(`! Error: ${entry.message}`);
