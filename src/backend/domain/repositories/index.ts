@@ -1,6 +1,9 @@
 import { access } from "fs/promises";
 import { basename, join } from "path";
-import type { ConfigRepository } from "@/backend/infra/config";
+import type {
+  ConfigRepository,
+  ConfigRepositoryCommand,
+} from "@/backend/infra/config";
 import { spawnAsync } from "@/backend/utils/process";
 
 export interface Repository {
@@ -46,6 +49,13 @@ export class RepositoryService {
 
   async getRepositoryByAlias(alias: string): Promise<Repository | undefined> {
     return (await this.listRepositories()).find((r) => r.alias === alias);
+  }
+
+  getCommandsForAlias(alias: string): ConfigRepositoryCommand[] {
+    const repo = this.configRepositories.find(
+      (r) => inferAlias(r.path) === alias,
+    );
+    return repo?.commands ?? [];
   }
 
   async getGitHubUrl(repoPath: string): Promise<string | null> {

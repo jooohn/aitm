@@ -4,8 +4,13 @@ export interface RepositoryDto {
   alias: string;
 }
 
+export interface RepositoryCommandDto {
+  label: string;
+}
+
 export interface RepositoryDetailDto extends RepositoryDto {
   github_url: string | null;
+  commands: RepositoryCommandDto[];
 }
 
 export interface ValidationResultDto {

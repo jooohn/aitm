@@ -29,9 +29,7 @@ async function resolveWorktreePath(
     };
   }
   const worktrees = await worktreeService.listWorktrees(repo.path);
-  const worktree = worktrees.find(
-    (w) => branchToSlug(w.branch) === branchSlug,
-  );
+  const worktree = worktrees.find((w) => branchToSlug(w.branch) === branchSlug);
   if (!worktree) {
     return {
       ok: false,
@@ -67,10 +65,20 @@ export async function POST(
   if (!result.ok) return result.response;
 
   const body = await request.json();
-  const command = body.command?.trim();
-  if (!command) {
+  const commandLabel = body.command_label?.trim();
+  if (!commandLabel) {
     return NextResponse.json(
-      { error: "command is required and must be non-empty" },
+      { error: "command_label is required and must be non-empty" },
+      { status: 400 },
+    );
+  }
+
+  const alias = `${organization}/${name}`;
+  const commands = repositoryService.getCommandsForAlias(alias);
+  const matched = commands.find((c) => c.label === commandLabel);
+  if (!matched) {
+    return NextResponse.json(
+      { error: `Command not found: "${commandLabel}"` },
       { status: 400 },
     );
   }
@@ -78,7 +86,7 @@ export async function POST(
   const process = processService.startProcess(
     result.worktreePath,
     result.branchName,
-    command,
+    matched.command,
     organization,
     name,
   );
