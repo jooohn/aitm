@@ -24,6 +24,13 @@ export type PreviousExecutionHandoff = {
   step: string;
   handoff_summary: string;
   log_file_path: string | null;
+  output_file_path: string | null;
+};
+
+type LegacyCommandOutputBackfillRow = {
+  id: string;
+  command_output: string;
+  transition_decision: string | null;
 };
 
 export class WorkflowRunRepository {
@@ -111,7 +118,7 @@ export class WorkflowRunRepository {
         workflow_run_id     TEXT    NOT NULL REFERENCES workflow_runs(id),
         step                TEXT    NOT NULL,
         step_type           TEXT    NOT NULL DEFAULT 'agent',
-        command_output      TEXT,
+        output_file_path    TEXT,
         transition_decision TEXT,
         handoff_summary     TEXT,
         created_at          TEXT    NOT NULL,
@@ -141,6 +148,18 @@ export class WorkflowRunRepository {
         "ALTER TABLE step_executions ADD COLUMN status TEXT NOT NULL DEFAULT 'running'",
       );
     }
+    if (!seColumnNames.has("output_file_path")) {
+      this.db.exec(
+        "ALTER TABLE step_executions ADD COLUMN output_file_path TEXT",
+      );
+    }
+  }
+
+  private hasStepExecutionColumn(name: string): boolean {
+    const seColumns = this.db
+      .prepare("PRAGMA table_info(step_executions)")
+      .all() as Array<{ name: string }>;
+    return seColumns.some((column) => column.name === name);
   }
 
   insertStepExecution(params: {
@@ -153,7 +172,7 @@ export class WorkflowRunRepository {
     this.db
       .prepare(
         `INSERT INTO step_executions
-         (id, workflow_run_id, step, step_type, command_output, transition_decision, handoff_summary, created_at, completed_at)
+         (id, workflow_run_id, step, step_type, output_file_path, transition_decision, handoff_summary, created_at, completed_at)
        VALUES (?, ?, ?, ?, NULL, NULL, NULL, ?, NULL)`,
       )
       .run(
@@ -186,13 +205,64 @@ export class WorkflowRunRepository {
     }
   }
 
-  setStepExecutionCommandOutput(
+  setStepExecutionOutputFilePath(
     id: string,
-    commandOutput: string | null,
+    outputFilePath: string | null,
   ): void {
     this.db
-      .prepare("UPDATE step_executions SET command_output = ? WHERE id = ?")
-      .run(commandOutput, id);
+      .prepare("UPDATE step_executions SET output_file_path = ? WHERE id = ?")
+      .run(outputFilePath, id);
+  }
+
+  listLegacyCommandOutputBackfillCandidates(workflowRunId: string): Array<{
+    id: string;
+    command_output: string;
+    transition_decision: TransitionDecision | null;
+  }> {
+    if (!this.hasStepExecutionColumn("command_output")) {
+      return [];
+    }
+
+    const rows = this.db
+      .prepare(
+        `SELECT id, command_output, transition_decision
+         FROM step_executions
+         WHERE workflow_run_id = ?
+           AND step_type = 'command'
+           AND output_file_path IS NULL
+           AND command_output IS NOT NULL`,
+      )
+      .all(workflowRunId) as LegacyCommandOutputBackfillRow[];
+
+    return rows.map((row) => ({
+      id: row.id,
+      command_output: row.command_output,
+      transition_decision: parseTransitionDecision(row.transition_decision),
+    }));
+  }
+
+  backfillLegacyCommandOutput(params: {
+    id: string;
+    output_file_path: string;
+    handoff_summary: string;
+    transition_decision_json: string | null;
+  }): void {
+    const setClauses = [
+      "output_file_path = @output_file_path",
+      "handoff_summary = @handoff_summary",
+      "transition_decision = @transition_decision_json",
+    ];
+    if (this.hasStepExecutionColumn("command_output")) {
+      setClauses.push("command_output = NULL");
+    }
+
+    this.db
+      .prepare(
+        `UPDATE step_executions
+         SET ${setClauses.join(", ")}
+         WHERE id = @id`,
+      )
+      .run(params);
   }
 
   completeStepExecution(
@@ -293,10 +363,11 @@ export class WorkflowRunRepository {
     step: string;
     handoff_summary: string | null;
     log_file_path: string | null;
+    output_file_path: string | null;
   }> {
     return this.db
       .prepare(
-        `SELECT se.step, se.handoff_summary, s.log_file_path
+        `SELECT se.step, se.handoff_summary, s.log_file_path, se.output_file_path
        FROM step_executions se
        LEFT JOIN sessions s ON s.step_execution_id = se.id
        WHERE se.workflow_run_id = ? AND se.completed_at IS NOT NULL
@@ -306,6 +377,7 @@ export class WorkflowRunRepository {
       step: string;
       handoff_summary: string | null;
       log_file_path: string | null;
+      output_file_path: string | null;
     }>;
   }
 
@@ -316,10 +388,11 @@ export class WorkflowRunRepository {
     step: string;
     handoff_summary: string | null;
     log_file_path: string | null;
+    output_file_path: string | null;
   }> {
     return this.db
       .prepare(
-        `SELECT se.step, se.handoff_summary, s.log_file_path
+        `SELECT se.step, se.handoff_summary, s.log_file_path, se.output_file_path
        FROM step_executions se
        LEFT JOIN sessions s ON s.step_execution_id = se.id
        WHERE se.workflow_run_id = ? AND se.id != ? AND se.completed_at IS NOT NULL
@@ -329,6 +402,7 @@ export class WorkflowRunRepository {
       step: string;
       handoff_summary: string | null;
       log_file_path: string | null;
+      output_file_path: string | null;
     }>;
   }
 

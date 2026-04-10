@@ -954,7 +954,7 @@ workflows:
     ).run(runId, repoPath, "feat/test", "my-flow", "run-command", now, now);
     db.prepare(
       `INSERT INTO step_executions
-         (id, workflow_run_id, step, command_output, transition_decision, handoff_summary, created_at, completed_at)
+         (id, workflow_run_id, step, output_file_path, transition_decision, handoff_summary, created_at, completed_at)
        VALUES (?, ?, ?, NULL, NULL, NULL, ?, NULL)`,
     ).run(executionId, runId, "run-command", now);
 
@@ -1256,7 +1256,7 @@ workflows:
     expect(executions[1].step).toBe("next");
   });
 
-  it("stores command output in command_output column", async () => {
+  it("stores command output in a run-scoped output file", async () => {
     const { repoPath } = await setupCommandRun(`
 workflows:
   cmd-flow:
@@ -1277,8 +1277,10 @@ workflows:
 
     const execution = db
       .prepare("SELECT * FROM step_executions WHERE workflow_run_id = ?")
-      .get(run.id) as { command_output: string | null };
-    expect(execution.command_output).toContain("hello");
+      .get(run.id) as { output_file_path: string | null };
+    expect(execution.output_file_path).toMatch(
+      /\/\.aitm\/runs\/.+\/command-output\/.+\.log$/,
+    );
   });
 
   it("uses the failed transition when command exits non-zero", async () => {
@@ -1480,6 +1482,92 @@ describe("rerunWorkflowRunFromFailedState", () => {
     // The failed implement execution had handoff_summary "Could not proceed"
     // but it is the last/failed one and should be excluded
     expect(newSession?.goal).not.toContain("Could not proceed");
+  });
+
+  it("backfills legacy command output before building rerun handoff context", async () => {
+    process.env.AITM_CONFIG_PATH = await writeTempConfig(`
+workflows:
+  command-rerun:
+    initial_step: lint
+    steps:
+      lint:
+        type: command
+        command: "printf 'stdout line\\n' && printf 'stderr line\\n' >&2"
+        transitions:
+          - step: implement
+            when: succeeded
+      implement:
+        goal: "Write the code"
+        transitions:
+          - terminal: success
+            when: "code is done"
+          - terminal: failure
+            when: "blocked"
+`);
+    const repoPath = await makeFakeGitRepo();
+    const run = await container.workflowRunService.createWorkflowRun({
+      repository_path: repoPath,
+      worktree_branch: "feat/test",
+      workflow_name: "command-rerun",
+    });
+
+    db.exec("ALTER TABLE step_executions ADD COLUMN command_output TEXT");
+    db.prepare(
+      `UPDATE step_executions
+       SET command_output = ?, output_file_path = NULL, handoff_summary = ?, transition_decision = ?
+       WHERE workflow_run_id = ? AND step = 'lint'`,
+    ).run(
+      "stdout line\nstderr line",
+      "stdout line\nstderr line",
+      JSON.stringify({
+        transition: "implement",
+        reason: "Command succeeded",
+        handoff_summary: "stdout line\nstderr line",
+      }),
+      run.id,
+    );
+
+    const implementExec = db
+      .prepare(
+        "SELECT id FROM step_executions WHERE workflow_run_id = ? AND step = 'implement'",
+      )
+      .get(run.id) as { id: string };
+    await container.workflowRunService.completeStepExecution(implementExec.id, {
+      transition: "failure",
+      reason: "Blocked",
+      handoff_summary: "Could not proceed",
+    });
+
+    await container.workflowRunService.rerunWorkflowRunFromFailedState(run.id);
+
+    const lintExecution = db
+      .prepare(
+        "SELECT output_file_path, handoff_summary FROM step_executions WHERE workflow_run_id = ? AND step = 'lint'",
+      )
+      .get(run.id) as {
+      output_file_path: string | null;
+      handoff_summary: string | null;
+    };
+    expect(lintExecution.output_file_path).toMatch(
+      /\/\.aitm\/runs\/.+\/command-output\/.+\.log$/,
+    );
+    expect(lintExecution.handoff_summary).toBe(
+      `Command succeeded. Detailed output: ${lintExecution.output_file_path}`,
+    );
+
+    const rerunImplementExec = db
+      .prepare(
+        "SELECT id FROM step_executions WHERE workflow_run_id = ? AND step = 'implement' ORDER BY created_at DESC LIMIT 1",
+      )
+      .get(run.id) as { id: string };
+    const rerunSession = db
+      .prepare("SELECT goal FROM sessions WHERE step_execution_id = ?")
+      .get(rerunImplementExec.id) as { goal: string } | undefined;
+
+    expect(rerunSession?.goal).toContain(
+      `Output: ${lintExecution.output_file_path}`,
+    );
+    expect(rerunSession?.goal).not.toContain("stdout line\nstderr line");
   });
 
   it("resets effective step count so max_steps guard does not block the rerun", async () => {

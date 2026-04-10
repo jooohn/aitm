@@ -36,6 +36,7 @@ export default function StepExecutionItem({
   const [approvalReason, setApprovalReason] = useState("");
   const decision: TransitionDecisionDto | null = execution.transition_decision;
   const isCommandExecution = execution.step_type === "command";
+  const commandOutputHref = `/api/workflow-runs/${execution.workflow_run_id}/step-executions/${execution.id}/output`;
   const isPendingApproval =
     execution.step_type === "manual-approval" &&
     execution.status === "awaiting";
@@ -122,15 +123,20 @@ export default function StepExecutionItem({
                 className={styles.commandOutput}
                 data-testid={`command-output-${execution.id}`}
               >
-                {execution.command_output ? (
-                  <div className={styles.commandOutputLine}>
-                    {execution.command_output}
-                  </div>
+                {execution.output_file_path ? (
+                  <>
+                    <div className={styles.commandOutputLine}>
+                      <Link href={commandOutputHref}>Open output</Link>
+                    </div>
+                    <div className={styles.commandOutputLine}>
+                      {execution.output_file_path}
+                    </div>
+                  </>
                 ) : (
                   <div
                     className={`${styles.commandOutputLine} ${styles.commandOutputEmpty}`}
                   >
-                    No output captured.
+                    No output file recorded.
                   </div>
                 )}
               </div>

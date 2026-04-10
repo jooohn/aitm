@@ -47,7 +47,7 @@ export interface StepExecution {
   step: string;
   step_type: "agent" | "command" | "manual-approval";
   status: StepExecutionStatus;
-  command_output: string | null;
+  output_file_path: string | null;
   session_id: string | null;
   session_status: SessionStatus | null;
   transition_decision: TransitionDecision | null;
@@ -112,6 +112,15 @@ function isAlreadyTerminalSessionError(
       `Session ${sessionId} is already in a terminal state:`,
     )
   );
+}
+
+function buildCommandOutputHandoffSummary(
+  reason: string | undefined,
+  outputFilePath: string,
+): string {
+  const summaryPrefix =
+    reason && reason.trim().length > 0 ? reason : "Command completed";
+  return `${summaryPrefix}. Detailed output: ${outputFilePath}`;
 }
 
 export class WorkflowRunService {
@@ -373,10 +382,67 @@ export class WorkflowRunService {
   async rerunWorkflowRunFromFailedState(
     id: string,
   ): Promise<WorkflowRunWithExecutions> {
+    await this.ensureLegacyCommandOutputFiles(id);
     return this.workflowStateMachine.rerunWorkflowRunFromFailedState(id);
   }
 
   getWorkflowRun(id: string): WorkflowRunWithExecutions | undefined {
     return this.workflowRunQueries.getWorkflowRun(id);
+  }
+
+  async getWorkflowRunForDisplay(
+    id: string,
+  ): Promise<WorkflowRunWithExecutions | undefined> {
+    await this.ensureLegacyCommandOutputFiles(id);
+    return this.getWorkflowRun(id);
+  }
+
+  private async ensureLegacyCommandOutputFiles(
+    workflowRunId: string,
+  ): Promise<void> {
+    const run = this.workflowRunRepository.getWorkflowRunById(workflowRunId);
+    if (!run) return;
+
+    const candidates =
+      this.workflowRunRepository.listLegacyCommandOutputBackfillCandidates(
+        workflowRunId,
+      );
+    if (candidates.length === 0) return;
+
+    const worktree = await this.worktreeService.findWorktree(
+      run.repository_path,
+      run.worktree_branch,
+    );
+    if (!worktree) return;
+
+    const outputDir = join(
+      resolveWorkflowRunDir(worktree, workflowRunId),
+      "command-output",
+    );
+    await this.ensureWorkflowRunDir(workflowRunId, worktree);
+    await mkdir(outputDir, { recursive: true });
+
+    for (const candidate of candidates) {
+      const outputFilePath = join(outputDir, `${candidate.id}.log`);
+      await writeFile(outputFilePath, candidate.command_output, "utf8");
+
+      const handoffSummary = buildCommandOutputHandoffSummary(
+        candidate.transition_decision?.reason,
+        outputFilePath,
+      );
+      const transitionDecisionJson = candidate.transition_decision
+        ? JSON.stringify({
+            ...candidate.transition_decision,
+            handoff_summary: handoffSummary,
+          })
+        : null;
+
+      this.workflowRunRepository.backfillLegacyCommandOutput({
+        id: candidate.id,
+        output_file_path: outputFilePath,
+        handoff_summary: handoffSummary,
+        transition_decision_json: transitionDecisionJson,
+      });
+    }
   }
 }

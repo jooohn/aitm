@@ -120,8 +120,65 @@ describe("GET /api/workflow-runs/:id", () => {
     expect(body.step_executions).toHaveLength(1);
     expect(body.step_executions[0].step).toBe("command-step");
     expect(body.step_executions[0].step_type).toBe("command");
-    expect(body.step_executions[0].command_output).toContain("stdout line");
-    expect(body.step_executions[0].command_output).toContain("stderr line");
+    expect(body.step_executions[0].output_file_path).toMatch(
+      /\/\.aitm\/runs\/.+\/command-output\/.+\.log$/,
+    );
+  });
+
+  it("backfills legacy command output rows before returning workflow details", async () => {
+    const repoPath = await makeFakeGitRepo();
+    db.exec("ALTER TABLE step_executions ADD COLUMN command_output TEXT");
+    db.prepare(
+      `INSERT INTO workflow_runs
+       (id, repository_path, worktree_branch, workflow_name, current_step, status, inputs, metadata, step_count_offset, created_at, updated_at)
+       VALUES (?, ?, ?, ?, NULL, 'success', NULL, NULL, 0, ?, ?)`,
+    ).run(
+      "run-legacy",
+      repoPath,
+      "feat/test",
+      "command-flow",
+      "2026-04-10T00:00:00.000Z",
+      "2026-04-10T00:00:01.000Z",
+    );
+    db.prepare(
+      `INSERT INTO step_executions
+       (id, workflow_run_id, step, step_type, status, output_file_path, transition_decision, handoff_summary, created_at, completed_at, command_output)
+       VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?)`,
+    ).run(
+      "exec-legacy",
+      "run-legacy",
+      "command-step",
+      "command",
+      "success",
+      JSON.stringify({
+        transition: "success",
+        reason: "Command succeeded",
+        handoff_summary: "stdout line\nstderr line",
+      }),
+      "stdout line\nstderr line",
+      "2026-04-10T00:00:00.000Z",
+      "2026-04-10T00:00:01.000Z",
+      "stdout line\nstderr line",
+    );
+
+    const res = await GET(
+      new NextRequest("http://localhost/api/workflow-runs/run-legacy"),
+      makeParams("run-legacy"),
+    );
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.step_executions[0].output_file_path).toMatch(
+      /\/\.aitm\/runs\/run-legacy\/command-output\/exec-legacy\.log$/,
+    );
+    expect(body.step_executions[0].handoff_summary).toBe(
+      `Command succeeded. Detailed output: ${body.step_executions[0].output_file_path}`,
+    );
+    expect(body.step_executions[0].transition_decision).toEqual({
+      transition: "success",
+      reason: "Command succeeded",
+      handoff_summary: `Command succeeded. Detailed output: ${body.step_executions[0].output_file_path}`,
+    });
   });
 
   it("returns parsed inputs, metadata, and transition decisions", async () => {

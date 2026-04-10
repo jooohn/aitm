@@ -61,7 +61,7 @@ function makeExecution(
     workflow_run_id: "run-1",
     step_type: "agent",
     status: "success",
-    command_output: null,
+    output_file_path: null,
     session_id: null,
     session_status: null,
     transition_decision: null,
@@ -161,7 +161,7 @@ describe("StepExecutionPage", () => {
     );
   });
 
-  it("renders command output for command-type executions", async () => {
+  it("renders a command output link for command-type executions", async () => {
     mockParams = {
       id: "run-1",
       executionId: "exec-cmd",
@@ -174,7 +174,7 @@ describe("StepExecutionPage", () => {
           id: "exec-cmd",
           step: "lint",
           step_type: "command",
-          command_output: "All checks passed",
+          output_file_path: "/tmp/run-1/command-output/exec-cmd.log",
         }),
       ],
     });
@@ -184,7 +184,16 @@ describe("StepExecutionPage", () => {
         <StepExecutionPage />
       </SWRTestProvider>,
     );
-    expect(await screen.findByText("All checks passed")).toBeInTheDocument();
+    const outputLink = await screen.findByRole("link", {
+      name: "Open output",
+    });
+    expect(outputLink).toHaveAttribute(
+      "href",
+      "/api/workflow-runs/run-1/step-executions/exec-cmd/output",
+    );
+    expect(
+      screen.getByText("/tmp/run-1/command-output/exec-cmd.log"),
+    ).toBeInTheDocument();
     expect(screen.getByText("command")).toBeInTheDocument();
   });
 

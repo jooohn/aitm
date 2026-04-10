@@ -1,4 +1,5 @@
 import { randomUUID } from "crypto";
+import { mkdir, writeFile } from "fs/promises";
 import { join } from "path";
 import {
   type AgentConfig,
@@ -61,6 +62,9 @@ function buildGoal(
       parts.push(`Step: ${prev.step}`, `Summary: ${prev.handoff_summary}`);
       if (prev.log_file_path) {
         parts.push(`Log: ${prev.log_file_path}`);
+      }
+      if (prev.output_file_path) {
+        parts.push(`Output: ${prev.output_file_path}`);
       }
       parts.push("");
     }
@@ -218,6 +222,7 @@ export class StepRunner {
   private async startCommandStepExecution({
     executionId,
     stepDef,
+    workflowRunId,
     worktree,
   }: {
     stepDef: CommandWorkflowStep;
@@ -230,8 +235,10 @@ export class StepRunner {
       { cwd: worktree.path },
     );
 
-    this.workflowRunRepository.setStepExecutionCommandOutput(
+    const outputFilePath = await this.persistCommandOutput(
       executionId,
+      workflowRunId,
+      worktree,
       commandOutput,
     );
 
@@ -247,10 +254,33 @@ export class StepRunner {
               ? matchedTransition.step
               : matchedTransition.terminal,
           reason: `Command ${outcome}`,
-          handoff_summary: commandOutput ?? "",
+          handoff_summary: `Command ${outcome}. Detailed output: ${outputFilePath}`,
         };
 
     await this.completeStepExecution(executionId, decision);
+  }
+
+  private async persistCommandOutput(
+    executionId: string,
+    workflowRunId: string,
+    worktree: Worktree,
+    commandOutput: string | null,
+  ): Promise<string> {
+    const outputDir = join(
+      resolveWorkflowRunDir(worktree, workflowRunId),
+      "command-output",
+    );
+    const outputFilePath = join(outputDir, `${executionId}.log`);
+
+    await mkdir(outputDir, { recursive: true });
+    await writeFile(outputFilePath, commandOutput ?? "", "utf8");
+
+    this.workflowRunRepository.setStepExecutionOutputFilePath(
+      executionId,
+      outputFilePath,
+    );
+
+    return outputFilePath;
   }
 
   private async startAgentStepExecution({

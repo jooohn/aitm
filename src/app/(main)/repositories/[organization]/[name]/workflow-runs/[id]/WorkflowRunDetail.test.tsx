@@ -77,7 +77,7 @@ function makeExecution(
     step,
     step_type: "agent",
     status: "success",
-    command_output: null,
+    output_file_path: null,
     session_id: null,
     session_status: null,
     transition_decision: null,
@@ -331,7 +331,7 @@ describe("WorkflowRunDetail", () => {
     expect(screen.queryByText("Artifacts")).not.toBeInTheDocument();
   });
 
-  it("renders command executions in a dedicated output block and leaves agent summaries unchanged", () => {
+  it("renders command executions with an output path and leaves agent summaries unchanged", () => {
     const agentExecution = {
       ...makeExecution({
         step: "plan",
@@ -347,11 +347,12 @@ describe("WorkflowRunDetail", () => {
     const commandExecution = {
       ...makeExecution({
         step: "lint",
-        command_output: "stdout line\nstderr line",
+        output_file_path: "/tmp/run-1/command-output/lint.log",
         transition_decision: {
           transition: "success",
           reason: "Command succeeded",
-          handoff_summary: "stdout line\nstderr line",
+          handoff_summary:
+            "Command succeeded. Detailed output: /tmp/run-1/command-output/lint.log",
         },
       }),
       step_type: "command",
@@ -379,8 +380,16 @@ describe("WorkflowRunDetail", () => {
     const commandOutput = within(commandItem!).getByTestId(
       "command-output-lint-execution",
     );
-    expect(commandOutput).toHaveTextContent("stdout line");
-    expect(commandOutput).toHaveTextContent("stderr line");
+    const outputLink = within(commandOutput).getByRole("link", {
+      name: "Open output",
+    });
+    expect(outputLink).toHaveAttribute(
+      "href",
+      "/api/workflow-runs/run-1/step-executions/lint-execution/output",
+    );
+    expect(commandOutput).toHaveTextContent(
+      "/tmp/run-1/command-output/lint.log",
+    );
     expect(within(commandItem!).queryByText("Command succeeded")).toBeNull();
   });
 
