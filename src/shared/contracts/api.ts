@@ -268,3 +268,11 @@ export type NotificationEvent =
         status: ProcessStatusDto;
       };
     };
+
+// -- Remote branches --
+
+export interface RemoteBranchDto {
+  branch: string;
+  pr_number: number;
+  pr_title: string;
+}

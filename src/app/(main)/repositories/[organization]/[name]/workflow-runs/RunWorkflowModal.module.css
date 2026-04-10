@@ -53,9 +53,13 @@
 }
 
 .checkboxRow {
-  @apply flex items-center gap-1.5 cursor-pointer;
+  @apply flex items-center justify-between gap-1.5;
 }
 
 .checkboxLabel {
-  @apply text-xs text-zinc-600 dark:text-zinc-400;
+  @apply text-xs text-zinc-600 dark:text-zinc-400 cursor-pointer;
+}
+
+.linkButton {
+  @apply text-xs text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200 underline cursor-pointer bg-transparent border-none p-0 disabled:opacity-40 disabled:cursor-not-allowed;
 }

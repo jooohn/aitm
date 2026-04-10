@@ -4,6 +4,7 @@ import { CodexSDK } from "@/backend/domain/agent/codex-sdk";
 import { BranchNameService } from "@/backend/domain/branch-name";
 import { ChatService } from "@/backend/domain/chats";
 import { ChatRepository } from "@/backend/domain/chats/chat-repository";
+import { GitHubBranchService } from "@/backend/domain/github";
 import { HouseKeepingService } from "@/backend/domain/house-keeping";
 import { ProcessService } from "@/backend/domain/processes";
 import { RepositoryService } from "@/backend/domain/repositories";
@@ -42,6 +43,7 @@ export type Container = {
   chatService: ChatService;
   commandStepExecutor: CommandStepExecutor;
   workflowRunService: WorkflowRunService;
+  gitHubBranchService: GitHubBranchService;
   houseKeepingService: HouseKeepingService;
 };
 
@@ -73,6 +75,7 @@ function createContainer(cfg: ConfigSnapshot): Container {
     eventBus,
     cfg.agent,
   );
+  const gitHubBranchService = new GitHubBranchService();
   const commandStepExecutor = new CommandStepExecutor();
   const workflowRunService = new WorkflowRunService(
     workflowRunRepository,
@@ -118,6 +121,7 @@ function createContainer(cfg: ConfigSnapshot): Container {
     chatService,
     commandStepExecutor,
     workflowRunService,
+    gitHubBranchService,
     houseKeepingService,
   };
 }
