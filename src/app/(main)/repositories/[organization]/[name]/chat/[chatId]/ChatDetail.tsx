@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { mutate } from "swr";
 import OutputItemView from "@/app/(main)/sessions/[id]/OutputItemView";
 import CloseIcon from "@/app/components/icons/CloseIcon";
+import SendIcon from "@/app/components/icons/SendIcon";
 import type { StatusBadgeVariant } from "@/app/components/StatusBadge";
 import StatusBadge from "@/app/components/StatusBadge";
 import { swrKeys, useChat } from "@/lib/hooks/swr";
@@ -191,7 +192,7 @@ export default function ChatDetail({ chatId }: Props) {
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === "Enter" && !e.shiftKey) {
+    if (e.key === "Enter" && e.metaKey) {
       e.preventDefault();
       handleSend(e);
     }
@@ -263,26 +264,29 @@ export default function ChatDetail({ chatId }: Props) {
       </div>
 
       <form onSubmit={handleSend} className={styles.inputForm}>
-        <textarea
-          className={styles.messageInput}
-          value={messageText}
-          onChange={(e) => setMessageText(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder={
-            chat.status === "running"
-              ? "Agent is working..."
-              : "Type a message..."
-          }
-          disabled={!canSend}
-          rows={3}
-        />
-        <button
-          type="submit"
-          className={styles.sendButton}
-          disabled={!canSend || !messageText.trim()}
-        >
-          {sending ? "Sending..." : "Send"}
-        </button>
+        <div className={styles.inputWrapper}>
+          <textarea
+            className={styles.messageInput}
+            value={messageText}
+            onChange={(e) => setMessageText(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={
+              chat.status === "running"
+                ? "Agent is working..."
+                : "Type a message..."
+            }
+            disabled={!canSend}
+            rows={3}
+          />
+          <button
+            type="submit"
+            className={styles.sendButton}
+            disabled={!canSend || !messageText.trim()}
+            aria-label="Send message"
+          >
+            <SendIcon size={16} />
+          </button>
+        </div>
         {sendError && <p className={styles.error}>{sendError}</p>}
       </form>
 

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { mutate } from "swr";
+import SendIcon from "@/app/components/icons/SendIcon";
 import type { StatusBadgeVariant } from "@/app/components/StatusBadge";
 import StatusBadge from "@/app/components/StatusBadge";
 import { swrKeys, useSession } from "@/lib/hooks/swr";
@@ -249,21 +250,30 @@ export default function SessionDetail({
                   {clarifyingQuestion}
                 </p>
               )}
-              <textarea
-                className={styles.replyInput}
-                value={replyText}
-                onChange={(e) => setReplyText(e.target.value)}
-                placeholder="Type your reply…"
-                disabled={replying}
-                rows={3}
-              />
-              <button
-                type="submit"
-                className={styles.replyButton}
-                disabled={replying || !replyText.trim()}
-              >
-                {replying ? "Sending…" : "Send reply"}
-              </button>
+              <div className={styles.replyInputWrapper}>
+                <textarea
+                  className={styles.replyInput}
+                  value={replyText}
+                  onChange={(e) => setReplyText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && e.metaKey) {
+                      e.preventDefault();
+                      handleReply(e);
+                    }
+                  }}
+                  placeholder="Type your reply…"
+                  disabled={replying}
+                  rows={3}
+                />
+                <button
+                  type="submit"
+                  className={styles.replyButton}
+                  disabled={replying || !replyText.trim()}
+                  aria-label="Send reply"
+                >
+                  <SendIcon size={14} />
+                </button>
+              </div>
               {replyError && <p className={styles.error}>{replyError}</p>}
             </form>
           )}
