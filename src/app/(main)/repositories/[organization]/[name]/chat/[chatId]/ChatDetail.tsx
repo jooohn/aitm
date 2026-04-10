@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { mutate } from "swr";
 import OutputItemView from "@/app/(main)/sessions/[id]/OutputItemView";
+import CloseIcon from "@/app/components/icons/CloseIcon";
 import type { StatusBadgeVariant } from "@/app/components/StatusBadge";
 import StatusBadge from "@/app/components/StatusBadge";
 import { swrKeys, useChat } from "@/lib/hooks/swr";
@@ -73,12 +74,13 @@ export default function ChatDetail({ chatId }: Props) {
   const [messageText, setMessageText] = useState("");
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerClosing, setDrawerClosing] = useState(false);
   const outputRef = useRef<HTMLDivElement>(null);
   const autoScrollRef = useRef(true);
   const prevStatusRef = useRef<ChatStatus | null>(null);
 
   // Load existing conversation history on mount
-  // biome-ignore lint/correctness/useExhaustiveDependencies: only run once on mount
   useEffect(() => {
     fetchChatHistory(chatId)
       .then((entries) => {
@@ -141,6 +143,7 @@ export default function ChatDetail({ chatId }: Props) {
   }, [chatId, chat?.status, mutateChat]);
 
   // When status transitions away from running, re-fetch to get updated proposals
+  // and auto-open drawer when awaiting input
   // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally keyed on chat?.status
   useEffect(() => {
     if (!chat) return;
@@ -148,6 +151,10 @@ export default function ChatDetail({ chatId }: Props) {
     prevStatusRef.current = chat.status;
     if (prev && prev !== chat.status && chat.status !== "running") {
       mutateChat();
+    }
+    if (chat.status === "awaiting_input" && prev !== "awaiting_input") {
+      setDrawerOpen(true);
+      setDrawerClosing(false);
     }
   }, [chat?.status, mutateChat]);
 
@@ -194,19 +201,44 @@ export default function ChatDetail({ chatId }: Props) {
     mutateChat();
   }, [mutateChat]);
 
+  function handleCloseDrawer() {
+    setDrawerClosing(true);
+    setTimeout(() => {
+      setDrawerOpen(false);
+      setDrawerClosing(false);
+    }, 200);
+  }
+
   if (!chat) {
     return <div className={styles.container}>Loading...</div>;
   }
 
   const canSend = chat.status !== "running" && !sending;
 
+  const proposals = chat.proposals ?? [];
+  const pendingCount = proposals.filter((p) => p.status === "pending").length;
+
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <h2 className={styles.title}>{chat.title ?? "New chat"}</h2>
-        <StatusBadge variant={BADGE_VARIANT[chat.status]}>
-          {STATUS_LABELS[chat.status]}
-        </StatusBadge>
+        <div className={styles.headerLeft}>
+          <h2 className={styles.title}>{chat.title ?? "New chat"}</h2>
+          <StatusBadge variant={BADGE_VARIANT[chat.status]}>
+            {STATUS_LABELS[chat.status]}
+          </StatusBadge>
+        </div>
+        {proposals.length > 0 && (
+          <button
+            type="button"
+            className={styles.proposalsButton}
+            onClick={() => {
+              setDrawerOpen(true);
+              setDrawerClosing(false);
+            }}
+          >
+            Suggested Runs{pendingCount > 0 ? ` (${pendingCount})` : ""}
+          </button>
+        )}
       </div>
 
       <div
@@ -222,36 +254,8 @@ export default function ChatDetail({ chatId }: Props) {
           <span className={styles.outputEmpty}>Waiting for response...</span>
         ) : (
           outputItems.map((item, i) => {
-            if (item.kind === "proposals") {
-              return (
-                <div key={i} className={styles.proposalsContainer}>
-                  {item.proposals.map((p) => {
-                    const proposalData = chat.proposals?.find(
-                      (cp) => cp.id === p.id,
-                    );
-                    return (
-                      <ProposalCard
-                        key={p.id}
-                        chatId={chatId}
-                        proposal={
-                          proposalData ?? {
-                            ...p,
-                            status: "pending",
-                            chat_id: chatId,
-                            workflow_run_id: null,
-                            created_at: "",
-                            updated_at: "",
-                          }
-                        }
-                        onActioned={handleProposalActioned}
-                      />
-                    );
-                  })}
-                </div>
-              );
-            }
-            if (item.kind === "proposal_action") {
-              return null; // Actions are reflected in ProposalCard state
+            if (item.kind === "proposals" || item.kind === "proposal_action") {
+              return null;
             }
             return <OutputItemView key={i} item={item} />;
           })
@@ -281,6 +285,65 @@ export default function ChatDetail({ chatId }: Props) {
         </button>
         {sendError && <p className={styles.error}>{sendError}</p>}
       </form>
+
+      {drawerOpen && (
+        <div className={styles.overlay}>
+          <div
+            className={`${styles.backdrop} ${drawerClosing ? styles.backdropClosing : ""}`}
+            onClick={handleCloseDrawer}
+          />
+          <aside
+            className={`${styles.drawer} ${drawerClosing ? styles.drawerClosing : ""}`}
+          >
+            <div className={styles.drawerHeader}>
+              <h3 className={styles.drawerTitle}>Suggested Runs</h3>
+              <button
+                type="button"
+                className={styles.closeButton}
+                onClick={handleCloseDrawer}
+                aria-label="Close suggested runs"
+              >
+                <CloseIcon />
+              </button>
+            </div>
+            <div className={styles.drawerBody}>
+              {proposals.length === 0 ? (
+                <span className={styles.drawerEmpty}>No suggestions yet</span>
+              ) : (
+                <>
+                  {proposals
+                    .filter((p) => p.status !== "rejected")
+                    .map((p) => (
+                      <ProposalCard
+                        key={p.id}
+                        chatId={chatId}
+                        proposal={p}
+                        onActioned={handleProposalActioned}
+                      />
+                    ))}
+                  {proposals.some((p) => p.status === "rejected") && (
+                    <>
+                      <h4 className={styles.drawerSectionHeading}>
+                        Rejected suggestions
+                      </h4>
+                      {proposals
+                        .filter((p) => p.status === "rejected")
+                        .map((p) => (
+                          <ProposalCard
+                            key={p.id}
+                            chatId={chatId}
+                            proposal={p}
+                            onActioned={handleProposalActioned}
+                          />
+                        ))}
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+          </aside>
+        </div>
+      )}
     </div>
   );
 }
