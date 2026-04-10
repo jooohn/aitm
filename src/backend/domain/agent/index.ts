@@ -1,5 +1,5 @@
 import { AbortError } from "@anthropic-ai/claude-agent-sdk";
-import { appendFile, writeFile } from "fs/promises";
+import { writeFile } from "fs/promises";
 import type { SessionStatus } from "@/backend/domain/sessions";
 import type { SessionRepository } from "@/backend/domain/sessions/session-repository";
 import type {
@@ -9,6 +9,7 @@ import type {
   WorkflowTransition,
 } from "@/backend/infra/config";
 import type { EventBus } from "@/backend/infra/event-bus";
+import { appendToLog } from "@/backend/utils/log";
 import { DEFAULT_PERMISSION_MODE } from "./permission-mode";
 import type { AgentMessage, AgentRuntime } from "./runtime";
 
@@ -23,14 +24,6 @@ export interface TransitionDecision {
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
-
-async function appendToLog(logFilePath: string, entry: unknown): Promise<void> {
-  try {
-    await appendFile(logFilePath, `${JSON.stringify(entry)}\n`, "utf8");
-  } catch {
-    // Non-critical — ignore log write errors.
-  }
-}
 
 function isTerminalSessionStatus(status: SessionStatus | null): boolean {
   return status === "failure" || status === "success";

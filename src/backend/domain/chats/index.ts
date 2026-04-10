@@ -1,13 +1,6 @@
 import { AbortError } from "@anthropic-ai/claude-agent-sdk";
 import { randomUUID } from "crypto";
-import {
-  access,
-  appendFile,
-  constants,
-  mkdir,
-  unlink,
-  writeFile,
-} from "fs/promises";
+import { access, constants, mkdir, unlink, writeFile } from "fs/promises";
 import { homedir, tmpdir } from "os";
 import { join } from "path";
 import type {
@@ -16,6 +9,7 @@ import type {
   WorkflowDefinition,
 } from "@/backend/infra/config";
 import { logger } from "@/backend/infra/logger";
+import { appendToLog } from "@/backend/utils/log";
 import type {
   AgentMessage,
   AgentRuntime,
@@ -130,14 +124,6 @@ async function chatsLogDir(): Promise<string> {
   }
 
   throw new Error("Unable to create a writable chat log directory");
-}
-
-async function appendToLog(logFilePath: string, entry: unknown): Promise<void> {
-  try {
-    await appendFile(logFilePath, `${JSON.stringify(entry)}\n`, "utf8");
-  } catch {
-    // Non-critical — ignore log write errors.
-  }
 }
 
 function buildWorkflowContext(

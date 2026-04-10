@@ -4,6 +4,7 @@ import type {
   OutputMetadataFieldDef,
   WorkflowTransition,
 } from "@/backend/infra/config";
+import { parseJson } from "@/backend/utils/json";
 import type { Session } from "./index";
 
 export interface SessionRow {
@@ -25,15 +26,6 @@ export interface SessionRow {
   workflow_run_id?: string | null;
   created_at: string;
   updated_at: string;
-}
-
-function parseJson<T>(value: string | null, fallback: T): T {
-  if (value === null) return fallback;
-  try {
-    return JSON.parse(value) as T;
-  } catch {
-    return fallback;
-  }
 }
 
 export function sessionRowToDomain(row: SessionRow): Session {
