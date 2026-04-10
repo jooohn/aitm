@@ -15,6 +15,7 @@ export default function SWRProvider({ children }: { children: ReactNode }) {
       value={{
         revalidateOnFocus: false,
         dedupingInterval: 1000,
+        keepPreviousData: true,
       }}
     >
       <NotificationRevalidator />
