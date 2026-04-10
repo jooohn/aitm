@@ -2,6 +2,8 @@ export { swrKeys } from "./keys";
 export { useArtifactStatuses } from "./useArtifactStatuses";
 export { useChat } from "./useChat";
 export { useChats } from "./useChats";
+export { useProcess } from "./useProcess";
+export { useProcesses } from "./useProcesses";
 export { useRepositories } from "./useRepositories";
 export { useRepository } from "./useRepository";
 export { useSession } from "./useSession";

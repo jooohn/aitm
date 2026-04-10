@@ -505,7 +505,7 @@ function validateConfig(raw: unknown): ConfigSnapshot {
       : { provider: "claude" };
 
   const repositoryCommandSchema = z.object({
-    label: z.string(),
+    label: z.string().optional(),
     command: z.string(),
   });
 
@@ -530,7 +530,7 @@ function validateConfig(raw: unknown): ConfigSnapshot {
     if (r.commands) {
       result.commands = Object.entries(r.commands).map(([id, def]) => ({
         id,
-        label: def.label,
+        label: def.label ?? id,
         command: def.command,
       }));
     }

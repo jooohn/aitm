@@ -4,6 +4,7 @@ import type {
   ChatDto,
   ChatProposalDto,
   ProcessDto,
+  RepositoryCommandDto,
   RepositoryDetailDto,
   RepositoryDto,
   SessionDto,
@@ -24,6 +25,7 @@ export type ChatStatus = ChatDto["status"];
 export type ChatProposalStatus = ChatProposalDto["status"];
 export type Repository = RepositoryDto;
 export type RepositoryDetail = RepositoryDetailDto;
+export type RepositoryCommand = RepositoryCommandDto;
 export type ValidationResult = ValidationResultDto;
 export type Worktree = WorktreeDto;
 export type Session = SessionDto;
@@ -338,6 +340,17 @@ export function startProcess(
   });
 }
 
+export function fetchProcess(
+  organization: string,
+  name: string,
+  branch: string,
+  processId: string,
+): Promise<Process> {
+  return apiFetch(
+    `${processBasePath(organization, name, branch)}/${processId}`,
+  );
+}
+
 export function stopProcess(
   organization: string,
   name: string,
@@ -350,4 +363,13 @@ export function stopProcess(
       method: "DELETE",
     },
   );
+}
+
+export function processOutputStreamUrl(
+  organization: string,
+  name: string,
+  branch: string,
+  processId: string,
+): string {
+  return `${processBasePath(organization, name, branch)}/${processId}/output`;
 }

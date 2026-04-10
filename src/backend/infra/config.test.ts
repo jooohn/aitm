@@ -226,7 +226,7 @@ repositories:
       expect(snapshot.repositories).toEqual([{ path: "/projects/org/repo1" }]);
     });
 
-    it("fails when command entry is missing label", async () => {
+    it("defaults the label to the command id when omitted", async () => {
       await writeConfig(`
 repositories:
   - path: /projects/org/repo1
@@ -235,7 +235,13 @@ repositories:
         command: "npm run dev"
 `);
 
-      expect(() => loadConfig()).toThrow("repositories");
+      const snapshot = loadConfig();
+      expect(snapshot.repositories).toEqual([
+        {
+          path: "/projects/org/repo1",
+          commands: [{ id: "dev", label: "dev", command: "npm run dev" }],
+        },
+      ]);
     });
 
     it("fails when command entry is missing command", async () => {
