@@ -75,7 +75,7 @@ export function buildTransitionOutputFormatForClaude(
 ): OutputFormat {
   // claude doesn't support enum, so just use general output format.
   const properties: Record<string, Record<string, unknown>> = {
-    transition: { type: "string" },
+    transition: { type: ["string", "null"] },
     reason: { type: "string" },
     handoff_summary: { type: "string" },
     clarifying_question: { type: "string" },
@@ -95,7 +95,7 @@ export function buildTransitionOutputFormatForClaude(
     schema: {
       type: "object",
       properties,
-      required: Object.keys(properties).filter((k) => k !== "transition"),
+      required: Object.keys(properties),
       additionalProperties: false,
     },
   };

@@ -20,8 +20,8 @@ describe("buildTransitionOutputFormatForClaude", () => {
     });
     expect(properties.pr_number).toEqual({ type: "string" });
 
-    // Metadata fields should be required alongside core fields
     expect(schema.required).toEqual([
+      "transition",
       "reason",
       "handoff_summary",
       "clarifying_question",
@@ -30,7 +30,7 @@ describe("buildTransitionOutputFormatForClaude", () => {
     ]);
   });
 
-  it("includes clarifying_question as an optional property for awaiting-input transitions", () => {
+  it("uses a nullable transition so awaiting-input can be represented without a real transition", () => {
     const outputFormat = buildTransitionOutputFormatForClaude([
       { terminal: "success", when: "done" },
     ]);
@@ -38,6 +38,7 @@ describe("buildTransitionOutputFormatForClaude", () => {
     const schema = outputFormat.schema as Record<string, unknown>;
     const properties = schema.properties as Record<string, unknown>;
 
+    expect(properties.transition).toEqual({ type: ["string", "null"] });
     expect(properties.clarifying_question).toEqual({ type: "string" });
   });
 
@@ -56,7 +57,7 @@ describe("buildTransitionOutputFormatForClaude", () => {
     const properties = schema.properties as Record<string, unknown>;
 
     // Core fields should retain their original definitions (no description from metadata)
-    expect(properties.transition).toEqual({ type: "string" });
+    expect(properties.transition).toEqual({ type: ["string", "null"] });
     expect(properties.reason).toEqual({ type: "string" });
     expect(properties.handoff_summary).toEqual({ type: "string" });
     expect(properties.clarifying_question).toEqual({ type: "string" });
@@ -77,6 +78,12 @@ describe("buildTransitionOutputFormatForClaude", () => {
     const properties = schema.properties as Record<string, unknown>;
 
     expect(Object.keys(properties)).toEqual([
+      "transition",
+      "reason",
+      "handoff_summary",
+      "clarifying_question",
+    ]);
+    expect(schema.required).toEqual([
       "transition",
       "reason",
       "handoff_summary",

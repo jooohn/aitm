@@ -398,14 +398,19 @@ describe("buildTransitionOutputFormatForCodex", () => {
         type: "object",
         properties: {
           transition: {
-            type: "string",
-            enum: ["plan", "implement", "failure"],
+            type: ["string", "null"],
+            enum: ["plan", "implement", "failure", null],
           },
           reason: { type: "string" },
           handoff_summary: { type: "string" },
           clarifying_question: { type: "string" },
         },
-        required: ["reason", "handoff_summary", "clarifying_question"],
+        required: [
+          "transition",
+          "reason",
+          "handoff_summary",
+          "clarifying_question",
+        ],
         additionalProperties: false,
       },
     });
@@ -423,6 +428,10 @@ describe("buildTransitionOutputFormatForCodex", () => {
     const schema = outputFormat.schema as Record<string, unknown>;
     const properties = schema.properties as Record<string, unknown>;
 
+    expect(properties.transition).toEqual({
+      type: ["string", "null"],
+      enum: ["success", null],
+    });
     expect(properties.pr_url).toEqual({
       type: "string",
       description: "The pull request URL",
@@ -430,6 +439,7 @@ describe("buildTransitionOutputFormatForCodex", () => {
     expect(properties.pr_number).toEqual({ type: "string" });
 
     expect(schema.required).toEqual([
+      "transition",
       "reason",
       "handoff_summary",
       "clarifying_question",
@@ -452,8 +462,8 @@ describe("buildTransitionOutputFormatForCodex", () => {
     const properties = schema.properties as Record<string, unknown>;
 
     expect(properties.transition).toEqual({
-      type: "string",
-      enum: ["success"],
+      type: ["string", "null"],
+      enum: ["success", null],
     });
     expect(properties.reason).toEqual({ type: "string" });
     expect(properties.clarifying_question).toEqual({ type: "string" });
@@ -473,6 +483,12 @@ describe("buildTransitionOutputFormatForCodex", () => {
     const properties = schema.properties as Record<string, unknown>;
 
     expect(Object.keys(properties)).toEqual([
+      "transition",
+      "reason",
+      "handoff_summary",
+      "clarifying_question",
+    ]);
+    expect(schema.required).toEqual([
       "transition",
       "reason",
       "handoff_summary",

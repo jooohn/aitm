@@ -42,7 +42,7 @@ function buildTransitionsSection(transitions: WorkflowTransition[]): string {
     "When you finish your work, evaluate which transition applies and emit it as your final structured output.",
     "Available transitions (emit the exact transition name in the 'transition' field):",
     list,
-    "If you need clarification or input from the user before proceeding, omit the transition field and use clarifying_question to ask.",
+    "If you need clarification or input from the user before proceeding, set transition to null and use clarifying_question to ask.",
     "</transitions>",
   ].join("\n");
 }

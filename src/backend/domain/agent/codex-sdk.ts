@@ -172,8 +172,8 @@ export function buildTransitionOutputFormatForCodex(
 
   const properties: Record<string, Record<string, unknown>> = {
     transition: {
-      type: "string",
-      enum: transitionNames,
+      type: ["string", "null"],
+      enum: [...transitionNames, null],
     },
     reason: { type: "string" },
     handoff_summary: { type: "string" },
@@ -189,7 +189,7 @@ export function buildTransitionOutputFormatForCodex(
     }
   }
 
-  const required = Object.keys(properties).filter((k) => k !== "transition");
+  const required = Object.keys(properties);
 
   return {
     type: "json_schema" as const,
