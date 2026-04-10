@@ -331,7 +331,6 @@ describe("WorkflowRunRepository event emission", () => {
     workflowRunRepository.completeStepExecution(
       "exec-2",
       JSON.stringify({
-        transition: "__REQUIRE_USER_INPUT__",
         reason: "Need clarification",
         handoff_summary: "Waiting",
         clarifying_question: 42,
@@ -344,7 +343,6 @@ describe("WorkflowRunRepository event emission", () => {
     const run = workflowRunRepository.getWorkflowRunWithExecutions("run-2");
 
     expect(run?.step_executions[0].transition_decision).toEqual({
-      transition: "__REQUIRE_USER_INPUT__",
       reason: "Need clarification",
       handoff_summary: "Waiting",
     });

@@ -95,7 +95,7 @@ export function buildTransitionOutputFormatForClaude(
     schema: {
       type: "object",
       properties,
-      required: Object.keys(properties),
+      required: Object.keys(properties).filter((k) => k !== "transition"),
       additionalProperties: false,
     },
   };

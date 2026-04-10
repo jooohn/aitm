@@ -280,7 +280,6 @@ describe("SessionDetail – status and updates", () => {
         session={makeSession({
           status: "awaiting_input",
           transition_decision: {
-            transition: "__REQUIRE_USER_INPUT__",
             reason: "Need clarification",
             handoff_summary: "Waiting for a reply",
             clarifying_question: "Which database should I use?",
@@ -301,7 +300,6 @@ describe("SessionDetail – status and updates", () => {
         session={makeSession({
           status: "awaiting_input",
           transition_decision: {
-            transition: "__REQUIRE_USER_INPUT__",
             reason: "Need clarification",
             handoff_summary: "Please confirm the deployment target.",
           },
