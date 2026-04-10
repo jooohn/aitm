@@ -26,7 +26,7 @@ export interface StepExecutionRow {
   step: string;
   step_type: StepExecution["step_type"];
   status: StepExecution["status"];
-  command_output: string | null;
+  output_file_path: string | null;
   session_id: string | null;
   session_status: StepExecution["session_status"];
   transition_decision: string | null;

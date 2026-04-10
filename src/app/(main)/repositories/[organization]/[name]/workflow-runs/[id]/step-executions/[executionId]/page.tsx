@@ -45,6 +45,7 @@ export default function StepExecutionPage() {
   if (!execution) return notFound();
 
   const decision = execution.transition_decision;
+  const commandOutputHref = `/api/workflow-runs/${run.id}/step-executions/${execution.id}/output`;
   const badge =
     STEP_EXECUTION_BADGE[
       execution.completed_at === null ? "running" : "completed"
@@ -104,10 +105,15 @@ export default function StepExecutionPage() {
         )}
       </dl>
 
-      {execution.step_type === "command" && execution.command_output && (
+      {execution.step_type === "command" && execution.output_file_path && (
         <section>
           <h2 className={styles.sectionHeading}>Command output</h2>
-          <div className={styles.commandOutput}>{execution.command_output}</div>
+          <div className={styles.commandOutput}>
+            <Link href={commandOutputHref}>Open output</Link>
+          </div>
+          <div className={styles.commandOutput}>
+            {execution.output_file_path}
+          </div>
         </section>
       )}
 

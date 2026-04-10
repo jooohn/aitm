@@ -97,7 +97,7 @@ describe("/todos/[workflowRunId] page", () => {
             step: "implement",
             step_type: "agent",
             status: "awaiting",
-            command_output: null,
+            output_file_path: null,
             session_id: "session-abc",
             session_status: "awaiting_input",
             transition_decision: null,

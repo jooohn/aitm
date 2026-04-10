@@ -7,7 +7,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
   const { id } = await params;
-  const run = workflowRunService.getWorkflowRun(id);
+  const run = await workflowRunService.getWorkflowRunForDisplay(id);
   if (!run) {
     return NextResponse.json(
       { error: "Workflow run not found" },

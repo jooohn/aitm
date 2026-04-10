@@ -166,7 +166,7 @@ export interface StepExecutionDto {
   step: string;
   step_type: "agent" | "command" | "manual-approval";
   status: StepExecutionStatusDto;
-  command_output: string | null;
+  output_file_path: string | null;
   session_id: string | null;
   session_status: SessionStatusDto | null;
   transition_decision: TransitionDecisionDto | null;

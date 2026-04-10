@@ -50,7 +50,7 @@ function makeExecution(
     step,
     step_type: "agent",
     status: "success",
-    command_output: null,
+    output_file_path: null,
     session_id: null,
     session_status: null,
     transition_decision: null,

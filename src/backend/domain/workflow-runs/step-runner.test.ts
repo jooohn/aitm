@@ -1,4 +1,7 @@
 import Database from "better-sqlite3";
+import { readFile } from "fs/promises";
+import { tmpdir } from "os";
+import { join } from "path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentConfig, WorkflowDefinition } from "@/backend/infra/config";
 import type { TransitionDecision } from "../agent";
@@ -13,11 +16,16 @@ describe("StepRunner", () => {
   let db: Database.Database;
   let sessionRepository: SessionRepository;
   let workflowRunRepository: WorkflowRunRepository;
+  let worktreePath: string;
 
   beforeEach(() => {
     db = new Database(":memory:");
     sessionRepository = new SessionRepository(db);
     workflowRunRepository = new WorkflowRunRepository(db);
+    worktreePath = join(
+      tmpdir(),
+      `aitm-step-runner-${Math.random().toString(36).slice(2)}`,
+    );
 
     sessionRepository.ensureTables();
     workflowRunRepository.ensureTables();
@@ -47,7 +55,7 @@ describe("StepRunner", () => {
     const completeStepExecution = vi.fn();
     const findWorktree = vi.fn().mockResolvedValue({
       branch: "feat/test",
-      path: "/tmp/worktree",
+      path: worktreePath,
       is_main: false,
       is_bare: false,
       head: "abc1234",
@@ -85,6 +93,7 @@ describe("StepRunner", () => {
           step: "plan",
           handoff_summary: "Drafted the plan",
           log_file_path: "/tmp/plan.log",
+          output_file_path: "/tmp/plan-output.log",
         },
       ],
     });
@@ -94,6 +103,11 @@ describe("StepRunner", () => {
         repository_path: "/tmp/repo",
         worktree_branch: "feat/test",
         goal: expect.stringContaining("Drafted the plan"),
+      }),
+    );
+    expect(createSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        goal: expect.stringContaining("Output: /tmp/plan-output.log"),
       }),
     );
     expect(createSession).toHaveBeenCalledWith(
@@ -109,7 +123,7 @@ describe("StepRunner", () => {
     expect(createSession).toHaveBeenCalledWith(
       expect.objectContaining({
         goal: expect.stringContaining(
-          "/tmp/worktree/.aitm/runs/run-1/artifacts/plan.md",
+          `${worktreePath}/.aitm/runs/run-1/artifacts/plan.md`,
         ),
       }),
     );
@@ -117,7 +131,9 @@ describe("StepRunner", () => {
     expect(createSession).toHaveBeenCalledWith(
       expect.objectContaining({
         log_file_path: expect.stringMatching(
-          /^\/tmp\/worktree\/\.aitm\/runs\/run-1\/logs\/[0-9a-f-]+\.log$/,
+          new RegExp(
+            `^${worktreePath.replaceAll("/", "\\/")}\\/\\.aitm\\/runs\\/run-1\\/logs\\/[0-9a-f-]+\\.log$`,
+          ),
         ),
       }),
     );
@@ -145,7 +161,7 @@ describe("StepRunner", () => {
     const completeStepExecution = vi.fn();
     const findWorktree = vi.fn().mockResolvedValue({
       branch: "feat/test",
-      path: "/tmp/worktree",
+      path: worktreePath,
       is_main: false,
       is_bare: false,
       head: "abc1234",
@@ -185,12 +201,27 @@ describe("StepRunner", () => {
     });
 
     expect(execute).toHaveBeenCalledWith("echo cleanup", {
-      cwd: "/tmp/worktree",
+      cwd: worktreePath,
     });
+    const storedExecution = workflowRunRepository.getStepExecution(
+      execution.id,
+    );
+    const expectedOutputPath = join(
+      worktreePath,
+      ".aitm",
+      "runs",
+      "run-1",
+      "command-output",
+      `${execution.id}.log`,
+    );
+    expect(storedExecution?.output_file_path).toBe(expectedOutputPath);
+    await expect(readFile(expectedOutputPath, "utf8")).resolves.toBe(
+      "command output",
+    );
     expect(completeStepExecution).toHaveBeenCalledWith(execution.id, {
       transition: "next",
       reason: "Command succeeded",
-      handoff_summary: "command output",
+      handoff_summary: `Command succeeded. Detailed output: ${expectedOutputPath}`,
     } satisfies TransitionDecision);
   });
 

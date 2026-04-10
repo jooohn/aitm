@@ -347,4 +347,91 @@ describe("WorkflowRunRepository event emission", () => {
       handoff_summary: "Waiting",
     });
   });
+
+  it("adds output_file_path to legacy step_executions tables", () => {
+    db.exec("DROP TABLE step_executions");
+    db.exec(`
+      CREATE TABLE step_executions (
+        id                  TEXT    PRIMARY KEY,
+        workflow_run_id     TEXT    NOT NULL REFERENCES workflow_runs(id),
+        step                TEXT    NOT NULL,
+        step_type           TEXT    NOT NULL DEFAULT 'agent',
+        command_output      TEXT,
+        transition_decision TEXT,
+        handoff_summary     TEXT,
+        created_at          TEXT    NOT NULL,
+        completed_at        TEXT
+      );
+    `);
+
+    workflowRunRepository.ensureTables();
+
+    const columns = db
+      .prepare("PRAGMA table_info(step_executions)")
+      .all() as Array<{ name: string }>;
+
+    expect(columns.map((column) => column.name)).toContain("output_file_path");
+  });
+
+  it("does not create command_output on fresh step_executions tables", () => {
+    const columns = db
+      .prepare("PRAGMA table_info(step_executions)")
+      .all() as Array<{ name: string }>;
+
+    expect(columns.map((column) => column.name)).not.toContain(
+      "command_output",
+    );
+  });
+
+  it("returns output_file_path when reading workflow executions and handoffs", () => {
+    workflowRunRepository.insertWorkflowRun({
+      id: "run-3",
+      repository_path: "/tmp/repo",
+      worktree_branch: "feat/test",
+      workflow_name: "my-flow",
+      initial_step: "lint",
+      inputs_json: null,
+      now: "2026-04-07T00:00:00.000Z",
+    });
+    workflowRunRepository.insertStepExecution({
+      id: "exec-3",
+      workflowRunId: "run-3",
+      stepName: "lint",
+      stepType: "command",
+      now: "2026-04-07T00:00:00.000Z",
+    });
+    workflowRunRepository.setStepExecutionOutputFilePath(
+      "exec-3",
+      "/tmp/run-3/command-output/exec-3.log",
+    );
+    workflowRunRepository.completeStepExecution(
+      "exec-3",
+      JSON.stringify({
+        transition: "success",
+        reason: "Command succeeded",
+        handoff_summary:
+          "Command succeeded. Detailed output: /tmp/run-3/command-output/exec-3.log",
+      }),
+      "Command succeeded. Detailed output: /tmp/run-3/command-output/exec-3.log",
+      "2026-04-07T00:00:01.000Z",
+      "success",
+    );
+
+    const run = workflowRunRepository.getWorkflowRunWithExecutions("run-3");
+    const handoff =
+      workflowRunRepository.listCompletedExecutionsHandoff("run-3");
+
+    expect(run?.step_executions[0].output_file_path).toBe(
+      "/tmp/run-3/command-output/exec-3.log",
+    );
+    expect(handoff).toEqual([
+      {
+        step: "lint",
+        handoff_summary:
+          "Command succeeded. Detailed output: /tmp/run-3/command-output/exec-3.log",
+        log_file_path: null,
+        output_file_path: "/tmp/run-3/command-output/exec-3.log",
+      },
+    ]);
+  });
 });
