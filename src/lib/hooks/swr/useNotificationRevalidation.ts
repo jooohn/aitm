@@ -114,9 +114,7 @@ export function useNotificationRevalidation(): void {
       const targetPaths = mergeTargetPaths(
         notifications.map(determineTargetPaths),
       );
-      void mutate(matchesTargetPaths(targetPaths), undefined, {
-        revalidate: true,
-      });
+      void mutate(matchesTargetPaths(targetPaths));
     }, DEBOUNCE_MILLIS),
   ).current;
 
