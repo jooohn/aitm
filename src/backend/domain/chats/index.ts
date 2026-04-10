@@ -146,20 +146,7 @@ function buildWorkflowContext(
   const entries = Object.entries(workflows);
   if (entries.length === 0) return "No workflows are configured.";
 
-  const lines = entries.map(([name, def]) => {
-    const inputLines =
-      def.inputs?.map(
-        (i) =>
-          `    - ${i.name} (${i.label})${i.description ? `: ${i.description}` : ""}${i.required ? " [required]" : ""}`,
-      ) ?? [];
-    const inputSection =
-      inputLines.length > 0
-        ? `\n  Inputs:\n${inputLines.join("\n")}`
-        : "\n  No inputs.";
-    return `- "${name}"${def.label ? ` (${def.label})` : ""}${inputSection}`;
-  });
-
-  return `Available workflows:\n${lines.join("\n")}`;
+  return `Available workflows (full configuration):\n${JSON.stringify(workflows, null, 2)}`;
 }
 
 function buildSystemPrompt(
@@ -176,6 +163,10 @@ function buildSystemPrompt(
     "When you have concrete, actionable suggestions for workflow-runs, include them in your structured output's `proposals` array.",
     "Each proposal must have: workflow_name (one of the available workflows), inputs (matching the workflow's input schema), and rationale (why this workflow-run is being suggested).",
     'For normal conversational turns (answering questions, exploring code, discussing ideas), emit "proposals": [].',
+    "",
+    "IMPORTANT: Workflow-runs execute independently with NO access to this conversation's context.",
+    "Every workflow-run input must be entirely self-contained — include all relevant context, background, reasoning, and the 'why' behind the request.",
+    "Do not assume the workflow-run agent knows what was discussed here; spell out the full intent and any constraints explicitly in the input values.",
     "",
     "You have read-only access to the codebase. You cannot modify files.",
   ].join("\n");
