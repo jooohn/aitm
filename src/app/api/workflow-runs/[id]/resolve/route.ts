@@ -1,20 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { toWorkflowRunDetailDto } from "@/backend/api/dto";
+import { errorResponse } from "@/backend/api/error-response";
 import { workflowRunService } from "@/backend/container";
-
-function errorResponse(err: unknown): NextResponse {
-  const message = err instanceof Error ? err.message : "Internal server error";
-  if (message.includes("not found")) {
-    return NextResponse.json({ error: message }, { status: 404 });
-  }
-  if (
-    message === "Workflow run is not running" ||
-    message === "Active step execution is not a manual-approval step"
-  ) {
-    return NextResponse.json({ error: message }, { status: 422 });
-  }
-  return NextResponse.json({ error: message }, { status: 500 });
-}
 
 export async function POST(
   request: NextRequest,

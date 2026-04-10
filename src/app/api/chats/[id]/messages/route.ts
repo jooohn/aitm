@@ -1,17 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { toChatDetailDto } from "@/backend/api/dto";
+import { errorResponse } from "@/backend/api/error-response";
 import { chatService } from "@/backend/container";
 
 type Params = Promise<{ id: string }>;
-
-function errorResponse(err: unknown): NextResponse {
-  const message = err instanceof Error ? err.message : "Internal server error";
-  if (message.includes("not found"))
-    return NextResponse.json({ error: message }, { status: 404 });
-  if (message.includes("already running"))
-    return NextResponse.json({ error: message }, { status: 409 });
-  return NextResponse.json({ error: message }, { status: 500 });
-}
 
 export async function POST(
   request: NextRequest,

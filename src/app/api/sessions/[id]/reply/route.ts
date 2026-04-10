@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { toSessionDto } from "@/backend/api/dto";
+import { errorResponse } from "@/backend/api/error-response";
 import { sessionService } from "@/backend/container";
 
 type Params = Promise<{ id: string }>;
@@ -26,12 +27,6 @@ export async function POST(
     const session = sessionService.getSession(id);
     return NextResponse.json(session ? toSessionDto(session) : null);
   } catch (err) {
-    const message =
-      err instanceof Error ? err.message : "Internal server error";
-    if (message.includes("not found"))
-      return NextResponse.json({ error: message }, { status: 404 });
-    if (message.includes("not awaiting input"))
-      return NextResponse.json({ error: message }, { status: 422 });
-    return NextResponse.json({ error: message }, { status: 500 });
+    return errorResponse(err);
   }
 }

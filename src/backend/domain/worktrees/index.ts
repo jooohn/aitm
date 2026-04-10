@@ -1,6 +1,11 @@
 import { join } from "path";
 import { logger } from "@/backend/infra/logger";
 import { SpawnTimeoutError, spawnAsync } from "@/backend/utils/process";
+import {
+  NotFoundError,
+  ServiceUnavailableError,
+  ValidationError,
+} from "../errors";
 
 export interface Worktree {
   branch: string;
@@ -46,7 +51,7 @@ export function parseWorktreeList(output: string): Worktree[] {
 function handleGtrCommandError(err: unknown) {
   const nodeErr = err as NodeJS.ErrnoException;
   if (nodeErr.code === "ENOENT") {
-    throw new Error(
+    throw new ServiceUnavailableError(
       "git-worktree-runner is not installed. Install it by following the Quick Start instruction (https://github.com/coderabbitai/git-worktree-runner?tab=readme-ov-file#quick-start).",
     );
   }
@@ -127,10 +132,10 @@ export class WorktreeService {
     const target = worktrees.find((w) => w.branch === branch);
 
     if (!target) {
-      throw new Error(`Worktree not found for branch: ${branch}`);
+      throw new NotFoundError("Worktree", branch);
     }
     if (target.is_main) {
-      throw new Error(
+      throw new ValidationError(
         `Cannot remove the main worktree: "${branch}" is the main worktree`,
       );
     }

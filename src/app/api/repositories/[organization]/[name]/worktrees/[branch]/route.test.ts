@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as container from "@/backend/container";
+import { NotFoundError, ValidationError } from "@/backend/domain/errors";
 import { DELETE } from "./route";
 
 function makeParams(
@@ -97,7 +98,9 @@ describe("DELETE /api/repositories/:organization/:name/worktrees/[branch]", () =
     listWorktreesSpy.mockResolvedValue([
       { branch: "main", path: "/repo/path" },
     ]);
-    removeWorktreeSpy.mockRejectedValue(new Error("main is the main worktree"));
+    removeWorktreeSpy.mockRejectedValue(
+      new ValidationError("main is the main worktree"),
+    );
 
     const res = await DELETE(
       new NextRequest(

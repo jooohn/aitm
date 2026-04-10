@@ -1,16 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { toWorkflowRunDto } from "@/backend/api/dto";
+import { errorResponse } from "@/backend/api/error-response";
 import { repositoryService, workflowRunService } from "@/backend/container";
 import type { WorkflowRunStatus } from "@/backend/domain/workflow-runs";
-
-function errorResponse(err: unknown): NextResponse {
-  const message = err instanceof Error ? err.message : "Internal server error";
-  if (message.includes("not found") || message.includes("not found"))
-    return NextResponse.json({ error: message }, { status: 404 });
-  if (message.startsWith("Missing required input:"))
-    return NextResponse.json({ error: message }, { status: 422 });
-  return NextResponse.json({ error: message }, { status: 500 });
-}
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {

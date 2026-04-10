@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as container from "@/backend/container";
+import { NotFoundError } from "@/backend/domain/errors";
 import { DELETE, GET } from "./route";
 
 function makeParams(
@@ -136,7 +137,7 @@ describe("DELETE /api/repositories/:org/:name/worktrees/[branch]/processes/:proc
       name: "repo",
       alias: "org/repo",
     });
-    stopProcessSpy.mockRejectedValue(new Error("Process not found"));
+    stopProcessSpy.mockRejectedValue(new NotFoundError("Process", "p1"));
 
     const res = await DELETE(
       new NextRequest("http://localhost/test", { method: "DELETE" }),

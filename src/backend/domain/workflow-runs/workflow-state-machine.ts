@@ -1,6 +1,7 @@
 import type { WorkflowDefinition } from "@/backend/infra/config";
 import type { SessionStatusChangedEvent } from "@/backend/infra/event-bus";
 import type { TransitionDecision } from "../agent";
+import { NotFoundError, ValidationError } from "../errors";
 import type {
   StepExecutionStatus,
   WorkflowRun,
@@ -201,23 +202,25 @@ export class WorkflowStateMachine {
   ): Promise<WorkflowRunWithExecutions> {
     const now = new Date().toISOString();
     const run = this.workflowRunRepository.getWorkflowRunById(id);
-    if (!run) throw new Error("Workflow run not found");
+    if (!run) throw new NotFoundError("Workflow run");
     if (run.status !== "running" && run.status !== "awaiting") {
-      throw new Error("Workflow run is not running");
+      throw new ValidationError("Workflow run is not running");
     }
 
     const activeExecution =
       this.workflowRunRepository.getActiveStepExecution(id);
     if (!activeExecution || activeExecution.step_type !== "manual-approval") {
-      throw new Error("Active step execution is not a manual-approval step");
+      throw new ValidationError(
+        "Active step execution is not a manual-approval step",
+      );
     }
 
     const workflows = this.workflows;
     const workflow = workflows[run.workflow_name];
-    if (!workflow) throw new Error(`Workflow not found: ${run.workflow_name}`);
+    if (!workflow) throw new NotFoundError("Workflow", run.workflow_name);
 
     const stepDef = workflow.steps?.[activeExecution.step];
-    if (!stepDef) throw new Error(`Step not found: ${activeExecution.step}`);
+    if (!stepDef) throw new NotFoundError("Step", activeExecution.step);
 
     const matchedTransition = stepDef.transitions.find(
       (transition) => transition.when === decision,
@@ -251,15 +254,15 @@ export class WorkflowStateMachine {
     id: string,
   ): Promise<WorkflowRunWithExecutions> {
     const run = this.workflowRunRepository.getWorkflowRunById(id);
-    if (!run) throw new Error("Workflow run not found");
+    if (!run) throw new NotFoundError("Workflow run");
     if (run.status !== "failure") {
-      throw new Error(
+      throw new ValidationError(
         "Only failed workflow runs can be re-run from failed state",
       );
     }
 
     const lastExecution = this.workflowRunRepository.getLastStepExecution(id);
-    if (!lastExecution) throw new Error("Workflow run not found");
+    if (!lastExecution) throw new NotFoundError("Workflow run");
 
     const now = new Date().toISOString();
     const failedStep = lastExecution.step;

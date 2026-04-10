@@ -10,6 +10,7 @@ import type { EventBus } from "@/backend/infra/event-bus";
 import { logger } from "@/backend/infra/logger";
 import { appendToLog } from "@/backend/utils/log";
 import type { AgentService, TransitionDecision } from "../agent";
+import { NotFoundError, ValidationError } from "../errors";
 import type { WorktreeService } from "../worktrees";
 import type { SessionRepository } from "./session-repository";
 
@@ -111,7 +112,7 @@ export class SessionService {
         (w) => w.branch === input.worktree_branch,
       );
       if (!worktree) {
-        throw new Error(`Worktree not found: ${input.worktree_branch}`);
+        throw new NotFoundError("Worktree", input.worktree_branch);
       }
       cwd = worktree.path;
     } catch (err) {
@@ -156,10 +157,10 @@ export class SessionService {
   failSession(id: string): Session {
     const session = this.getSession(id);
     if (!session) {
-      throw new Error(`Session not found: ${id}`);
+      throw new NotFoundError("Session", id);
     }
     if (session.status === "success" || session.status === "failure") {
-      throw new Error(
+      throw new ValidationError(
         `Session ${id} is already in a terminal state: ${session.status}`,
       );
     }
@@ -174,10 +175,10 @@ export class SessionService {
   async replyToSession(id: string, message: string): Promise<void> {
     const session = this.getSession(id);
     if (!session) {
-      throw new Error(`Session not found: ${id}`);
+      throw new NotFoundError("Session", id);
     }
     if (session.status !== "awaiting_input") {
-      throw new Error(`Session ${id} is not awaiting input`);
+      throw new ValidationError(`Session ${id} is not awaiting input`);
     }
 
     let cwd: string;
@@ -189,7 +190,7 @@ export class SessionService {
         (w) => w.branch === session.worktree_branch,
       );
       if (!worktree) {
-        throw new Error(`Worktree not found: ${session.worktree_branch}`);
+        throw new NotFoundError("Worktree", session.worktree_branch);
       }
       cwd = worktree.path;
     } catch (err) {
