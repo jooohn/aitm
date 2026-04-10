@@ -1,0 +1,18 @@
+@reference "tailwindcss";
+
+.clamped {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.expanded {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.toggle {
+  @apply mt-1 text-xs text-blue-600 dark:text-blue-400 hover:underline cursor-pointer bg-transparent border-none p-0;
+}

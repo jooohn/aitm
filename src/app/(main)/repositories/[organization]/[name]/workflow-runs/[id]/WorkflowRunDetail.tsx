@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { mutate } from "swr";
+import CollapsibleText from "@/app/components/CollapsibleText";
 import EllipsisIcon from "@/app/components/icons/EllipsisIcon";
 import ExternalLinkIcon from "@/app/components/icons/ExternalLinkIcon";
 import StatusBadge from "@/app/components/StatusBadge";
@@ -391,7 +392,9 @@ export default function WorkflowRunDetailView({
                 <dt className={styles.detailLabel}>
                   {inputLabelMap.get(entry.key) ?? entry.key}
                 </dt>
-                <dd className={styles.detailValue}>{entry.value}</dd>
+                <dd className={styles.detailValue}>
+                  <CollapsibleText>{entry.value}</CollapsibleText>
+                </dd>
               </div>
             ))}
           </dl>

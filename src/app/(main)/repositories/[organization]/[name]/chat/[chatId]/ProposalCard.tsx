@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import CollapsibleText from "@/app/components/CollapsibleText";
 import {
   approveChatProposal,
   type ChatProposal,
@@ -84,7 +85,9 @@ export default function ProposalCard({ chatId, proposal, onActioned }: Props) {
           {Object.entries(proposal.inputs).map(([key, value]) => (
             <div key={key} className={styles.inputRow}>
               <dt className={styles.inputKey}>{key}</dt>
-              <dd className={styles.inputValue}>{value}</dd>
+              <dd className={styles.inputValue}>
+                <CollapsibleText>{value}</CollapsibleText>
+              </dd>
             </div>
           ))}
         </dl>
