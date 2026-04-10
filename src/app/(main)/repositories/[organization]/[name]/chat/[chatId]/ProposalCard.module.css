@@ -41,7 +41,7 @@
 }
 
 .inputs {
-  @apply flex flex-col gap-1 mb-3 pl-2 border-l-2 border-zinc-300 dark:border-zinc-700;
+  @apply flex flex-col gap-1 mb-3 pl-2 border-l-2 border-zinc-300 dark:border-zinc-700 overflow-hidden;
 }
 
 .inputRow {
@@ -53,7 +53,8 @@
 }
 
 .inputValue {
-  @apply text-zinc-800 dark:text-zinc-200 break-words;
+  @apply text-zinc-800 dark:text-zinc-200 break-words min-w-0;
+  overflow-wrap: anywhere;
 }
 
 .actions {

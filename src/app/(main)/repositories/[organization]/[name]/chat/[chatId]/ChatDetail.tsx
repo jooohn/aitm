@@ -312,7 +312,7 @@ export default function ChatDetail({ chatId }: Props) {
               ) : (
                 <>
                   {proposals
-                    .filter((p) => p.status !== "rejected")
+                    .filter((p) => p.status === "pending")
                     .map((p) => (
                       <ProposalCard
                         key={p.id}
@@ -321,6 +321,23 @@ export default function ChatDetail({ chatId }: Props) {
                         onActioned={handleProposalActioned}
                       />
                     ))}
+                  {proposals.some((p) => p.status === "approved") && (
+                    <>
+                      <h4 className={styles.drawerSectionHeading}>
+                        Approved suggestions
+                      </h4>
+                      {proposals
+                        .filter((p) => p.status === "approved")
+                        .map((p) => (
+                          <ProposalCard
+                            key={p.id}
+                            chatId={chatId}
+                            proposal={p}
+                            onActioned={handleProposalActioned}
+                          />
+                        ))}
+                    </>
+                  )}
                   {proposals.some((p) => p.status === "rejected") && (
                     <>
                       <h4 className={styles.drawerSectionHeading}>
