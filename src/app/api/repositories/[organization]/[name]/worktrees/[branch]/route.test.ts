@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import * as container from "@/backend/container";
+import { getContainer, processService } from "@/backend/container";
 import { NotFoundError, ValidationError } from "@/backend/domain/errors";
 import { DELETE } from "./route";
 
@@ -22,19 +22,19 @@ let getRepositoryByAliasSpy: ReturnType<typeof vi.spyOn>;
 
 beforeEach(() => {
   deleteWorktreeDataSpy = vi
-    .spyOn(container.sessionService, "deleteWorktreeData")
+    .spyOn(getContainer().sessionService, "deleteWorktreeData")
     .mockResolvedValue();
   removeWorktreeSpy = vi
-    .spyOn(container.worktreeService, "removeWorktree")
+    .spyOn(getContainer().worktreeService, "removeWorktree")
     .mockResolvedValue();
   listWorktreesSpy = vi
-    .spyOn(container.worktreeService, "listWorktrees")
+    .spyOn(getContainer().worktreeService, "listWorktrees")
     .mockResolvedValue([]);
   stopAllForWorktreeSpy = vi
-    .spyOn(container.processService, "stopAllForWorktree")
+    .spyOn(processService, "stopAllForWorktree")
     .mockResolvedValue();
   getRepositoryByAliasSpy = vi.spyOn(
-    container.repositoryService,
+    getContainer().repositoryService,
     "getRepositoryByAlias",
   );
 });

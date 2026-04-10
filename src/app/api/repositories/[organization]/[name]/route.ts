@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { repositoryService } from "@/backend/container";
+import { getContainer } from "@/backend/container";
 
 type Params = Promise<{ organization: string; name: string }>;
 
@@ -7,6 +7,7 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: Params },
 ): Promise<NextResponse> {
+  const { repositoryService } = getContainer();
   const { organization, name } = await params;
   const repo = await repositoryService.getRepositoryByAlias(
     `${organization}/${name}`,

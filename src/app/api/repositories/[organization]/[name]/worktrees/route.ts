@@ -5,7 +5,7 @@ import {
   resolveRepositoryFromParams,
 } from "@/backend/api/request";
 import { worktreeCreateBodySchema } from "@/backend/api/schemas";
-import { worktreeService } from "@/backend/container";
+import { getContainer } from "@/backend/container";
 import { eventBus } from "@/backend/infra/event-bus";
 
 type Params = Promise<{ organization: string; name: string }>;
@@ -15,6 +15,7 @@ export async function GET(
   { params }: { params: Params },
 ): Promise<NextResponse> {
   try {
+    const { worktreeService } = getContainer();
     const { organization, name } = await params;
     const repositoryResult = await resolveRepositoryFromParams({
       organization,
@@ -38,6 +39,7 @@ export async function POST(
   { params }: { params: Params },
 ): Promise<NextResponse> {
   try {
+    const { worktreeService } = getContainer();
     const { organization, name } = await params;
     const repositoryResult = await resolveRepositoryFromParams({
       organization,

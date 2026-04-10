@@ -2,7 +2,7 @@ import { mkdir, realpath, writeFile } from "fs/promises";
 import { tmpdir } from "os";
 import { join } from "path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { worktreeService } from "@/backend/container";
+import { getContainer } from "@/backend/container";
 import * as processUtils from "@/backend/utils/process";
 import { SpawnTimeoutError, spawnAsync } from "@/backend/utils/process";
 import {
@@ -12,6 +12,7 @@ import {
   WorktreeService,
 } from "./index";
 
+const { worktreeService } = getContainer();
 const listWorktrees = worktreeService.listWorktrees.bind(worktreeService);
 const removeWorktree = worktreeService.removeWorktree.bind(worktreeService);
 

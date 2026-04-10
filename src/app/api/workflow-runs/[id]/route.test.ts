@@ -3,7 +3,7 @@ import { NextRequest } from "next/server";
 import { tmpdir } from "os";
 import { join } from "path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import * as container from "@/backend/container";
+import { getContainer, initializeContainer } from "@/backend/container";
 import { db } from "@/backend/infra/db";
 import { setupTestConfigDir, writeTestConfig } from "@/test-config-helper";
 import { GET } from "./route";
@@ -51,14 +51,16 @@ workflows:
             when: "succeeded"
 `,
   );
-  container.initializeContainer();
+  initializeContainer();
 
   db.prepare("DELETE FROM sessions").run();
   db.prepare("DELETE FROM step_executions").run();
   db.prepare("DELETE FROM workflow_runs").run();
 
-  vi.spyOn(container.agentService, "startAgent").mockResolvedValue(undefined);
-  vi.spyOn(container.worktreeService, "listWorktrees").mockImplementation(
+  vi.spyOn(getContainer().agentService, "startAgent").mockResolvedValue(
+    undefined,
+  );
+  vi.spyOn(getContainer().worktreeService, "listWorktrees").mockImplementation(
     async (repoPath) => [
       {
         branch: "feat/test",
@@ -78,7 +80,7 @@ function makeParams(id: string): { params: Promise<{ id: string }> } {
 describe("GET /api/workflow-runs/:id", () => {
   it("returns 200 with the workflow run and its step executions", async () => {
     const repoPath = await makeFakeGitRepo();
-    const run = await container.workflowRunService.createWorkflowRun({
+    const run = await getContainer().workflowRunService.createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       workflow_name: "my-flow",
@@ -104,7 +106,7 @@ describe("GET /api/workflow-runs/:id", () => {
 
   it("returns command step executions with explicit step_type and command output", async () => {
     const repoPath = await makeFakeGitRepo();
-    const run = await container.workflowRunService.createWorkflowRun({
+    const run = await getContainer().workflowRunService.createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       workflow_name: "command-flow",
@@ -183,7 +185,7 @@ describe("GET /api/workflow-runs/:id", () => {
 
   it("returns parsed inputs, metadata, and transition decisions", async () => {
     const repoPath = await makeFakeGitRepo();
-    const run = await container.workflowRunService.createWorkflowRun({
+    const run = await getContainer().workflowRunService.createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       workflow_name: "my-flow",
@@ -194,14 +196,17 @@ describe("GET /api/workflow-runs/:id", () => {
       .prepare("SELECT * FROM step_executions WHERE workflow_run_id = ?")
       .all(run.id) as { id: string }[];
 
-    await container.workflowRunService.completeStepExecution(execution.id, {
-      transition: "implement",
-      reason: "Ready",
-      handoff_summary: "Plan complete",
-      metadata: {
-        presets__pull_request_url: "https://github.com/org/repo/pull/42",
+    await getContainer().workflowRunService.completeStepExecution(
+      execution.id,
+      {
+        transition: "implement",
+        reason: "Ready",
+        handoff_summary: "Plan complete",
+        metadata: {
+          presets__pull_request_url: "https://github.com/org/repo/pull/42",
+        },
       },
-    });
+    );
 
     const res = await GET(
       new NextRequest(`http://localhost/api/workflow-runs/${run.id}`),

@@ -11,9 +11,10 @@ import {
   workflowRunCreateBodySchema,
   workflowRunListQuerySchema,
 } from "@/backend/api/schemas";
-import { workflowRunService } from "@/backend/container";
+import { getContainer } from "@/backend/container";
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  const { workflowRunService } = getContainer();
   try {
     const bodyResult = await parseJsonBody(
       request,
@@ -67,6 +68,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 }
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
+  const { workflowRunService } = getContainer();
   try {
     const queryResult = parseSearchParams(
       request.nextUrl.searchParams,

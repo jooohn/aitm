@@ -1,11 +1,7 @@
 import { readFile } from "fs/promises";
 import { NextRequest, NextResponse } from "next/server";
 import { extname, posix, resolve, sep } from "path";
-import {
-  config,
-  workflowRunService,
-  worktreeService,
-} from "@/backend/container";
+import { getContainer } from "@/backend/container";
 import { resolveArtifactBasePath } from "@/backend/domain/worktrees";
 
 function jsonError(message: string, status: number): NextResponse {
@@ -45,6 +41,7 @@ export async function GET(
     params: Promise<{ id: string; path: string[] }>;
   },
 ): Promise<NextResponse> {
+  const { config, workflowRunService, worktreeService } = getContainer();
   const { id, path } = await params;
   const run = workflowRunService.getWorkflowRun(id);
   if (!run) {

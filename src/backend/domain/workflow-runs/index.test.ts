@@ -2,7 +2,7 @@ import { mkdir, readFile, stat } from "fs/promises";
 import { tmpdir } from "os";
 import { join } from "path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import * as container from "@/backend/container";
+import { getContainer, initializeContainer } from "@/backend/container";
 import { db } from "@/backend/infra/db";
 import { eventBus, type WorkflowRunContext } from "@/backend/infra/event-bus";
 import { splitAlias } from "@/lib/utils/inferAlias";
@@ -18,8 +18,10 @@ async function makeFakeGitRepo(): Promise<string> {
 }
 
 function setupMocks() {
-  vi.spyOn(container.agentService, "startAgent").mockResolvedValue(undefined);
-  vi.spyOn(container.worktreeService, "listWorktrees").mockImplementation(
+  vi.spyOn(getContainer().agentService, "startAgent").mockResolvedValue(
+    undefined,
+  );
+  vi.spyOn(getContainer().worktreeService, "listWorktrees").mockImplementation(
     async (repoPath) => [
       {
         branch: "feat/test",
@@ -49,7 +51,7 @@ function setupMocks() {
 async function writeTempConfig(content: string): Promise<string> {
   const configFile = await setupTestConfigDir();
   await writeTestConfig(configFile, content);
-  container.initializeContainer();
+  initializeContainer();
   setupMocks();
   return configFile;
 }
@@ -122,6 +124,7 @@ workflows:
 `;
 
 beforeEach(() => {
+  getContainer(); // ensure tables exist via lazy init
   db.prepare("DELETE FROM sessions").run();
   db.prepare("DELETE FROM step_executions").run();
   db.prepare("DELETE FROM workflow_runs").run();
@@ -134,7 +137,7 @@ describe("createWorkflowRun", () => {
     );
     const repoPath = await makeFakeGitRepo();
 
-    const run = await container.workflowRunService.createWorkflowRun({
+    const run = await getContainer().workflowRunService.createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       workflow_name: "my-flow",
@@ -155,7 +158,7 @@ describe("createWorkflowRun", () => {
     );
     const repoPath = await makeFakeGitRepo();
 
-    const run = await container.workflowRunService.createWorkflowRun({
+    const run = await getContainer().workflowRunService.createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       workflow_name: "my-flow",
@@ -197,7 +200,7 @@ workflows:
     process.env.AITM_CONFIG_PATH = await writeTempConfig(configWithMetadata);
     const repoPath = await makeFakeGitRepo();
 
-    await container.workflowRunService.createWorkflowRun({
+    await getContainer().workflowRunService.createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       workflow_name: "my-flow",
@@ -221,7 +224,7 @@ workflows:
     const repoPath = await makeFakeGitRepo();
 
     await expect(() =>
-      container.workflowRunService.createWorkflowRun({
+      getContainer().workflowRunService.createWorkflowRun({
         repository_path: repoPath,
         worktree_branch: "feat/test",
         workflow_name: "nonexistent-flow",
@@ -248,7 +251,7 @@ workflows:
     process.env.AITM_CONFIG_PATH = await writeTempConfig(configWithInputs);
     const repoPath = await makeFakeGitRepo();
 
-    const run = await container.workflowRunService.createWorkflowRun({
+    const run = await getContainer().workflowRunService.createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       workflow_name: "my-flow",
@@ -288,7 +291,7 @@ workflows:
     process.env.AITM_CONFIG_PATH = await writeTempConfig(configWithInputs);
     const repoPath = await makeFakeGitRepo();
 
-    const run = await container.workflowRunService.createWorkflowRun({
+    const run = await getContainer().workflowRunService.createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       workflow_name: "my-flow",
@@ -329,11 +332,11 @@ workflows:
 `);
     const repoPath = await makeFakeGitRepo();
     const createSessionSpy = vi.spyOn(
-      container.sessionService,
+      getContainer().sessionService,
       "createSession",
     );
 
-    await container.workflowRunService.createWorkflowRun({
+    await getContainer().workflowRunService.createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       workflow_name: "my-flow",
@@ -380,7 +383,7 @@ workflows:
     process.env.AITM_CONFIG_PATH = await writeTempConfig(configWithInputs);
     const repoPath = await makeFakeGitRepo();
 
-    const run = await container.workflowRunService.createWorkflowRun({
+    const run = await getContainer().workflowRunService.createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       workflow_name: "my-flow",
@@ -393,7 +396,7 @@ workflows:
       )
       .all(run.id) as { id: string; step: string }[];
 
-    await container.workflowRunService.completeStepExecution(planExec.id, {
+    await getContainer().workflowRunService.completeStepExecution(planExec.id, {
       transition: "implement",
       reason: "Plan done",
       handoff_summary: "Wrote PLAN.md",
@@ -436,7 +439,7 @@ workflows:
     const repoPath = await makeFakeGitRepo();
 
     await expect(() =>
-      container.workflowRunService.createWorkflowRun({
+      getContainer().workflowRunService.createWorkflowRun({
         repository_path: repoPath,
         worktree_branch: "feat/test",
         workflow_name: "my-flow",
@@ -452,7 +455,7 @@ workflows:
     );
     const repoPath = await makeFakeGitRepo();
 
-    const run = await container.workflowRunService.createWorkflowRun({
+    const run = await getContainer().workflowRunService.createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       workflow_name: "my-flow",
@@ -487,7 +490,7 @@ workflows:
     );
     const repoPath = await makeFakeGitRepo();
 
-    const run = await container.workflowRunService.createWorkflowRun({
+    const run = await getContainer().workflowRunService.createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       workflow_name: "my-flow",
@@ -533,7 +536,7 @@ workflows:
     );
     const repoPath = await makeFakeGitRepo();
 
-    const run = await container.workflowRunService.createWorkflowRun({
+    const run = await getContainer().workflowRunService.createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       workflow_name: "my-flow",
@@ -557,7 +560,7 @@ describe("completeStepExecution", () => {
       SIMPLE_WORKFLOW_CONFIG,
     );
     const repoPath = await makeFakeGitRepo();
-    const run = await container.workflowRunService.createWorkflowRun({
+    const run = await getContainer().workflowRunService.createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       workflow_name: "my-flow",
@@ -571,13 +574,16 @@ describe("completeStepExecution", () => {
   it("transitions to next step and creates a new step execution", async () => {
     const { run, execution } = await setupRunAtPlan();
 
-    await container.workflowRunService.completeStepExecution(execution.id, {
-      transition: "implement",
-      reason: "Plan is done",
-      handoff_summary: "Wrote PLAN.md",
-    });
+    await getContainer().workflowRunService.completeStepExecution(
+      execution.id,
+      {
+        transition: "implement",
+        reason: "Plan is done",
+        handoff_summary: "Wrote PLAN.md",
+      },
+    );
 
-    const updatedRun = container.workflowRunService.getWorkflowRun(run.id);
+    const updatedRun = getContainer().workflowRunService.getWorkflowRun(run.id);
     expect(updatedRun?.current_step).toBe("implement");
     expect(updatedRun?.status).toBe("running");
 
@@ -593,11 +599,14 @@ describe("completeStepExecution", () => {
   it("records transition_decision and handoff_summary on the completed execution", async () => {
     const { execution } = await setupRunAtPlan();
 
-    await container.workflowRunService.completeStepExecution(execution.id, {
-      transition: "implement",
-      reason: "Plan is done",
-      handoff_summary: "Wrote PLAN.md",
-    });
+    await getContainer().workflowRunService.completeStepExecution(
+      execution.id,
+      {
+        transition: "implement",
+        reason: "Plan is done",
+        handoff_summary: "Wrote PLAN.md",
+      },
+    );
 
     const completedExecution = db
       .prepare("SELECT * FROM step_executions WHERE id = ?")
@@ -618,7 +627,7 @@ describe("completeStepExecution", () => {
       SIMPLE_WORKFLOW_CONFIG,
     );
     const repoPath = await makeFakeGitRepo();
-    const run = await container.workflowRunService.createWorkflowRun({
+    const run = await getContainer().workflowRunService.createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       workflow_name: "my-flow",
@@ -628,7 +637,7 @@ describe("completeStepExecution", () => {
     const [planExec] = db
       .prepare("SELECT * FROM step_executions WHERE workflow_run_id = ?")
       .all(run.id) as { id: string }[];
-    await container.workflowRunService.completeStepExecution(planExec.id, {
+    await getContainer().workflowRunService.completeStepExecution(planExec.id, {
       transition: "implement",
       reason: "Ready",
       handoff_summary: "Plan done",
@@ -640,13 +649,16 @@ describe("completeStepExecution", () => {
         "SELECT * FROM step_executions WHERE workflow_run_id = ? ORDER BY created_at ASC",
       )
       .all(run.id) as { id: string; step: string }[];
-    await container.workflowRunService.completeStepExecution(implementExec.id, {
-      transition: "success",
-      reason: "Code is done",
-      handoff_summary: "All done",
-    });
+    await getContainer().workflowRunService.completeStepExecution(
+      implementExec.id,
+      {
+        transition: "success",
+        reason: "Code is done",
+        handoff_summary: "All done",
+      },
+    );
 
-    const updatedRun = container.workflowRunService.getWorkflowRun(run.id);
+    const updatedRun = getContainer().workflowRunService.getWorkflowRun(run.id);
     expect(updatedRun?.status).toBe("success");
     expect(updatedRun?.current_step).toBeNull();
   });
@@ -654,13 +666,16 @@ describe("completeStepExecution", () => {
   it("marks workflow run as failure on terminal failure transition", async () => {
     const { run, execution } = await setupRunAtPlan();
 
-    await container.workflowRunService.completeStepExecution(execution.id, {
-      transition: "failure",
-      reason: "Blocked",
-      handoff_summary: "Could not proceed",
-    });
+    await getContainer().workflowRunService.completeStepExecution(
+      execution.id,
+      {
+        transition: "failure",
+        reason: "Blocked",
+        handoff_summary: "Could not proceed",
+      },
+    );
 
-    const updatedRun = container.workflowRunService.getWorkflowRun(run.id);
+    const updatedRun = getContainer().workflowRunService.getWorkflowRun(run.id);
     expect(updatedRun?.status).toBe("failure");
     expect(updatedRun?.current_step).toBe("plan");
   });
@@ -668,13 +683,16 @@ describe("completeStepExecution", () => {
   it("marks workflow run as failure when transition name is not valid", async () => {
     const { run, execution } = await setupRunAtPlan();
 
-    await container.workflowRunService.completeStepExecution(execution.id, {
-      transition: "nonexistent-state",
-      reason: "??",
-      handoff_summary: "",
-    });
+    await getContainer().workflowRunService.completeStepExecution(
+      execution.id,
+      {
+        transition: "nonexistent-state",
+        reason: "??",
+        handoff_summary: "",
+      },
+    );
 
-    const updatedRun = container.workflowRunService.getWorkflowRun(run.id);
+    const updatedRun = getContainer().workflowRunService.getWorkflowRun(run.id);
     expect(updatedRun?.status).toBe("failure");
     expect(updatedRun?.current_step).toBe("plan");
   });
@@ -682,11 +700,14 @@ describe("completeStepExecution", () => {
   it("passes all previous executions as handoff context to the new session goal", async () => {
     const { run, execution } = await setupRunAtPlan();
 
-    await container.workflowRunService.completeStepExecution(execution.id, {
-      transition: "implement",
-      reason: "Plan is done",
-      handoff_summary: "Created PLAN.md with approach",
-    });
+    await getContainer().workflowRunService.completeStepExecution(
+      execution.id,
+      {
+        transition: "implement",
+        reason: "Plan is done",
+        handoff_summary: "Created PLAN.md with approach",
+      },
+    );
 
     const implementExec = db
       .prepare(
@@ -703,11 +724,14 @@ describe("completeStepExecution", () => {
     expect(implementSession.goal).toContain("plan");
 
     // Now complete implement and check the next session sees BOTH prior executions
-    await container.workflowRunService.completeStepExecution(implementExec.id, {
-      transition: "implement",
-      reason: "Still working",
-      handoff_summary: "Wrote src/index.ts",
-    });
+    await getContainer().workflowRunService.completeStepExecution(
+      implementExec.id,
+      {
+        transition: "implement",
+        reason: "Still working",
+        handoff_summary: "Wrote src/index.ts",
+      },
+    );
 
     const implement2Exec = db
       .prepare(
@@ -728,14 +752,17 @@ describe("completeStepExecution", () => {
   it("stores metadata on the workflow run when the decision carries metadata", async () => {
     const { run, execution } = await setupRunAtPlan();
 
-    await container.workflowRunService.completeStepExecution(execution.id, {
-      transition: "implement",
-      reason: "Plan is done",
-      handoff_summary: "Wrote PLAN.md",
-      metadata: { pr_url: "https://github.com/org/repo/pull/42" },
-    });
+    await getContainer().workflowRunService.completeStepExecution(
+      execution.id,
+      {
+        transition: "implement",
+        reason: "Plan is done",
+        handoff_summary: "Wrote PLAN.md",
+        metadata: { pr_url: "https://github.com/org/repo/pull/42" },
+      },
+    );
 
-    const updatedRun = container.workflowRunService.getWorkflowRun(run.id);
+    const updatedRun = getContainer().workflowRunService.getWorkflowRun(run.id);
     expect(updatedRun?.metadata).toEqual({
       pr_url: "https://github.com/org/repo/pull/42",
     });
@@ -744,12 +771,15 @@ describe("completeStepExecution", () => {
   it("merges metadata across multiple step executions", async () => {
     const { run, execution } = await setupRunAtPlan();
 
-    await container.workflowRunService.completeStepExecution(execution.id, {
-      transition: "implement",
-      reason: "Plan is done",
-      handoff_summary: "Wrote PLAN.md",
-      metadata: { plan_status: "complete" },
-    });
+    await getContainer().workflowRunService.completeStepExecution(
+      execution.id,
+      {
+        transition: "implement",
+        reason: "Plan is done",
+        handoff_summary: "Wrote PLAN.md",
+        metadata: { plan_status: "complete" },
+      },
+    );
 
     // Complete implement with additional metadata
     const implementExec = db
@@ -758,14 +788,17 @@ describe("completeStepExecution", () => {
       )
       .get(run.id) as { id: string };
 
-    await container.workflowRunService.completeStepExecution(implementExec.id, {
-      transition: "success",
-      reason: "Code is done",
-      handoff_summary: "All done",
-      metadata: { pr_url: "https://github.com/org/repo/pull/42" },
-    });
+    await getContainer().workflowRunService.completeStepExecution(
+      implementExec.id,
+      {
+        transition: "success",
+        reason: "Code is done",
+        handoff_summary: "All done",
+        metadata: { pr_url: "https://github.com/org/repo/pull/42" },
+      },
+    );
 
-    const updatedRun = container.workflowRunService.getWorkflowRun(run.id);
+    const updatedRun = getContainer().workflowRunService.getWorkflowRun(run.id);
     expect(updatedRun!.metadata).toEqual({
       plan_status: "complete",
       pr_url: "https://github.com/org/repo/pull/42",
@@ -775,13 +808,16 @@ describe("completeStepExecution", () => {
   it("does not set metadata when decision has no metadata", async () => {
     const { run, execution } = await setupRunAtPlan();
 
-    await container.workflowRunService.completeStepExecution(execution.id, {
-      transition: "failure",
-      reason: "Blocked",
-      handoff_summary: "Could not proceed",
-    });
+    await getContainer().workflowRunService.completeStepExecution(
+      execution.id,
+      {
+        transition: "failure",
+        reason: "Blocked",
+        handoff_summary: "Could not proceed",
+      },
+    );
 
-    const updatedRun = container.workflowRunService.getWorkflowRun(run.id);
+    const updatedRun = getContainer().workflowRunService.getWorkflowRun(run.id);
     expect(updatedRun?.metadata).toBeNull();
   });
 
@@ -792,9 +828,9 @@ describe("completeStepExecution", () => {
     const session = db
       .prepare("SELECT * FROM sessions WHERE step_execution_id = ?")
       .get(execution.id) as { id: string };
-    container.sessionService.failSession(session.id);
+    getContainer().sessionService.failSession(session.id);
 
-    await container.workflowRunService.completeStepExecution(
+    await getContainer().workflowRunService.completeStepExecution(
       execution.id,
       null,
     );
@@ -808,11 +844,14 @@ describe("completeStepExecution", () => {
   it("emits workflow-run.status-changed on terminal success transition", async () => {
     const { run, execution } = await setupRunAtPlan();
 
-    await container.workflowRunService.completeStepExecution(execution.id, {
-      transition: "implement",
-      reason: "Ready",
-      handoff_summary: "Plan done",
-    });
+    await getContainer().workflowRunService.completeStepExecution(
+      execution.id,
+      {
+        transition: "implement",
+        reason: "Ready",
+        handoff_summary: "Plan done",
+      },
+    );
 
     const [_, implementExec] = db
       .prepare(
@@ -822,11 +861,14 @@ describe("completeStepExecution", () => {
 
     const emitSpy = vi.spyOn(eventBus, "emit");
 
-    await container.workflowRunService.completeStepExecution(implementExec.id, {
-      transition: "success",
-      reason: "Code is done",
-      handoff_summary: "All done",
-    });
+    await getContainer().workflowRunService.completeStepExecution(
+      implementExec.id,
+      {
+        transition: "success",
+        reason: "Code is done",
+        handoff_summary: "All done",
+      },
+    );
 
     expect(emitSpy).toHaveBeenCalledWith(
       "workflow-run.status-changed",
@@ -838,11 +880,14 @@ describe("completeStepExecution", () => {
     const emitSpy = vi.spyOn(eventBus, "emit");
     const { run, execution } = await setupRunAtPlan();
 
-    await container.workflowRunService.completeStepExecution(execution.id, {
-      transition: "failure",
-      reason: "Blocked",
-      handoff_summary: "Could not proceed",
-    });
+    await getContainer().workflowRunService.completeStepExecution(
+      execution.id,
+      {
+        transition: "failure",
+        reason: "Blocked",
+        handoff_summary: "Could not proceed",
+      },
+    );
 
     expect(emitSpy).toHaveBeenCalledWith(
       "workflow-run.status-changed",
@@ -854,11 +899,14 @@ describe("completeStepExecution", () => {
     const emitSpy = vi.spyOn(eventBus, "emit");
     const { run, execution } = await setupRunAtPlan();
 
-    await container.workflowRunService.completeStepExecution(execution.id, {
-      transition: "nonexistent-state",
-      reason: "??",
-      handoff_summary: "",
-    });
+    await getContainer().workflowRunService.completeStepExecution(
+      execution.id,
+      {
+        transition: "nonexistent-state",
+        reason: "??",
+        handoff_summary: "",
+      },
+    );
 
     expect(emitSpy).toHaveBeenCalledWith(
       "workflow-run.status-changed",
@@ -873,7 +921,7 @@ describe("stopWorkflowRun", () => {
       SIMPLE_WORKFLOW_CONFIG,
     );
     const repoPath = await makeFakeGitRepo();
-    const run = await container.workflowRunService.createWorkflowRun({
+    const run = await getContainer().workflowRunService.createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       workflow_name: "my-flow",
@@ -892,7 +940,9 @@ describe("stopWorkflowRun", () => {
   it("fails the active session and marks the running workflow run as failure", async () => {
     const { run, execution, session } = await setupRunningRun();
 
-    const stopped = await container.workflowRunService.stopWorkflowRun(run.id);
+    const stopped = await getContainer().workflowRunService.stopWorkflowRun(
+      run.id,
+    );
 
     expect(stopped.status).toBe("failure");
     expect(stopped.current_step).toBe("plan");
@@ -910,14 +960,17 @@ describe("stopWorkflowRun", () => {
 
   it("throws when the workflow run is already terminal", async () => {
     const { run, execution } = await setupRunningRun();
-    await container.workflowRunService.completeStepExecution(execution.id, {
-      transition: "failure",
-      reason: "Blocked",
-      handoff_summary: "Could not proceed",
-    });
+    await getContainer().workflowRunService.completeStepExecution(
+      execution.id,
+      {
+        transition: "failure",
+        reason: "Blocked",
+        handoff_summary: "Could not proceed",
+      },
+    );
 
     await expect(() =>
-      container.workflowRunService.stopWorkflowRun(run.id),
+      getContainer().workflowRunService.stopWorkflowRun(run.id),
     ).rejects.toThrow("Workflow run is already in a terminal state");
   });
 
@@ -934,15 +987,17 @@ workflows:
             when: "failed"
 `);
     const repoPath = await makeFakeGitRepo();
-    vi.spyOn(container.worktreeService, "listWorktrees").mockResolvedValue([
-      {
-        branch: "feat/test",
-        path: repoPath,
-        is_main: false,
-        is_bare: false,
-        head: "HEAD",
-      },
-    ]);
+    vi.spyOn(getContainer().worktreeService, "listWorktrees").mockResolvedValue(
+      [
+        {
+          branch: "feat/test",
+          path: repoPath,
+          is_main: false,
+          is_bare: false,
+          head: "HEAD",
+        },
+      ],
+    );
 
     const now = new Date().toISOString();
     const runId = "running-command-run";
@@ -959,7 +1014,7 @@ workflows:
     ).run(executionId, runId, "run-command", now);
 
     await expect(() =>
-      container.workflowRunService.stopWorkflowRun(runId),
+      getContainer().workflowRunService.stopWorkflowRun(runId),
     ).rejects.toThrow("No active session to stop for this workflow run");
   });
 
@@ -970,7 +1025,9 @@ workflows:
       session.id,
     );
 
-    const stopped = await container.workflowRunService.stopWorkflowRun(run.id);
+    const stopped = await getContainer().workflowRunService.stopWorkflowRun(
+      run.id,
+    );
 
     expect(stopped.status).toBe("failure");
     expect(stopped.current_step).toBe("plan");
@@ -984,18 +1041,19 @@ workflows:
   it("still fails the workflow run when failSession loses a race to a terminal session update", async () => {
     const { run, execution, session } = await setupRunningRun();
 
-    vi.spyOn(container.sessionService, "failSession").mockImplementationOnce(
-      (id) => {
-        db.prepare("UPDATE sessions SET status = 'success' WHERE id = ?").run(
-          id,
-        );
-        throw new Error(
-          `Session ${id} is already in a terminal state: SUCCEEDED`,
-        );
-      },
-    );
+    vi.spyOn(
+      getContainer().sessionService,
+      "failSession",
+    ).mockImplementationOnce((id) => {
+      db.prepare("UPDATE sessions SET status = 'success' WHERE id = ?").run(id);
+      throw new Error(
+        `Session ${id} is already in a terminal state: SUCCEEDED`,
+      );
+    });
 
-    const stopped = await container.workflowRunService.stopWorkflowRun(run.id);
+    const stopped = await getContainer().workflowRunService.stopWorkflowRun(
+      run.id,
+    );
 
     expect(stopped.status).toBe("failure");
     expect(stopped.current_step).toBe("plan");
@@ -1019,7 +1077,7 @@ describe("workflow run lifecycle around session startup races", () => {
     );
     const repoPath = await makeFakeGitRepo();
 
-    const run = await container.workflowRunService.createWorkflowRun({
+    const run = await getContainer().workflowRunService.createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       workflow_name: "my-flow",
@@ -1032,16 +1090,16 @@ describe("workflow run lifecycle around session startup races", () => {
       .prepare("SELECT * FROM sessions WHERE step_execution_id = ?")
       .get(execution.id) as { id: string };
 
-    container.sessionService.failSession(session.id);
+    getContainer().sessionService.failSession(session.id);
 
     // Simulate what startAgent would do when it detects the failed session:
-    // it calls onComplete(null) which triggers container.workflowRunService.completeStepExecution(null).
-    await container.workflowRunService.completeStepExecution(
+    // it calls onComplete(null) which triggers getContainer().workflowRunService.completeStepExecution(null).
+    await getContainer().workflowRunService.completeStepExecution(
       execution.id,
       null,
     );
 
-    const updatedRun = container.workflowRunService.getWorkflowRun(run.id);
+    const updatedRun = getContainer().workflowRunService.getWorkflowRun(run.id);
     expect(updatedRun?.status).toBe("failure");
     expect(updatedRun?.current_step).toBe("plan");
 
@@ -1073,7 +1131,7 @@ workflows:
     );
     const repoPath = await makeFakeGitRepo();
 
-    const run = await container.workflowRunService.createWorkflowRun({
+    const run = await getContainer().workflowRunService.createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       workflow_name: "minimal-flow",
@@ -1086,13 +1144,13 @@ workflows:
       .prepare("SELECT * FROM step_executions WHERE workflow_run_id = ?")
       .all(run.id) as { id: string }[];
 
-    await container.workflowRunService.completeStepExecution(exec.id, {
+    await getContainer().workflowRunService.completeStepExecution(exec.id, {
       transition: "success",
       reason: "All done",
       handoff_summary: "Finished",
     });
 
-    const updatedRun = container.workflowRunService.getWorkflowRun(run.id);
+    const updatedRun = getContainer().workflowRunService.getWorkflowRun(run.id);
     expect(updatedRun?.status).toBe("success");
     expect(updatedRun?.current_step).toBeNull();
   });
@@ -1131,18 +1189,18 @@ describe("listWorkflowRuns", () => {
     );
     const repoPath = await makeFakeGitRepo();
 
-    await container.workflowRunService.createWorkflowRun({
+    await getContainer().workflowRunService.createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/a",
       workflow_name: "my-flow",
     });
-    await container.workflowRunService.createWorkflowRun({
+    await getContainer().workflowRunService.createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/b",
       workflow_name: "my-flow",
     });
 
-    const runs = container.workflowRunService.listWorkflowRuns({});
+    const runs = getContainer().workflowRunService.listWorkflowRuns({});
     expect(runs).toHaveLength(2);
   });
 
@@ -1153,18 +1211,18 @@ describe("listWorkflowRuns", () => {
     const repoA = await makeFakeGitRepo();
     const repoB = await makeFakeGitRepo();
 
-    await container.workflowRunService.createWorkflowRun({
+    await getContainer().workflowRunService.createWorkflowRun({
       repository_path: repoA,
       worktree_branch: "feat/a",
       workflow_name: "my-flow",
     });
-    await container.workflowRunService.createWorkflowRun({
+    await getContainer().workflowRunService.createWorkflowRun({
       repository_path: repoB,
       worktree_branch: "feat/b",
       workflow_name: "my-flow",
     });
 
-    const runs = container.workflowRunService.listWorkflowRuns({
+    const runs = getContainer().workflowRunService.listWorkflowRuns({
       repository_path: repoA,
     });
     expect(runs).toHaveLength(1);
@@ -1177,18 +1235,18 @@ describe("listWorkflowRuns", () => {
     );
     const repoPath = await makeFakeGitRepo();
 
-    await container.workflowRunService.createWorkflowRun({
+    await getContainer().workflowRunService.createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/a",
       workflow_name: "my-flow",
     });
-    await container.workflowRunService.createWorkflowRun({
+    await getContainer().workflowRunService.createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/b",
       workflow_name: "my-flow",
     });
 
-    const runs = container.workflowRunService.listWorkflowRuns({
+    const runs = getContainer().workflowRunService.listWorkflowRuns({
       worktree_branch: "feat/a",
     });
     expect(runs).toHaveLength(1);
@@ -1220,28 +1278,30 @@ workflows:
     process.env.AITM_CONFIG_PATH = await writeTempConfig(config);
     const repoPath = await makeFakeGitRepo();
     const worktreePath = await makeFakeGitRepo();
-    vi.spyOn(container.worktreeService, "listWorktrees").mockResolvedValue([
-      {
-        branch: "feat/test",
-        path: worktreePath,
-        is_main: true,
-        is_bare: false,
-        head: "abc123",
-      },
-    ]);
+    vi.spyOn(getContainer().worktreeService, "listWorktrees").mockResolvedValue(
+      [
+        {
+          branch: "feat/test",
+          path: worktreePath,
+          is_main: true,
+          is_bare: false,
+          head: "abc123",
+        },
+      ],
+    );
     return { repoPath, worktreePath };
   }
 
   it("executes the command and advances to the next step on succeeded", async () => {
     const { repoPath } = await setupCommandRun();
 
-    const run = await container.workflowRunService.createWorkflowRun({
+    const run = await getContainer().workflowRunService.createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       workflow_name: "cmd-flow",
     });
 
-    const updatedRun = container.workflowRunService.getWorkflowRun(run.id);
+    const updatedRun = getContainer().workflowRunService.getWorkflowRun(run.id);
     expect(updatedRun?.current_step).toBe("next");
     expect(updatedRun?.status).toBe("running");
 
@@ -1269,7 +1329,7 @@ workflows:
             when: succeeded
 `);
 
-    const run = await container.workflowRunService.createWorkflowRun({
+    const run = await getContainer().workflowRunService.createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       workflow_name: "cmd-flow",
@@ -1298,13 +1358,13 @@ workflows:
             when: failed
 `);
 
-    const run = await container.workflowRunService.createWorkflowRun({
+    const run = await getContainer().workflowRunService.createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       workflow_name: "cmd-flow",
     });
 
-    const updatedRun = container.workflowRunService.getWorkflowRun(run.id);
+    const updatedRun = getContainer().workflowRunService.getWorkflowRun(run.id);
     expect(updatedRun?.status).toBe("failure");
     expect(updatedRun?.current_step).toBe("bad-cmd");
   });
@@ -1322,13 +1382,13 @@ workflows:
             when: succeeded
 `);
 
-    const run = await container.workflowRunService.createWorkflowRun({
+    const run = await getContainer().workflowRunService.createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       workflow_name: "cmd-flow",
     });
 
-    const updatedRun = container.workflowRunService.getWorkflowRun(run.id);
+    const updatedRun = getContainer().workflowRunService.getWorkflowRun(run.id);
     expect(updatedRun?.status).toBe("failure");
     expect(updatedRun?.current_step).toBe("bad-cmd");
   });
@@ -1340,7 +1400,7 @@ describe("getWorkflowRun", () => {
       SIMPLE_WORKFLOW_CONFIG,
     );
     const repoPath = await makeFakeGitRepo();
-    const run = await container.workflowRunService.createWorkflowRun({
+    const run = await getContainer().workflowRunService.createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       workflow_name: "my-flow",
@@ -1350,13 +1410,13 @@ describe("getWorkflowRun", () => {
       .prepare("SELECT * FROM step_executions WHERE workflow_run_id = ?")
       .all(run.id) as { id: string }[];
 
-    await container.workflowRunService.completeStepExecution(planExec.id, {
+    await getContainer().workflowRunService.completeStepExecution(planExec.id, {
       transition: "implement",
       reason: "Ready",
       handoff_summary: "Plan done",
     });
 
-    const result = container.workflowRunService.getWorkflowRun(run.id);
+    const result = getContainer().workflowRunService.getWorkflowRun(run.id);
     expect(result).toBeDefined();
     expect(result?.id).toBe(run.id);
     expect(result?.step_executions).toHaveLength(2);
@@ -1366,7 +1426,7 @@ describe("getWorkflowRun", () => {
 
   it("returns undefined for unknown id", () => {
     expect(
-      container.workflowRunService.getWorkflowRun("nonexistent"),
+      getContainer().workflowRunService.getWorkflowRun("nonexistent"),
     ).toBeUndefined();
   });
 });
@@ -1377,7 +1437,7 @@ describe("rerunWorkflowRunFromFailedState", () => {
       SIMPLE_WORKFLOW_CONFIG,
     );
     const repoPath = await makeFakeGitRepo();
-    const run = await container.workflowRunService.createWorkflowRun({
+    const run = await getContainer().workflowRunService.createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       workflow_name: "my-flow",
@@ -1389,7 +1449,7 @@ describe("rerunWorkflowRunFromFailedState", () => {
         "SELECT * FROM step_executions WHERE workflow_run_id = ? ORDER BY created_at ASC",
       )
       .all(run.id) as { id: string }[];
-    await container.workflowRunService.completeStepExecution(planExec.id, {
+    await getContainer().workflowRunService.completeStepExecution(planExec.id, {
       transition: "implement",
       reason: "Plan done",
       handoff_summary: "Wrote PLAN.md",
@@ -1401,11 +1461,14 @@ describe("rerunWorkflowRunFromFailedState", () => {
         "SELECT * FROM step_executions WHERE workflow_run_id = ? AND step = 'implement'",
       )
       .get(run.id) as { id: string };
-    await container.workflowRunService.completeStepExecution(implementExec.id, {
-      transition: "failure",
-      reason: "Blocked",
-      handoff_summary: "Could not proceed",
-    });
+    await getContainer().workflowRunService.completeStepExecution(
+      implementExec.id,
+      {
+        transition: "failure",
+        reason: "Blocked",
+        handoff_summary: "Could not proceed",
+      },
+    );
 
     return { run, repoPath, planExec, implementExec };
   }
@@ -1415,7 +1478,7 @@ describe("rerunWorkflowRunFromFailedState", () => {
       SIMPLE_WORKFLOW_CONFIG,
     );
     await expect(() =>
-      container.workflowRunService.rerunWorkflowRunFromFailedState(
+      getContainer().workflowRunService.rerunWorkflowRunFromFailedState(
         "nonexistent",
       ),
     ).rejects.toThrow("Workflow run not found");
@@ -1426,14 +1489,14 @@ describe("rerunWorkflowRunFromFailedState", () => {
       SIMPLE_WORKFLOW_CONFIG,
     );
     const repoPath = await makeFakeGitRepo();
-    const run = await container.workflowRunService.createWorkflowRun({
+    const run = await getContainer().workflowRunService.createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       workflow_name: "my-flow",
     });
 
     await expect(() =>
-      container.workflowRunService.rerunWorkflowRunFromFailedState(run.id),
+      getContainer().workflowRunService.rerunWorkflowRunFromFailedState(run.id),
     ).rejects.toThrow(
       "Only failed workflow runs can be re-run from failed state",
     );
@@ -1442,9 +1505,11 @@ describe("rerunWorkflowRunFromFailedState", () => {
   it("sets workflow_run status to running and current_step to the failed step", async () => {
     const { run } = await setupFailedRun();
 
-    await container.workflowRunService.rerunWorkflowRunFromFailedState(run.id);
+    await getContainer().workflowRunService.rerunWorkflowRunFromFailedState(
+      run.id,
+    );
 
-    const updated = container.workflowRunService.getWorkflowRun(run.id);
+    const updated = getContainer().workflowRunService.getWorkflowRun(run.id);
     expect(updated?.status).toBe("running");
     expect(updated?.current_step).toBe("implement");
   });
@@ -1452,7 +1517,9 @@ describe("rerunWorkflowRunFromFailedState", () => {
   it("creates a new step_execution for the failed step", async () => {
     const { run, implementExec } = await setupFailedRun();
 
-    await container.workflowRunService.rerunWorkflowRunFromFailedState(run.id);
+    await getContainer().workflowRunService.rerunWorkflowRunFromFailedState(
+      run.id,
+    );
 
     const executions = db
       .prepare(
@@ -1466,7 +1533,9 @@ describe("rerunWorkflowRunFromFailedState", () => {
   it("passes handoff context from completed executions (excluding the failed one) to the new session", async () => {
     const { run, implementExec } = await setupFailedRun();
 
-    await container.workflowRunService.rerunWorkflowRunFromFailedState(run.id);
+    await getContainer().workflowRunService.rerunWorkflowRunFromFailedState(
+      run.id,
+    );
 
     const newImplementExec = db
       .prepare(
@@ -1505,7 +1574,7 @@ workflows:
             when: "blocked"
 `);
     const repoPath = await makeFakeGitRepo();
-    const run = await container.workflowRunService.createWorkflowRun({
+    const run = await getContainer().workflowRunService.createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       workflow_name: "command-rerun",
@@ -1532,13 +1601,18 @@ workflows:
         "SELECT id FROM step_executions WHERE workflow_run_id = ? AND step = 'implement'",
       )
       .get(run.id) as { id: string };
-    await container.workflowRunService.completeStepExecution(implementExec.id, {
-      transition: "failure",
-      reason: "Blocked",
-      handoff_summary: "Could not proceed",
-    });
+    await getContainer().workflowRunService.completeStepExecution(
+      implementExec.id,
+      {
+        transition: "failure",
+        reason: "Blocked",
+        handoff_summary: "Could not proceed",
+      },
+    );
 
-    await container.workflowRunService.rerunWorkflowRunFromFailedState(run.id);
+    await getContainer().workflowRunService.rerunWorkflowRunFromFailedState(
+      run.id,
+    );
 
     const lintExecution = db
       .prepare(
@@ -1601,7 +1675,7 @@ workflows:
 `;
     process.env.AITM_CONFIG_PATH = await writeTempConfig(MAX_STEPS_WORKFLOW);
     const repoPath = await makeFakeGitRepo();
-    const run = await container.workflowRunService.createWorkflowRun({
+    const run = await getContainer().workflowRunService.createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       workflow_name: "my-flow",
@@ -1615,7 +1689,7 @@ workflows:
         "SELECT * FROM step_executions WHERE workflow_run_id = ? AND completed_at IS NULL ORDER BY rowid DESC LIMIT 1",
       )
       .get(run.id) as { id: string };
-    await container.workflowRunService.completeStepExecution(exec1.id, {
+    await getContainer().workflowRunService.completeStepExecution(exec1.id, {
       transition: "implement",
       reason: "plan done",
       handoff_summary: "plan handoff",
@@ -1626,7 +1700,7 @@ workflows:
         "SELECT * FROM step_executions WHERE workflow_run_id = ? AND completed_at IS NULL ORDER BY rowid DESC LIMIT 1",
       )
       .get(run.id) as { id: string };
-    await container.workflowRunService.completeStepExecution(exec2.id, {
+    await getContainer().workflowRunService.completeStepExecution(exec2.id, {
       transition: "plan",
       reason: "needs re-planning",
       handoff_summary: "re-plan",
@@ -1637,7 +1711,7 @@ workflows:
         "SELECT * FROM step_executions WHERE workflow_run_id = ? AND completed_at IS NULL ORDER BY rowid DESC LIMIT 1",
       )
       .get(run.id) as { id: string };
-    await container.workflowRunService.completeStepExecution(exec3.id, {
+    await getContainer().workflowRunService.completeStepExecution(exec3.id, {
       transition: "implement",
       reason: "plan done again",
       handoff_summary: "plan handoff 2",
@@ -1649,20 +1723,22 @@ workflows:
         "SELECT * FROM step_executions WHERE workflow_run_id = ? AND completed_at IS NULL ORDER BY rowid DESC LIMIT 1",
       )
       .get(run.id) as { id: string };
-    await container.workflowRunService.completeStepExecution(exec4.id, {
+    await getContainer().workflowRunService.completeStepExecution(exec4.id, {
       transition: "failure",
       reason: "blocked",
       handoff_summary: "failed",
     });
-    expect(container.workflowRunService.getWorkflowRun(run.id)?.status).toBe(
-      "failure",
-    );
+    expect(
+      getContainer().workflowRunService.getWorkflowRun(run.id)?.status,
+    ).toBe("failure");
 
     // Now re-run from failed state. The total step count is 4 (= max_steps).
     // The re-run creates exec #5 for "implement". Without the fix, any
     // non-terminal transition from exec #5 would see count=5 ≥ max_steps=4
     // and terminate. With the fix, the effective count resets.
-    await container.workflowRunService.rerunWorkflowRunFromFailedState(run.id);
+    await getContainer().workflowRunService.rerunWorkflowRunFromFailedState(
+      run.id,
+    );
     const exec5 = db
       .prepare(
         "SELECT * FROM step_executions WHERE workflow_run_id = ? AND completed_at IS NULL ORDER BY rowid DESC LIMIT 1",
@@ -1670,13 +1746,13 @@ workflows:
       .get(run.id) as { id: string };
     // Transition to "plan" — a non-terminal step transition.
     // Without the fix this would be blocked by max_steps.
-    await container.workflowRunService.completeStepExecution(exec5.id, {
+    await getContainer().workflowRunService.completeStepExecution(exec5.id, {
       transition: "plan",
       reason: "needs re-planning",
       handoff_summary: "re-plan after rerun",
     });
 
-    const afterRerun = container.workflowRunService.getWorkflowRun(run.id);
+    const afterRerun = getContainer().workflowRunService.getWorkflowRun(run.id);
     // The workflow should still be running, having advanced to "plan".
     expect(afterRerun?.status).toBe("running");
     expect(afterRerun?.current_step).toBe("plan");
@@ -1686,7 +1762,9 @@ workflows:
     const { run } = await setupFailedRun();
     const emitSpy = vi.spyOn(eventBus, "emit");
 
-    await container.workflowRunService.rerunWorkflowRunFromFailedState(run.id);
+    await getContainer().workflowRunService.rerunWorkflowRunFromFailedState(
+      run.id,
+    );
 
     expect(emitSpy).toHaveBeenCalledWith(
       "workflow-run.status-changed",
@@ -1699,7 +1777,7 @@ workflows:
       MANUAL_APPROVAL_RERUN_WORKFLOW_CONFIG,
     );
     const repoPath = await makeFakeGitRepo();
-    const run = await container.workflowRunService.createWorkflowRun({
+    const run = await getContainer().workflowRunService.createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       workflow_name: "approval-flow",
@@ -1711,19 +1789,24 @@ workflows:
       )
       .all(run.id) as { id: string }[];
 
-    await container.workflowRunService.completeStepExecution(reviewExec.id, {
-      transition: "failure",
-      reason: "rejected",
-      handoff_summary: "Needs more work",
-    });
-
-    expect(container.workflowRunService.getWorkflowRun(run.id)?.status).toBe(
-      "failure",
+    await getContainer().workflowRunService.completeStepExecution(
+      reviewExec.id,
+      {
+        transition: "failure",
+        reason: "rejected",
+        handoff_summary: "Needs more work",
+      },
     );
 
-    await container.workflowRunService.rerunWorkflowRunFromFailedState(run.id);
+    expect(
+      getContainer().workflowRunService.getWorkflowRun(run.id)?.status,
+    ).toBe("failure");
 
-    const rerun = container.workflowRunService.getWorkflowRun(run.id);
+    await getContainer().workflowRunService.rerunWorkflowRunFromFailedState(
+      run.id,
+    );
+
+    const rerun = getContainer().workflowRunService.getWorkflowRun(run.id);
     const activeExecution = db
       .prepare(
         "SELECT * FROM step_executions WHERE workflow_run_id = ? AND completed_at IS NULL ORDER BY created_at DESC LIMIT 1",
@@ -1788,7 +1871,7 @@ workflows:
   async function setupCyclingRun(config: string) {
     process.env.AITM_CONFIG_PATH = await writeTempConfig(config);
     const repoPath = await makeFakeGitRepo();
-    const run = await container.workflowRunService.createWorkflowRun({
+    const run = await getContainer().workflowRunService.createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       workflow_name: "cycling-flow",
@@ -1802,7 +1885,7 @@ workflows:
         "SELECT * FROM step_executions WHERE workflow_run_id = ? AND completed_at IS NULL ORDER BY created_at DESC LIMIT 1",
       )
       .get(workflowRunId) as { id: string };
-    await container.workflowRunService.completeStepExecution(exec.id, {
+    await getContainer().workflowRunService.completeStepExecution(exec.id, {
       transition: nextStep,
       reason: "continuing",
       handoff_summary: "handoff",
@@ -1818,14 +1901,16 @@ workflows:
     // The guard checks count before starting a new execution, so we need 30
     // completed transitions for count to reach 30 and trigger the guard.
     for (let i = 0; i < 30; i++) {
-      const currentRun = container.workflowRunService.getWorkflowRun(run.id);
+      const currentRun = getContainer().workflowRunService.getWorkflowRun(
+        run.id,
+      );
       if (currentRun?.status !== "running") break;
       const nextStep =
         currentRun?.current_step === "step_a" ? "step_b" : "step_a";
       await advanceOneStep(run.id, nextStep);
     }
 
-    const finalRun = container.workflowRunService.getWorkflowRun(run.id);
+    const finalRun = getContainer().workflowRunService.getWorkflowRun(run.id);
     expect(finalRun?.status).toBe("failure");
   });
 
@@ -1836,14 +1921,16 @@ workflows:
 
     // max_steps is 5, so after 5 transitions the guard triggers (count reaches 5).
     for (let i = 0; i < 5; i++) {
-      const currentRun = container.workflowRunService.getWorkflowRun(run.id);
+      const currentRun = getContainer().workflowRunService.getWorkflowRun(
+        run.id,
+      );
       if (currentRun?.status !== "running") break;
       const nextStep =
         currentRun?.current_step === "step_a" ? "step_b" : "step_a";
       await advanceOneStep(run.id, nextStep);
     }
 
-    const finalRun = container.workflowRunService.getWorkflowRun(run.id);
+    const finalRun = getContainer().workflowRunService.getWorkflowRun(run.id);
     expect(finalRun?.status).toBe("failure");
   });
 
@@ -1856,7 +1943,7 @@ workflows:
     await advanceOneStep(run.id, "step_b");
     await advanceOneStep(run.id, "success");
 
-    const finalRun = container.workflowRunService.getWorkflowRun(run.id);
+    const finalRun = getContainer().workflowRunService.getWorkflowRun(run.id);
     expect(finalRun?.status).toBe("success");
   });
 
@@ -1869,7 +1956,9 @@ workflows:
 
     // max_steps is 5, so after 5 transitions the guard triggers.
     for (let i = 0; i < 5; i++) {
-      const currentRun = container.workflowRunService.getWorkflowRun(run.id);
+      const currentRun = getContainer().workflowRunService.getWorkflowRun(
+        run.id,
+      );
       if (currentRun?.status !== "running") break;
       const nextStep =
         currentRun?.current_step === "step_a" ? "step_b" : "step_a";
@@ -1906,7 +1995,7 @@ workflows:
   async function setupApprovalRun(config = APPROVAL_WORKFLOW_CONFIG) {
     process.env.AITM_CONFIG_PATH = await writeTempConfig(config);
     const repoPath = await makeFakeGitRepo();
-    const run = await container.workflowRunService.createWorkflowRun({
+    const run = await getContainer().workflowRunService.createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       workflow_name: "approval-flow",
@@ -1948,9 +2037,12 @@ workflows:
     process.env.AITM_CONFIG_PATH = await writeTempConfig(
       APPROVAL_WORKFLOW_CONFIG,
     );
-    const findWorktreeSpy = vi.spyOn(container.worktreeService, "findWorktree");
+    const findWorktreeSpy = vi.spyOn(
+      getContainer().worktreeService,
+      "findWorktree",
+    );
     const repoPath = await makeFakeGitRepo();
-    await container.workflowRunService.createWorkflowRun({
+    await getContainer().workflowRunService.createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       workflow_name: "approval-flow",
@@ -1985,13 +2077,16 @@ workflows:
       .prepare("SELECT * FROM step_executions WHERE workflow_run_id = ?")
       .all(run.id) as { id: string }[];
 
-    await container.workflowRunService.completeStepExecution(execution.id, {
-      transition: "deploy",
-      reason: "Manually approved",
-      handoff_summary: "",
-    });
+    await getContainer().workflowRunService.completeStepExecution(
+      execution.id,
+      {
+        transition: "deploy",
+        reason: "Manually approved",
+        handoff_summary: "",
+      },
+    );
 
-    const updatedRun = container.workflowRunService.getWorkflowRun(run.id);
+    const updatedRun = getContainer().workflowRunService.getWorkflowRun(run.id);
     expect(updatedRun?.current_step).toBe("deploy");
     expect(updatedRun?.status).toBe("running");
 
@@ -2013,13 +2108,16 @@ workflows:
       .prepare("SELECT * FROM step_executions WHERE workflow_run_id = ?")
       .all(run.id) as { id: string }[];
 
-    await container.workflowRunService.completeStepExecution(execution.id, {
-      transition: "failure",
-      reason: "Manually rejected",
-      handoff_summary: "",
-    });
+    await getContainer().workflowRunService.completeStepExecution(
+      execution.id,
+      {
+        transition: "failure",
+        reason: "Manually rejected",
+        handoff_summary: "",
+      },
+    );
 
-    const updatedRun = container.workflowRunService.getWorkflowRun(run.id);
+    const updatedRun = getContainer().workflowRunService.getWorkflowRun(run.id);
     expect(updatedRun?.status).toBe("failure");
     expect(updatedRun?.current_step).toBe("review");
   });
@@ -2050,7 +2148,7 @@ workflows:
 `;
     process.env.AITM_CONFIG_PATH = await writeTempConfig(multiStepConfig);
     const repoPath = await makeFakeGitRepo();
-    const run = await container.workflowRunService.createWorkflowRun({
+    const run = await getContainer().workflowRunService.createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       workflow_name: "approval-flow",
@@ -2060,13 +2158,13 @@ workflows:
     const [planExec] = db
       .prepare("SELECT * FROM step_executions WHERE workflow_run_id = ?")
       .all(run.id) as { id: string }[];
-    await container.workflowRunService.completeStepExecution(planExec.id, {
+    await getContainer().workflowRunService.completeStepExecution(planExec.id, {
       transition: "review",
       reason: "Plan done",
       handoff_summary: "Wrote PLAN.md",
     });
 
-    const afterPlan = container.workflowRunService.getWorkflowRun(run.id);
+    const afterPlan = getContainer().workflowRunService.getWorkflowRun(run.id);
     expect(afterPlan?.current_step).toBe("review");
     expect(afterPlan?.status).toBe("awaiting");
 
@@ -2084,13 +2182,18 @@ workflows:
     expect(reviewExec.completed_at).toBeNull();
 
     // Approve → deploy
-    await container.workflowRunService.completeStepExecution(reviewExec.id, {
-      transition: "deploy",
-      reason: "Manually approved",
-      handoff_summary: "",
-    });
+    await getContainer().workflowRunService.completeStepExecution(
+      reviewExec.id,
+      {
+        transition: "deploy",
+        reason: "Manually approved",
+        handoff_summary: "",
+      },
+    );
 
-    const afterApproval = container.workflowRunService.getWorkflowRun(run.id);
+    const afterApproval = getContainer().workflowRunService.getWorkflowRun(
+      run.id,
+    );
     expect(afterApproval?.current_step).toBe("deploy");
     expect(afterApproval?.status).toBe("running");
   });
@@ -2121,7 +2224,7 @@ workflows:
       APPROVAL_WORKFLOW_CONFIG,
     );
     const repoPath = await makeFakeGitRepo();
-    const run = await container.workflowRunService.createWorkflowRun({
+    const run = await getContainer().workflowRunService.createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/test",
       workflow_name: "approval-flow",
@@ -2132,9 +2235,11 @@ workflows:
     expect(run.current_step).toBe("review");
 
     // Run recovery — it should NOT fail the pending manual-approval execution
-    await container.workflowRunService.recoverCrashedWorkflowRuns();
+    await getContainer().workflowRunService.recoverCrashedWorkflowRuns();
 
-    const recoveredRun = container.workflowRunService.getWorkflowRun(run.id);
+    const recoveredRun = getContainer().workflowRunService.getWorkflowRun(
+      run.id,
+    );
     expect(recoveredRun?.status).toBe("awaiting");
     expect(recoveredRun?.current_step).toBe("review");
 
@@ -2153,11 +2258,12 @@ workflows:
     const repoPath = await makeFakeGitRepo();
 
     // Override mock to return no worktrees for this branch
-    vi.spyOn(container.worktreeService, "listWorktrees").mockResolvedValueOnce(
-      [],
-    );
+    vi.spyOn(
+      getContainer().worktreeService,
+      "listWorktrees",
+    ).mockResolvedValueOnce([]);
 
-    const run = await container.workflowRunService.createWorkflowRun({
+    const run = await getContainer().workflowRunService.createWorkflowRun({
       repository_path: repoPath,
       worktree_branch: "feat/no-worktree",
       workflow_name: "approval-flow",
@@ -2218,7 +2324,7 @@ workflows:
         APPROVAL_WORKFLOW_CONFIG,
       );
       const repoPath = await makeFakeGitRepo();
-      const run = await container.workflowRunService.createWorkflowRun({
+      const run = await getContainer().workflowRunService.createWorkflowRun({
         repository_path: repoPath,
         worktree_branch: "feat/test",
         workflow_name: "approval-flow",
@@ -2233,7 +2339,7 @@ workflows:
         MULTI_STEP_WITH_APPROVAL,
       );
       const repoPath = await makeFakeGitRepo();
-      const run = await container.workflowRunService.createWorkflowRun({
+      const run = await getContainer().workflowRunService.createWorkflowRun({
         repository_path: repoPath,
         worktree_branch: "feat/test",
         workflow_name: "approval-flow",
@@ -2243,13 +2349,18 @@ workflows:
       const [planExec] = db
         .prepare("SELECT * FROM step_executions WHERE workflow_run_id = ?")
         .all(run.id) as { id: string }[];
-      await container.workflowRunService.completeStepExecution(planExec.id, {
-        transition: "review",
-        reason: "Plan done",
-        handoff_summary: "Wrote PLAN.md",
-      });
+      await getContainer().workflowRunService.completeStepExecution(
+        planExec.id,
+        {
+          transition: "review",
+          reason: "Plan done",
+          handoff_summary: "Wrote PLAN.md",
+        },
+      );
 
-      const updatedRun = container.workflowRunService.getWorkflowRun(run.id);
+      const updatedRun = getContainer().workflowRunService.getWorkflowRun(
+        run.id,
+      );
       expect(updatedRun?.status).toBe("awaiting");
       expect(updatedRun?.current_step).toBe("review");
     });
@@ -2260,7 +2371,7 @@ workflows:
         APPROVAL_WORKFLOW_CONFIG,
       );
       const repoPath = await makeFakeGitRepo();
-      const run = await container.workflowRunService.createWorkflowRun({
+      const run = await getContainer().workflowRunService.createWorkflowRun({
         repository_path: repoPath,
         worktree_branch: "feat/test",
         workflow_name: "approval-flow",
@@ -2296,7 +2407,7 @@ workflows:
         SIMPLE_WORKFLOW_CONFIG,
       );
       const repoPath = await makeFakeGitRepo();
-      const run = await container.workflowRunService.createWorkflowRun({
+      const run = await getContainer().workflowRunService.createWorkflowRun({
         repository_path: repoPath,
         worktree_branch: "feat/test",
         workflow_name: "my-flow",
@@ -2324,7 +2435,9 @@ workflows:
       });
 
       await vi.waitFor(() => {
-        const updatedRun = container.workflowRunService.getWorkflowRun(run.id);
+        const updatedRun = getContainer().workflowRunService.getWorkflowRun(
+          run.id,
+        );
         expect(updatedRun?.status).toBe("running");
         expect(updatedRun?.current_step).toBe("implement");
       });
@@ -2335,7 +2448,7 @@ workflows:
         SIMPLE_WORKFLOW_CONFIG,
       );
       const repoPath = await makeFakeGitRepo();
-      const run = await container.workflowRunService.createWorkflowRun({
+      const run = await getContainer().workflowRunService.createWorkflowRun({
         repository_path: repoPath,
         worktree_branch: "feat/test",
         workflow_name: "my-flow",
@@ -2359,7 +2472,9 @@ workflows:
         status: "awaiting_input",
       });
 
-      const updatedRun = container.workflowRunService.getWorkflowRun(run.id);
+      const updatedRun = getContainer().workflowRunService.getWorkflowRun(
+        run.id,
+      );
       expect(updatedRun?.status).toBe("awaiting");
     });
 
@@ -2368,7 +2483,7 @@ workflows:
         SIMPLE_WORKFLOW_CONFIG,
       );
       const repoPath = await makeFakeGitRepo();
-      const run = await container.workflowRunService.createWorkflowRun({
+      const run = await getContainer().workflowRunService.createWorkflowRun({
         repository_path: repoPath,
         worktree_branch: "feat/test",
         workflow_name: "my-flow",
@@ -2403,7 +2518,7 @@ workflows:
         SIMPLE_WORKFLOW_CONFIG,
       );
       const repoPath = await makeFakeGitRepo();
-      const run = await container.workflowRunService.createWorkflowRun({
+      const run = await getContainer().workflowRunService.createWorkflowRun({
         repository_path: repoPath,
         worktree_branch: "feat/test",
         workflow_name: "my-flow",
@@ -2426,9 +2541,9 @@ workflows:
         status: "awaiting_input",
       });
 
-      expect(container.workflowRunService.getWorkflowRun(run.id)?.status).toBe(
-        "awaiting",
-      );
+      expect(
+        getContainer().workflowRunService.getWorkflowRun(run.id)?.status,
+      ).toBe("awaiting");
 
       // Resume to RUNNING
       db.prepare("UPDATE sessions SET status = 'running' WHERE id = ?").run(
@@ -2440,9 +2555,9 @@ workflows:
         status: "running",
       });
 
-      expect(container.workflowRunService.getWorkflowRun(run.id)?.status).toBe(
-        "running",
-      );
+      expect(
+        getContainer().workflowRunService.getWorkflowRun(run.id)?.status,
+      ).toBe("running");
     });
 
     it("does not change status for sessions not linked to a workflow run", async () => {
@@ -2478,28 +2593,33 @@ workflows:
         APPROVAL_WORKFLOW_CONFIG,
       );
       const repoPath = await makeFakeGitRepo();
-      const run = await container.workflowRunService.createWorkflowRun({
+      const run = await getContainer().workflowRunService.createWorkflowRun({
         repository_path: repoPath,
         worktree_branch: "feat/test",
         workflow_name: "approval-flow",
       });
 
-      expect(container.workflowRunService.getWorkflowRun(run.id)?.status).toBe(
-        "awaiting",
-      );
+      expect(
+        getContainer().workflowRunService.getWorkflowRun(run.id)?.status,
+      ).toBe("awaiting");
 
       // Approve → should transition to deploy and set status to running
       const [execution] = db
         .prepare("SELECT * FROM step_executions WHERE workflow_run_id = ?")
         .all(run.id) as { id: string }[];
 
-      await container.workflowRunService.completeStepExecution(execution.id, {
-        transition: "deploy",
-        reason: "Manually approved",
-        handoff_summary: "",
-      });
+      await getContainer().workflowRunService.completeStepExecution(
+        execution.id,
+        {
+          transition: "deploy",
+          reason: "Manually approved",
+          handoff_summary: "",
+        },
+      );
 
-      const updatedRun = container.workflowRunService.getWorkflowRun(run.id);
+      const updatedRun = getContainer().workflowRunService.getWorkflowRun(
+        run.id,
+      );
       expect(updatedRun?.status).toBe("running");
       expect(updatedRun?.current_step).toBe("deploy");
     });
@@ -2509,27 +2629,32 @@ workflows:
         APPROVAL_WORKFLOW_CONFIG,
       );
       const repoPath = await makeFakeGitRepo();
-      const run = await container.workflowRunService.createWorkflowRun({
+      const run = await getContainer().workflowRunService.createWorkflowRun({
         repository_path: repoPath,
         worktree_branch: "feat/test",
         workflow_name: "approval-flow",
       });
 
-      expect(container.workflowRunService.getWorkflowRun(run.id)?.status).toBe(
-        "awaiting",
-      );
+      expect(
+        getContainer().workflowRunService.getWorkflowRun(run.id)?.status,
+      ).toBe("awaiting");
 
       const [execution] = db
         .prepare("SELECT * FROM step_executions WHERE workflow_run_id = ?")
         .all(run.id) as { id: string }[];
 
-      await container.workflowRunService.completeStepExecution(execution.id, {
-        transition: "failure",
-        reason: "Manually rejected",
-        handoff_summary: "",
-      });
+      await getContainer().workflowRunService.completeStepExecution(
+        execution.id,
+        {
+          transition: "failure",
+          reason: "Manually rejected",
+          handoff_summary: "",
+        },
+      );
 
-      const updatedRun = container.workflowRunService.getWorkflowRun(run.id);
+      const updatedRun = getContainer().workflowRunService.getWorkflowRun(
+        run.id,
+      );
       expect(updatedRun?.status).toBe("failure");
     });
   });
@@ -2540,7 +2665,7 @@ workflows:
         SIMPLE_WORKFLOW_CONFIG,
       );
       const repoPath = await makeFakeGitRepo();
-      const run = await container.workflowRunService.createWorkflowRun({
+      const run = await getContainer().workflowRunService.createWorkflowRun({
         repository_path: repoPath,
         worktree_branch: "feat/test",
         workflow_name: "my-flow",
@@ -2563,11 +2688,11 @@ workflows:
         status: "awaiting_input",
       });
 
-      expect(container.workflowRunService.getWorkflowRun(run.id)?.status).toBe(
-        "awaiting",
-      );
+      expect(
+        getContainer().workflowRunService.getWorkflowRun(run.id)?.status,
+      ).toBe("awaiting");
 
-      const stopped = await container.workflowRunService.stopWorkflowRun(
+      const stopped = await getContainer().workflowRunService.stopWorkflowRun(
         run.id,
       );
       expect(stopped.status).toBe("failure");
@@ -2580,20 +2705,22 @@ workflows:
         APPROVAL_WORKFLOW_CONFIG,
       );
       const repoPath = await makeFakeGitRepo();
-      const run = await container.workflowRunService.createWorkflowRun({
+      const run = await getContainer().workflowRunService.createWorkflowRun({
         repository_path: repoPath,
         worktree_branch: "feat/test",
         workflow_name: "approval-flow",
       });
 
-      expect(container.workflowRunService.getWorkflowRun(run.id)?.status).toBe(
-        "awaiting",
-      );
+      expect(
+        getContainer().workflowRunService.getWorkflowRun(run.id)?.status,
+      ).toBe("awaiting");
 
       // Run recovery — awaiting runs should NOT be failed
-      await container.workflowRunService.recoverCrashedWorkflowRuns();
+      await getContainer().workflowRunService.recoverCrashedWorkflowRuns();
 
-      const recoveredRun = container.workflowRunService.getWorkflowRun(run.id);
+      const recoveredRun = getContainer().workflowRunService.getWorkflowRun(
+        run.id,
+      );
       expect(recoveredRun?.status).toBe("awaiting");
       expect(recoveredRun?.current_step).toBe("review");
     });
@@ -2603,18 +2730,18 @@ workflows:
         SIMPLE_WORKFLOW_CONFIG,
       );
       const repoPath = await makeFakeGitRepo();
-      const malformedRun = await container.workflowRunService.createWorkflowRun(
-        {
+      const malformedRun =
+        await getContainer().workflowRunService.createWorkflowRun({
           repository_path: repoPath,
           worktree_branch: "feat/test",
           workflow_name: "my-flow",
-        },
-      );
-      const validRun = await container.workflowRunService.createWorkflowRun({
-        repository_path: repoPath,
-        worktree_branch: "feat/test",
-        workflow_name: "my-flow",
-      });
+        });
+      const validRun =
+        await getContainer().workflowRunService.createWorkflowRun({
+          repository_path: repoPath,
+          worktree_branch: "feat/test",
+          workflow_name: "my-flow",
+        });
 
       const malformedExecution = db
         .prepare("SELECT id FROM step_executions WHERE workflow_run_id = ?")
@@ -2645,17 +2772,19 @@ workflows:
       );
 
       await expect(
-        container.workflowRunService.recoverCrashedWorkflowRuns(),
+        getContainer().workflowRunService.recoverCrashedWorkflowRuns(),
       ).resolves.toBeUndefined();
 
       expect(
-        container.workflowRunService.getWorkflowRun(malformedRun.id)?.status,
+        getContainer().workflowRunService.getWorkflowRun(malformedRun.id)
+          ?.status,
       ).toBe("failure");
       expect(
-        container.workflowRunService.getWorkflowRun(validRun.id)?.current_step,
+        getContainer().workflowRunService.getWorkflowRun(validRun.id)
+          ?.current_step,
       ).toBe("implement");
       expect(
-        container.workflowRunService.getWorkflowRun(validRun.id)?.status,
+        getContainer().workflowRunService.getWorkflowRun(validRun.id)?.status,
       ).toBe("running");
     });
   });
@@ -2666,19 +2795,19 @@ workflows:
         APPROVAL_WORKFLOW_CONFIG,
       );
       const repoPath = await makeFakeGitRepo();
-      await container.workflowRunService.createWorkflowRun({
+      await getContainer().workflowRunService.createWorkflowRun({
         repository_path: repoPath,
         worktree_branch: "feat/test",
         workflow_name: "approval-flow",
       });
 
-      const awaitingRuns = container.workflowRunService.listWorkflowRuns({
+      const awaitingRuns = getContainer().workflowRunService.listWorkflowRuns({
         status: "awaiting",
       });
       expect(awaitingRuns).toHaveLength(1);
       expect(awaitingRuns[0].status).toBe("awaiting");
 
-      const runningRuns = container.workflowRunService.listWorkflowRuns({
+      const runningRuns = getContainer().workflowRunService.listWorkflowRuns({
         status: "running",
       });
       expect(runningRuns).toHaveLength(0);
@@ -2693,7 +2822,7 @@ describe("step-execution status", () => {
         SIMPLE_WORKFLOW_CONFIG,
       );
       const repoPath = await makeFakeGitRepo();
-      const run = await container.workflowRunService.createWorkflowRun({
+      const run = await getContainer().workflowRunService.createWorkflowRun({
         repository_path: repoPath,
         worktree_branch: "feat/test",
         workflow_name: "my-flow",
@@ -2726,7 +2855,7 @@ workflows:
 `;
       process.env.AITM_CONFIG_PATH = await writeTempConfig(APPROVAL_CONFIG);
       const repoPath = await makeFakeGitRepo();
-      const run = await container.workflowRunService.createWorkflowRun({
+      const run = await getContainer().workflowRunService.createWorkflowRun({
         repository_path: repoPath,
         worktree_branch: "feat/test",
         workflow_name: "approval-flow",
@@ -2743,7 +2872,7 @@ workflows:
         SIMPLE_WORKFLOW_CONFIG,
       );
       const repoPath = await makeFakeGitRepo();
-      const run = await container.workflowRunService.createWorkflowRun({
+      const run = await getContainer().workflowRunService.createWorkflowRun({
         repository_path: repoPath,
         worktree_branch: "feat/test",
         workflow_name: "my-flow",
@@ -2777,7 +2906,7 @@ workflows:
         SIMPLE_WORKFLOW_CONFIG,
       );
       const repoPath = await makeFakeGitRepo();
-      const run = await container.workflowRunService.createWorkflowRun({
+      const run = await getContainer().workflowRunService.createWorkflowRun({
         repository_path: repoPath,
         worktree_branch: "feat/test",
         workflow_name: "my-flow",
@@ -2821,7 +2950,7 @@ workflows:
         SIMPLE_WORKFLOW_CONFIG,
       );
       const repoPath = await makeFakeGitRepo();
-      const run = await container.workflowRunService.createWorkflowRun({
+      const run = await getContainer().workflowRunService.createWorkflowRun({
         repository_path: repoPath,
         worktree_branch: "feat/test",
         workflow_name: "my-flow",
@@ -2831,11 +2960,14 @@ workflows:
         .prepare("SELECT * FROM step_executions WHERE workflow_run_id = ?")
         .get(run.id) as { id: string };
 
-      await container.workflowRunService.completeStepExecution(execution.id, {
-        transition: "implement",
-        reason: "Plan done",
-        handoff_summary: "Wrote PLAN.md",
-      });
+      await getContainer().workflowRunService.completeStepExecution(
+        execution.id,
+        {
+          transition: "implement",
+          reason: "Plan done",
+          handoff_summary: "Wrote PLAN.md",
+        },
+      );
 
       const updatedExecution = db
         .prepare("SELECT * FROM step_executions WHERE id = ?")
@@ -2848,7 +2980,7 @@ workflows:
         SIMPLE_WORKFLOW_CONFIG,
       );
       const repoPath = await makeFakeGitRepo();
-      const run = await container.workflowRunService.createWorkflowRun({
+      const run = await getContainer().workflowRunService.createWorkflowRun({
         repository_path: repoPath,
         worktree_branch: "feat/test",
         workflow_name: "my-flow",
@@ -2858,7 +2990,7 @@ workflows:
         .prepare("SELECT * FROM step_executions WHERE workflow_run_id = ?")
         .get(run.id) as { id: string };
 
-      await container.workflowRunService.completeStepExecution(
+      await getContainer().workflowRunService.completeStepExecution(
         execution.id,
         null,
       );
@@ -2874,7 +3006,7 @@ workflows:
         SIMPLE_WORKFLOW_CONFIG,
       );
       const repoPath = await makeFakeGitRepo();
-      const run = await container.workflowRunService.createWorkflowRun({
+      const run = await getContainer().workflowRunService.createWorkflowRun({
         repository_path: repoPath,
         worktree_branch: "feat/test",
         workflow_name: "my-flow",
@@ -2884,11 +3016,14 @@ workflows:
         .prepare("SELECT * FROM step_executions WHERE workflow_run_id = ?")
         .get(run.id) as { id: string };
 
-      await container.workflowRunService.completeStepExecution(execution.id, {
-        transition: "failure",
-        reason: "Blocked",
-        handoff_summary: "Cannot proceed",
-      });
+      await getContainer().workflowRunService.completeStepExecution(
+        execution.id,
+        {
+          transition: "failure",
+          reason: "Blocked",
+          handoff_summary: "Cannot proceed",
+        },
+      );
 
       const updatedExecution = db
         .prepare("SELECT * FROM step_executions WHERE id = ?")
@@ -2901,7 +3036,7 @@ workflows:
         SIMPLE_WORKFLOW_CONFIG,
       );
       const repoPath = await makeFakeGitRepo();
-      const run = await container.workflowRunService.createWorkflowRun({
+      const run = await getContainer().workflowRunService.createWorkflowRun({
         repository_path: repoPath,
         worktree_branch: "feat/test",
         workflow_name: "my-flow",
@@ -2911,11 +3046,14 @@ workflows:
         .prepare("SELECT * FROM step_executions WHERE workflow_run_id = ?")
         .get(run.id) as { id: string };
 
-      await container.workflowRunService.completeStepExecution(execution.id, {
-        transition: "success",
-        reason: "Done",
-        handoff_summary: "All done",
-      });
+      await getContainer().workflowRunService.completeStepExecution(
+        execution.id,
+        {
+          transition: "success",
+          reason: "Done",
+          handoff_summary: "All done",
+        },
+      );
 
       const updatedExecution = db
         .prepare("SELECT * FROM step_executions WHERE id = ?")
@@ -2928,7 +3066,7 @@ workflows:
         SIMPLE_WORKFLOW_CONFIG,
       );
       const repoPath = await makeFakeGitRepo();
-      const run = await container.workflowRunService.createWorkflowRun({
+      const run = await getContainer().workflowRunService.createWorkflowRun({
         repository_path: repoPath,
         worktree_branch: "feat/test",
         workflow_name: "my-flow",
@@ -2945,7 +3083,7 @@ workflows:
         session.id,
       );
 
-      await container.workflowRunService.recoverCrashedWorkflowRuns();
+      await getContainer().workflowRunService.recoverCrashedWorkflowRuns();
 
       // The original crashed execution should be closed with 'failed' status
       const closedExecution = db
@@ -2963,7 +3101,7 @@ workflows:
         SIMPLE_WORKFLOW_CONFIG,
       );
       const repoPath = await makeFakeGitRepo();
-      const run = await container.workflowRunService.createWorkflowRun({
+      const run = await getContainer().workflowRunService.createWorkflowRun({
         repository_path: repoPath,
         worktree_branch: "feat/test",
         workflow_name: "my-flow",
@@ -3005,7 +3143,7 @@ workflows:
 `;
       process.env.AITM_CONFIG_PATH = await writeTempConfig(APPROVAL_CONFIG);
       const repoPath = await makeFakeGitRepo();
-      const run = await container.workflowRunService.createWorkflowRun({
+      const run = await getContainer().workflowRunService.createWorkflowRun({
         repository_path: repoPath,
         worktree_branch: "feat/test",
         workflow_name: "approval-flow",
@@ -3050,7 +3188,7 @@ workflows:
         SIMPLE_WORKFLOW_CONFIG,
       );
       const repoPath = await makeFakeGitRepo();
-      const run = await container.workflowRunService.createWorkflowRun({
+      const run = await getContainer().workflowRunService.createWorkflowRun({
         repository_path: repoPath,
         worktree_branch: "feat/test",
         workflow_name: "my-flow",
@@ -3089,7 +3227,7 @@ workflows:
         SIMPLE_WORKFLOW_CONFIG,
       );
       const repoPath = await makeFakeGitRepo();
-      const run = await container.workflowRunService.createWorkflowRun({
+      const run = await getContainer().workflowRunService.createWorkflowRun({
         repository_path: repoPath,
         worktree_branch: "feat/test",
         workflow_name: "my-flow",
@@ -3139,7 +3277,7 @@ workflows:
         SIMPLE_WORKFLOW_CONFIG,
       );
       const repoPath = await makeFakeGitRepo();
-      const run = await container.workflowRunService.createWorkflowRun({
+      const run = await getContainer().workflowRunService.createWorkflowRun({
         repository_path: repoPath,
         worktree_branch: "feat/test",
         workflow_name: "my-flow",
@@ -3151,11 +3289,14 @@ workflows:
 
       const emitSpy = vi.spyOn(eventBus, "emit");
 
-      await container.workflowRunService.completeStepExecution(execution.id, {
-        transition: "implement",
-        reason: "Plan done",
-        handoff_summary: "Wrote PLAN.md",
-      });
+      await getContainer().workflowRunService.completeStepExecution(
+        execution.id,
+        {
+          transition: "implement",
+          reason: "Plan done",
+          handoff_summary: "Wrote PLAN.md",
+        },
+      );
 
       expect(emitSpy).toHaveBeenCalledWith(
         "step-execution.status-changed",
@@ -3172,7 +3313,7 @@ workflows:
         SIMPLE_WORKFLOW_CONFIG,
       );
       const repoPath = await makeFakeGitRepo();
-      const run = await container.workflowRunService.createWorkflowRun({
+      const run = await getContainer().workflowRunService.createWorkflowRun({
         repository_path: repoPath,
         worktree_branch: "feat/test",
         workflow_name: "my-flow",
@@ -3184,7 +3325,7 @@ workflows:
 
       const emitSpy = vi.spyOn(eventBus, "emit");
 
-      await container.workflowRunService.completeStepExecution(
+      await getContainer().workflowRunService.completeStepExecution(
         execution.id,
         null,
       );
@@ -3206,7 +3347,7 @@ workflows:
         SIMPLE_WORKFLOW_CONFIG,
       );
       const repoPath = await makeFakeGitRepo();
-      const run = await container.workflowRunService.createWorkflowRun({
+      const run = await getContainer().workflowRunService.createWorkflowRun({
         repository_path: repoPath,
         worktree_branch: "feat/test",
         workflow_name: "my-flow",
@@ -3229,7 +3370,9 @@ workflows:
         status: "awaiting_input",
       });
 
-      const updatedRun = container.workflowRunService.getWorkflowRun(run.id);
+      const updatedRun = getContainer().workflowRunService.getWorkflowRun(
+        run.id,
+      );
       expect(updatedRun?.status).toBe("awaiting");
     });
 
@@ -3238,7 +3381,7 @@ workflows:
         SIMPLE_WORKFLOW_CONFIG,
       );
       const repoPath = await makeFakeGitRepo();
-      const run = await container.workflowRunService.createWorkflowRun({
+      const run = await getContainer().workflowRunService.createWorkflowRun({
         repository_path: repoPath,
         worktree_branch: "feat/test",
         workflow_name: "my-flow",
@@ -3264,9 +3407,9 @@ workflows:
         status: "awaiting_input",
       });
 
-      expect(container.workflowRunService.getWorkflowRun(run.id)?.status).toBe(
-        "awaiting",
-      );
+      expect(
+        getContainer().workflowRunService.getWorkflowRun(run.id)?.status,
+      ).toBe("awaiting");
     });
 
     it("sets workflow run back to 'running' when step-execution status changes to 'running'", async () => {
@@ -3274,7 +3417,7 @@ workflows:
         SIMPLE_WORKFLOW_CONFIG,
       );
       const repoPath = await makeFakeGitRepo();
-      const run = await container.workflowRunService.createWorkflowRun({
+      const run = await getContainer().workflowRunService.createWorkflowRun({
         repository_path: repoPath,
         worktree_branch: "feat/test",
         workflow_name: "my-flow",
@@ -3296,9 +3439,9 @@ workflows:
         sessionId: session.id,
         status: "awaiting_input",
       });
-      expect(container.workflowRunService.getWorkflowRun(run.id)?.status).toBe(
-        "awaiting",
-      );
+      expect(
+        getContainer().workflowRunService.getWorkflowRun(run.id)?.status,
+      ).toBe("awaiting");
 
       // Resume
       db.prepare("UPDATE sessions SET status = 'running' WHERE id = ?").run(
@@ -3310,9 +3453,9 @@ workflows:
         status: "running",
       });
 
-      expect(container.workflowRunService.getWorkflowRun(run.id)?.status).toBe(
-        "running",
-      );
+      expect(
+        getContainer().workflowRunService.getWorkflowRun(run.id)?.status,
+      ).toBe("running");
     });
   });
 });

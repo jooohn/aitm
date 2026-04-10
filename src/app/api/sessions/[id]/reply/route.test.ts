@@ -4,7 +4,7 @@ import { NextRequest } from "next/server";
 import { tmpdir } from "os";
 import { join } from "path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import * as container from "@/backend/container";
+import { getContainer, initializeContainer } from "@/backend/container";
 import { db } from "@/backend/infra/db";
 import { setupTestConfigDir, writeTestConfig } from "@/test-config-helper";
 import { POST } from "./route";
@@ -25,12 +25,14 @@ function makeParams(id: string): { params: Promise<{ id: string }> } {
 beforeEach(async () => {
   const configFile = await setupTestConfigDir();
   await writeTestConfig(configFile, "workflows: {}\n");
-  container.initializeContainer();
+  initializeContainer();
   db.prepare("DELETE FROM sessions").run();
-  vi.spyOn(container.agentService, "startAgent").mockResolvedValue();
-  vi.spyOn(container.agentService, "resumeAgent").mockResolvedValue();
-  vi.spyOn(container.agentService, "cancelAgent").mockImplementation(() => {});
-  vi.spyOn(container.worktreeService, "listWorktrees").mockImplementation(
+  vi.spyOn(getContainer().agentService, "startAgent").mockResolvedValue();
+  vi.spyOn(getContainer().agentService, "resumeAgent").mockResolvedValue();
+  vi.spyOn(getContainer().agentService, "cancelAgent").mockImplementation(
+    () => {},
+  );
+  vi.spyOn(getContainer().worktreeService, "listWorktrees").mockImplementation(
     async (repoPath) => [
       {
         branch: "feat/test",
@@ -45,7 +47,7 @@ beforeEach(async () => {
 
 describe("POST /api/sessions/:id/reply", () => {
   it("returns 200 and calls resumeAgent for AWAITING_INPUT session", async () => {
-    const session = await container.sessionService.createSession({
+    const session = await getContainer().sessionService.createSession({
       repository_path: await makeFakeGitRepo(),
       worktree_branch: "feat/test",
       goal: "Do something",
@@ -65,7 +67,7 @@ describe("POST /api/sessions/:id/reply", () => {
     );
 
     expect(res.status).toBe(200);
-    expect(container.agentService.resumeAgent).toHaveBeenCalledWith(
+    expect(getContainer().agentService.resumeAgent).toHaveBeenCalledWith(
       session.id,
       "Use PostgreSQL",
       session.repository_path,
@@ -90,7 +92,7 @@ describe("POST /api/sessions/:id/reply", () => {
   });
 
   it("returns 422 when session is not AWAITING_INPUT", async () => {
-    const session = await container.sessionService.createSession({
+    const session = await getContainer().sessionService.createSession({
       repository_path: await makeFakeGitRepo(),
       worktree_branch: "feat/test",
       goal: "Do something",
@@ -110,7 +112,7 @@ describe("POST /api/sessions/:id/reply", () => {
   });
 
   it("returns 400 when message is missing", async () => {
-    const session = await container.sessionService.createSession({
+    const session = await getContainer().sessionService.createSession({
       repository_path: await makeFakeGitRepo(),
       worktree_branch: "feat/test",
       goal: "Do something",

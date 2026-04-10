@@ -4,7 +4,7 @@ import {
   resolveWorktreeFromBranchSlug,
 } from "@/backend/api/request";
 import { processCreateBodySchema } from "@/backend/api/schemas";
-import { processService, repositoryService } from "@/backend/container";
+import { getContainer, processService } from "@/backend/container";
 
 type Params = Promise<{ organization: string; name: string; branch: string }>;
 
@@ -30,6 +30,7 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Params },
 ): Promise<NextResponse> {
+  const { repositoryService } = getContainer();
   const { organization, name, branch } = await params;
   const result = await resolveWorktreeFromBranchSlug({
     organization,

@@ -3,7 +3,7 @@ import { NextRequest } from "next/server";
 import { tmpdir } from "os";
 import { join } from "path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import * as container from "@/backend/container";
+import { getContainer, initializeContainer } from "@/backend/container";
 import { db } from "@/backend/infra/db";
 import { inferAlias } from "@/lib/utils/inferAlias";
 import { setupTestConfigDir, writeTestConfig } from "@/test-config-helper";
@@ -26,11 +26,12 @@ async function setupConfig(repoPaths: string[] = []) {
     ? `repositories:\n${repoLines}\n`
     : "repositories: []\n";
   await writeTestConfig(configFile, fullContent);
-  container.initializeContainer();
+  initializeContainer();
 }
 
 beforeEach(async () => {
   configFile = await setupTestConfigDir();
+  getContainer(); // ensure tables exist via lazy init
   db.prepare("DELETE FROM chat_proposals").run();
   db.prepare("DELETE FROM chats").run();
   vi.restoreAllMocks();

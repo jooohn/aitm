@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { toChatDetailDto } from "@/backend/api/dto";
 import { errorResponse } from "@/backend/api/error-response";
-import { chatService } from "@/backend/container";
+import { getContainer } from "@/backend/container";
 
 type Params = Promise<{ id: string }>;
 
@@ -10,6 +10,7 @@ export async function POST(
   { params }: { params: Params },
 ): Promise<NextResponse> {
   try {
+    const { chatService } = getContainer();
     const { id } = await params;
     const body = await request.json();
     const { message } = body;

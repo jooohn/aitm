@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { errorResponse } from "@/backend/api/error-response";
-import { processService, repositoryService } from "@/backend/container";
+import { getContainer, processService } from "@/backend/container";
 
 type Params = Promise<{
   organization: string;
@@ -13,6 +13,7 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: Params },
 ): Promise<NextResponse> {
+  const { repositoryService } = getContainer();
   const { organization, name, processId } = await params;
   const repo = await repositoryService.getRepositoryByAlias(
     `${organization}/${name}`,
@@ -36,6 +37,7 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: Params },
 ): Promise<NextResponse> {
+  const { repositoryService } = getContainer();
   const { organization, name, processId } = await params;
   const repo = await repositoryService.getRepositoryByAlias(
     `${organization}/${name}`,
