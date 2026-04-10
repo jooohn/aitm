@@ -75,10 +75,12 @@ describe("useNotificationRevalidation", () => {
     });
 
     expect(mutate).toHaveBeenCalledTimes(1);
-    const [selectorArg, dataArg, optionsArg] = mutate.mock.calls[0];
-    expect(typeof selectorArg).toBe("function");
-    expect(dataArg).toBeUndefined();
-    expect(optionsArg).toEqual({ revalidate: true });
+    // mutate should be called with only the selector — no data arg or options.
+    // Passing `undefined` as the second arg clears the cache, which causes
+    // a flash of loading state. Omitting it triggers revalidation while
+    // keeping existing cached data visible.
+    expect(mutate).toHaveBeenCalledWith(expect.any(Function));
+    const [selectorArg] = mutate.mock.calls[0];
 
     // Matches workflow-run list keys
     expect(selectorArg(["/api/workflow-runs"])).toBe(true);
