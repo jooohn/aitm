@@ -1,14 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { toSessionDto } from "@/backend/api/dto";
+import { errorResponse } from "@/backend/api/error-response";
 import { repositoryService, sessionService } from "@/backend/container";
 import type { SessionStatus } from "@/backend/domain/sessions";
-
-function errorResponse(err: unknown): NextResponse {
-  const message = err instanceof Error ? err.message : "Internal server error";
-  if (message.includes("not found"))
-    return NextResponse.json({ error: message }, { status: 404 });
-  return NextResponse.json({ error: message }, { status: 500 });
-}
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {

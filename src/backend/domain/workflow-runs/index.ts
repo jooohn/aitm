@@ -6,6 +6,7 @@ import type { EventBus } from "@/backend/infra/event-bus";
 import { logger } from "@/backend/infra/logger";
 import { spawnAsync } from "@/backend/utils/process";
 import type { TransitionDecision } from "../agent";
+import { NotFoundError, ValidationError } from "../errors";
 import type { SessionService, SessionStatus } from "../sessions";
 import {
   resolveArtifactBasePath,
@@ -171,8 +172,7 @@ export class WorkflowRunService {
   async createWorkflowRun(input: CreateWorkflowRunInput): Promise<WorkflowRun> {
     const workflows = this.workflows;
     const workflow = workflows[input.workflow_name];
-    if (!workflow)
-      throw new Error(`Workflow not found: ${input.workflow_name}`);
+    if (!workflow) throw new NotFoundError("Workflow", input.workflow_name);
 
     // Validate required inputs.
     if (workflow.inputs) {
@@ -181,7 +181,7 @@ export class WorkflowRunService {
         if (required) {
           const value = input.inputs?.[inputDef.name];
           if (!value || value.trim() === "") {
-            throw new Error(
+            throw new ValidationError(
               `Missing required input: ${inputDef.label ?? inputDef.name}`,
             );
           }
@@ -293,16 +293,18 @@ export class WorkflowRunService {
 
   async stopWorkflowRun(id: string): Promise<WorkflowRunWithExecutions> {
     const run = this.workflowRunRepository.getWorkflowRunById(id);
-    if (!run) throw new Error("Workflow run not found");
+    if (!run) throw new NotFoundError("Workflow run");
     if (run.status !== "running" && run.status !== "awaiting") {
-      throw new Error("Workflow run is already in a terminal state");
+      throw new ValidationError("Workflow run is already in a terminal state");
     }
 
     const activeExecution =
       this.workflowRunRepository.getActiveStepExecution(id);
 
     if (!activeExecution?.session_id) {
-      throw new Error("No active session to stop for this workflow run");
+      throw new ValidationError(
+        "No active session to stop for this workflow run",
+      );
     }
 
     if (activeExecution.session_status === "running") {
@@ -337,10 +339,10 @@ export class WorkflowRunService {
 
   async rerunWorkflowRun(id: string): Promise<WorkflowRun> {
     const run = this.workflowRunRepository.getWorkflowRunById(id);
-    if (!run) throw new Error("Workflow run not found");
+    if (!run) throw new NotFoundError("Workflow run");
 
     if (run.status !== "failure" && run.status !== "success") {
-      throw new Error("Only completed workflow runs can be re-run");
+      throw new ValidationError("Only completed workflow runs can be re-run");
     }
 
     const worktrees = await this.worktreeService.listWorktrees(
@@ -348,7 +350,7 @@ export class WorkflowRunService {
     );
     const worktree = worktrees.find((w) => w.branch === run.worktree_branch);
     if (!worktree) {
-      throw new Error(`Worktree not found for branch: ${run.worktree_branch}`);
+      throw new NotFoundError("Worktree", run.worktree_branch);
     }
 
     try {

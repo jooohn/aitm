@@ -4,6 +4,7 @@ import type { ConfigRepositoryCommand } from "@/backend/infra/config";
 import type { EventBus } from "@/backend/infra/event-bus";
 import { logger } from "@/backend/infra/logger";
 import { sanitizeChildEnv } from "@/backend/utils/process";
+import { NotFoundError } from "../errors";
 
 export type ProcessStatus = "running" | "stopped" | "crashed";
 
@@ -156,7 +157,7 @@ export class ProcessService {
   async stopProcess(id: string): Promise<ProcessInfo> {
     const managed = this.processes.get(id);
     if (!managed) {
-      throw new Error(`Process ${id} not found`);
+      throw new NotFoundError("Process", id);
     }
 
     if (managed.info.status !== "running") {
@@ -233,7 +234,7 @@ export class ProcessService {
   getOutput(id: string): string[] {
     const managed = this.processes.get(id);
     if (!managed) {
-      throw new Error(`Process ${id} not found`);
+      throw new NotFoundError("Process", id);
     }
     return [...managed.output];
   }

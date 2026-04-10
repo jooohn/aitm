@@ -22,6 +22,7 @@ import type {
   OutputFormat,
 } from "../agent/runtime";
 import type { BranchNameService } from "../branch-name";
+import { ConflictError, NotFoundError } from "../errors";
 import type { WorkflowRunService } from "../workflow-runs";
 import type { WorktreeService } from "../worktrees";
 import type { ChatRepository } from "./chat-repository";
@@ -245,9 +246,9 @@ export class ChatService {
 
   async sendMessage(chatId: string, message: string): Promise<void> {
     const chat = this.chatRepository.getChat(chatId);
-    if (!chat) throw new Error(`Chat not found: ${chatId}`);
+    if (!chat) throw new NotFoundError("Chat", chatId);
     if (chat.status === "running") {
-      throw new Error(`Chat ${chatId} is already running`);
+      throw new ConflictError(`Chat ${chatId} is already running`);
     }
 
     const now = new Date().toISOString();
@@ -286,14 +287,16 @@ export class ChatService {
     overrides?: { workflow_name?: string; inputs?: Record<string, string> },
   ): Promise<{ workflowRunId: string }> {
     const chat = this.chatRepository.getChat(chatId);
-    if (!chat) throw new Error(`Chat not found: ${chatId}`);
+    if (!chat) throw new NotFoundError("Chat", chatId);
 
     const proposal = this.chatRepository.getProposal(proposalId);
-    if (!proposal) throw new Error(`Proposal not found: ${proposalId}`);
+    if (!proposal) throw new NotFoundError("Proposal", proposalId);
     if (proposal.chat_id !== chatId)
       throw new Error("Proposal does not belong to this chat");
     if (proposal.status !== "pending") {
-      throw new Error(`Proposal ${proposalId} is already ${proposal.status}`);
+      throw new ConflictError(
+        `Proposal ${proposalId} is already ${proposal.status}`,
+      );
     }
 
     const workflowName = overrides?.workflow_name ?? proposal.workflow_name;
@@ -352,14 +355,16 @@ export class ChatService {
     reason?: string,
   ): Promise<void> {
     const chat = this.chatRepository.getChat(chatId);
-    if (!chat) throw new Error(`Chat not found: ${chatId}`);
+    if (!chat) throw new NotFoundError("Chat", chatId);
 
     const proposal = this.chatRepository.getProposal(proposalId);
-    if (!proposal) throw new Error(`Proposal not found: ${proposalId}`);
+    if (!proposal) throw new NotFoundError("Proposal", proposalId);
     if (proposal.chat_id !== chatId)
       throw new Error("Proposal does not belong to this chat");
     if (proposal.status !== "pending") {
-      throw new Error(`Proposal ${proposalId} is already ${proposal.status}`);
+      throw new ConflictError(
+        `Proposal ${proposalId} is already ${proposal.status}`,
+      );
     }
 
     const now = new Date().toISOString();

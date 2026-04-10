@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { errorResponse } from "@/backend/api/error-response";
 import { processService, repositoryService } from "@/backend/container";
 
 type Params = Promise<{
@@ -50,11 +51,6 @@ export async function DELETE(
     const process = await processService.stopProcess(processId);
     return NextResponse.json(process);
   } catch (err) {
-    const message =
-      err instanceof Error ? err.message : "Internal server error";
-    if (message.includes("not found")) {
-      return NextResponse.json({ error: message }, { status: 404 });
-    }
-    return NextResponse.json({ error: message }, { status: 500 });
+    return errorResponse(err);
   }
 }

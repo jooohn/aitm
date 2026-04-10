@@ -1,19 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { errorResponse } from "@/backend/api/error-response";
 import { repositoryService, worktreeService } from "@/backend/container";
 import { eventBus } from "@/backend/infra/event-bus";
 
 type Params = Promise<{ organization: string; name: string }>;
-
-function errorResponse(err: unknown): NextResponse {
-  const message = err instanceof Error ? err.message : "Internal server error";
-  if (message.includes("not found"))
-    return NextResponse.json({ error: message }, { status: 404 });
-  if (message.includes("is the main worktree"))
-    return NextResponse.json({ error: message }, { status: 422 });
-  if (message.includes("git-worktree-runner is not installed"))
-    return NextResponse.json({ error: message }, { status: 503 });
-  return NextResponse.json({ error: message }, { status: 500 });
-}
 
 export async function GET(
   _request: NextRequest,
