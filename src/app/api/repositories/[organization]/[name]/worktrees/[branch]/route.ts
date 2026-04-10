@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
+  processService,
   repositoryService,
   sessionService,
   worktreeService,
@@ -46,6 +47,7 @@ export async function DELETE(
       );
     }
     const branchName = worktree.branch;
+    await processService.stopAllForWorktree(worktree.path, branchName);
     await worktreeService.removeWorktree(repo.path, branchName);
     await sessionService.deleteWorktreeData(repo.path, [branchName]);
     eventBus.emit("worktree.changed", {

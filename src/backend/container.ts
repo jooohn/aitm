@@ -5,6 +5,7 @@ import { BranchNameService } from "@/backend/domain/branch-name";
 import { ChatService } from "@/backend/domain/chats";
 import { ChatRepository } from "@/backend/domain/chats/chat-repository";
 import { HouseKeepingService } from "@/backend/domain/house-keeping";
+import { ProcessService } from "@/backend/domain/processes";
 import { RepositoryService } from "@/backend/domain/repositories";
 import { SessionService } from "@/backend/domain/sessions";
 import { SessionRepository } from "@/backend/domain/sessions/session-repository";
@@ -28,6 +29,10 @@ function shouldUseDefaultConfigOnBootstrap(): boolean {
     process.env.NEXT_PHASE === "phase-production-build"
   );
 }
+
+// ProcessService is a module-level singleton that survives container rebuilds,
+// since it holds live child process references that would be orphaned otherwise.
+export const processService = new ProcessService(eventBus);
 
 export let config: ConfigSnapshot;
 export let workflowRunRepository: WorkflowRunRepository;

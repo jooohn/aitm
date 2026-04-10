@@ -1,4 +1,5 @@
 import type { TransitionDecision } from "@/backend/domain/agent";
+import type { ProcessStatus } from "@/backend/domain/processes";
 import type { SessionStatus } from "@/backend/domain/sessions";
 import type {
   StepExecutionStatus,
@@ -51,6 +52,14 @@ export interface EventMap {
     status: WorkflowRunStatus;
   };
   "worktree.changed": RepositoryContext;
+  "process.status-changed": {
+    processId: string;
+    worktreeBranch: string;
+    worktreePath: string;
+    status: ProcessStatus;
+    repositoryOrganization: string;
+    repositoryName: string;
+  };
 }
 
 type Listener<K extends keyof EventMap> = (payload: EventMap[K]) => void;

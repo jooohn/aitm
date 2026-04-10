@@ -3,6 +3,7 @@ import type {
   ChatDetailDto,
   ChatDto,
   ChatProposalDto,
+  ProcessDto,
   RepositoryDetailDto,
   RepositoryDto,
   SessionDto,
@@ -14,6 +15,8 @@ import type {
   WorktreeDto,
 } from "@/shared/contracts/api";
 
+export type Process = ProcessDto;
+export type ProcessStatus = ProcessDto["status"];
 export type Chat = ChatDto;
 export type ChatDetail = ChatDetailDto;
 export type ChatProposal = ChatProposalDto;
@@ -302,4 +305,49 @@ export function rejectChatProposal(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ reason }),
   });
+}
+
+// -- Processes --
+
+function processBasePath(
+  organization: string,
+  name: string,
+  branch: string,
+): string {
+  return `/api/repositories/${organization}/${name}/worktrees/${branchToSlug(branch)}/processes`;
+}
+
+export function fetchProcesses(
+  organization: string,
+  name: string,
+  branch: string,
+): Promise<Process[]> {
+  return apiFetch(processBasePath(organization, name, branch));
+}
+
+export function startProcess(
+  organization: string,
+  name: string,
+  branch: string,
+  command: string,
+): Promise<Process> {
+  return apiFetch(processBasePath(organization, name, branch), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ command }),
+  });
+}
+
+export function stopProcess(
+  organization: string,
+  name: string,
+  branch: string,
+  processId: string,
+): Promise<Process> {
+  return apiFetch(
+    `${processBasePath(organization, name, branch)}/${processId}`,
+    {
+      method: "DELETE",
+    },
+  );
 }

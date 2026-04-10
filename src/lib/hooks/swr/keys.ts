@@ -22,4 +22,6 @@ export const swrKeys = {
   session: (id: string) => ["/api/sessions", id] as const,
   chats: (org: string, name: string) => ["/api/chats", org, name] as const,
   chat: (id: string) => ["/api/chats", id] as const,
+  processes: (org: string, name: string, branch: string) =>
+    ["/api/repositories", org, name, "worktrees", branch, "processes"] as const,
 };

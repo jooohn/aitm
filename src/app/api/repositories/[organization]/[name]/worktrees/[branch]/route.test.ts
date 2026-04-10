@@ -16,6 +16,7 @@ function makeParams(
 let deleteWorktreeDataSpy: ReturnType<typeof vi.spyOn>;
 let removeWorktreeSpy: ReturnType<typeof vi.spyOn>;
 let listWorktreesSpy: ReturnType<typeof vi.spyOn>;
+let stopAllForWorktreeSpy: ReturnType<typeof vi.spyOn>;
 let getRepositoryByAliasSpy: ReturnType<typeof vi.spyOn>;
 
 beforeEach(() => {
@@ -28,6 +29,9 @@ beforeEach(() => {
   listWorktreesSpy = vi
     .spyOn(container.worktreeService, "listWorktrees")
     .mockResolvedValue([]);
+  stopAllForWorktreeSpy = vi
+    .spyOn(container.processService, "stopAllForWorktree")
+    .mockResolvedValue();
   getRepositoryByAliasSpy = vi.spyOn(
     container.repositoryService,
     "getRepositoryByAlias",
@@ -78,6 +82,10 @@ describe("DELETE /api/repositories/:organization/:name/worktrees/[branch]", () =
     expect(deleteWorktreeDataSpy).toHaveBeenCalledWith("/repo/path", [
       "feat/test",
     ]);
+    expect(stopAllForWorktreeSpy).toHaveBeenCalledWith(
+      "/repo/path/worktrees/feat/test",
+      "feat/test",
+    );
   });
 
   it("returns 422 when trying to remove the main worktree", async () => {
