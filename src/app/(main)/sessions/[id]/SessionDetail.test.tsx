@@ -132,7 +132,7 @@ describe("SessionDetail – status and updates", () => {
     expect(screen.queryByText("Awaiting input")).not.toBeInTheDocument();
   });
 
-  it("renders replayed user input from the session output stream", async () => {
+  it("renders replayed user input with distinct styling", async () => {
     render(
       <SessionDetail
         session={makeSession({
@@ -150,7 +150,8 @@ describe("SessionDetail – status and updates", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText("You: Use PostgreSQL")).toBeInTheDocument();
+      expect(screen.getByText("You")).toBeInTheDocument();
+      expect(screen.getByText("Use PostgreSQL")).toBeInTheDocument();
     });
   });
 
@@ -185,7 +186,7 @@ describe("SessionDetail – status and updates", () => {
     });
   });
 
-  it("groups consecutive command execution events with the same summary", async () => {
+  it("groups consecutive command execution events into a processing steps summary", async () => {
     render(
       <SessionDetail
         session={makeSession({
@@ -229,9 +230,8 @@ describe("SessionDetail – status and updates", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText("3 Read file")).toBeInTheDocument();
+      expect(screen.getByText(/Processing 3 steps/)).toBeInTheDocument();
     });
-    expect(screen.queryByText("Read file")).not.toBeInTheDocument();
   });
 
   it("preserves streamed output when the same session is revalidated", async () => {
@@ -310,5 +310,145 @@ describe("SessionDetail – status and updates", () => {
     expect(
       screen.getByText("Please confirm the deployment target."),
     ).toBeInTheDocument();
+  });
+});
+
+describe("SessionDetail – processing steps grouping", () => {
+  it("collapses consecutive tool_call and command_execution items into a processing steps summary", async () => {
+    render(
+      <SessionDetail
+        session={makeSession({
+          id: "session-1",
+          status: "running",
+        })}
+      />,
+    );
+
+    await act(async () => {
+      MockEventSource.instances[0].simulateMessage({
+        type: "assistant",
+        message: {
+          content: [{ type: "tool_use", name: "Read" }],
+        },
+      });
+      MockEventSource.instances[0].simulateMessage({
+        type: "event",
+        event_type: "command_execution",
+        detail: {
+          command: "/bin/zsh -lc 'git status --short'",
+          aggregated_output: "",
+          exit_code: 0,
+          status: "completed",
+        },
+      });
+      MockEventSource.instances[0].simulateMessage({
+        type: "assistant",
+        message: {
+          content: [{ type: "tool_use", name: "Bash" }],
+        },
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/Processing 3 steps/)).toBeInTheDocument();
+    });
+  });
+
+  it("shows 'Processed N steps' for completed processing groups followed by conversational items", async () => {
+    render(
+      <SessionDetail
+        session={makeSession({
+          id: "session-1",
+          status: "running",
+        })}
+      />,
+    );
+
+    await act(async () => {
+      MockEventSource.instances[0].simulateMessage({
+        type: "assistant",
+        message: {
+          content: [{ type: "tool_use", name: "Read" }],
+        },
+      });
+      MockEventSource.instances[0].simulateMessage({
+        type: "assistant",
+        message: {
+          content: [{ type: "tool_use", name: "Bash" }],
+        },
+      });
+      // Conversational item breaks the group
+      MockEventSource.instances[0].simulateMessage({
+        type: "assistant",
+        message: {
+          content: [{ type: "text", text: "Here are the results" }],
+        },
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/Processed 2 steps/)).toBeInTheDocument();
+      expect(screen.getByText("Here are the results")).toBeInTheDocument();
+    });
+  });
+
+  it("does not group conversational items into processing steps", async () => {
+    render(
+      <SessionDetail
+        session={makeSession({
+          id: "session-1",
+          status: "running",
+        })}
+      />,
+    );
+
+    await act(async () => {
+      MockEventSource.instances[0].simulateMessage({
+        type: "assistant",
+        message: {
+          content: [{ type: "text", text: "Starting work" }],
+        },
+      });
+      MockEventSource.instances[0].simulateMessage({
+        type: "user_input",
+        message: "Use PostgreSQL",
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Starting work")).toBeInTheDocument();
+      expect(screen.getByText("Use PostgreSQL")).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/Processing/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Processed/)).not.toBeInTheDocument();
+  });
+
+  it("does not render successful result entries", async () => {
+    render(
+      <SessionDetail
+        session={makeSession({
+          id: "session-1",
+          status: "success",
+        })}
+      />,
+    );
+
+    await act(async () => {
+      MockEventSource.instances[0].simulateMessage({
+        type: "assistant",
+        message: {
+          content: [{ type: "text", text: "All done" }],
+        },
+      });
+      MockEventSource.instances[0].simulateMessage({
+        type: "result",
+        subtype: "success",
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("All done")).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/Goal completed/)).not.toBeInTheDocument();
   });
 });

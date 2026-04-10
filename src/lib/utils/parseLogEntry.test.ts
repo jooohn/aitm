@@ -9,11 +9,8 @@ describe("parseLogEntry", () => {
     });
   });
 
-  it("formats result/success", () => {
-    expect(parseLogEntry({ type: "result", subtype: "success" })).toEqual({
-      kind: "text",
-      content: "✓ Goal completed",
-    });
+  it("returns null for result/success (status badge is sufficient)", () => {
+    expect(parseLogEntry({ type: "result", subtype: "success" })).toBeNull();
   });
 
   it("formats result with other subtype", () => {
@@ -32,12 +29,12 @@ describe("parseLogEntry", () => {
     });
   });
 
-  it("formats accepted user input", () => {
+  it("formats accepted user input as a UserInputItem", () => {
     expect(
       parseLogEntry({ type: "user_input", message: "Use PostgreSQL" }),
     ).toEqual({
-      kind: "text",
-      content: "You: Use PostgreSQL",
+      kind: "user_input",
+      content: "Use PostgreSQL",
     });
   });
 
