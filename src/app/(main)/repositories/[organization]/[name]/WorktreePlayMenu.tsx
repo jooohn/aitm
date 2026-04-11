@@ -21,6 +21,7 @@ import {
   resolveWorkflowSuggestions,
 } from "@/lib/utils/workflowSuggestions";
 import styles from "./WorktreePlayMenu.module.css";
+import RunWorkflowModal from "./workflow-runs/RunWorkflowModal";
 
 interface Props {
   organization: string;
@@ -44,6 +45,7 @@ export default function WorktreePlayMenu({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
+  const [showLaunchModal, setShowLaunchModal] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(
@@ -202,7 +204,7 @@ export default function WorktreePlayMenu({
             )}
             <div className={styles.separator} />
             <div className={styles.groupHeading}>Workflows</div>
-            {hasSuggestions ? (
+            {hasSuggestions &&
               suggestions.map((suggestion) => (
                 <button
                   key={suggestion.workflow}
@@ -214,14 +216,30 @@ export default function WorktreePlayMenu({
                 >
                   {suggestion.label}
                 </button>
-              ))
-            ) : (
-              <p className={styles.empty}>No suggested workflows.</p>
-            )}
+              ))}
+            <button
+              type="button"
+              role="menuitem"
+              className={styles.item}
+              disabled={busy}
+              onClick={() => {
+                setOpen(false);
+                setShowLaunchModal(true);
+              }}
+            >
+              Select workflow to run…
+            </button>
             {error && <p className={styles.error}>{error}</p>}
           </div>,
           document.body,
         )}
+      {showLaunchModal && (
+        <RunWorkflowModal
+          onClose={() => setShowLaunchModal(false)}
+          fixedAlias={`${organization}/${name}`}
+          fixedBranch={branch}
+        />
+      )}
     </div>
   );
 }
