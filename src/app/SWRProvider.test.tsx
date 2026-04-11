@@ -2,7 +2,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { cleanup } from "@testing-library/react";
-import useSWR from "swr";
+import useSWR, { useSWRConfig } from "swr";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import SWRProvider from "./SWRProvider";
 
@@ -13,6 +13,23 @@ vi.mock("@/lib/hooks/swr/useNotificationRevalidation", () => ({
 afterEach(cleanup);
 
 describe("SWRProvider", () => {
+  it("sets refreshInterval to 15000 in the global SWR config", () => {
+    let capturedConfig: ReturnType<typeof useSWRConfig> | undefined;
+
+    function ConfigReader() {
+      capturedConfig = useSWRConfig();
+      return null;
+    }
+
+    render(
+      <SWRProvider>
+        <ConfigReader />
+      </SWRProvider>,
+    );
+
+    expect(capturedConfig?.refreshInterval).toBe(15000);
+  });
+
   it("sets keepPreviousData to true in the global SWR config", async () => {
     const fetcher = vi.fn(async (key: string) => {
       return `data-for-${key}`;
