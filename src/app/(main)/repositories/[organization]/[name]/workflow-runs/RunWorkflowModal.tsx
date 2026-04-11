@@ -138,6 +138,12 @@ export default function RunWorkflowModal({
           }
         }
       })
+      .catch((err) => {
+        setSubmitError(
+          err instanceof Error ? err.message : "Failed to load remote branches",
+        );
+        exitImportMode();
+      })
       .finally(() => setRemoteBranchesLoading(false));
   }
 

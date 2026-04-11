@@ -17,6 +17,7 @@ import { WorktreeService } from "@/backend/domain/worktrees";
 import { type ConfigSnapshot, loadConfig } from "@/backend/infra/config";
 import { db } from "@/backend/infra/db";
 import { eventBus } from "@/backend/infra/event-bus";
+import { spawnAsync } from "@/backend/utils/process";
 
 const DEFAULT_CONFIG: ConfigSnapshot = {
   agent: { provider: "claude" },
@@ -75,7 +76,7 @@ function createContainer(cfg: ConfigSnapshot): Container {
     eventBus,
     cfg.agent,
   );
-  const gitHubBranchService = new GitHubBranchService();
+  const gitHubBranchService = new GitHubBranchService(spawnAsync);
   const commandStepExecutor = new CommandStepExecutor();
   const workflowRunService = new WorkflowRunService(
     workflowRunRepository,
