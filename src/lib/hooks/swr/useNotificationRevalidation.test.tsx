@@ -310,6 +310,49 @@ describe("useNotificationRevalidation", () => {
     );
   });
 
+  it("revalidates chat list and chat detail caches for chat.status-changed", async () => {
+    const mutate = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <SWRConfig value={{ mutate }}>
+        <TestComponent />
+      </SWRConfig>,
+    );
+
+    MockEventSource.instances[0].simulateMessage({
+      type: "chat.status-changed",
+      payload: {
+        repositoryOrganization: "org",
+        repositoryName: "repo",
+        chatId: "chat-1",
+        status: "running",
+      },
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(75);
+    });
+
+    expect(mutate).toHaveBeenCalledTimes(1);
+    const selector = selectorFrom(mutate);
+
+    // Matches chat list keys (exact match for /api/chats/org/repo/)
+    expect(selector(["/api/chats", "org", "repo"])).toBe(true);
+
+    // Matches individual chat detail keys (prefix match for /api/chats/chat-1/)
+    expect(selector(["/api/chats", "chat-1"])).toBe(true);
+    expect(selector(["/api/chats", "chat-1", "messages"])).toBe(true);
+
+    // Does not match chats for a different repository
+    expect(selector(["/api/chats", "other-org", "other-repo"])).toBe(false);
+
+    // Does not match a different chat
+    expect(selector(["/api/chats", "chat-other"])).toBe(false);
+
+    // Does not match unrelated keys
+    expect(selector(["/api/workflow-runs"])).toBe(false);
+  });
+
   it("clears buffer after flush so subsequent notifications are handled independently", async () => {
     const mutate = vi.fn().mockResolvedValue(undefined);
 

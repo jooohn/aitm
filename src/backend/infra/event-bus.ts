@@ -1,4 +1,5 @@
 import type { TransitionDecision } from "@/backend/domain/agent";
+import type { ChatStatus } from "@/backend/domain/chats";
 import type { ProcessStatus } from "@/backend/domain/processes";
 import type { SessionStatus } from "@/backend/domain/sessions";
 import type {
@@ -36,6 +37,10 @@ export type SessionStatusChangedEvent = WorkflowRunContext &
   );
 
 export interface EventMap {
+  "chat.status-changed": RepositoryContext & {
+    chatId: string;
+    status: ChatStatus;
+  };
   "agent-session.completed": {
     sessionId: string;
     decision: TransitionDecision | null;

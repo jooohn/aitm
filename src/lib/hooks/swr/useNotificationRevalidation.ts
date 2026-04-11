@@ -87,6 +87,14 @@ function determineTargetPaths(notification: NotificationEvent): TargetPaths {
         prefix: [worktreePrefix(repositoryOrganization, repositoryName)],
       };
     }
+    case "chat.status-changed": {
+      const { repositoryOrganization, repositoryName, chatId } =
+        notification.payload;
+      return {
+        exact: [`/api/chats/${repositoryOrganization}/${repositoryName}/`],
+        prefix: [`/api/chats/${chatId}/`],
+      };
+    }
   }
 }
 

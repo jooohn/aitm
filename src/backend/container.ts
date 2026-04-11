@@ -61,7 +61,7 @@ function createContainer(cfg: ConfigSnapshot): Container {
 
   const workflowRunRepository = new WorkflowRunRepository(db, eventBus);
   const sessionRepository = new SessionRepository(db, eventBus);
-  const chatRepository = new ChatRepository(db);
+  const chatRepository = new ChatRepository(db, eventBus);
   const worktreeService = new WorktreeService();
   const repositoryService = new RepositoryService(cfg.repositories);
   const runtimes = {

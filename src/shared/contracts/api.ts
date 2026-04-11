@@ -267,6 +267,13 @@ export type NotificationEvent =
         processId: string;
         status: ProcessStatusDto;
       };
+    }
+  | {
+      type: "chat.status-changed";
+      payload: RepositoryContextDto & {
+        chatId: string;
+        status: ChatStatusDto;
+      };
     };
 
 // -- Remote branches --
