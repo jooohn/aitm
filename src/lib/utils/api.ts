@@ -4,6 +4,7 @@ import type {
   ChatDto,
   ChatProposalDto,
   ProcessDto,
+  RemoteBranchDto,
   RepositoryCommandDto,
   RepositoryDetailDto,
   RepositoryDto,
@@ -40,6 +41,7 @@ export type WorkflowRun = WorkflowRunDto;
 export type WorkflowRunStatus = WorkflowRunStatusDto;
 export type StepExecution = WorkflowRunDetailDto["step_executions"][number];
 export type WorkflowRunDetail = WorkflowRunDetailDto;
+export type RemoteBranch = RemoteBranchDto;
 
 export class ApiError extends Error {
   readonly status: number;
@@ -150,6 +152,13 @@ export function canStopWorkflowRun(run: WorkflowRunDetail): boolean {
     (execution) =>
       execution.completed_at === null && execution.session_id !== null,
   );
+}
+
+export function fetchRemoteBranches(
+  organization: string,
+  name: string,
+): Promise<RemoteBranch[]> {
+  return apiFetch(`/api/repositories/${organization}/${name}/remote-branches`);
 }
 
 export function fetchWorkflows(): Promise<Record<string, WorkflowDefinition>> {
