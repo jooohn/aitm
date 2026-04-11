@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import type { SessionStatus } from "@/lib/utils/api";
 import type {
   CommandExecutionItem,
   CommandGroupItem,
@@ -9,12 +8,13 @@ import type {
   ProcessingStepsItem,
   ToolCallItem,
 } from "@/lib/utils/outputItem";
+import { summarizeCommand } from "@/lib/utils/outputItemGrouping";
 import styles from "./SessionDetail.module.css";
 
 interface Props {
   item: OutputItem;
   isLastItem?: boolean;
-  sessionStatus?: SessionStatus;
+  isRunning?: boolean;
 }
 
 function renderInputDetails(input: unknown): React.ReactNode {
@@ -90,14 +90,6 @@ function ToolCallView({
       )}
     </div>
   );
-}
-
-function summarizeCommand(command: string): string {
-  if (command.includes("rg --files")) return "List repository files";
-  if (command.includes("git status")) return "Check git status";
-  if (command.includes("npm test")) return "Run tests";
-  if (command.includes("sed -n")) return "Read file";
-  return "Run command";
 }
 
 function formatExitLabel(item: CommandExecutionItem): string | null {
@@ -223,11 +215,7 @@ function ProcessingStepsView({
   );
 }
 
-export default function OutputItemView({
-  item,
-  isLastItem,
-  sessionStatus,
-}: Props) {
+export default function OutputItemView({ item, isLastItem, isRunning }: Props) {
   const [groupExpanded, setGroupExpanded] = useState(false);
 
   switch (item.kind) {
@@ -255,7 +243,7 @@ export default function OutputItemView({
       return (
         <ProcessingStepsView
           item={item}
-          isActive={!!isLastItem && sessionStatus === "running"}
+          isActive={!!isLastItem && !!isRunning}
         />
       );
 

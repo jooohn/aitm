@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { mutate } from "swr";
-import OutputItemView from "@/app/(main)/sessions/[id]/OutputItemView";
+import ChatTranscript from "@/app/components/ChatTranscript/ChatTranscript";
 import CloseIcon from "@/app/components/icons/CloseIcon";
 import SendIcon from "@/app/components/icons/SendIcon";
 import type { StatusBadgeVariant } from "@/app/components/StatusBadge";
@@ -14,42 +14,10 @@ import {
   sendChatMessage,
 } from "@/lib/utils/api";
 import type { OutputItem } from "@/lib/utils/outputItem";
+import { appendWithGrouping } from "@/lib/utils/outputItemGrouping";
 import { parseLogEntry } from "@/lib/utils/parseLogEntry";
 import styles from "./ChatDetail.module.css";
 import ProposalCard from "./ProposalCard";
-
-function appendWithGrouping(
-  items: OutputItem[],
-  newItem: OutputItem,
-): OutputItem[] {
-  // For proposals and proposal_actions, just append
-  if (newItem.kind === "proposals" || newItem.kind === "proposal_action") {
-    return [...items, newItem];
-  }
-
-  const last = items[items.length - 1];
-
-  if (newItem.kind === "tool_call") {
-    if (last?.kind === "tool_call" && last.toolName === newItem.toolName) {
-      return [
-        ...items.slice(0, -1),
-        {
-          kind: "tool_group",
-          toolName: newItem.toolName,
-          calls: [last, newItem],
-        },
-      ];
-    }
-    if (last?.kind === "tool_group" && last.toolName === newItem.toolName) {
-      return [
-        ...items.slice(0, -1),
-        { ...last, calls: [...last.calls, newItem] },
-      ];
-    }
-  }
-
-  return [...items, newItem];
-}
 
 const STATUS_LABELS: Record<ChatStatus, string> = {
   running: "Running",
@@ -77,8 +45,6 @@ export default function ChatDetail({ chatId }: Props) {
   const [sendError, setSendError] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerClosing, setDrawerClosing] = useState(false);
-  const outputRef = useRef<HTMLDivElement>(null);
-  const autoScrollRef = useRef(true);
   const prevStatusRef = useRef<ChatStatus | null>(null);
 
   // Load existing conversation history on mount
@@ -159,20 +125,6 @@ export default function ChatDetail({ chatId }: Props) {
     }
   }, [chat?.status, mutateChat]);
 
-  // Auto-scroll when new items arrive
-  // biome-ignore lint/correctness/useExhaustiveDependencies: outputItems triggers the scroll
-  useEffect(() => {
-    if (autoScrollRef.current && outputRef.current) {
-      outputRef.current.scrollTop = outputRef.current.scrollHeight;
-    }
-  }, [outputItems]);
-
-  function handleOutputScroll() {
-    if (!outputRef.current) return;
-    const { scrollTop, scrollHeight, clientHeight } = outputRef.current;
-    autoScrollRef.current = scrollTop + clientHeight >= scrollHeight - 10;
-  }
-
   async function handleSend(e: React.FormEvent) {
     e.preventDefault();
     if (!messageText.trim()) return;
@@ -218,6 +170,9 @@ export default function ChatDetail({ chatId }: Props) {
 
   const proposals = chat.proposals ?? [];
   const pendingCount = proposals.filter((p) => p.status === "pending").length;
+  const visibleItems = outputItems.filter(
+    (item) => item.kind !== "proposals" && item.kind !== "proposal_action",
+  );
 
   return (
     <div className={styles.container}>
@@ -242,26 +197,16 @@ export default function ChatDetail({ chatId }: Props) {
         )}
       </div>
 
-      <div
-        ref={outputRef}
+      <ChatTranscript
+        items={visibleItems}
+        isRunning={chat.status === "running"}
         className={styles.output}
-        onScroll={handleOutputScroll}
-      >
-        {outputItems.length === 0 && chat.status === "idle" ? (
-          <span className={styles.outputEmpty}>
-            Send a message to start the conversation...
-          </span>
-        ) : outputItems.length === 0 ? (
-          <span className={styles.outputEmpty}>Waiting for response...</span>
-        ) : (
-          outputItems.map((item, i) => {
-            if (item.kind === "proposals" || item.kind === "proposal_action") {
-              return null;
-            }
-            return <OutputItemView key={i} item={item} />;
-          })
-        )}
-      </div>
+        emptyMessage={
+          chat.status === "idle"
+            ? "Send a message to start the conversation..."
+            : "Waiting for response..."
+        }
+      />
 
       <form onSubmit={handleSend} className={styles.inputForm}>
         <div className={styles.inputWrapper}>

@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { mutate } from "swr";
+import ChatTranscript from "@/app/components/ChatTranscript/ChatTranscript";
 import SendIcon from "@/app/components/icons/SendIcon";
 import type { StatusBadgeVariant } from "@/app/components/StatusBadge";
 import StatusBadge from "@/app/components/StatusBadge";
@@ -11,115 +12,10 @@ import {
   type Session,
   type SessionStatus,
 } from "@/lib/utils/api";
-import type {
-  CommandExecutionItem,
-  CommandGroupItem,
-  OutputItem,
-  ProcessingStepsItem,
-  ToolGroupItem,
-} from "@/lib/utils/outputItem";
+import type { OutputItem } from "@/lib/utils/outputItem";
+import { appendWithGrouping } from "@/lib/utils/outputItemGrouping";
 import { parseLogEntry } from "@/lib/utils/parseLogEntry";
-import OutputItemView from "./OutputItemView";
 import styles from "./SessionDetail.module.css";
-
-function summarizeCommand(command: string): string {
-  if (command.includes("rg --files")) return "List repository files";
-  if (command.includes("git status")) return "Check git status";
-  if (command.includes("npm test")) return "Run tests";
-  if (command.includes("sed -n")) return "Read file";
-  return "Run command";
-}
-
-const NON_CONVERSATIONAL_KINDS = new Set([
-  "tool_call",
-  "tool_group",
-  "command_execution",
-  "command_group",
-]);
-
-function isNonConversational(item: OutputItem): boolean {
-  return NON_CONVERSATIONAL_KINDS.has(item.kind);
-}
-
-function appendToInnerGroup(
-  items: OutputItem[],
-  newItem: OutputItem,
-): OutputItem[] {
-  const last = items[items.length - 1];
-
-  if (newItem.kind === "tool_call") {
-    if (last?.kind === "tool_call" && last.toolName === newItem.toolName) {
-      const group: ToolGroupItem = {
-        kind: "tool_group",
-        toolName: newItem.toolName,
-        calls: [last, newItem],
-      };
-      return [...items.slice(0, -1), group];
-    }
-    if (last?.kind === "tool_group" && last.toolName === newItem.toolName) {
-      const group: ToolGroupItem = {
-        ...last,
-        calls: [...last.calls, newItem],
-      };
-      return [...items.slice(0, -1), group];
-    }
-  }
-
-  if (newItem.kind === "command_execution") {
-    const summary = summarizeCommand(newItem.command);
-    if (
-      last?.kind === "command_execution" &&
-      summarizeCommand(last.command) === summary
-    ) {
-      const group: CommandGroupItem = {
-        kind: "command_group",
-        summary,
-        calls: [last, newItem],
-      };
-      return [...items.slice(0, -1), group];
-    }
-    if (last?.kind === "command_group" && last.summary === summary) {
-      const group: CommandGroupItem = {
-        ...last,
-        calls: [...last.calls, newItem],
-      };
-      return [...items.slice(0, -1), group];
-    }
-  }
-
-  return [...items, newItem];
-}
-
-function appendWithGrouping(
-  items: OutputItem[],
-  newItem: OutputItem,
-): OutputItem[] {
-  const last = items[items.length - 1];
-
-  if (isNonConversational(newItem)) {
-    // Extend existing processing_steps group
-    if (last?.kind === "processing_steps") {
-      const group: ProcessingStepsItem = {
-        ...last,
-        items: appendToInnerGroup(last.items, newItem),
-      };
-      return [...items.slice(0, -1), group];
-    }
-    // Merge previous non-conversational item into a new group
-    if (last && isNonConversational(last)) {
-      const group: ProcessingStepsItem = {
-        kind: "processing_steps",
-        items: appendToInnerGroup([last], newItem),
-      };
-      return [...items.slice(0, -1), group];
-    }
-    // Single non-conversational item (no merge yet)
-    return [...items, newItem];
-  }
-
-  // Conversational item — just append
-  return [...items, newItem];
-}
 
 interface Props {
   session: Session;
@@ -152,22 +48,18 @@ export default function SessionDetail({
   const [replying, setReplying] = useState(false);
   const [replyError, setReplyError] = useState<string | null>(null);
 
-  const outputRef = useRef<HTMLDivElement>(null);
-  const autoScrollRef = useRef(true);
-
   // Sync prop changes to SWR cache
   useEffect(() => {
     void mutate(swrKeys.session(initial.id), initial, { revalidate: false });
   }, [initial]);
 
   // Reset UI state when a different session is passed in
-  // biome-ignore lint/correctness/useExhaustiveDependencies: reset UI state when a different session is passed in
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reset when session id changes
   useEffect(() => {
     setOutputItems([]);
     setReplyText("");
     setReplying(false);
     setReplyError(null);
-    autoScrollRef.current = true;
   }, [initial.id]);
 
   // Notify parent when session updates
@@ -212,20 +104,6 @@ export default function SessionDetail({
     return () => es.close();
   }, [currentSession.id]);
 
-  // Auto-scroll output pane when new items arrive
-  // biome-ignore lint/correctness/useExhaustiveDependencies: outputItems triggers the scroll
-  useEffect(() => {
-    if (autoScrollRef.current && outputRef.current) {
-      outputRef.current.scrollTop = outputRef.current.scrollHeight;
-    }
-  }, [outputItems]);
-
-  function handleOutputScroll() {
-    if (!outputRef.current) return;
-    const { scrollTop, scrollHeight, clientHeight } = outputRef.current;
-    autoScrollRef.current = scrollTop + clientHeight >= scrollHeight - 10;
-  }
-
   async function handleReply(e: React.FormEvent) {
     e.preventDefault();
     if (!replyText.trim()) return;
@@ -268,24 +146,11 @@ export default function SessionDetail({
 
       <section>
         <h2 className={styles.sectionHeading}>Session</h2>
-        <div
-          ref={outputRef}
+        <ChatTranscript
+          items={outputItems}
+          isRunning={currentSession.status === "running"}
           className={styles.output}
-          onScroll={handleOutputScroll}
         >
-          {outputItems.length === 0 ? (
-            <span className={styles.outputEmpty}>No output yet…</span>
-          ) : (
-            outputItems.map((item, i) => (
-              <OutputItemView
-                key={i}
-                item={item}
-                isLastItem={i === outputItems.length - 1}
-                sessionStatus={currentSession.status}
-              />
-            ))
-          )}
-
           {currentSession.status === "awaiting_input" && (
             <form onSubmit={handleReply} className={styles.replyForm}>
               {clarifyingQuestion && (
@@ -320,7 +185,7 @@ export default function SessionDetail({
               {replyError && <p className={styles.error}>{replyError}</p>}
             </form>
           )}
-        </div>
+        </ChatTranscript>
       </section>
 
       {currentSession.terminal_attach_command && (

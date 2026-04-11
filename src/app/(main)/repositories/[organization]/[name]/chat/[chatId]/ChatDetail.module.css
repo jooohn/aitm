@@ -22,12 +22,8 @@
 
 /* Output pane */
 .output {
-  @apply flex-1 overflow-y-auto rounded-lg bg-zinc-900 dark:bg-zinc-950 p-4 font-mono text-xs text-zinc-200 leading-relaxed mx-6 my-4;
+  @apply flex-1 mx-6 my-4;
   min-height: 0;
-}
-
-.outputEmpty {
-  @apply text-zinc-500;
 }
 
 /* Input form */
