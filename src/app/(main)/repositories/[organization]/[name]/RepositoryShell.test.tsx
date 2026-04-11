@@ -12,6 +12,9 @@ const mockGenerateBranchName = vi.fn();
 const mockCreateWorkflowRun = vi.fn();
 const mockCreateWorktree = vi.fn();
 const mockFetchWorktrees = vi.fn();
+const mockCreateChat = vi.fn();
+const mockFetchChats = vi.fn();
+const mockDeleteChat = vi.fn();
 const mockUseHouseKeepingSyncing = vi.fn();
 
 vi.mock("@/lib/utils/api", () => ({
@@ -23,6 +26,9 @@ vi.mock("@/lib/utils/api", () => ({
   createWorkflowRun: (...args: unknown[]) => mockCreateWorkflowRun(...args),
   createWorktree: (...args: unknown[]) => mockCreateWorktree(...args),
   fetchWorktrees: (...args: unknown[]) => mockFetchWorktrees(...args),
+  createChat: (...args: unknown[]) => mockCreateChat(...args),
+  fetchChats: (...args: unknown[]) => mockFetchChats(...args),
+  deleteChat: (...args: unknown[]) => mockDeleteChat(...args),
   cleanMergedWorktrees: vi.fn().mockResolvedValue(undefined),
 }));
 
@@ -69,6 +75,16 @@ beforeEach(() => {
   mockFetchRepositories.mockResolvedValue([repo]);
   mockFetchWorkflows.mockResolvedValue({
     default: { inputs: [] },
+  });
+  mockFetchChats.mockResolvedValue([]);
+  mockCreateChat.mockResolvedValue({
+    id: "chat-new",
+    organization: "org",
+    name: "repo",
+    title: null,
+    status: "idle",
+    created_at: "2026-04-11T00:00:00Z",
+    updated_at: "2026-04-11T00:00:00Z",
   });
   mockGenerateBranchName.mockResolvedValue({
     branch: "new-branch",
@@ -135,6 +151,26 @@ describe("RepositoryShell", () => {
     });
 
     expect(screen.getByText("child")).toBeInTheDocument();
+  });
+
+  it("navigates to /chat/new when New Chat button is clicked", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <SWRTestProvider>
+        <RepositoryShell organization="org" name="repo">
+          <div>child</div>
+        </RepositoryShell>
+      </SWRTestProvider>,
+    );
+
+    await waitFor(() => {
+      expect(mockFetchWorktrees).toHaveBeenCalledTimes(1);
+    });
+
+    await user.click(screen.getByText("New Chat"));
+
+    expect(mockPush).toHaveBeenCalledWith("/repositories/org/repo/chat/new");
   });
 
   it("shows a syncing indicator beside the worktrees heading while house-keeping is active", async () => {
