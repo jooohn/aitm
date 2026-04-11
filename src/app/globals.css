@@ -3,7 +3,7 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
-  --header-h: 3.75rem;
+  --header-h: 3rem;
 }
 
 @theme inline {
