@@ -1,7 +1,7 @@
 # Spec: Workflow Run
 
 **Status:** implemented
-**Last updated:** 2026-03-29
+**Last updated:** 2026-04-12
 
 ## Summary
 
@@ -37,7 +37,7 @@ Each workflow run owns an ordered list of **step executions** — one per sessio
 | `step` | string | Name of the step this execution corresponds to |
 | `step_type` | enum | `agent` \| `command` \| `manual-approval` — the type of step executed |
 | `session_id` | string \| null | The agent session that executed this step (null for command/manual-approval steps) |
-| `command_output` | string \| null | Captured stdout/stderr for command steps |
+| `output_file_path` | string \| null | Absolute path to the persisted command output log for command steps |
 | `transition_decision` | JSON \| null | Structured JSON emitted by the agent: `{"transition": <step or terminal>, "reason": "..."}` |
 | `handoff_summary` | string \| null | Plain-text summary emitted by the agent for the next step's context |
 | `created_at` | timestamp | When this step execution started |
@@ -138,6 +138,7 @@ A workflow run surfaces as a top-level entity in the UI, associated with a workt
 A workflow run detail page shows:
 - The sequence of step executions in order
 - For each: step name, session link, transition decision, handoff summary
+- For command steps: an `Output {filename}` link that opens the persisted command log in a workflow-run drawer route
 - Overall run status and terminal outcome
 - Suggested follow-up workflows when other workflow definitions declare
   `recommended_when` rules that match the current run context
@@ -147,6 +148,7 @@ A workflow run detail page shows:
 - A session belongs to at most one step execution.
 - Sessions are still viewable independently (existing session detail page).
 - The workflow run detail page links to individual sessions for full log access.
+- Command-step output is read within the workflow run detail context via a drawer route rather than a dedicated step-execution detail page.
 
 ### Operations
 

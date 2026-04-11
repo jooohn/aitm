@@ -191,7 +191,7 @@ describe("WorkflowRunMaterializer", () => {
         ".aitm",
         "runs",
         "run-1",
-        "command-output",
+        "command-outputs",
         "exec-1.log",
       );
 

@@ -198,7 +198,7 @@ export class StepRunner {
   ): Promise<string> {
     const outputDir = join(
       resolveWorkflowRunDir(worktree, workflowRunId),
-      "command-output",
+      "command-outputs",
     );
     const outputFilePath = join(outputDir, `${executionId}.log`);
 

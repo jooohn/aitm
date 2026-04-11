@@ -1339,7 +1339,7 @@ workflows:
       .prepare("SELECT * FROM step_executions WHERE workflow_run_id = ?")
       .get(run.id) as { output_file_path: string | null };
     expect(execution.output_file_path).toMatch(
-      /\/\.aitm\/runs\/.+\/command-output\/.+\.log$/,
+      /\/\.aitm\/runs\/.+\/command-outputs\/.+\.log$/,
     );
   });
 
@@ -1623,7 +1623,7 @@ workflows:
       handoff_summary: string | null;
     };
     expect(lintExecution.output_file_path).toMatch(
-      /\/\.aitm\/runs\/.+\/command-output\/.+\.log$/,
+      /\/\.aitm\/runs\/.+\/command-outputs\/.+\.log$/,
     );
     expect(lintExecution.handoff_summary).toBe(
       `Command succeeded. Detailed output: ${lintExecution.output_file_path}`,

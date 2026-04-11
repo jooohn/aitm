@@ -59,18 +59,9 @@ export default function WorkflowBreadcrumb({
       {hasStepExecution && (
         <>
           <span className={styles.breadcrumbSep}>/</span>
-          {hasSession ? (
-            <Link
-              href={`${repoHref}/workflow-runs/${stepExecution.workflowRunId}/step-executions/${stepExecution.id}`}
-              className={styles.breadcrumbLink}
-            >
-              {stepExecution.stepName}
-            </Link>
-          ) : (
-            <span className={styles.breadcrumbCurrent}>
-              {stepExecution.stepName}
-            </span>
-          )}
+          <span className={styles.breadcrumbCurrent}>
+            {stepExecution.stepName}
+          </span>
         </>
       )}
 

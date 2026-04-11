@@ -347,12 +347,12 @@ describe("WorkflowRunDetail", () => {
     const commandExecution = {
       ...makeExecution({
         step: "lint",
-        output_file_path: "/tmp/run-1/command-output/lint.log",
+        output_file_path: "/tmp/run-1/command-outputs/lint.log",
         transition_decision: {
           transition: "success",
           reason: "Command succeeded",
           handoff_summary:
-            "Command succeeded. Detailed output: /tmp/run-1/command-output/lint.log",
+            "Command succeeded. Detailed output: /tmp/run-1/command-outputs/lint.log",
         },
       }),
       step_type: "command",
@@ -381,15 +381,13 @@ describe("WorkflowRunDetail", () => {
       "command-output-lint-execution",
     );
     const outputLink = within(commandOutput).getByRole("link", {
-      name: "Open output",
+      name: "Output lint.log",
     });
     expect(outputLink).toHaveAttribute(
       "href",
-      "/api/workflow-runs/run-1/step-executions/lint-execution/output",
+      "/repositories/tmp/repo/workflow-runs/run-1/command-outputs/lint.log",
     );
-    expect(commandOutput).toHaveTextContent(
-      "/tmp/run-1/command-output/lint.log",
-    );
+    expect(commandOutput).not.toHaveTextContent("/tmp/run-1/command-outputs");
     expect(within(commandItem!).queryByText("Command succeeded")).toBeNull();
   });
 

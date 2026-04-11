@@ -123,7 +123,7 @@ describe("GET /api/workflow-runs/:id", () => {
     expect(body.step_executions[0].step).toBe("command-step");
     expect(body.step_executions[0].step_type).toBe("command");
     expect(body.step_executions[0].output_file_path).toMatch(
-      /\/\.aitm\/runs\/.+\/command-output\/.+\.log$/,
+      /\/\.aitm\/runs\/.+\/command-outputs\/.+\.log$/,
     );
   });
 
@@ -171,7 +171,7 @@ describe("GET /api/workflow-runs/:id", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.step_executions[0].output_file_path).toMatch(
-      /\/\.aitm\/runs\/run-legacy\/command-output\/exec-legacy\.log$/,
+      /\/\.aitm\/runs\/run-legacy\/command-outputs\/exec-legacy\.log$/,
     );
     expect(body.step_executions[0].handoff_summary).toBe(
       `Command succeeded. Detailed output: ${body.step_executions[0].output_file_path}`,

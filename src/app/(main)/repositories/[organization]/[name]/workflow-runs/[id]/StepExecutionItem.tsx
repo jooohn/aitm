@@ -26,6 +26,11 @@ interface StepExecutionItemProps {
   resolvingId?: string | null;
 }
 
+function getOutputFilename(outputFilePath: string): string {
+  const parts = outputFilePath.split(/[/\\]/);
+  return parts.at(-1) ?? outputFilePath;
+}
+
 export default function StepExecutionItem({
   execution,
   isCurrent,
@@ -36,7 +41,12 @@ export default function StepExecutionItem({
   const [approvalReason, setApprovalReason] = useState("");
   const decision: TransitionDecisionDto | null = execution.transition_decision;
   const isCommandExecution = execution.step_type === "command";
-  const commandOutputHref = `/api/workflow-runs/${execution.workflow_run_id}/step-executions/${execution.id}/output`;
+  const outputFilename = execution.output_file_path
+    ? getOutputFilename(execution.output_file_path)
+    : null;
+  const commandOutputHref = outputFilename
+    ? `${runBasePath}/command-outputs/${encodeURIComponent(outputFilename)}`
+    : null;
   const isPendingApproval =
     execution.step_type === "manual-approval" &&
     execution.status === "awaiting";
@@ -123,15 +133,12 @@ export default function StepExecutionItem({
                 className={styles.commandOutput}
                 data-testid={`command-output-${execution.id}`}
               >
-                {execution.output_file_path ? (
-                  <>
-                    <div className={styles.commandOutputLine}>
-                      <Link href={commandOutputHref}>Open output</Link>
-                    </div>
-                    <div className={styles.commandOutputLine}>
-                      {execution.output_file_path}
-                    </div>
-                  </>
+                {commandOutputHref && outputFilename ? (
+                  <div className={styles.commandOutputLine}>
+                    <Link href={commandOutputHref}>
+                      Output {outputFilename}
+                    </Link>
+                  </div>
                 ) : (
                   <div
                     className={`${styles.commandOutputLine} ${styles.commandOutputEmpty}`}
