@@ -17,6 +17,7 @@ export default function SWRProvider({ children }: { children: ReactNode }) {
         revalidateOnFocus: false,
         dedupingInterval: 1000,
         keepPreviousData: true,
+        refreshInterval: 15000,
       }}
     >
       <AlertProvider>
