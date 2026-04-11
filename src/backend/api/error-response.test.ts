@@ -5,7 +5,8 @@ import {
   ServiceUnavailableError,
   ValidationError,
 } from "@/backend/domain/errors";
-import { errorResponse } from "./error-response";
+import { err, ok } from "@/backend/domain/result";
+import { domainResultToApiResult, errorResponse } from "./error-response";
 
 describe("errorResponse", () => {
   it("maps NotFoundError to 404", async () => {
@@ -44,5 +45,37 @@ describe("errorResponse", () => {
     const res = errorResponse("some string");
     expect(res.status).toBe(500);
     expect(await res.json()).toEqual({ error: "Internal server error" });
+  });
+});
+
+describe("domainResultToApiResult", () => {
+  it("converts an ok DomainResult to a success ApiResult", () => {
+    const result = domainResultToApiResult(ok({ name: "test" }));
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.data).toEqual({ name: "test" });
+    }
+  });
+
+  it("converts a NotFoundError to a 404 failure ApiResult", async () => {
+    const error = new NotFoundError("Session", "abc");
+    const result = domainResultToApiResult(err(error));
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.response.status).toBe(404);
+      const body = await result.response.json();
+      expect(body.error).toBe("Session not found: abc");
+    }
+  });
+
+  it("converts a ValidationError to a 422 failure ApiResult", async () => {
+    const error = new ValidationError("Invalid input");
+    const result = domainResultToApiResult(err(error));
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.response.status).toBe(422);
+      const body = await result.response.json();
+      expect(body.error).toBe("Invalid input");
+    }
   });
 });

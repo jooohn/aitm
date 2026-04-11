@@ -3,6 +3,7 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getContainer, initializeContainer } from "@/backend/container";
+import { ValidationError } from "@/backend/domain/errors";
 import { db } from "@/backend/infra/db";
 import { eventBus, type WorkflowRunContext } from "@/backend/infra/event-bus";
 import { splitAlias } from "@/lib/utils/inferAlias";
@@ -1046,9 +1047,12 @@ workflows:
       "failSession",
     ).mockImplementationOnce((id) => {
       db.prepare("UPDATE sessions SET status = 'success' WHERE id = ?").run(id);
-      throw new Error(
-        `Session ${id} is already in a terminal state: SUCCEEDED`,
-      );
+      return {
+        ok: false,
+        error: new ValidationError(
+          `Session ${id} is already in a terminal state: SUCCEEDED`,
+        ),
+      };
     });
 
     const stopped = await getContainer().workflowRunService.stopWorkflowRun(

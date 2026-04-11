@@ -69,14 +69,11 @@ export interface ListWorkflowRunsFilter {
 }
 
 function isAlreadyTerminalSessionError(
-  err: unknown,
+  error: ValidationError,
   sessionId: string,
 ): boolean {
-  return (
-    err instanceof Error &&
-    err.message.startsWith(
-      `Session ${sessionId} is already in a terminal state:`,
-    )
+  return error.message.startsWith(
+    `Session ${sessionId} is already in a terminal state:`,
   );
 }
 
@@ -246,12 +243,20 @@ export class WorkflowRunService {
     }
 
     if (activeExecution.session_status === "running") {
-      try {
-        this.sessionService.failSession(activeExecution.session_id);
-      } catch (err) {
-        if (!isAlreadyTerminalSessionError(err, activeExecution.session_id)) {
-          throw err;
-        }
+      const result = this.sessionService.failSession(
+        activeExecution.session_id,
+      );
+      if (
+        !result.ok &&
+        !(
+          result.error instanceof ValidationError &&
+          isAlreadyTerminalSessionError(
+            result.error,
+            activeExecution.session_id,
+          )
+        )
+      ) {
+        throw result.error;
       }
     }
 

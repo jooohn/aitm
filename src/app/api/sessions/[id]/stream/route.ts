@@ -13,12 +13,12 @@ export async function GET(
 ): Promise<Response | NextResponse> {
   const { sessionService } = getContainer();
   const { id } = await params;
-  const session = sessionService.getSession(id);
-  if (!session) {
+  const sessionResult = sessionService.getSession(id);
+  if (!sessionResult.ok) {
     return NextResponse.json({ error: "Session not found" }, { status: 404 });
   }
 
-  const logFilePath = session.log_file_path;
+  const logFilePath = sessionResult.value.log_file_path;
   const encoder = new TextEncoder();
   let offset = 0;
   let intervalId: ReturnType<typeof setInterval> | null = null;
@@ -43,8 +43,11 @@ export async function GET(
       }
 
       async function checkAndClose() {
-        const current = sessionService.getSession(id);
-        if (!current || TERMINAL_STATUSES.has(current.status)) {
+        const currentResult = sessionService.getSession(id);
+        if (
+          !currentResult.ok ||
+          TERMINAL_STATUSES.has(currentResult.value.status)
+        ) {
           await sendNewLines();
           try {
             controller.enqueue(encoder.encode("event: done\ndata: {}\n\n"));
@@ -60,9 +63,10 @@ export async function GET(
       }
 
       sendNewLines().then(() => {
+        const initialResult = sessionService.getSession(id);
         if (
           TERMINAL_STATUSES.has(
-            sessionService.getSession(id)?.status ?? "failure",
+            initialResult.ok ? initialResult.value.status : "failure",
           )
         ) {
           controller.enqueue(encoder.encode("event: done\ndata: {}\n\n"));

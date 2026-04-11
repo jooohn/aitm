@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { toSessionDto } from "@/backend/api/dto";
-import { errorResponse } from "@/backend/api/error-response";
+import { domainResultToApiResult } from "@/backend/api/error-response";
 import { getContainer } from "@/backend/container";
 
 type Params = Promise<{ id: string }>;
@@ -23,11 +23,13 @@ export async function POST(
     return NextResponse.json({ error: "message is required" }, { status: 400 });
   }
 
-  try {
-    await sessionService.replyToSession(id, body.message);
-    const session = sessionService.getSession(id);
-    return NextResponse.json(session ? toSessionDto(session) : null);
-  } catch (err) {
-    return errorResponse(err);
-  }
+  const replyResult = domainResultToApiResult(
+    await sessionService.replyToSession(id, body.message),
+  );
+  if (!replyResult.ok) return replyResult.response;
+
+  const sessionResult = domainResultToApiResult(sessionService.getSession(id));
+  if (!sessionResult.ok) return sessionResult.response;
+
+  return NextResponse.json(toSessionDto(sessionResult.data));
 }

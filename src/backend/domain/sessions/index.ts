@@ -11,6 +11,7 @@ import { logger } from "@/backend/infra/logger";
 import { appendToLog } from "@/backend/utils/log";
 import type { AgentService, TransitionDecision } from "../agent";
 import { NotFoundError, ValidationError } from "../errors";
+import { type DomainResult, err, ok, unwrap } from "../result";
 import type { WorktreeService } from "../worktrees";
 import type { SessionRepository } from "./session-repository";
 
@@ -121,7 +122,7 @@ export class SessionService {
         "Failed to resolve worktree for session",
       );
       this.sessionRepository.setSessionFailed(id, now, null);
-      return this.getSession(id) as Session;
+      return unwrap(this.getSession(id));
     }
 
     this.agentService
@@ -139,29 +140,35 @@ export class SessionService {
         logger.error({ err, sessionId: id }, "Failed to start agent"),
       );
 
-    return this.getSession(id) as Session;
+    return unwrap(this.getSession(id));
   }
 
   listSessions(filter: ListSessionsFilter = {}): Session[] {
     return this.sessionRepository.listSessions(filter);
   }
 
-  getSession(id: string): Session | undefined {
-    return this.sessionRepository.getSession(id);
+  getSession(id: string): DomainResult<Session, NotFoundError> {
+    const session = this.sessionRepository.getSession(id);
+    if (!session) return err(new NotFoundError("Session", id));
+    return ok(session);
   }
 
   listPersistedWorktreeBranches(repositoryPath: string): string[] {
     return this.sessionRepository.listPersistedWorktreeBranches(repositoryPath);
   }
 
-  failSession(id: string): Session {
-    const session = this.getSession(id);
-    if (!session) {
-      throw new NotFoundError("Session", id);
-    }
+  failSession(
+    id: string,
+  ): DomainResult<Session, NotFoundError | ValidationError> {
+    const sessionResult = this.getSession(id);
+    if (!sessionResult.ok) return sessionResult;
+
+    const session = sessionResult.value;
     if (session.status === "success" || session.status === "failure") {
-      throw new ValidationError(
-        `Session ${id} is already in a terminal state: ${session.status}`,
+      return err(
+        new ValidationError(
+          `Session ${id} is already in a terminal state: ${session.status}`,
+        ),
       );
     }
 
@@ -169,16 +176,19 @@ export class SessionService {
     this.agentService.cancelAgent(id);
     this.sessionRepository.setSessionFailed(id, now, null);
 
-    return this.getSession(id) as Session;
+    return this.getSession(id);
   }
 
-  async replyToSession(id: string, message: string): Promise<void> {
-    const session = this.getSession(id);
-    if (!session) {
-      throw new NotFoundError("Session", id);
-    }
+  async replyToSession(
+    id: string,
+    message: string,
+  ): Promise<DomainResult<void, NotFoundError | ValidationError>> {
+    const sessionResult = this.getSession(id);
+    if (!sessionResult.ok) return sessionResult;
+
+    const session = sessionResult.value;
     if (session.status !== "awaiting_input") {
-      throw new ValidationError(`Session ${id} is not awaiting input`);
+      return err(new ValidationError(`Session ${id} is not awaiting input`));
     }
 
     let cwd: string;
@@ -190,12 +200,14 @@ export class SessionService {
         (w) => w.branch === session.worktree_branch,
       );
       if (!worktree) {
-        throw new NotFoundError("Worktree", session.worktree_branch);
+        return err(new NotFoundError("Worktree", session.worktree_branch));
       }
       cwd = worktree.path;
-    } catch (err) {
-      throw new Error(
-        `Failed to resolve worktree: ${err instanceof Error ? err.message : err}`,
+    } catch (e) {
+      return err(
+        new ValidationError(
+          `Failed to resolve worktree: ${e instanceof Error ? e.message : e}`,
+        ),
       );
     }
 
@@ -218,6 +230,8 @@ export class SessionService {
       .catch((err) =>
         logger.error({ err, sessionId: id }, "Failed to resume agent"),
       );
+
+    return ok(undefined);
   }
 
   async deleteWorktreeData(
