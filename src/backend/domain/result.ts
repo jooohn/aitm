@@ -1,42 +1,70 @@
 import type { DomainError } from "./errors";
 
-export type DomainResult<T, E = DomainError> =
-  | { ok: true; value: T }
-  | { ok: false; error: E };
+interface Ok<T> {
+  readonly ok: true;
+  readonly value: T;
+  readonly error?: undefined;
+}
+
+interface Err<E> {
+  readonly ok: false;
+  readonly value?: undefined;
+  readonly error: E;
+}
+
+type ResultState<T, E> = Ok<T> | Err<E>;
+
+export class DomainResult<T, E = DomainError> {
+  readonly ok: boolean;
+  readonly value: T | undefined;
+  readonly error: E | undefined;
+
+  private constructor(state: ResultState<T, E>) {
+    this.ok = state.ok;
+    this.value = state.ok ? state.value : undefined;
+    this.error = state.ok ? undefined : state.error;
+  }
+
+  static ok<T>(value: T): DomainResult<T, never> {
+    return new DomainResult<T, never>({ ok: true, value });
+  }
+
+  static err<E>(error: E): DomainResult<never, E> {
+    return new DomainResult<never, E>({ ok: false, error });
+  }
+
+  map<U>(f: (v: T) => U): DomainResult<U, E> {
+    if (this.ok) return DomainResult.ok(f(this.value as T));
+    return DomainResult.err(this.error as E);
+  }
+
+  flatMap<U>(f: (v: T) => DomainResult<U, E>): DomainResult<U, E> {
+    if (this.ok) return f(this.value as T);
+    return DomainResult.err(this.error as E);
+  }
+
+  async flatMapAsync<U>(
+    f: (v: T) => Promise<DomainResult<U, E>>,
+  ): Promise<DomainResult<U, E>> {
+    if (this.ok) return f(this.value as T);
+    return DomainResult.err(this.error as E);
+  }
+
+  match<U>(handlers: { ok: (v: T) => U; err: (e: E) => U }): U {
+    if (this.ok) return handlers.ok(this.value as T);
+    return handlers.err(this.error as E);
+  }
+
+  unwrap(): T {
+    if (this.ok) return this.value as T;
+    throw this.error;
+  }
+}
 
 export function ok<T>(value: T): DomainResult<T, never> {
-  return { ok: true, value };
+  return DomainResult.ok(value);
 }
 
 export function err<E>(error: E): DomainResult<never, E> {
-  return { ok: false, error };
-}
-
-export function mapResult<T, U, E>(
-  result: DomainResult<T, E>,
-  f: (v: T) => U,
-): DomainResult<U, E> {
-  if (result.ok) return ok(f(result.value));
-  return result;
-}
-
-export function flatMapResult<T, U, E>(
-  result: DomainResult<T, E>,
-  f: (v: T) => DomainResult<U, E>,
-): DomainResult<U, E> {
-  if (result.ok) return f(result.value);
-  return result;
-}
-
-export function unwrap<T>(result: DomainResult<T, unknown>): T {
-  if (result.ok) return result.value;
-  throw result.error;
-}
-
-export async function flatMapResultAsync<T, U, E>(
-  result: DomainResult<T, E>,
-  f: (v: T) => Promise<DomainResult<U, E>>,
-): Promise<DomainResult<U, E>> {
-  if (result.ok) return f(result.value);
-  return result;
+  return DomainResult.err(error);
 }

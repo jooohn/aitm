@@ -11,7 +11,7 @@ import { logger } from "@/backend/infra/logger";
 import { appendToLog } from "@/backend/utils/log";
 import type { AgentService, TransitionDecision } from "../agent";
 import { NotFoundError, ValidationError } from "../errors";
-import { type DomainResult, err, ok, unwrap } from "../result";
+import { type DomainResult, err, ok } from "../result";
 import type { WorktreeService } from "../worktrees";
 import type { SessionRepository } from "./session-repository";
 
@@ -122,7 +122,7 @@ export class SessionService {
         "Failed to resolve worktree for session",
       );
       this.sessionRepository.setSessionFailed(id, now, null);
-      return unwrap(this.getSession(id));
+      return this.getSession(id).unwrap();
     }
 
     this.agentService
@@ -140,7 +140,7 @@ export class SessionService {
         logger.error({ err, sessionId: id }, "Failed to start agent"),
       );
 
-    return unwrap(this.getSession(id));
+    return this.getSession(id).unwrap();
   }
 
   listSessions(filter: ListSessionsFilter = {}): Session[] {
@@ -160,78 +160,74 @@ export class SessionService {
   failSession(
     id: string,
   ): DomainResult<Session, NotFoundError | ValidationError> {
-    const sessionResult = this.getSession(id);
-    if (!sessionResult.ok) return sessionResult;
+    return this.getSession(id).flatMap((session) => {
+      if (session.status === "success" || session.status === "failure") {
+        return err(
+          new ValidationError(
+            `Session ${id} is already in a terminal state: ${session.status}`,
+          ),
+        );
+      }
 
-    const session = sessionResult.value;
-    if (session.status === "success" || session.status === "failure") {
-      return err(
-        new ValidationError(
-          `Session ${id} is already in a terminal state: ${session.status}`,
-        ),
-      );
-    }
+      const now = new Date().toISOString();
+      this.agentService.cancelAgent(id);
+      this.sessionRepository.setSessionFailed(id, now, null);
 
-    const now = new Date().toISOString();
-    this.agentService.cancelAgent(id);
-    this.sessionRepository.setSessionFailed(id, now, null);
-
-    return this.getSession(id);
+      return this.getSession(id);
+    });
   }
 
   async replyToSession(
     id: string,
     message: string,
   ): Promise<DomainResult<void, NotFoundError | ValidationError>> {
-    const sessionResult = this.getSession(id);
-    if (!sessionResult.ok) return sessionResult;
-
-    const session = sessionResult.value;
-    if (session.status !== "awaiting_input") {
-      return err(new ValidationError(`Session ${id} is not awaiting input`));
-    }
-
-    let cwd: string;
-    try {
-      const worktrees = await this.worktreeService.listWorktrees(
-        session.repository_path,
-      );
-      const worktree = worktrees.find(
-        (w) => w.branch === session.worktree_branch,
-      );
-      if (!worktree) {
-        return err(new NotFoundError("Worktree", session.worktree_branch));
+    return this.getSession(id).flatMapAsync(async (session) => {
+      if (session.status !== "awaiting_input") {
+        return err(new ValidationError(`Session ${id} is not awaiting input`));
       }
-      cwd = worktree.path;
-    } catch (e) {
-      return err(
-        new ValidationError(
-          `Failed to resolve worktree: ${e instanceof Error ? e.message : e}`,
-        ),
-      );
-    }
 
-    await appendToLog(session.log_file_path, {
-      type: "user_input",
-      message,
-    });
+      let cwd: string;
+      try {
+        const worktrees = await this.worktreeService.listWorktrees(
+          session.repository_path,
+        );
+        const worktree = worktrees.find(
+          (w) => w.branch === session.worktree_branch,
+        );
+        if (!worktree) {
+          return err(new NotFoundError("Worktree", session.worktree_branch));
+        }
+        cwd = worktree.path;
+      } catch (e) {
+        return err(
+          new ValidationError(
+            `Failed to resolve worktree: ${e instanceof Error ? e.message : e}`,
+          ),
+        );
+      }
 
-    this.agentService
-      .resumeAgent(
-        id,
+      await appendToLog(session.log_file_path, {
+        type: "user_input",
         message,
-        cwd,
-        session.transitions,
-        session.agent_config,
-        session.log_file_path,
-        undefined,
-        session.metadata_fields ?? undefined,
-      )
-      .catch((err) =>
-        logger.error({ err, sessionId: id }, "Failed to resume agent"),
-      );
+      });
 
-    return ok(undefined);
+      this.agentService
+        .resumeAgent(
+          id,
+          message,
+          cwd,
+          session.transitions,
+          session.agent_config,
+          session.log_file_path,
+          undefined,
+          session.metadata_fields ?? undefined,
+        )
+        .catch((err) =>
+          logger.error({ err, sessionId: id }, "Failed to resume agent"),
+        );
+
+      return ok(undefined);
+    });
   }
 
   async deleteWorktreeData(
