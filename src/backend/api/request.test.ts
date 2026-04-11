@@ -1,11 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { getContainer } from "@/backend/container";
+import { NotFoundError } from "@/backend/domain/errors";
 import {
+  flatMapApiResult,
+  mapApiResult,
   parseJsonBody,
   parseSearchParams,
   resolveRepositoryFromParams,
   resolveWorktreeFromBranchSlug,
+  tryApiResult,
 } from "./request";
 
 describe("parseJsonBody", () => {
@@ -197,6 +201,158 @@ describe("resolveWorktreeFromBranchSlug", () => {
       expect(result.response.status).toBe(404);
       expect(await result.response.json()).toEqual({
         error: "Worktree not found",
+      });
+    }
+  });
+});
+
+describe("mapApiResult", () => {
+  it("transforms the data of a success result", async () => {
+    const body = JSON.stringify({ value: 3 });
+    const original = await parseJsonBody(
+      new Request("http://localhost/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body,
+      }),
+      z.object({ value: z.number() }),
+    );
+
+    const mapped = mapApiResult(original, (d) => d.value * 2);
+
+    expect(mapped.ok).toBe(true);
+    if (mapped.ok) {
+      expect(mapped.data).toBe(6);
+    }
+  });
+
+  it("passes through a failure result unchanged", async () => {
+    const original = await parseJsonBody(
+      new Request("http://localhost/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "invalid",
+      }),
+      z.object({ value: z.number() }),
+    );
+
+    const mapped = mapApiResult(original, (d) => d.value * 2);
+
+    expect(mapped.ok).toBe(false);
+    if (!mapped.ok) {
+      expect(mapped.response.status).toBe(422);
+    }
+  });
+});
+
+describe("flatMapApiResult", () => {
+  it("chains two successful operations", async () => {
+    const first = await parseJsonBody(
+      new Request("http://localhost/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ value: 5 }),
+      }),
+      z.object({ value: z.number() }),
+    );
+
+    const result = await flatMapApiResult(first, async (d) => {
+      const second = await parseJsonBody(
+        new Request("http://localhost/test", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ value: d.value + 10 }),
+        }),
+        z.object({ value: z.number() }),
+      );
+      return second;
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.data).toEqual({ value: 15 });
+    }
+  });
+
+  it("short-circuits when the first result is a failure", async () => {
+    const first = await parseJsonBody(
+      new Request("http://localhost/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "invalid",
+      }),
+      z.object({ value: z.number() }),
+    );
+
+    const fn = vi.fn();
+    const result = await flatMapApiResult(first, fn);
+
+    expect(result.ok).toBe(false);
+    expect(fn).not.toHaveBeenCalled();
+  });
+
+  it("returns failure when the chained operation fails", async () => {
+    const first = await parseJsonBody(
+      new Request("http://localhost/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ value: 5 }),
+      }),
+      z.object({ value: z.number() }),
+    );
+
+    const result = await flatMapApiResult(first, async () => {
+      return parseJsonBody(
+        new Request("http://localhost/test", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: "invalid",
+        }),
+        z.object({ value: z.number() }),
+      );
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.response.status).toBe(422);
+    }
+  });
+});
+
+describe("tryApiResult", () => {
+  it("wraps a resolved promise as success", async () => {
+    const result = await tryApiResult(async () => 42);
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.data).toBe(42);
+    }
+  });
+
+  it("wraps a thrown DomainError as the appropriate status", async () => {
+    const result = await tryApiResult(async () => {
+      throw new NotFoundError("Widget", "abc");
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.response.status).toBe(404);
+      expect(await result.response.json()).toEqual({
+        error: "Widget not found: abc",
+      });
+    }
+  });
+
+  it("wraps an unknown error as 500", async () => {
+    const result = await tryApiResult(async () => {
+      throw new Error("boom");
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.response.status).toBe(500);
+      expect(await result.response.json()).toEqual({
+        error: "Internal server error",
       });
     }
   });

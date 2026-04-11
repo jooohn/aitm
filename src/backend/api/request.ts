@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { errorResponse } from "@/backend/api/error-response";
 import { getContainer } from "@/backend/container";
 import type { Repository } from "@/backend/domain/repositories";
 import type { Worktree } from "@/backend/domain/worktrees";
@@ -16,6 +17,32 @@ function success<T>(data: T): Success<T> {
 
 function failure(response: NextResponse): Failure {
   return { ok: false, response };
+}
+
+export function mapApiResult<T, U>(
+  result: ApiResult<T>,
+  fn: (data: T) => U,
+): ApiResult<U> {
+  if (!result.ok) return result;
+  return success(fn(result.data));
+}
+
+export async function flatMapApiResult<T, U>(
+  result: ApiResult<T>,
+  fn: (data: T) => Promise<ApiResult<U>>,
+): Promise<ApiResult<U>> {
+  if (!result.ok) return result;
+  return fn(result.data);
+}
+
+export async function tryApiResult<T>(
+  fn: () => Promise<T>,
+): Promise<ApiResult<T>> {
+  try {
+    return success(await fn());
+  } catch (err) {
+    return failure(errorResponse(err));
+  }
 }
 
 export function invalidBodyResponse(

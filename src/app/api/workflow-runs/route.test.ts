@@ -411,6 +411,22 @@ workflows:
     });
   });
 
+  it("returns 500 when listWorkflowRuns throws an unexpected error", async () => {
+    await setupConfig("workflows: {}\n");
+    vi.spyOn(
+      getContainer().workflowRunService,
+      "listWorkflowRuns",
+    ).mockImplementation(() => {
+      throw new Error("database corrupted");
+    });
+
+    const res = await GET(
+      new NextRequest("http://localhost/api/workflow-runs"),
+    );
+    expect(res.status).toBe(500);
+    expect(await res.json()).toEqual({ error: "Internal server error" });
+  });
+
   it("uses the first status value when the query repeats the parameter", async () => {
     await setupConfig("workflows: {}\n");
 
