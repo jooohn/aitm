@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { toSessionDto } from "@/backend/api/dto";
-import { domainResultToApiResult } from "@/backend/api/error-response";
+import { domainResultToResponse } from "@/backend/api/error-response";
 import { getContainer } from "@/backend/container";
+import { mapResult } from "@/backend/domain/result";
 
 type Params = Promise<{ id: string }>;
 
@@ -11,7 +12,7 @@ export async function GET(
 ): Promise<NextResponse> {
   const { sessionService } = getContainer();
   const { id } = await params;
-  const result = domainResultToApiResult(sessionService.getSession(id));
-  if (!result.ok) return result.response;
-  return NextResponse.json(toSessionDto(result.data));
+  return domainResultToResponse(
+    mapResult(sessionService.getSession(id), toSessionDto),
+  );
 }

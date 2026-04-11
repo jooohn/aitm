@@ -6,7 +6,7 @@ import {
   ValidationError,
 } from "@/backend/domain/errors";
 import { err, ok } from "@/backend/domain/result";
-import { domainResultToApiResult, errorResponse } from "./error-response";
+import { domainResultToResponse, errorResponse } from "./error-response";
 
 describe("errorResponse", () => {
   it("maps NotFoundError to 404", async () => {
@@ -48,34 +48,24 @@ describe("errorResponse", () => {
   });
 });
 
-describe("domainResultToApiResult", () => {
-  it("converts an ok DomainResult to a success ApiResult", () => {
-    const result = domainResultToApiResult(ok({ name: "test" }));
-    expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.data).toEqual({ name: "test" });
-    }
+describe("domainResultToResponse", () => {
+  it("converts an ok DomainResult to a 200 JSON response", async () => {
+    const response = domainResultToResponse(ok({ name: "test" }));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ name: "test" });
   });
 
-  it("converts a NotFoundError to a 404 failure ApiResult", async () => {
+  it("converts a NotFoundError to a 404 response", async () => {
     const error = new NotFoundError("Session", "abc");
-    const result = domainResultToApiResult(err(error));
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.response.status).toBe(404);
-      const body = await result.response.json();
-      expect(body.error).toBe("Session not found: abc");
-    }
+    const response = domainResultToResponse(err(error));
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({ error: "Session not found: abc" });
   });
 
-  it("converts a ValidationError to a 422 failure ApiResult", async () => {
+  it("converts a ValidationError to a 422 response", async () => {
     const error = new ValidationError("Invalid input");
-    const result = domainResultToApiResult(err(error));
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.response.status).toBe(422);
-      const body = await result.response.json();
-      expect(body.error).toBe("Invalid input");
-    }
+    const response = domainResultToResponse(err(error));
+    expect(response.status).toBe(422);
+    expect(await response.json()).toEqual({ error: "Invalid input" });
   });
 });

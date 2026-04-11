@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import type { DomainError } from "@/backend/domain/errors";
 import { isDomainError } from "@/backend/domain/errors";
 import type { DomainResult } from "@/backend/domain/result";
-import type { ApiResult } from "./request";
 
 export function errorResponse(err: unknown): NextResponse {
   if (isDomainError(err)) {
@@ -14,17 +13,14 @@ export function errorResponse(err: unknown): NextResponse {
   return NextResponse.json({ error: "Internal server error" }, { status: 500 });
 }
 
-export function domainResultToApiResult<T>(
+export function domainResultToResponse<T>(
   result: DomainResult<T, DomainError>,
-): ApiResult<T> {
+): NextResponse {
   if (result.ok) {
-    return { ok: true, data: result.value };
+    return NextResponse.json(result.value);
   }
-  return {
-    ok: false,
-    response: NextResponse.json(
-      { error: result.error.message },
-      { status: result.error.statusCode },
-    ),
-  };
+  return NextResponse.json(
+    { error: result.error.message },
+    { status: result.error.statusCode },
+  );
 }
