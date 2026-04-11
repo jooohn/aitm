@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { SWRConfig } from "swr";
+import { AlertProvider } from "@/lib/alert/AlertContext";
 import { useNotificationRevalidation } from "@/lib/hooks/swr/useNotificationRevalidation";
 
 function NotificationRevalidator() {
@@ -18,8 +19,10 @@ export default function SWRProvider({ children }: { children: ReactNode }) {
         keepPreviousData: true,
       }}
     >
-      <NotificationRevalidator />
-      {children}
+      <AlertProvider>
+        <NotificationRevalidator />
+        {children}
+      </AlertProvider>
     </SWRConfig>
   );
 }
