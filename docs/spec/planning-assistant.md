@@ -2,6 +2,7 @@
 
 **Status:** implemented
 **Last updated:** 2026-04-11
+**Related ADRs:** [Lazy chat persistence](../adr/20260411-120001-lazy-chat-persistence.md)
 
 ## Summary
 
@@ -37,8 +38,8 @@ Key differences from `Session`:
 
 ### Chat lifecycle
 
-1. **Create**: User clicks "New Chat" in the sidebar. A `Chat` record is created with status `"idle"` and no agent session yet. The user is navigated to the chat view.
-2. **First message**: User types a message. The system starts the agent (via `AgentRuntime.query`) with the message as the prompt. Status becomes `"running"`.
+1. **Draft**: User clicks "New Chat" in the sidebar. The UI navigates to `/chat/new` — a draft state with no database record. The chat input is active but nothing is persisted yet.
+2. **Create on first message**: User types a message. The frontend calls `createChat()` then `sendChatMessage()` sequentially. The `Chat` record is created, the agent starts (via `AgentRuntime.query`), and the UI replaces the URL to `/chat/[chatId]`. Status becomes `"running"`.
 3. **Agent responds**: The agent streams its response (logged to file, streamed via SSE). When the agent finishes, the system inspects the structured output:
    - If `proposals` is non-empty — status becomes `"awaiting_input"`, proposals are surfaced in the UI.
    - If `proposals` is empty — status returns to `"idle"`. The conversation is open for the next user message.
@@ -191,8 +192,8 @@ The user does **not** need to act on all proposals before continuing. They can a
 
 #### Sidebar
 
-- Add a "New Chat" button in the repository sidebar, below the existing "Run Workflow" button.
-- Below the button, list past chats for this repository (most recent first), showing the chat title (or a truncated first message if no title yet). Chats with `"running"` or `"awaiting_input"` status get a visual indicator.
+- Add a "New Chat" button in the repository sidebar, below the existing "Run Workflow" button. Clicking it navigates to `/chat/new` (the draft state) rather than creating a DB record immediately.
+- Below the button, list past chats for this repository (most recent first), showing the chat title (or a truncated first message if no title yet). Chats with `"running"` or `"awaiting_input"` status get a visual indicator. Draft chats do not appear in this list.
 - Each chat entry has a close/delete action.
 
 #### Chat view

@@ -10,7 +10,7 @@ import {
   useWorkflowRuns,
   useWorktrees,
 } from "@/lib/hooks/swr";
-import { type Chat, createChat, deleteChat } from "@/lib/utils/api";
+import { type Chat, deleteChat } from "@/lib/utils/api";
 import styles from "./RepositoryShell.module.css";
 import WorktreeRunsSection from "./WorktreeRunsSection";
 import RunWorkflowModal from "./workflow-runs/RunWorkflowModal";
@@ -84,8 +84,6 @@ export default function RepositoryShell({
   const alias = `${organization}/${name}`;
   const router = useRouter();
   const [showLaunchModal, setShowLaunchModal] = useState(false);
-  const [creatingChat, setCreatingChat] = useState(false);
-
   const { data: repo } = useRepository(organization, name);
   const { data: chats, mutate: mutateChats } = useChats(organization, name);
   const {
@@ -144,22 +142,11 @@ export default function RepositoryShell({
           <button
             type="button"
             className={styles.newChatButton}
-            onClick={async () => {
-              if (creatingChat) return;
-              setCreatingChat(true);
-              try {
-                const chat = await createChat(organization, name);
-                await mutateChats();
-                router.push(
-                  `/repositories/${organization}/${name}/chat/${chat.id}`,
-                );
-              } finally {
-                setCreatingChat(false);
-              }
+            onClick={() => {
+              router.push(`/repositories/${organization}/${name}/chat/new`);
             }}
-            disabled={creatingChat}
           >
-            {creatingChat ? "Creating..." : "New Chat"}
+            New Chat
           </button>
         </section>
         {repo && (
