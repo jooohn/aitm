@@ -1,7 +1,7 @@
 # Spec: Planning Assistant
 
-**Status:** draft
-**Last updated:** 2026-04-10
+**Status:** implemented
+**Last updated:** 2026-04-11
 
 ## Summary
 
@@ -254,6 +254,17 @@ CREATE TABLE IF NOT EXISTS chat_proposals (
 ```
 
 `chat_proposals` are created server-side when the system receives the agent's structured output containing proposals. Each proposal gets a UUID. The `ON DELETE CASCADE` ensures proposals are cleaned up when the chat is closed.
+
+### Implementation notes
+
+- Domain: `src/backend/domain/chats/` — `ChatService`, `ChatAgent`,
+  `ProposalService`, `chat-repository`, `system-prompt`, `chat-serializer`.
+- API routes: `src/app/api/chats/route.ts` and
+  `src/app/api/chats/[id]/{route.ts, messages, stream, history, proposals}`.
+- UI: `src/app/(main)/repositories/[organization]/[name]/chat/[chatId]/`.
+- A `GET /api/chats/[id]/history` endpoint is provided in addition to the
+  endpoints listed above; it returns the serialized chat log for initial
+  render before the SSE stream attaches.
 
 ## Out of scope
 

@@ -1,7 +1,7 @@
 # Spec: Worktree Process Management UI
 
-**Status:** draft
-**Last updated:** 2026-04-10
+**Status:** implemented
+**Last updated:** 2026-04-11
 
 ## Summary
 

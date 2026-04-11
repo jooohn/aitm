@@ -1,7 +1,7 @@
 # Spec: Repository Management
 
-**Status:** draft
-**Last updated:** 2026-03-29
+**Status:** implemented
+**Last updated:** 2026-04-11
 
 ## Summary
 
