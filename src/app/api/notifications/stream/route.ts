@@ -25,6 +25,10 @@ export async function GET(_request: Request): Promise<Response> {
     | ((payload: EventMap["process.status-changed"]) => void)
     | null = null;
 
+  let chatStatusChangedListener:
+    | ((payload: EventMap["chat.status-changed"]) => void)
+    | null = null;
+
   const stream = new ReadableStream({
     start(controller) {
       const enqueue = (event: NotificationEvent) => {
@@ -78,6 +82,10 @@ export async function GET(_request: Request): Promise<Response> {
       );
       eventBus.on("worktree.changed", worktreeChangedListener);
       eventBus.on("process.status-changed", processStatusChangedListener);
+
+      chatStatusChangedListener = (payload) =>
+        enqueue({ type: "chat.status-changed", payload });
+      eventBus.on("chat.status-changed", chatStatusChangedListener);
     },
     cancel() {
       if (houseKeepingSyncStatusChangedListener) {
@@ -100,6 +108,9 @@ export async function GET(_request: Request): Promise<Response> {
       }
       if (processStatusChangedListener) {
         eventBus.off("process.status-changed", processStatusChangedListener);
+      }
+      if (chatStatusChangedListener) {
+        eventBus.off("chat.status-changed", chatStatusChangedListener);
       }
     },
   });

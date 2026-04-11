@@ -1,7 +1,7 @@
 # Spec: Notifications Stream
 
 **Status:** implemented
-**Last updated:** 2026-04-11
+**Last updated:** 2026-04-12
 
 ## Summary
 
@@ -53,6 +53,7 @@ All events share the shape `{ type, payload }`, serialized as
 | `step-execution.status-changed` | `WorkflowRunContext & { stepExecutionId, status }` | A step execution transitions status |
 | `worktree.changed` | `RepositoryContext` | A worktree is created, removed, or otherwise mutated |
 | `process.status-changed` | `{ repositoryOrganization, repositoryName, worktreeBranch, processId, status }` | A long-running process under a worktree starts, stops, or crashes |
+| `chat.status-changed` | `RepositoryContext & { chatId, status }` | A chat transitions status (idle → running → awaiting_input → idle) |
 
 `RepositoryContext = { repositoryOrganization, repositoryName }` and
 `WorkflowRunContext = RepositoryContext & { workflowRunId, branchName }`.
@@ -86,6 +87,7 @@ Each event type maps to one or more SWR key prefixes:
 | `step-execution.status-changed` | The step execution keys under its workflow run |
 | `worktree.changed` | The repository's worktree list and anything keyed under it (includes process lists) |
 | `process.status-changed` | The worktree's processes list under its repository |
+| `chat.status-changed` | The chat list for the repository and the individual chat detail plus sub-resources |
 | `house-keeping.sync-status-changed` | Consumed by `useHouseKeepingSyncing` to render a global syncing indicator; not routed through SWR mutate |
 
 Revalidation uses `populateCache: false` so that the mutate call only

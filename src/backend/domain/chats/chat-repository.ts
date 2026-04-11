@@ -1,4 +1,6 @@
 import type Database from "better-sqlite3";
+import type { EventBus } from "@/backend/infra/event-bus";
+import { splitAlias } from "@/lib/utils/inferAlias";
 import type { Chat, ChatProposal, ChatProposalStatus, ChatStatus } from ".";
 import {
   type ChatProposalRow,
@@ -8,7 +10,27 @@ import {
 } from "./chat-serializer";
 
 export class ChatRepository {
-  constructor(private db: Database.Database) {}
+  constructor(
+    private db: Database.Database,
+    private eventBus?: EventBus,
+  ) {}
+
+  private emitChatStatusChanged(chatId: string, status: ChatStatus): void {
+    if (!this.eventBus) return;
+
+    const row = this.db
+      .prepare("SELECT repository_path FROM chats WHERE id = ?")
+      .get(chatId) as { repository_path: string } | undefined;
+    if (!row) return;
+
+    const { organization, name } = splitAlias(row.repository_path);
+    this.eventBus.emit("chat.status-changed", {
+      chatId,
+      status,
+      repositoryOrganization: organization,
+      repositoryName: name,
+    });
+  }
 
   ensureTables(): void {
     this.db.exec(`
@@ -102,6 +124,9 @@ export class ChatRepository {
     const result = this.db
       .prepare("UPDATE chats SET status = ?, updated_at = ? WHERE id = ?")
       .run(status, now, id);
+    if (result.changes > 0) {
+      this.emitChatStatusChanged(id, status);
+    }
     return result.changes > 0;
   }
 
