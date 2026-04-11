@@ -32,12 +32,18 @@ export async function GET(
       repositoryResult.data.repository.path,
     );
     if (!githubUrl) {
-      return NextResponse.json([]);
+      return NextResponse.json(
+        { error: "No GitHub URL found for this repository" },
+        { status: 400 },
+      );
     }
 
     const parsed = parseGitHubOwnerRepo(githubUrl);
     if (!parsed) {
-      return NextResponse.json([]);
+      return NextResponse.json(
+        { error: `Could not parse GitHub owner/repo from URL: ${githubUrl}` },
+        { status: 400 },
+      );
     }
 
     const branches = await gitHubBranchService.fetchBranchesWithOpenPRs(

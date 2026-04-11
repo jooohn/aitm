@@ -105,10 +105,9 @@ describe("GET /api/repositories/:organization/:name/remote-branches", () => {
     );
   });
 
-  it("returns empty array when GITHUB_TOKEN is not set", async () => {
-    delete process.env.GITHUB_TOKEN;
+  it("returns error when repository has no GitHub URL", async () => {
     const repoPath = makeFakeGitRepoWithRemote(
-      "git@github.com:testorg/testrepo.git",
+      "git@gitlab.com:testorg/testrepo.git",
     );
     await writeConfig([repoPath]);
     const parts = repoPath.split("/").filter(Boolean);
@@ -121,9 +120,8 @@ describe("GET /api/repositories/:organization/:name/remote-branches", () => {
       ),
       makeParams(organization, name),
     );
-    expect(res.status).toBe(200);
+    expect(res.status).toBeGreaterThanOrEqual(400);
     const body = await res.json();
-    expect(body).toEqual([]);
-    expect(mockFetch).not.toHaveBeenCalled();
+    expect(body).toHaveProperty("error");
   });
 });
