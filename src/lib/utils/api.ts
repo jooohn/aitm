@@ -306,6 +306,15 @@ export function approveChatProposal(
   });
 }
 
+export function diveDeepProposal(
+  chatId: string,
+  proposalId: string,
+): Promise<{ chat_id: string }> {
+  return apiFetch(`/api/chats/${chatId}/proposals/${proposalId}/dive-deep`, {
+    method: "POST",
+  });
+}
+
 export function rejectChatProposal(
   chatId: string,
   proposalId: string,

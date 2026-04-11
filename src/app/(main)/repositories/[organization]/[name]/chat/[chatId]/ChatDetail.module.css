@@ -12,6 +12,10 @@
   @apply flex items-center gap-3 min-w-0;
 }
 
+.parentLink {
+  @apply text-xs text-purple-600 dark:text-purple-400 hover:underline shrink-0;
+}
+
 .title {
   @apply text-lg font-semibold text-zinc-900 dark:text-zinc-50 truncate;
 }

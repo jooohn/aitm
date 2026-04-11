@@ -1,10 +1,12 @@
 "use client";
 
+import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import CollapsibleText from "@/app/components/CollapsibleText";
 import {
   approveChatProposal,
   type ChatProposal,
+  diveDeepProposal,
   rejectChatProposal,
 } from "@/lib/utils/api";
 import styles from "./ProposalCard.module.css";
@@ -16,6 +18,11 @@ interface Props {
 }
 
 export default function ProposalCard({ chatId, proposal, onActioned }: Props) {
+  const router = useRouter();
+  const { organization, name } = useParams<{
+    organization: string;
+    name: string;
+  }>();
   const [acting, setActing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showRejectForm, setShowRejectForm] = useState(false);
@@ -31,6 +38,21 @@ export default function ProposalCard({ chatId, proposal, onActioned }: Props) {
       onActioned();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to approve");
+    } finally {
+      setActing(false);
+    }
+  }
+
+  async function handleDiveDeep() {
+    setActing(true);
+    setError(null);
+    try {
+      const result = await diveDeepProposal(chatId, proposal.id);
+      router.push(
+        `/repositories/${organization}/${name}/chat/${result.chat_id}`,
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to dive deep");
     } finally {
       setActing(false);
     }
@@ -113,6 +135,14 @@ export default function ProposalCard({ chatId, proposal, onActioned }: Props) {
               disabled={acting}
             >
               {showRejectForm ? (acting ? "..." : "Confirm Reject") : "Reject"}
+            </button>
+            <button
+              type="button"
+              className={styles.diveDeepButton}
+              onClick={handleDiveDeep}
+              disabled={acting}
+            >
+              {acting ? "..." : "Dive Deep"}
             </button>
             {showRejectForm && (
               <button

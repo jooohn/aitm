@@ -8,9 +8,14 @@ import type {
 } from "@/backend/infra/config";
 import { logger } from "@/backend/infra/logger";
 import { appendToLog } from "@/backend/utils/log";
-import type { AgentRuntime } from "../agent/runtime";
+import type { AgentRuntime, ForkSessionResult } from "../agent/runtime";
 import type { BranchNameService } from "../branch-name";
-import { ConflictError, NotFoundError } from "../errors";
+import {
+  ConflictError,
+  NotFoundError,
+  ServiceUnavailableError,
+  ValidationError,
+} from "../errors";
 import type { WorkflowRunService } from "../workflow-runs";
 import type { WorktreeService } from "../worktrees";
 import { ChatAgent, chatsLogDir } from "./chat-agent";
@@ -33,6 +38,7 @@ export interface Chat {
   agent_config: AgentConfig;
   log_file_path: string;
   claude_session_id: string | null;
+  parent_chat_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -56,6 +62,7 @@ export interface ChatProposal {
 export class ChatService {
   private chatAgent: ChatAgent;
   private proposalService: ProposalService;
+  private runtimes: Record<AgentProvider, AgentRuntime>;
 
   constructor(
     private chatRepository: ChatRepository,
@@ -66,6 +73,7 @@ export class ChatService {
     private defaultAgentConfig: AgentConfig,
     private workflows: Record<string, WorkflowDefinition>,
   ) {
+    this.runtimes = runtimes;
     this.chatAgent = new ChatAgent(runtimes, chatRepository, workflows);
     this.proposalService = new ProposalService(
       chatRepository,
@@ -179,6 +187,77 @@ export class ChatService {
     reason?: string,
   ): Promise<void> {
     return this.proposalService.rejectProposal(chatId, proposalId, reason);
+  }
+
+  // -- Dive Deep --
+
+  async diveDeep(
+    chatId: string,
+    proposalId: string,
+  ): Promise<{ chatId: string }> {
+    const chat = this.chatRepository.getChat(chatId);
+    if (!chat) throw new NotFoundError("Chat", chatId);
+
+    const proposal = this.chatRepository.getProposal(proposalId);
+    if (!proposal) throw new NotFoundError("Proposal", proposalId);
+    if (proposal.chat_id !== chatId) {
+      throw new ValidationError("Proposal does not belong to this chat");
+    }
+    if (proposal.status !== "pending") {
+      throw new ValidationError("Cannot dive deep on a non-pending proposal");
+    }
+
+    if (!chat.claude_session_id) {
+      throw new ValidationError(
+        "Cannot fork: parent chat has no active session",
+      );
+    }
+
+    const runtime = this.runtimes[chat.agent_config.provider];
+    if (!runtime?.fork) {
+      throw new ServiceUnavailableError(
+        `Provider "${chat.agent_config.provider}" does not support fork`,
+      );
+    }
+
+    const forkResult: ForkSessionResult = await runtime.fork(
+      chat.claude_session_id,
+      {
+        dir: chat.repository_path,
+        title: `Dive deep: ${proposal.rationale}`,
+      },
+    );
+
+    const newChatId = randomUUID();
+    const now = new Date().toISOString();
+    const log_file_path = join(await chatsLogDir(), `${newChatId}.log`);
+
+    this.chatRepository.insertChat({
+      id: newChatId,
+      repository_path: chat.repository_path,
+      title: `Dive deep: ${proposal.rationale.length > 60 ? `${proposal.rationale.slice(0, 57)}...` : proposal.rationale}`,
+      agent_config: chat.agent_config,
+      log_file_path,
+      claude_session_id: forkResult.sessionId,
+      parent_chat_id: chatId,
+      now,
+    });
+
+    const seedingMessage = `Let's dive deeper into this suggestion: "${proposal.rationale}"\n\nWorkflow: ${proposal.workflow_name}\nInputs: ${JSON.stringify(proposal.inputs, null, 2)}\n\nHelp me refine the scope or break it into smaller workflow-runs.`;
+
+    this.chatRepository.setChatStatus(newChatId, "running", now);
+
+    const newChat = this.chatRepository.getChat(newChatId)!;
+    this.chatAgent
+      .runAgent(newChatId, newChat, seedingMessage, false)
+      .catch((err) =>
+        logger.error(
+          { err, chatId: newChatId },
+          "Failed to run dive-deep chat agent",
+        ),
+      );
+
+    return { chatId: newChatId };
   }
 
   // -- Recovery --

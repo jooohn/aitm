@@ -64,10 +64,24 @@ export interface OutputFormat {
   schema: Record<string, unknown>;
 }
 
+export interface ForkSessionParams {
+  dir?: string;
+  title?: string;
+}
+
+export interface ForkSessionResult {
+  sessionId: string;
+}
+
 export interface AgentRuntime {
   query(params: AgentQueryParams): AsyncIterable<AgentMessage>;
 
   resume(params: AgentResumeParams): AsyncIterable<AgentMessage>;
+
+  fork?(
+    sessionId: string,
+    options?: ForkSessionParams,
+  ): Promise<ForkSessionResult>;
 
   buildTransitionOutputFormat(
     transitions: SessionTransition[],

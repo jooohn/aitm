@@ -1,4 +1,4 @@
-import { query } from "@anthropic-ai/claude-agent-sdk";
+import { forkSession, query } from "@anthropic-ai/claude-agent-sdk";
 import {
   buildTransitionOutputFormatForClaude,
   CLAUDE_SDK_TOOLS,
@@ -9,6 +9,8 @@ import type {
   AgentQueryParams,
   AgentResumeParams,
   AgentRuntime,
+  ForkSessionParams,
+  ForkSessionResult,
 } from "./runtime";
 
 export class ClaudeSDK implements AgentRuntime {
@@ -63,6 +65,17 @@ export class ClaudeSDK implements AgentRuntime {
     for await (const message of result) {
       yield message as unknown as AgentMessage;
     }
+  }
+
+  async fork(
+    sessionId: string,
+    options?: ForkSessionParams,
+  ): Promise<ForkSessionResult> {
+    const result = await forkSession(sessionId, {
+      dir: options?.dir,
+      title: options?.title,
+    });
+    return { sessionId: result.sessionId };
   }
 
   buildTransitionOutputFormat = buildTransitionOutputFormatForClaude;
