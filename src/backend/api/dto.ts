@@ -26,7 +26,11 @@ export function toChatDto(chat: Chat): ChatDto {
     claude_session_id: _cs,
     ...rest
   } = chat;
-  return { ...rest, ...splitAlias(repository_path) };
+  return {
+    ...rest,
+    ...splitAlias(repository_path),
+    parent_chat_id: chat.parent_chat_id,
+  };
 }
 
 export function toChatProposalDto(proposal: ChatProposal): ChatProposalDto {

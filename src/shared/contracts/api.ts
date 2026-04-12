@@ -191,6 +191,7 @@ export interface ChatDto {
   name: string;
   title: string | null;
   status: ChatStatusDto;
+  parent_chat_id: string | null;
   created_at: string;
   updated_at: string;
 }

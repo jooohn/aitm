@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { useParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { mutate } from "swr";
 import ChatTranscript from "@/app/components/ChatTranscript/ChatTranscript";
@@ -38,6 +40,10 @@ interface Props {
 }
 
 export default function ChatDetail({ chatId }: Props) {
+  const { organization, name } = useParams<{
+    organization: string;
+    name: string;
+  }>();
   const { data: chat, mutate: mutateChat } = useChat(chatId);
   const [outputItems, setOutputItems] = useState<OutputItem[]>([]);
   const [messageText, setMessageText] = useState("");
@@ -178,6 +184,14 @@ export default function ChatDetail({ chatId }: Props) {
     <div className={styles.container}>
       <div className={styles.header}>
         <div className={styles.headerLeft}>
+          {chat.parent_chat_id && (
+            <Link
+              href={`/repositories/${organization}/${name}/chat/${chat.parent_chat_id}`}
+              className={styles.parentLink}
+            >
+              Parent chat
+            </Link>
+          )}
           <h2 className={styles.title}>{chat.title ?? "New chat"}</h2>
           <StatusBadge variant={BADGE_VARIANT[chat.status]}>
             {STATUS_LABELS[chat.status]}

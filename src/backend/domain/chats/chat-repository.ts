@@ -42,10 +42,23 @@ export class ChatRepository {
         agent_config        TEXT NOT NULL,
         log_file_path       TEXT NOT NULL,
         claude_session_id   TEXT,
+        parent_chat_id      TEXT REFERENCES chats(id) ON DELETE SET NULL,
         created_at          TEXT NOT NULL,
         updated_at          TEXT NOT NULL
       );
 
+    `);
+
+    const columns = this.db.prepare("PRAGMA table_info(chats)").all() as Array<{
+      name: string;
+    }>;
+    if (!columns.some((c) => c.name === "parent_chat_id")) {
+      this.db.exec(
+        "ALTER TABLE chats ADD COLUMN parent_chat_id TEXT REFERENCES chats(id) ON DELETE SET NULL",
+      );
+    }
+
+    this.db.exec(`
       CREATE TABLE IF NOT EXISTS chat_proposals (
         id                  TEXT PRIMARY KEY,
         chat_id             TEXT NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
@@ -66,14 +79,16 @@ export class ChatRepository {
     title: string | null;
     agent_config: Chat["agent_config"];
     log_file_path: string;
+    claude_session_id?: string | null;
+    parent_chat_id?: string | null;
     now: string;
   }): void {
     this.db
       .prepare(
         `INSERT INTO chats
          (id, repository_path, title, status, agent_config, log_file_path,
-          claude_session_id, created_at, updated_at)
-         VALUES (?, ?, ?, 'idle', ?, ?, NULL, ?, ?)`,
+          claude_session_id, parent_chat_id, created_at, updated_at)
+         VALUES (?, ?, ?, 'idle', ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         params.id,
@@ -81,6 +96,8 @@ export class ChatRepository {
         params.title,
         JSON.stringify(params.agent_config),
         params.log_file_path,
+        params.claude_session_id ?? null,
+        params.parent_chat_id ?? null,
         params.now,
         params.now,
       );

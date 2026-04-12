@@ -86,3 +86,55 @@ describe("ChatRepository event emission", () => {
     ).not.toThrow();
   });
 });
+
+describe("ChatRepository.ensureTables migration", () => {
+  let db: Database.Database;
+
+  beforeEach(() => {
+    db = new Database(":memory:");
+  });
+
+  afterEach(() => {
+    db.close();
+  });
+
+  it("adds parent_chat_id column to an existing chats table that lacks it", () => {
+    db.exec(`
+      CREATE TABLE chats (
+        id                  TEXT PRIMARY KEY,
+        repository_path     TEXT NOT NULL,
+        title               TEXT,
+        status              TEXT NOT NULL DEFAULT 'idle',
+        agent_config        TEXT NOT NULL,
+        log_file_path       TEXT NOT NULL,
+        claude_session_id   TEXT,
+        created_at          TEXT NOT NULL,
+        updated_at          TEXT NOT NULL
+      );
+    `);
+
+    const columnsBefore = db
+      .prepare("PRAGMA table_info(chats)")
+      .all() as Array<{ name: string }>;
+    expect(columnsBefore.some((c) => c.name === "parent_chat_id")).toBe(false);
+
+    const repo = new ChatRepository(db);
+    repo.ensureTables();
+
+    const columnsAfter = db.prepare("PRAGMA table_info(chats)").all() as Array<{
+      name: string;
+    }>;
+    expect(columnsAfter.some((c) => c.name === "parent_chat_id")).toBe(true);
+  });
+
+  it("does not fail when parent_chat_id column already exists", () => {
+    const repo = new ChatRepository(db);
+    repo.ensureTables();
+    repo.ensureTables();
+
+    const columns = db.prepare("PRAGMA table_info(chats)").all() as Array<{
+      name: string;
+    }>;
+    expect(columns.some((c) => c.name === "parent_chat_id")).toBe(true);
+  });
+});

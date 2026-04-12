@@ -69,6 +69,10 @@
   @apply px-3 py-1.5 rounded text-xs font-medium bg-zinc-200 text-zinc-700 hover:bg-zinc-300 dark:bg-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer;
 }
 
+.diveDeepButton {
+  @apply px-3 py-1.5 rounded text-xs font-medium bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/40 dark:text-purple-300 dark:hover:bg-purple-800/50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer ml-auto;
+}
+
 .rejectReasonInput {
   @apply mt-2 w-full text-xs px-3 py-2 rounded border border-zinc-300 bg-white text-zinc-800 placeholder:text-zinc-400 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-200 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-400 dark:focus:ring-zinc-500 resize-y;
 }

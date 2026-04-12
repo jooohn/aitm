@@ -10,6 +10,7 @@ export interface ChatRow {
   agent_config: string;
   log_file_path: string;
   claude_session_id: string | null;
+  parent_chat_id: string | null;
   created_at: string;
   updated_at: string;
 }
