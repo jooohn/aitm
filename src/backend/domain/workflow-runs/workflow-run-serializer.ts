@@ -29,6 +29,7 @@ export interface StepExecutionRow {
   output_file_path: string | null;
   session_id: string | null;
   session_status: StepExecution["session_status"];
+  command_execution_id: string | null;
   transition_decision: string | null;
   handoff_summary: string | null;
   created_at: string;
@@ -98,6 +99,7 @@ export function stepExecutionRowToDomain(row: StepExecutionRow): StepExecution {
     ...row,
     session_id: row.session_id ?? null,
     session_status: row.session_status ?? null,
+    command_execution_id: row.command_execution_id ?? null,
     transition_decision: parseTransitionDecision(row.transition_decision),
   };
 }

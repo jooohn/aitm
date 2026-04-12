@@ -61,6 +61,7 @@ beforeEach(async () => {
   configFile = await setupTestConfigDir();
   getContainer(); // ensure tables exist via lazy init
 
+  db.prepare("DELETE FROM command_executions").run();
   db.prepare("DELETE FROM sessions").run();
   db.prepare("DELETE FROM step_executions").run();
   db.prepare("DELETE FROM workflow_runs").run();

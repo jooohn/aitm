@@ -169,8 +169,23 @@ export interface StepExecutionDto {
   output_file_path: string | null;
   session_id: string | null;
   session_status: SessionStatusDto | null;
+  command_execution_id: string | null;
   transition_decision: TransitionDecisionDto | null;
   handoff_summary: string | null;
+  created_at: string;
+  completed_at: string | null;
+}
+
+export type CommandExecutionStatusDto = "running" | "success" | "failure";
+
+export interface CommandExecutionDto {
+  id: string;
+  step_execution_id: string;
+  command: string;
+  cwd: string;
+  status: CommandExecutionStatusDto;
+  exit_code: number | null;
+  output_file_path: string | null;
   created_at: string;
   completed_at: string | null;
 }

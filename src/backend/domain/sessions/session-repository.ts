@@ -330,6 +330,15 @@ export class SessionRepository {
     this.db.transaction(() => {
       this.db
         .prepare(
+          `DELETE FROM command_executions WHERE step_execution_id IN (
+           SELECT id FROM step_executions WHERE workflow_run_id IN (
+             SELECT id FROM workflow_runs WHERE repository_path = ? AND worktree_branch IN (${placeholders})
+           )
+         )`,
+        )
+        .run(...params);
+      this.db
+        .prepare(
           `DELETE FROM sessions WHERE repository_path = ? AND worktree_branch IN (${placeholders})`,
         )
         .run(...params);

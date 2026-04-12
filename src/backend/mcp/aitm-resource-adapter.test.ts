@@ -51,6 +51,7 @@ workflows:
 
   db.prepare("DELETE FROM chat_proposals").run();
   db.prepare("DELETE FROM chats").run();
+  db.prepare("DELETE FROM command_executions").run();
   db.prepare("DELETE FROM sessions").run();
   db.prepare("DELETE FROM step_executions").run();
   db.prepare("DELETE FROM workflow_runs").run();
@@ -187,6 +188,75 @@ describe("AitmMcpResourceAdapter", () => {
     expect(
       "text" in artifactIndex.contents[0] && artifactIndex.contents[0].text,
     ).toContain('"exists": false');
+  });
+
+  it("exposes command execution resources via aitm://command-executions/{id}", async () => {
+    // Use a command workflow
+    await writeTestConfig(
+      configFile,
+      `
+repositories:
+  - path: ${repoPath}
+workflows:
+  cmd-flow:
+    initial_step: lint
+    steps:
+      lint:
+        type: command
+        command: "echo ok"
+        transitions:
+          - terminal: success
+            when: succeeded
+`,
+    );
+    initializeContainer();
+    vi.spyOn(getContainer().agentService, "startAgent").mockResolvedValue(
+      undefined,
+    );
+    vi.spyOn(
+      getContainer().worktreeService,
+      "listWorktrees",
+    ).mockImplementation(async () => [
+      {
+        branch: "feat/test",
+        path: worktreePath,
+        is_main: false,
+        is_bare: false,
+        head: "abcdef0",
+      },
+    ]);
+
+    await getContainer().workflowRunService.createWorkflowRun({
+      repository_path: repoPath,
+      worktree_branch: "feat/test",
+      workflow_name: "cmd-flow",
+    });
+
+    // Find the command execution
+    const cmdExecs = db.prepare("SELECT id FROM command_executions").all() as {
+      id: string;
+    }[];
+    expect(cmdExecs).toHaveLength(1);
+    const cmdExecId = cmdExecs[0].id;
+
+    const adapter = new AitmMcpResourceAdapter(getContainer());
+    const resources = await adapter.listResources();
+    const cmdResource = resources.find(
+      (r) => r.uri === `aitm://command-executions/${cmdExecId}`,
+    );
+
+    expect(cmdResource).toBeDefined();
+    expect(cmdResource?.mimeType).toBe("application/json");
+
+    const contents = await adapter.readResource(
+      `aitm://command-executions/${cmdExecId}`,
+    );
+    const text =
+      "text" in contents.contents[0] ? contents.contents[0].text : "";
+    const parsed = JSON.parse(text);
+    expect(parsed.id).toBe(cmdExecId);
+    expect(parsed.command).toBe("echo ok");
+    expect(parsed.status).toBe("success");
   });
 
   it("treats zero-byte artifacts as existing readable resources", async () => {

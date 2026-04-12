@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { WorkflowDefinition } from "@/backend/infra/config";
 import type { TransitionDecision } from "../agent";
 import { SessionRepository } from "../sessions/session-repository";
+import { CommandExecutionRepository } from "./command-execution-repository";
 import type { StartStepExecutionInput } from "./step-runner";
 import { WorkflowRunRepository } from "./workflow-run-repository";
 import { WorkflowStateMachine } from "./workflow-state-machine";
@@ -98,15 +99,18 @@ const CHAINED_APPROVAL_WORKFLOWS: Record<string, WorkflowDefinition> = {
 describe("WorkflowStateMachine", () => {
   let db: Database.Database;
   let sessionRepository: SessionRepository;
+  let commandExecutionRepository: CommandExecutionRepository;
   let workflowRunRepository: WorkflowRunRepository;
 
   beforeEach(() => {
     db = new Database(":memory:");
     sessionRepository = new SessionRepository(db);
     workflowRunRepository = new WorkflowRunRepository(db);
+    commandExecutionRepository = new CommandExecutionRepository(db);
 
-    sessionRepository.ensureTables();
     workflowRunRepository.ensureTables();
+    commandExecutionRepository.ensureTables();
+    sessionRepository.ensureTables();
   });
 
   it("advances persisted workflow state and starts the next step", async () => {
@@ -143,6 +147,7 @@ describe("WorkflowStateMachine", () => {
     });
     const stateMachine = new WorkflowStateMachine(
       workflowRunRepository,
+      commandExecutionRepository,
       { startStepExecution } as never,
       TWO_STEP_WORKFLOWS,
     );
@@ -200,6 +205,7 @@ describe("WorkflowStateMachine", () => {
 
     const stateMachine = new WorkflowStateMachine(
       workflowRunRepository,
+      commandExecutionRepository,
       { startStepExecution: vi.fn() } as never,
       TWO_STEP_WORKFLOWS,
     );
@@ -235,6 +241,7 @@ describe("WorkflowStateMachine", () => {
 
     const stateMachine = new WorkflowStateMachine(
       workflowRunRepository,
+      commandExecutionRepository,
       {
         startStepExecution: async (input) => {
           workflowRunRepository.insertStepExecution({
@@ -295,6 +302,7 @@ describe("WorkflowStateMachine", () => {
     const completeStepExecution = vi.fn().mockResolvedValue(undefined);
     const stateMachine = new WorkflowStateMachine(
       workflowRunRepository,
+      commandExecutionRepository,
       { startStepExecution: vi.fn() } as never,
       SINGLE_STEP_WORKFLOWS,
     );
@@ -374,6 +382,7 @@ describe("WorkflowStateMachine", () => {
 
     const stateMachine = new WorkflowStateMachine(
       workflowRunRepository,
+      commandExecutionRepository,
       {
         startStepExecution: async (input) => {
           workflowRunRepository.insertStepExecution({
@@ -422,6 +431,7 @@ describe("WorkflowStateMachine", () => {
 
     const stateMachine = new WorkflowStateMachine(
       workflowRunRepository,
+      commandExecutionRepository,
       {
         startStepExecution: async (input: StartStepExecutionInput) => {
           workflowRunRepository.insertStepExecution({

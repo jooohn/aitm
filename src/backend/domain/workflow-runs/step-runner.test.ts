@@ -7,6 +7,7 @@ import type { AgentConfig, WorkflowDefinition } from "@/backend/infra/config";
 import type { TransitionDecision } from "../agent";
 import { SessionRepository } from "../sessions/session-repository";
 import type { Worktree } from "../worktrees";
+import { CommandExecutionRepository } from "./command-execution-repository";
 import { StepRunner } from "./step-runner";
 import { WorkflowRunRepository } from "./workflow-run-repository";
 
@@ -16,12 +17,14 @@ describe("StepRunner", () => {
   let db: Database.Database;
   let sessionRepository: SessionRepository;
   let workflowRunRepository: WorkflowRunRepository;
+  let commandExecutionRepository: CommandExecutionRepository;
   let worktreePath: string;
 
   beforeEach(() => {
     db = new Database(":memory:");
     sessionRepository = new SessionRepository(db);
     workflowRunRepository = new WorkflowRunRepository(db);
+    commandExecutionRepository = new CommandExecutionRepository(db);
     worktreePath = join(
       tmpdir(),
       `aitm-step-runner-${Math.random().toString(36).slice(2)}`,
@@ -29,6 +32,7 @@ describe("StepRunner", () => {
 
     sessionRepository.ensureTables();
     workflowRunRepository.ensureTables();
+    commandExecutionRepository.ensureTables();
   });
 
   it("starts agent steps by creating a session with handoff and input context", async () => {
@@ -63,6 +67,7 @@ describe("StepRunner", () => {
 
     const stepRunner = new StepRunner(
       workflowRunRepository,
+      commandExecutionRepository,
       { createSession } as never,
       { findWorktree } as never,
       { execute: vi.fn() } as never,
@@ -173,6 +178,7 @@ describe("StepRunner", () => {
 
     const stepRunner = new StepRunner(
       workflowRunRepository,
+      commandExecutionRepository,
       { createSession: vi.fn() } as never,
       { findWorktree } as never,
       { execute } as never,
@@ -223,6 +229,23 @@ describe("StepRunner", () => {
       reason: "Command succeeded",
       handoff_summary: `Command succeeded. Detailed output: ${expectedOutputPath}`,
     } satisfies TransitionDecision);
+
+    // Verify command execution record was created
+    const cmdExec =
+      commandExecutionRepository.getCommandExecutionByStepExecutionId(
+        execution.id,
+      );
+    expect(cmdExec).toEqual(
+      expect.objectContaining({
+        step_execution_id: execution.id,
+        command: "echo cleanup",
+        cwd: worktreePath,
+        status: "success",
+        exit_code: 0,
+        output_file_path: expectedOutputPath,
+      }),
+    );
+    expect(cmdExec?.completed_at).toBeTruthy();
   });
 
   it("marks missing-worktree executions as failed through the completion handler", async () => {
@@ -241,6 +264,7 @@ describe("StepRunner", () => {
     const completeStepExecution = vi.fn();
     const stepRunner = new StepRunner(
       workflowRunRepository,
+      commandExecutionRepository,
       { createSession: vi.fn() } as never,
       { findWorktree: vi.fn().mockResolvedValue(undefined) } as never,
       { execute: vi.fn() } as never,

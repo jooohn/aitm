@@ -53,6 +53,7 @@ function makeExecution(
     output_file_path: null,
     session_id: null,
     session_status: null,
+    command_execution_id: null,
     transition_decision: null,
     handoff_summary: null,
     created_at: "2024-01-01T00:00:00Z",

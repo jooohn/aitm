@@ -2,6 +2,7 @@ import type { WorkflowDefinition } from "@/backend/infra/config";
 import type { SessionStatusChangedEvent } from "@/backend/infra/event-bus";
 import type { TransitionDecision } from "../agent";
 import { NotFoundError, ValidationError } from "../errors";
+import type { CommandExecutionRepository } from "./command-execution-repository";
 import type {
   StepExecutionStatus,
   WorkflowRun,
@@ -18,6 +19,7 @@ const DEFAULT_MAX_STEP_EXECUTIONS = 30;
 export class WorkflowStateMachine {
   constructor(
     private workflowRunRepository: WorkflowRunRepository,
+    private commandExecutionRepository: CommandExecutionRepository,
     private stepRunner: Pick<StepRunner, "startStepExecution">,
     private workflows: Record<string, WorkflowDefinition>,
   ) {}
@@ -298,6 +300,9 @@ export class WorkflowStateMachine {
 
   async recoverCrashedWorkflowRuns(): Promise<void> {
     const now = new Date().toISOString();
+
+    // Fail any running command executions left over from a crash
+    this.commandExecutionRepository.failRunningCommandExecutions(now);
 
     for (const pending of this.workflowRunRepository.listPendingSucceededExecutions()) {
       await this.completeStepExecution(

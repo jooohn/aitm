@@ -7,6 +7,7 @@ import type { TransitionDecision } from "../agent";
 import { NotFoundError, ValidationError } from "../errors";
 import type { SessionService, SessionStatus } from "../sessions";
 import { Worktree, WorktreeService } from "../worktrees";
+import type { CommandExecutionRepository } from "./command-execution-repository";
 import type { CommandStepExecutor } from "./command-step-executor";
 import * as gitExcludeManager from "./git-exclude-manager";
 import { StepRunner } from "./step-runner";
@@ -45,6 +46,7 @@ export interface StepExecution {
   output_file_path: string | null;
   session_id: string | null;
   session_status: SessionStatus | null;
+  command_execution_id: string | null;
   transition_decision: TransitionDecision | null;
   handoff_summary: string | null;
   created_at: string;
@@ -85,6 +87,7 @@ export class WorkflowRunService {
 
   constructor(
     private workflowRunRepository: WorkflowRunRepository,
+    private commandExecutionRepository: CommandExecutionRepository,
     private sessionService: SessionService,
     private worktreeService: WorktreeService,
     private commandStepExecutor: CommandStepExecutor,
@@ -100,6 +103,7 @@ export class WorkflowRunService {
     );
     this.stepRunner = new StepRunner(
       workflowRunRepository,
+      commandExecutionRepository,
       sessionService,
       worktreeService,
       commandStepExecutor,
@@ -108,6 +112,7 @@ export class WorkflowRunService {
     );
     this.workflowStateMachine = new WorkflowStateMachine(
       workflowRunRepository,
+      commandExecutionRepository,
       this.stepRunner,
       workflows,
     );

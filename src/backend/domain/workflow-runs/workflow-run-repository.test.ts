@@ -3,12 +3,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { WorkflowTransition } from "@/backend/infra/config";
 import { EventBus } from "@/backend/infra/event-bus";
 import { SessionRepository } from "../sessions/session-repository";
+import { CommandExecutionRepository } from "./command-execution-repository";
 import { WorkflowRunRepository } from "./workflow-run-repository";
 
 describe("WorkflowRunRepository event emission", () => {
   let db: Database.Database;
   let eventBus: EventBus;
   let sessionRepository: SessionRepository;
+  let commandExecutionRepository: CommandExecutionRepository;
   let workflowRunRepository: WorkflowRunRepository;
 
   beforeEach(() => {
@@ -16,8 +18,10 @@ describe("WorkflowRunRepository event emission", () => {
     eventBus = new EventBus();
     sessionRepository = new SessionRepository(db, eventBus);
     workflowRunRepository = new WorkflowRunRepository(db, eventBus);
+    commandExecutionRepository = new CommandExecutionRepository(db);
 
     workflowRunRepository.ensureTables();
+    commandExecutionRepository.ensureTables();
     sessionRepository.ensureTables();
   });
 
@@ -432,6 +436,110 @@ describe("WorkflowRunRepository event emission", () => {
         log_file_path: null,
         output_file_path: "/tmp/run-3/command-outputs/exec-3.log",
       },
+    ]);
+  });
+
+  it("returns command_execution_id via LEFT JOIN on command_executions", () => {
+    workflowRunRepository.insertWorkflowRun({
+      id: "run-4",
+      repository_path: "/tmp/repo",
+      worktree_branch: "feat/test",
+      workflow_name: "my-flow",
+      initial_step: "lint",
+      inputs_json: null,
+      now: "2026-04-07T00:00:00.000Z",
+    });
+    workflowRunRepository.insertStepExecution({
+      id: "exec-4",
+      workflowRunId: "run-4",
+      stepName: "lint",
+      stepType: "command",
+      now: "2026-04-07T00:00:00.000Z",
+    });
+    commandExecutionRepository.insertCommandExecution({
+      id: "cmd-4",
+      step_execution_id: "exec-4",
+      command: "npm run lint",
+      cwd: "/tmp/repo",
+      now: "2026-04-07T00:00:00.000Z",
+    });
+
+    const run = workflowRunRepository.getWorkflowRunWithExecutions("run-4");
+    expect(run?.step_executions[0].command_execution_id).toBe("cmd-4");
+  });
+
+  it("returns null command_execution_id for step executions without a command execution", () => {
+    workflowRunRepository.insertWorkflowRun({
+      id: "run-5",
+      repository_path: "/tmp/repo",
+      worktree_branch: "feat/test",
+      workflow_name: "my-flow",
+      initial_step: "plan",
+      inputs_json: null,
+      now: "2026-04-07T00:00:00.000Z",
+    });
+    workflowRunRepository.insertStepExecution({
+      id: "exec-5",
+      workflowRunId: "run-5",
+      stepName: "plan",
+      stepType: "agent",
+      now: "2026-04-07T00:00:00.000Z",
+    });
+
+    const run = workflowRunRepository.getWorkflowRunWithExecutions("run-5");
+    expect(run?.step_executions[0].command_execution_id).toBeNull();
+  });
+
+  it("does not list command step executions with a running command_execution as orphaned", () => {
+    workflowRunRepository.insertWorkflowRun({
+      id: "run-6",
+      repository_path: "/tmp/repo",
+      worktree_branch: "feat/test",
+      workflow_name: "my-flow",
+      initial_step: "lint",
+      inputs_json: null,
+      now: "2026-04-07T00:00:00.000Z",
+    });
+    workflowRunRepository.insertStepExecution({
+      id: "exec-6",
+      workflowRunId: "run-6",
+      stepName: "lint",
+      stepType: "command",
+      now: "2026-04-07T00:00:00.000Z",
+    });
+    commandExecutionRepository.insertCommandExecution({
+      id: "cmd-6",
+      step_execution_id: "exec-6",
+      command: "npm run lint",
+      cwd: "/tmp/repo",
+      now: "2026-04-07T00:00:00.000Z",
+    });
+
+    const orphans = workflowRunRepository.listOrphanedCommandExecutions();
+    expect(orphans).toEqual([]);
+  });
+
+  it("lists command step executions without a command_execution as orphaned", () => {
+    workflowRunRepository.insertWorkflowRun({
+      id: "run-7",
+      repository_path: "/tmp/repo",
+      worktree_branch: "feat/test",
+      workflow_name: "my-flow",
+      initial_step: "lint",
+      inputs_json: null,
+      now: "2026-04-07T00:00:00.000Z",
+    });
+    workflowRunRepository.insertStepExecution({
+      id: "exec-7",
+      workflowRunId: "run-7",
+      stepName: "lint",
+      stepType: "command",
+      now: "2026-04-07T00:00:00.000Z",
+    });
+
+    const orphans = workflowRunRepository.listOrphanedCommandExecutions();
+    expect(orphans).toEqual([
+      { execution_id: "exec-7", workflow_run_id: "run-7" },
     ]);
   });
 });
