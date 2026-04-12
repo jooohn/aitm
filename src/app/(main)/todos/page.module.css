@@ -5,7 +5,7 @@
 }
 
 .shell {
-  @apply grid lg:grid-cols-[16rem_minmax(0,1fr)];
+  @apply grid lg:grid-cols-[16rem_minmax(0,1fr)] min-w-0 max-w-full overflow-x-hidden;
 }
 
 .listPane {

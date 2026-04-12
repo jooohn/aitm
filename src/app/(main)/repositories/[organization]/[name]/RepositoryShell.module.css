@@ -1,7 +1,7 @@
 @reference "tailwindcss";
 
 .shell {
-  @apply w-full flex-1 grid lg:grid-cols-[16rem_minmax(0,1fr)];
+  @apply w-full min-w-0 max-w-full flex-1 grid lg:grid-cols-[16rem_minmax(0,1fr)] overflow-x-hidden;
 }
 
 .content {
