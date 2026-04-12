@@ -50,14 +50,9 @@ export class DomainResult<T, E = DomainError> {
     return DomainResult.err(this.error as E);
   }
 
-  match<U>(handlers: { ok: (v: T) => U; err: (e: E) => U }): U {
+  fold<U>(handlers: { ok: (v: T) => U; err: (e: E) => U }): U {
     if (this.ok) return handlers.ok(this.value as T);
     return handlers.err(this.error as E);
-  }
-
-  unwrap(): T {
-    if (this.ok) return this.value as T;
-    throw this.error;
   }
 }
 

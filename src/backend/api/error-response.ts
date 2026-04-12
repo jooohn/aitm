@@ -16,7 +16,7 @@ export function errorResponse(err: unknown): NextResponse {
 export function domainResultToResponse<T>(
   result: DomainResult<T, DomainError>,
 ): NextResponse {
-  return result.match<NextResponse>({
+  return result.fold<NextResponse>({
     ok: (value) => NextResponse.json(value),
     err: (error) =>
       NextResponse.json({ error: error.message }, { status: error.statusCode }),

@@ -84,6 +84,15 @@ export class SessionService {
     if (!didUpdate) return;
   }
 
+  private getSessionOrThrow(id: string): Session {
+    return this.getSession(id).fold({
+      ok: (session) => session,
+      err: (error) => {
+        throw error;
+      },
+    });
+  }
+
   async createSession(input: CreateSessionInput): Promise<Session> {
     const id = randomUUID();
     const now = new Date().toISOString();
@@ -122,7 +131,7 @@ export class SessionService {
         "Failed to resolve worktree for session",
       );
       this.sessionRepository.setSessionFailed(id, now, null);
-      return this.getSession(id).unwrap();
+      return this.getSessionOrThrow(id);
     }
 
     this.agentService
@@ -140,7 +149,7 @@ export class SessionService {
         logger.error({ err, sessionId: id }, "Failed to start agent"),
       );
 
-    return this.getSession(id).unwrap();
+    return this.getSessionOrThrow(id);
   }
 
   listSessions(filter: ListSessionsFilter = {}): Session[] {
