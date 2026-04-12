@@ -13,7 +13,8 @@ export async function GET(
 ): Promise<Response | NextResponse> {
   const { sessionService } = getContainer();
   const { id } = await params;
-  const session = sessionService.getSession(id);
+  const sessionResult = sessionService.getSession(id);
+  const session = sessionResult.value;
   if (!session) {
     return NextResponse.json({ error: "Session not found" }, { status: 404 });
   }
@@ -43,7 +44,8 @@ export async function GET(
       }
 
       async function checkAndClose() {
-        const current = sessionService.getSession(id);
+        const currentResult = sessionService.getSession(id);
+        const current = currentResult.value;
         if (!current || TERMINAL_STATUSES.has(current.status)) {
           await sendNewLines();
           try {
@@ -60,11 +62,9 @@ export async function GET(
       }
 
       sendNewLines().then(() => {
-        if (
-          TERMINAL_STATUSES.has(
-            sessionService.getSession(id)?.status ?? "failure",
-          )
-        ) {
+        const initialResult = sessionService.getSession(id);
+        const initialStatus = initialResult.value?.status ?? "failure";
+        if (TERMINAL_STATUSES.has(initialStatus)) {
           controller.enqueue(encoder.encode("event: done\ndata: {}\n\n"));
           controller.close();
           return;

@@ -4,6 +4,7 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getContainer, initializeContainer } from "@/backend/container";
+import { NotFoundError, ValidationError } from "@/backend/domain/errors";
 import { db } from "@/backend/infra/db";
 import { eventBus } from "@/backend/infra/event-bus";
 import { setupTestConfigDir, writeTestConfig } from "@/test-config-helper";
@@ -306,7 +307,7 @@ describe("listSessions", () => {
 });
 
 describe("getSession", () => {
-  it("returns the session by id", async () => {
+  it("returns ok result with the session by id", async () => {
     const repoPath = await makeFakeGitRepo();
     const created = await getContainer().sessionService.createSession({
       repository_path: repoPath,
@@ -316,15 +317,19 @@ describe("getSession", () => {
       log_file_path: tempLogFilePath(),
     });
 
-    const found = getContainer().sessionService.getSession(created.id);
-    expect(found).toBeDefined();
-    expect(found?.id).toBe(created.id);
+    const result = getContainer().sessionService.getSession(created.id);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.id).toBe(created.id);
+    }
   });
 
-  it("returns undefined for unknown id", () => {
-    expect(
-      getContainer().sessionService.getSession("nonexistent"),
-    ).toBeUndefined();
+  it("returns err result with NotFoundError for unknown id", () => {
+    const result = getContainer().sessionService.getSession("nonexistent");
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toBeInstanceOf(NotFoundError);
+    }
   });
 });
 
@@ -339,8 +344,11 @@ describe("failSession", () => {
       log_file_path: tempLogFilePath(),
     });
 
-    const failed = getContainer().sessionService.failSession(session.id);
-    expect(failed.status).toBe("failure");
+    const result = getContainer().sessionService.failSession(session.id);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.status).toBe("failure");
+    }
   });
 
   it("emits session.status-changed when a session is failed", async () => {
@@ -367,13 +375,15 @@ describe("failSession", () => {
     eventBus.off("session.status-changed", listener);
   });
 
-  it("throws when session is not found", () => {
-    expect(() =>
-      getContainer().sessionService.failSession("nonexistent"),
-    ).toThrow("Session not found");
+  it("returns err with NotFoundError when session is not found", () => {
+    const result = getContainer().sessionService.failSession("nonexistent");
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toBeInstanceOf(NotFoundError);
+    }
   });
 
-  it("throws when session is already in a terminal state", async () => {
+  it("returns err with ValidationError when session is already in a terminal state", async () => {
     const repoPath = await makeFakeGitRepo();
     const session = await getContainer().sessionService.createSession({
       repository_path: repoPath,
@@ -384,9 +394,12 @@ describe("failSession", () => {
     });
     getContainer().sessionService.failSession(session.id);
 
-    expect(() => getContainer().sessionService.failSession(session.id)).toThrow(
-      "terminal state",
-    );
+    const result = getContainer().sessionService.failSession(session.id);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toBeInstanceOf(ValidationError);
+      expect(result.error.message).toContain("terminal state");
+    }
   });
 
   it("marks an awaiting_input session as failure", async () => {
@@ -398,13 +411,15 @@ describe("failSession", () => {
       transitions: DEFAULT_TRANSITIONS,
       log_file_path: tempLogFilePath(),
     });
-    // Manually set status to awaiting_input
     db.prepare(
       "UPDATE sessions SET status = 'awaiting_input' WHERE id = ?",
     ).run(session.id);
 
-    const failed = getContainer().sessionService.failSession(session.id);
-    expect(failed.status).toBe("failure");
+    const result = getContainer().sessionService.failSession(session.id);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.status).toBe("failure");
+    }
   });
 });
 
@@ -462,13 +477,18 @@ describe("replyToSession", () => {
     );
   });
 
-  it("throws when session is not found", async () => {
-    await expect(
-      getContainer().sessionService.replyToSession("nonexistent", "hello"),
-    ).rejects.toThrow("Session not found");
+  it("returns err with NotFoundError when session is not found", async () => {
+    const result = await getContainer().sessionService.replyToSession(
+      "nonexistent",
+      "hello",
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toBeInstanceOf(NotFoundError);
+    }
   });
 
-  it("throws when session is RUNNING", async () => {
+  it("returns err with ValidationError when session is RUNNING", async () => {
     const repoPath = await makeFakeGitRepo();
     const session = await getContainer().sessionService.createSession({
       repository_path: repoPath,
@@ -478,12 +498,18 @@ describe("replyToSession", () => {
       log_file_path: tempLogFilePath(),
     });
 
-    await expect(
-      getContainer().sessionService.replyToSession(session.id, "hello"),
-    ).rejects.toThrow("not awaiting input");
+    const result = await getContainer().sessionService.replyToSession(
+      session.id,
+      "hello",
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toBeInstanceOf(ValidationError);
+      expect(result.error.message).toContain("not awaiting input");
+    }
   });
 
-  it("throws when session is in a terminal state", async () => {
+  it("returns err with ValidationError when session is in a terminal state", async () => {
     const repoPath = await makeFakeGitRepo();
     const session = await getContainer().sessionService.createSession({
       repository_path: repoPath,
@@ -494,9 +520,68 @@ describe("replyToSession", () => {
     });
     getContainer().sessionService.failSession(session.id);
 
-    await expect(
-      getContainer().sessionService.replyToSession(session.id, "hello"),
-    ).rejects.toThrow("not awaiting input");
+    const result = await getContainer().sessionService.replyToSession(
+      session.id,
+      "hello",
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toBeInstanceOf(ValidationError);
+      expect(result.error.message).toContain("not awaiting input");
+    }
+  });
+
+  it("returns err with NotFoundError when worktree cannot be resolved", async () => {
+    const repoPath = await makeFakeGitRepo();
+    const session = await getContainer().sessionService.createSession({
+      repository_path: repoPath,
+      worktree_branch: "nonexistent-branch",
+      goal: "A",
+      transitions: DEFAULT_TRANSITIONS,
+      log_file_path: tempLogFilePath(),
+    });
+    db.prepare(
+      "UPDATE sessions SET status = 'awaiting_input' WHERE id = ?",
+    ).run(session.id);
+
+    const result = await getContainer().sessionService.replyToSession(
+      session.id,
+      "hello",
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toBeInstanceOf(NotFoundError);
+      expect(result.error.message).toContain("Worktree");
+    }
+  });
+
+  it("returns err when listWorktrees rejects", async () => {
+    const repoPath = await makeFakeGitRepo();
+    const session = await getContainer().sessionService.createSession({
+      repository_path: repoPath,
+      worktree_branch: "feat/a",
+      goal: "A",
+      transitions: DEFAULT_TRANSITIONS,
+      log_file_path: tempLogFilePath(),
+    });
+    db.prepare(
+      "UPDATE sessions SET status = 'awaiting_input' WHERE id = ?",
+    ).run(session.id);
+
+    vi.spyOn(
+      getContainer().worktreeService,
+      "listWorktrees",
+    ).mockRejectedValueOnce(new Error("git failed"));
+
+    const result = await getContainer().sessionService.replyToSession(
+      session.id,
+      "hello",
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toBeInstanceOf(ValidationError);
+      expect(result.error.message).toContain("Failed to resolve worktree");
+    }
   });
 
   it("uses the agent config from session creation, not the current default", async () => {
@@ -556,9 +641,11 @@ describe("agent-session.completed subscription", () => {
       },
     });
 
-    expect(getContainer().sessionService.getSession(session.id)?.status).toBe(
-      "success",
-    );
+    const result = getContainer().sessionService.getSession(session.id);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.status).toBe("success");
+    }
     expect(statusListener).toHaveBeenCalledWith(
       expect.objectContaining({
         sessionId: session.id,
