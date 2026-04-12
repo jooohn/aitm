@@ -92,6 +92,12 @@ export class HouseKeepingService {
     }
   }
 
+  async runAllRepositoriesOnce(): Promise<void> {
+    for (const repo of this.configRepositories) {
+      await this.runHouseKeeping(repo.path);
+    }
+  }
+
   private beginSync(): void {
     this.isSyncing = true;
     this.eventBus.emit("house-keeping.sync-status-changed", {
@@ -111,9 +117,7 @@ export class HouseKeepingService {
       Number(process.env.AITM_HOUSE_KEEPING_INTERVAL_MS) || DEFAULT_INTERVAL_MS;
 
     const run = async () => {
-      for (const repo of this.configRepositories) {
-        await this.runHouseKeeping(repo.path);
-      }
+      await this.runAllRepositoriesOnce();
     };
 
     run().catch((err) => {

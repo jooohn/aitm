@@ -21,11 +21,15 @@
 }
 
 .iconButton {
-  @apply inline-flex items-center justify-center h-9 w-9 rounded border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors;
+  @apply inline-flex items-center justify-center h-9 w-9 rounded border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer;
 }
 
 .icon {
   @apply h-4 w-4;
+}
+
+.syncingIcon {
+  animation: header-spin 1s linear infinite;
 }
 
 .iconButtonWrapper {
@@ -50,5 +54,11 @@
   100% {
     transform: scale(2.5);
     opacity: 0;
+  }
+}
+
+@keyframes header-spin {
+  to {
+    transform: rotate(360deg);
   }
 }

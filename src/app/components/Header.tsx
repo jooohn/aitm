@@ -1,12 +1,40 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import ListIcon from "@/app/components/icons/ListIcon";
+import SyncIcon from "@/app/components/icons/SyncIcon";
+import { useAlert } from "@/lib/alert/AlertContext";
 import { useAwaitingInputCount } from "@/lib/hooks/useAwaitingInputCount";
+import { useHouseKeepingSyncing } from "@/lib/hooks/useHouseKeepingSyncing";
+import { runHouseKeeping } from "@/lib/utils/api";
 import styles from "./Header.module.css";
 
 export default function Header() {
+  const { pushAlert } = useAlert();
   const { count } = useAwaitingInputCount();
+  const syncing = useHouseKeepingSyncing();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const isSyncing = syncing || isSubmitting;
+
+  async function handleRunHouseKeeping(): Promise<void> {
+    if (isSyncing) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await runHouseKeeping();
+    } catch {
+      pushAlert({
+        title: "Sync failed",
+        message: "Failed to run house-keeping sync.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
 
   return (
     <header
@@ -16,6 +44,19 @@ export default function Header() {
         aitm
       </Link>
       <div className={styles.actions}>
+        <button
+          type="button"
+          className={styles.iconButton}
+          aria-label="Run house-keeping sync"
+          disabled={isSyncing}
+          onClick={() => {
+            void handleRunHouseKeeping();
+          }}
+        >
+          <SyncIcon
+            className={`${styles.icon} ${isSyncing ? styles.syncingIcon : ""}`}
+          />
+        </button>
         <span className={styles.iconButtonWrapper}>
           <Link
             href="/todos"
