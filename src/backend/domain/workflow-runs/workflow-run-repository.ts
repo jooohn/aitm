@@ -324,9 +324,10 @@ export class WorkflowRunRepository {
     | undefined {
     const row = this.db
       .prepare(
-        `SELECT se.*, s.id AS session_id, s.status AS session_status
+        `SELECT se.*, s.id AS session_id, s.status AS session_status, ce.id AS command_execution_id
        FROM step_executions se
        LEFT JOIN sessions s ON s.step_execution_id = se.id
+       LEFT JOIN command_executions ce ON ce.step_execution_id = se.id
        WHERE se.workflow_run_id = ? AND se.completed_at IS NULL
        ORDER BY se.created_at DESC
        LIMIT 1`,
@@ -453,9 +454,10 @@ export class WorkflowRunRepository {
 
     const step_executions = this.db
       .prepare(
-        `SELECT se.*, s.id as session_id, s.status as session_status
+        `SELECT se.*, s.id as session_id, s.status as session_status, ce.id as command_execution_id
        FROM step_executions se
        LEFT JOIN sessions s ON s.step_execution_id = se.id
+       LEFT JOIN command_executions ce ON ce.step_execution_id = se.id
        WHERE se.workflow_run_id = ?
        ORDER BY se.created_at ASC`,
       )
@@ -651,6 +653,7 @@ export class WorkflowRunRepository {
        JOIN workflow_runs wr ON se.workflow_run_id = wr.id
        WHERE se.completed_at IS NULL
          AND NOT EXISTS (SELECT 1 FROM sessions WHERE step_execution_id = se.id)
+         AND NOT EXISTS (SELECT 1 FROM command_executions WHERE step_execution_id = se.id AND status = 'running')
          AND se.step_type != 'manual-approval'
          AND wr.status = 'running'`,
       )

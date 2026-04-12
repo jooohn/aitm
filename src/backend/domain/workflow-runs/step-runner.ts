@@ -17,6 +17,7 @@ import {
   type Worktree,
   type WorktreeService,
 } from "../worktrees";
+import type { CommandExecutionRepository } from "./command-execution-repository";
 import type { CommandStepExecutor } from "./command-step-executor";
 import { buildGoal, resolveWorkflowArtifacts } from "./goal-builder";
 import type { StepExecution } from "./index";
@@ -51,6 +52,7 @@ export class StepRunner {
 
   constructor(
     private workflowRunRepository: WorkflowRunRepository,
+    private commandExecutionRepository: CommandExecutionRepository,
     private sessionService: SessionCreator,
     private worktreeService: WorktreeFinder,
     private commandStepExecutor: CommandExecutor,
@@ -160,6 +162,17 @@ export class StepRunner {
     workflowRunId: string;
     worktree: Worktree;
   }): Promise<void> {
+    const commandExecutionId = randomUUID();
+    const commandExecutionNow = new Date().toISOString();
+
+    this.commandExecutionRepository.insertCommandExecution({
+      id: commandExecutionId,
+      step_execution_id: executionId,
+      command: stepDef.command,
+      cwd: worktree.path,
+      now: commandExecutionNow,
+    });
+
     const { outcome, commandOutput } = await this.commandStepExecutor.execute(
       stepDef.command,
       { cwd: worktree.path },
@@ -171,6 +184,16 @@ export class StepRunner {
       worktree,
       commandOutput,
     );
+
+    const exitCode = outcome === "succeeded" ? 0 : 1;
+    const commandStatus = outcome === "succeeded" ? "success" : "failure";
+    this.commandExecutionRepository.completeCommandExecution({
+      id: commandExecutionId,
+      status: commandStatus,
+      exit_code: exitCode,
+      output_file_path: outputFilePath,
+      now: new Date().toISOString(),
+    });
 
     const matchedTransition = stepDef.transitions.find(
       (transition) => transition.when === outcome,

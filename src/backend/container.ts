@@ -11,6 +11,7 @@ import { RepositoryService } from "@/backend/domain/repositories";
 import { SessionService } from "@/backend/domain/sessions";
 import { SessionRepository } from "@/backend/domain/sessions/session-repository";
 import { WorkflowRunService } from "@/backend/domain/workflow-runs";
+import { CommandExecutionRepository } from "@/backend/domain/workflow-runs/command-execution-repository";
 import { CommandStepExecutor } from "@/backend/domain/workflow-runs/command-step-executor";
 import { WorkflowRunRepository } from "@/backend/domain/workflow-runs/workflow-run-repository";
 import { WorktreeService } from "@/backend/domain/worktrees";
@@ -35,6 +36,7 @@ function shouldUseDefaultConfigOnBootstrap(): boolean {
 export type Container = {
   config: ConfigSnapshot;
   workflowRunRepository: WorkflowRunRepository;
+  commandExecutionRepository: CommandExecutionRepository;
   sessionRepository: SessionRepository;
   chatRepository: ChatRepository;
   worktreeService: WorktreeService;
@@ -60,6 +62,7 @@ function createContainer(cfg: ConfigSnapshot): Container {
   eventBus.removeAllListeners();
 
   const workflowRunRepository = new WorkflowRunRepository(db, eventBus);
+  const commandExecutionRepository = new CommandExecutionRepository(db);
   const sessionRepository = new SessionRepository(db, eventBus);
   const chatRepository = new ChatRepository(db, eventBus);
   const worktreeService = new WorktreeService();
@@ -80,6 +83,7 @@ function createContainer(cfg: ConfigSnapshot): Container {
   const commandStepExecutor = new CommandStepExecutor();
   const workflowRunService = new WorkflowRunService(
     workflowRunRepository,
+    commandExecutionRepository,
     sessionService,
     worktreeService,
     commandStepExecutor,
@@ -105,6 +109,7 @@ function createContainer(cfg: ConfigSnapshot): Container {
 
   if (!tablesEnsured) {
     workflowRunRepository.ensureTables();
+    commandExecutionRepository.ensureTables();
     sessionRepository.ensureTables();
     chatRepository.ensureTables();
     tablesEnsured = true;
@@ -113,6 +118,7 @@ function createContainer(cfg: ConfigSnapshot): Container {
   return {
     config: cfg,
     workflowRunRepository,
+    commandExecutionRepository,
     sessionRepository,
     chatRepository,
     worktreeService,

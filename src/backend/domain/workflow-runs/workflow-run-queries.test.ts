@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import { beforeEach, describe, expect, it } from "vitest";
 import { SessionRepository } from "../sessions/session-repository";
+import { CommandExecutionRepository } from "./command-execution-repository";
 import { WorkflowRunQueries } from "./workflow-run-queries";
 import { WorkflowRunRepository } from "./workflow-run-repository";
 
@@ -15,8 +16,9 @@ describe("WorkflowRunQueries", () => {
     sessionRepository = new SessionRepository(db);
     workflowRunRepository = new WorkflowRunRepository(db);
 
-    sessionRepository.ensureTables();
     workflowRunRepository.ensureTables();
+    new CommandExecutionRepository(db).ensureTables();
+    sessionRepository.ensureTables();
 
     workflowRunQueries = new WorkflowRunQueries(workflowRunRepository);
   });

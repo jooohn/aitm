@@ -293,6 +293,29 @@ export class AitmMcpResourceAdapter {
       );
     }
 
+    // Add command execution resources for step executions with command_execution_id
+    for (const run of workflowRuns) {
+      const runDetail = container.workflowRunService.getWorkflowRun(run.id);
+      if (!runDetail) continue;
+      for (const execution of runDetail.step_executions) {
+        if (!execution.command_execution_id) continue;
+        const cmdExec =
+          container.commandExecutionRepository.getCommandExecution(
+            execution.command_execution_id,
+          );
+        if (!cmdExec) continue;
+        const cmdExecUri = `aitm://command-executions/${encodePathSegment(cmdExec.id)}`;
+        resources.push(
+          jsonResource(
+            cmdExecUri,
+            `Command execution ${cmdExec.id}`,
+            `Command execution detail for step ${execution.step} in workflow run ${run.id}.`,
+            cmdExec,
+          ),
+        );
+      }
+    }
+
     for (const session of sessions) {
       const sessionUri = `aitm://sessions/${encodePathSegment(session.id)}`;
       resources.push(

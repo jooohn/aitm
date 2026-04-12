@@ -47,6 +47,7 @@ workflows:
   );
   initializeContainer();
 
+  db.prepare("DELETE FROM command_executions").run();
   db.prepare("DELETE FROM sessions").run();
   db.prepare("DELETE FROM step_executions").run();
   db.prepare("DELETE FROM workflow_runs").run();

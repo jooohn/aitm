@@ -100,6 +100,7 @@ describe("/todos/[workflowRunId] page", () => {
             output_file_path: null,
             session_id: "session-abc",
             session_status: "awaiting_input",
+            command_execution_id: null,
             transition_decision: null,
             handoff_summary: null,
             created_at: "2026-04-01T00:00:00Z",
