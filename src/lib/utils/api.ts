@@ -70,7 +70,11 @@ async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
     );
   }
   if (res.status === 204) return undefined as T;
-  return res.json();
+
+  const body = await res.text();
+  if (body.trim().length === 0) return undefined as T;
+
+  return JSON.parse(body) as T;
 }
 
 export function fetchRepositories(): Promise<Repository[]> {
@@ -129,6 +133,12 @@ export async function cleanMergedWorktrees(
     `/api/repositories/${organization}/${name}/worktrees/clean-merged`,
     { method: "POST" },
   );
+}
+
+export async function runHouseKeeping(): Promise<void> {
+  await apiFetch("/api/house-keeping/run", {
+    method: "POST",
+  });
 }
 
 export function fetchSession(id: string): Promise<Session> {

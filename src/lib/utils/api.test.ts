@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { canStopWorkflowRun, type WorkflowRunDetail } from "./api";
+import {
+  canStopWorkflowRun,
+  runHouseKeeping,
+  type WorkflowRunDetail,
+} from "./api";
 
 function makeRun(
   overrides: Partial<WorkflowRunDetail> = {},
@@ -91,6 +95,22 @@ describe("canStopWorkflowRun", () => {
     });
 
     expect(canStopWorkflowRun(run)).toBe(false);
+  });
+});
+
+describe("runHouseKeeping", () => {
+  it("resolves when the trigger endpoint returns 202 with an empty body", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(null, { status: 202 }));
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(runHouseKeeping()).resolves.toBeUndefined();
+    expect(fetchMock).toHaveBeenCalledWith("/api/house-keeping/run", {
+      cache: "no-store",
+      method: "POST",
+    });
   });
 });
 

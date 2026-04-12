@@ -1,15 +1,16 @@
 # Spec: House-Keeping
 
 **Status:** implemented
-**Last updated:** 2026-04-11
+**Last updated:** 2026-04-12
 
 ## Summary
 
-House-keeping is a periodic background task that keeps each configured
-repository's worktrees, session data, and main branch in a tidy state
-without user intervention. It runs on a timer after server startup,
-operates one repository at a time, and broadcasts a syncing indicator
-over the notifications stream so the UI can show progress.
+House-keeping is a background task that keeps each configured
+repository's worktrees, session data, and main branch in a tidy state.
+It runs automatically on a timer after server startup, can also be
+triggered manually from the UI, operates one repository at a time, and
+broadcasts a syncing indicator over the notifications stream so the UI
+can show progress.
 
 ## Scope
 
@@ -48,6 +49,19 @@ logged and does not block the remaining steps or subsequent repositories.
   repository. This is a hard guard against concurrent file-system and
   git mutations.
 
+## Manual trigger
+
+- `POST /api/house-keeping/run` runs the same full sweep across all
+  configured repositories as the startup/timer path.
+- The shared header renders a sync button in the top-right corner that
+  calls this endpoint.
+- While the request is in flight, or while a sweep is already running,
+  the button is disabled and the icon uses the existing global syncing
+  state from `useHouseKeepingSyncing`.
+- The manual trigger reuses the same service entry point as the periodic
+  scheduler, so there is no separate implementation path to keep in
+  sync.
+
 ## Syncing signal
 
 `runHouseKeeping` wraps its work in `beginSync()` / `endSync()`, which
@@ -60,8 +74,6 @@ global progress indicator.
 
 ## Out of scope
 
-- Running house-keeping on demand from the UI. If needed, expose
-  `runHouseKeeping` behind an admin endpoint later.
 - Per-repository interval overrides. The single global interval is
   sufficient for a local single-user tool.
 - Rebasing branches, pruning refs, garbage-collecting the repo, or any
@@ -81,3 +93,6 @@ global progress indicator.
 - **Emit syncing status over the event bus** rather than exposing a
   polling endpoint, so the existing notifications stream is the single
   source of truth for "is something happening in the background".
+- **Reuse the same sweep path for manual and periodic runs.** The manual
+  endpoint delegates to `runAllRepositoriesOnce()` so the scheduler and
+  UI-triggered sync cannot drift in behavior.

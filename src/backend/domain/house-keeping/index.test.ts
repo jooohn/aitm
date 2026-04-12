@@ -4,6 +4,7 @@ import { HouseKeepingService } from "./index";
 
 describe("HouseKeepingService.runHouseKeeping", () => {
   const repoPath = "/tmp/repo";
+  const repoPaths = ["/tmp/repo-a", "/tmp/repo-b"];
   let eventBus: EventBus;
   let sessionService: {
     deleteWorktreeData: ReturnType<typeof vi.fn>;
@@ -247,5 +248,27 @@ describe("HouseKeepingService.runHouseKeeping", () => {
     expect(worktreeService.cleanMergedWorktrees).toHaveBeenCalledTimes(1);
     expect(listener).toHaveBeenCalledTimes(2);
     expect(listener).toHaveBeenLastCalledWith({ syncing: false });
+  });
+
+  it("runs a full house-keeping sweep across all configured repositories", async () => {
+    const service = new HouseKeepingService(
+      sessionService as never,
+      worktreeService as never,
+      repoPaths.map((path) => ({ path })),
+      eventBus,
+    );
+
+    await (
+      service as { runAllRepositoriesOnce: () => Promise<void> }
+    ).runAllRepositoriesOnce();
+
+    expect(worktreeService.cleanMergedWorktrees).toHaveBeenNthCalledWith(
+      1,
+      repoPaths[0],
+    );
+    expect(worktreeService.cleanMergedWorktrees).toHaveBeenNthCalledWith(
+      2,
+      repoPaths[1],
+    );
   });
 });
