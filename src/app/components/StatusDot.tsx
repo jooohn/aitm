@@ -4,17 +4,20 @@ import styles from "./StatusDot.module.css";
 
 const BLINK_DURATION_MS = 1500;
 
-const variantClass: Record<WorkflowRunStatus, string> = {
+export type StatusDotVariant = WorkflowRunStatus | "idle";
+
+const variantClass: Record<StatusDotVariant, string> = {
   running: styles.running,
   awaiting: styles.awaiting,
   success: styles.success,
   failure: styles.failure,
+  idle: styles.idle,
 };
 
-const blinkingStatuses = new Set<WorkflowRunStatus>(["running", "awaiting"]);
+const blinkingStatuses = new Set<StatusDotVariant>(["running", "awaiting"]);
 
 interface Props {
-  variant: WorkflowRunStatus;
+  variant: StatusDotVariant;
 }
 
 export default function StatusDot({ variant }: Props) {

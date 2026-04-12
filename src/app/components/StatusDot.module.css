@@ -22,6 +22,10 @@
   @apply bg-red-500;
 }
 
+.idle {
+  @apply bg-zinc-400;
+}
+
 @keyframes blink-fade {
   0%,
   100% {
