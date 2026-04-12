@@ -6,6 +6,12 @@ function read(relativePath: string) {
   return readFileSync(resolve(process.cwd(), relativePath), "utf8");
 }
 
+function readBlock(css: string, selector: string) {
+  const match = css.match(new RegExp(`\\${selector}\\s*\\{([^}]+)\\}`));
+  expect(match).not.toBeNull();
+  return match![1];
+}
+
 describe("mobile layout plan", () => {
   it("keeps the home sidebar stacked on mobile and sticky only on desktop", () => {
     const css = read("src/app/(main)/page.module.css");
@@ -25,7 +31,7 @@ describe("mobile layout plan", () => {
     const todosCss = read("src/app/(main)/todos/page.module.css");
 
     expect(repositoryCss).toContain(
-      "@apply border-b border-zinc-200 dark:border-zinc-800 px-4 py-4 flex flex-col gap-4 lg:border-b-0 lg:border-r sm:px-5 sm:py-6 lg:sticky lg:top-[var(--header-h,49px)] lg:h-[calc(100vh-var(--header-h,49px))] lg:overflow-y-auto;",
+      "@apply min-w-0 border-b border-zinc-200 dark:border-zinc-800 px-4 py-4 flex flex-col gap-4 lg:border-b-0 lg:border-r sm:px-5 sm:py-6 lg:sticky lg:top-[var(--header-h,49px)] lg:h-[calc(100vh-var(--header-h,49px))] lg:overflow-y-auto;",
     );
     expect(todosCss).toContain(
       "@apply border-b border-zinc-200 dark:border-zinc-800 px-4 py-4 flex flex-col gap-4 lg:border-b-0 lg:border-r sm:px-5 sm:py-6 lg:sticky lg:top-[var(--header-h,49px)] lg:h-[calc(100vh-var(--header-h,49px))] lg:overflow-y-auto;",
@@ -33,6 +39,25 @@ describe("mobile layout plan", () => {
     expect(todosCss).toContain(
       "@apply min-w-0 px-4 py-4 flex flex-col gap-4 sm:px-6 sm:py-6;",
     );
+  });
+
+  it("keeps the repository sidebar alias from widening the mobile pane", () => {
+    const repositoryCss = read(
+      "src/app/(main)/repositories/[organization]/[name]/RepositoryShell.module.css",
+    );
+    const leftPaneBody = readBlock(repositoryCss, ".leftPane");
+    const headingRowBody = readBlock(repositoryCss, ".headingRow");
+    const headingBody = readBlock(repositoryCss, ".heading");
+    const headingLinkBody = readBlock(repositoryCss, ".headingLink");
+    const githubLinkBody = readBlock(repositoryCss, ".githubLink");
+
+    expect(leftPaneBody).toContain("min-w-0");
+    expect(headingRowBody).toContain("min-w-0");
+    expect(headingBody).toContain("min-w-0");
+    expect(headingBody).toContain("flex-1");
+    expect(headingLinkBody).toContain("block");
+    expect(headingLinkBody).toContain("truncate");
+    expect(githubLinkBody).toContain("shrink-0");
   });
 
   it("adds responsive wrapping to dense headers and actions", () => {

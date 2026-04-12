@@ -1,7 +1,7 @@
 # Spec: Repository Management
 
 **Status:** implemented
-**Last updated:** 2026-04-11
+**Last updated:** 2026-04-12
 
 ## Summary
 
@@ -37,6 +37,12 @@ repositories:
 - Check that the configured path still exists on disk and is a git repository (contains `.git`).
 - Return `{ valid: boolean, reason?: string }`.
 - Does not modify any data — read-only check.
+
+### UI behavior
+
+- The repository alias shown in the repository page sidebar header is `organization/name`.
+- On narrow screens, long aliases must truncate within the sidebar header instead of widening the sidebar beyond the viewport.
+- The GitHub link icon in that header remains visible and does not shrink away when the alias is truncated.
 
 ### Relationship to sessions
 
