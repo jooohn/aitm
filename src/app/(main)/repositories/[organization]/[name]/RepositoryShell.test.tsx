@@ -173,6 +173,156 @@ describe("RepositoryShell", () => {
     expect(mockPush).toHaveBeenCalledWith("/repositories/org/repo/chat/new");
   });
 
+  it("renders StatusDot for each chat status instead of text labels", async () => {
+    const chats = [
+      {
+        id: "c1",
+        organization: "org",
+        name: "repo",
+        title: "Running chat",
+        status: "running" as const,
+        created_at: "2026-04-11T00:00:00Z",
+        updated_at: "2026-04-11T00:00:00Z",
+      },
+      {
+        id: "c2",
+        organization: "org",
+        name: "repo",
+        title: "Awaiting chat",
+        status: "awaiting_input" as const,
+        created_at: "2026-04-11T00:00:00Z",
+        updated_at: "2026-04-11T00:00:00Z",
+      },
+      {
+        id: "c3",
+        organization: "org",
+        name: "repo",
+        title: "Failed chat",
+        status: "failed" as const,
+        created_at: "2026-04-11T00:00:00Z",
+        updated_at: "2026-04-11T00:00:00Z",
+      },
+      {
+        id: "c4",
+        organization: "org",
+        name: "repo",
+        title: "Idle chat",
+        status: "idle" as const,
+        created_at: "2026-04-11T00:00:00Z",
+        updated_at: "2026-04-11T00:00:00Z",
+      },
+    ];
+    mockFetchChats.mockResolvedValue(chats);
+
+    render(
+      <SWRTestProvider>
+        <RepositoryShell organization="org" name="repo">
+          <div>child</div>
+        </RepositoryShell>
+      </SWRTestProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Running chat")).toBeInTheDocument();
+    });
+
+    // Should NOT render the old verbose text status labels
+    expect(screen.queryByText("Running...")).not.toBeInTheDocument();
+    // The short labels ("Awaiting input", "Failed", "Idle") now exist as
+    // visually-hidden accessible text, so we only check the old "Running..." form is gone.
+  });
+
+  it("provides accessible status labels for chat StatusDots", async () => {
+    const chats = [
+      {
+        id: "c1",
+        organization: "org",
+        name: "repo",
+        title: "Running chat",
+        status: "running" as const,
+        created_at: "2026-04-11T00:00:00Z",
+        updated_at: "2026-04-11T00:00:00Z",
+      },
+      {
+        id: "c2",
+        organization: "org",
+        name: "repo",
+        title: "Awaiting chat",
+        status: "awaiting_input" as const,
+        created_at: "2026-04-11T00:00:00Z",
+        updated_at: "2026-04-11T00:00:00Z",
+      },
+      {
+        id: "c3",
+        organization: "org",
+        name: "repo",
+        title: "Failed chat",
+        status: "failed" as const,
+        created_at: "2026-04-11T00:00:00Z",
+        updated_at: "2026-04-11T00:00:00Z",
+      },
+      {
+        id: "c4",
+        organization: "org",
+        name: "repo",
+        title: "Idle chat",
+        status: "idle" as const,
+        created_at: "2026-04-11T00:00:00Z",
+        updated_at: "2026-04-11T00:00:00Z",
+      },
+    ];
+    mockFetchChats.mockResolvedValue(chats);
+
+    render(
+      <SWRTestProvider>
+        <RepositoryShell organization="org" name="repo">
+          <div>child</div>
+        </RepositoryShell>
+      </SWRTestProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Running chat")).toBeInTheDocument();
+    });
+
+    // Each StatusDot should have a visually-hidden accessible label
+    expect(screen.getByText("Running")).toBeInTheDocument();
+    expect(screen.getByText("Awaiting input")).toBeInTheDocument();
+    expect(screen.getByText("Failed")).toBeInTheDocument();
+    expect(screen.getByText("Idle")).toBeInTheDocument();
+  });
+
+  it("renders TrashIcon instead of ✕ text for chat delete button", async () => {
+    mockFetchChats.mockResolvedValue([
+      {
+        id: "c1",
+        organization: "org",
+        name: "repo",
+        title: "Test chat",
+        status: "idle" as const,
+        created_at: "2026-04-11T00:00:00Z",
+        updated_at: "2026-04-11T00:00:00Z",
+      },
+    ]);
+
+    render(
+      <SWRTestProvider>
+        <RepositoryShell organization="org" name="repo">
+          <div>child</div>
+        </RepositoryShell>
+      </SWRTestProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Test chat")).toBeInTheDocument();
+    });
+
+    const deleteButton = screen.getByRole("button", { name: "Delete chat" });
+    // Should contain an SVG (TrashIcon) instead of ✕ text
+    expect(deleteButton.querySelector("svg")).toBeInTheDocument();
+    expect(deleteButton.textContent).not.toContain("✕");
+  });
+
   it("shows a syncing indicator beside the worktrees heading while house-keeping is active", async () => {
     mockUseHouseKeepingSyncing.mockReturnValue(true);
 

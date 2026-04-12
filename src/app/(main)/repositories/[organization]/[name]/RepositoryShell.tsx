@@ -4,13 +4,15 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import GitHubIcon from "@/app/components/icons/GitHubIcon";
+import TrashIcon from "@/app/components/icons/TrashIcon";
+import StatusDot, { type StatusDotVariant } from "@/app/components/StatusDot";
 import {
   useChats,
   useRepository,
   useWorkflowRuns,
   useWorktrees,
 } from "@/lib/hooks/swr";
-import { type Chat, deleteChat } from "@/lib/utils/api";
+import { type Chat, type ChatStatus, deleteChat } from "@/lib/utils/api";
 import styles from "./RepositoryShell.module.css";
 import WorktreeRunsSection from "./WorktreeRunsSection";
 import RunWorkflowModal from "./workflow-runs/RunWorkflowModal";
@@ -20,6 +22,20 @@ interface Props {
   name: string;
   children: React.ReactNode;
 }
+
+const chatStatusToDotVariant: Record<ChatStatus, StatusDotVariant> = {
+  running: "running",
+  awaiting_input: "awaiting",
+  failed: "failure",
+  idle: "idle",
+};
+
+const chatStatusLabel: Record<ChatStatus, string> = {
+  running: "Running",
+  awaiting_input: "Awaiting input",
+  failed: "Failed",
+  idle: "Idle",
+};
 
 function ChatListItem({
   chat,
@@ -36,21 +52,14 @@ function ChatListItem({
 
   return (
     <div className={styles.runItem}>
+      <StatusDot variant={chatStatusToDotVariant[chat.status]} />
+      <span className={styles.srOnly}>{chatStatusLabel[chat.status]}</span>
       <Link
         href={`/repositories/${organization}/${name}/chat/${chat.id}`}
         className={styles.runInfo}
       >
         <span className={styles.runBranch}>
           {chat.title ?? "Untitled chat"}
-        </span>
-        <span className={styles.runWorkflow}>
-          {chat.status === "running"
-            ? "Running..."
-            : chat.status === "awaiting_input"
-              ? "Awaiting input"
-              : chat.status === "failed"
-                ? "Failed"
-                : "Idle"}
         </span>
       </Link>
       <button
@@ -70,7 +79,7 @@ function ChatListItem({
         disabled={deleting}
         aria-label="Delete chat"
       >
-        ✕
+        <TrashIcon size={14} />
       </button>
     </div>
   );
