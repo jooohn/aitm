@@ -79,9 +79,16 @@ stable contract.
 
 ## Runtime wiring
 
-Publishing `/api/mcp` does not automatically make these resources available to
-launched Claude or Codex agents. Runtime-specific MCP client configuration
-still has to opt into this server separately.
+aitm uses the same read-only MCP surface in two places:
+
+- External MCP clients connect over `POST /api/mcp`.
+- Launched Claude SDK sessions use an in-process MCP server attachment.
+- Launched Codex SDK sessions and planning chats receive a runtime config
+  override that points their MCP client to `http://127.0.0.1:<PORT>/api/mcp`
+  by default, or `AITM_MCP_SERVER_URL` when explicitly set.
+
+This keeps the resource contract identical across external MCP consumers and
+aitm-managed agents without duplicating adapter logic.
 
 ## Out of scope
 

@@ -3,6 +3,7 @@ import {
   buildTransitionOutputFormatForClaude,
   CLAUDE_SDK_TOOLS,
 } from "@/backend/domain/agent/claude-common";
+import { createClaudeAitmMcpConfig } from "@/backend/mcp/runtime-config";
 import { toClaudePermissionMode } from "./permission-mode";
 import type {
   AgentMessage,
@@ -22,6 +23,7 @@ export class ClaudeSDK implements AgentRuntime {
     outputFormat,
     tools,
   }: AgentQueryParams): AsyncIterable<AgentMessage> {
+    const { mcpServers, close } = await createClaudeAitmMcpConfig();
     const result = query({
       prompt,
       options: {
@@ -30,13 +32,18 @@ export class ClaudeSDK implements AgentRuntime {
         abortController,
         outputFormat,
         tools: tools ?? CLAUDE_SDK_TOOLS,
+        mcpServers,
         systemPrompt: { type: "preset", preset: "claude_code" },
         settingSources: ["user", "project", "local"],
       },
     });
 
-    for await (const message of result) {
-      yield message as unknown as AgentMessage;
+    try {
+      for await (const message of result) {
+        yield message as unknown as AgentMessage;
+      }
+    } finally {
+      await close();
     }
   }
 
@@ -49,6 +56,7 @@ export class ClaudeSDK implements AgentRuntime {
     outputFormat,
     tools,
   }: AgentResumeParams): AsyncIterable<AgentMessage> {
+    const { mcpServers, close } = await createClaudeAitmMcpConfig();
     const result = query({
       prompt,
       options: {
@@ -58,12 +66,17 @@ export class ClaudeSDK implements AgentRuntime {
         outputFormat,
         resume: agentSessionId,
         tools: tools ?? CLAUDE_SDK_TOOLS,
+        mcpServers,
         systemPrompt: { type: "preset", preset: "claude_code" },
       },
     });
 
-    for await (const message of result) {
-      yield message as unknown as AgentMessage;
+    try {
+      for await (const message of result) {
+        yield message as unknown as AgentMessage;
+      }
+    } finally {
+      await close();
     }
   }
 

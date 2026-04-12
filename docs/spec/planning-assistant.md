@@ -1,7 +1,7 @@
 # Spec: Planning Assistant
 
 **Status:** implemented
-**Last updated:** 2026-04-11
+**Last updated:** 2026-04-12
 **Related ADRs:** [Lazy chat persistence](../adr/20260411-120001-lazy-chat-persistence.md)
 
 ## Summary
@@ -95,6 +95,7 @@ class ChatService {
 - The agent's `cwd` is the `repository_path` (the repo root on the main branch).
 - Permission mode: read-only to enforce no-write at the runtime level.
 - The agent uses the same base LLM configured for the system (no per-repo override for now).
+- Planning chats receive the same read-only aitm MCP attachment as workflow sessions, so MCP resource tools can inspect repositories, workflows, workflow-runs, sessions, chats, and workflow artifacts directly from the live aitm state.
 
 ### Structured output
 
