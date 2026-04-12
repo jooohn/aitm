@@ -1,6 +1,7 @@
 import type { ThreadEvent } from "@openai/codex-sdk";
 import { Codex } from "@openai/codex-sdk";
 import type { OutputMetadataFieldDef } from "@/backend/infra/config";
+import { getCodexAitmMcpConfig } from "@/backend/mcp/runtime-config";
 import { toCodexConfig } from "./permission-mode";
 import type {
   AgentMessage,
@@ -44,7 +45,10 @@ async function* streamQuery(
     outputFormat,
   } = params;
 
-  const codex = new Codex(command ? { codexPathOverride: command } : undefined);
+  const codex = new Codex({
+    ...(command ? { codexPathOverride: command } : {}),
+    config: getCodexAitmMcpConfig(),
+  });
 
   const codexConfig = toCodexConfig(permissionMode);
   const thread = codex.startThread({
@@ -77,7 +81,10 @@ async function* streamResume(
     outputFormat,
   } = params;
 
-  const codex = new Codex(command ? { codexPathOverride: command } : undefined);
+  const codex = new Codex({
+    ...(command ? { codexPathOverride: command } : {}),
+    config: getCodexAitmMcpConfig(),
+  });
 
   const codexConfig = toCodexConfig(permissionMode);
   const thread = codex.resumeThread(agentSessionId, {

@@ -12,9 +12,13 @@ vi.unmock("@/backend/domain/agent/codex-sdk");
 
 const runStreamedMock = vi.fn();
 const startThreadMock = vi.fn(() => ({ runStreamed: runStreamedMock }));
+const resumeThreadMock = vi.fn(() => ({ runStreamed: runStreamedMock }));
 
 vi.mock("@openai/codex-sdk", () => ({
-  Codex: vi.fn(() => ({ startThread: startThreadMock })),
+  Codex: vi.fn(() => ({
+    startThread: startThreadMock,
+    resumeThread: resumeThreadMock,
+  })),
 }));
 
 // Import after mocks are set up
@@ -380,6 +384,72 @@ describe("codexSDK.query", () => {
 
     expect(Codex).toHaveBeenCalledWith(
       expect.objectContaining({ codexPathOverride: "/usr/local/bin/codex" }),
+    );
+  });
+
+  it("attaches the aitm MCP server to the Codex config overrides", async () => {
+    const { Codex } = await import("@openai/codex-sdk");
+    const events: ThreadEvent[] = [
+      { type: "turn.started" },
+      {
+        type: "turn.completed",
+        usage: { input_tokens: 0, cached_input_tokens: 0, output_tokens: 0 },
+      },
+    ];
+    runStreamedMock.mockResolvedValue({ events: eventsFromArray(events) });
+
+    await collectMessages(codexSDK.query(makeQueryParams()));
+
+    expect(Codex).toHaveBeenCalledWith(
+      expect.objectContaining({
+        config: {
+          mcp_servers: {
+            aitm: {
+              url: "http://127.0.0.1:3000/api/mcp",
+            },
+          },
+        },
+      }),
+    );
+  });
+});
+
+describe("codexSDK.resume", () => {
+  it("attaches the aitm MCP server config when resuming a thread", async () => {
+    const { Codex } = await import("@openai/codex-sdk");
+    const events: ThreadEvent[] = [
+      { type: "turn.started" },
+      {
+        type: "turn.completed",
+        usage: { input_tokens: 0, cached_input_tokens: 0, output_tokens: 0 },
+      },
+    ];
+    runStreamedMock.mockResolvedValue({ events: eventsFromArray(events) });
+
+    await collectMessages(
+      codexSDK.resume({
+        ...makeQueryParams(),
+        agentSessionId: "thread-123",
+      }),
+    );
+
+    expect(resumeThreadMock).toHaveBeenCalledWith(
+      "thread-123",
+      expect.objectContaining({
+        workingDirectory: "/tmp/repo",
+        skipGitRepoCheck: true,
+      }),
+    );
+    expect(Codex).toHaveBeenCalledWith(
+      expect.objectContaining({
+        config: {
+          mcp_servers: {
+            aitm: {
+              url: "http://127.0.0.1:3000/api/mcp",
+            },
+          },
+        },
+      }),
     );
   });
 });

@@ -17,7 +17,7 @@ describe("mobile layout plan", () => {
     const css = read("src/app/(main)/page.module.css");
 
     expect(css).toContain(
-      "@apply w-full flex-1 grid lg:grid-cols-[16rem_minmax(0,1fr)];",
+      "@apply w-full min-w-0 max-w-full flex-1 grid lg:grid-cols-[16rem_minmax(0,1fr)] overflow-x-hidden;",
     );
     expect(css).toContain(
       "@apply border-b border-zinc-200 dark:border-zinc-800 px-4 py-4 flex flex-col gap-4 lg:border-b-0 lg:border-r sm:px-5 sm:py-6 lg:sticky lg:top-[var(--header-h,49px)] lg:h-[calc(100vh-var(--header-h,49px))] lg:overflow-y-auto;",

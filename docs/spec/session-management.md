@@ -1,7 +1,7 @@
 # Spec: Session Management
 
 **Status:** implemented
-**Last updated:** 2026-04-01
+**Last updated:** 2026-04-12
 
 ## Summary
 
@@ -9,7 +9,7 @@ A session is a cohesive, purpose-bound unit of coding-agent work attached to a s
 
 ## Background
 
-Each session runs a coding agent (Claude SDK as the primary runtime, or Codex SDK) inside a worktree directory. The agent pursues the goal described at session creation and emits a structured transition decision (JSON) as its final output. Users can observe the agent's output stream in real time. When the agent needs clarification, it selects a special `__REQUIRE_USER_INPUT__` transition, which pauses the session until the user provides input, then resumes the same agent session to preserve conversation context.
+Each session runs a coding agent (Claude SDK as the primary runtime, or Codex SDK) inside a worktree directory. The agent pursues the goal described at session creation and emits a structured transition decision (JSON) as its final output. Users can observe the agent's output stream in real time. Sessions also receive aitm's read-only MCP resources, so they can inspect workflow runs, sessions, chats, configuration, and declared run artifacts without relying only on prompt-injected context. When the agent needs clarification, it selects a special `__REQUIRE_USER_INPUT__` transition, which pauses the session until the user provides input, then resumes the same agent session to preserve conversation context.
 
 ## Data model
 
@@ -130,8 +130,8 @@ interface AgentResumeParams {
 
 Runtime-specific resume behaviour:
 - **Claude CLI:** `claude --resume <agentSessionId> --print --output-format stream-json ...` with user's message on stdin.
-- **Claude SDK:** Call `query()` with `resume: agentSessionId` option.
-- **Codex SDK:** Call `thread.runStreamed(userMessage)` on a thread resumed by ID.
+- **Claude SDK:** Call `query()` with `resume: agentSessionId` option and attach the in-process aitm MCP server via `mcpServers`.
+- **Codex SDK:** Call `thread.runStreamed(userMessage)` on a thread resumed by ID after constructing the SDK client with aitm MCP config pointing at `/api/mcp`.
 
 ### Pending input coordination
 

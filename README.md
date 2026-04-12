@@ -18,7 +18,7 @@ aitm wraps the [git-worktree-runner](https://github.com/coderabbitai/git-worktre
 - **Multiple agent runtimes** — supports Claude SDK and Codex SDK with per-step overrides for provider, model, and permission mode
 - **Manual approval gates** — insert human-in-the-loop manual approval steps into workflows for review checkpoints
 - **Workflow inputs** — parameterize workflow runs with typed input fields (text, multiline-text) defined in config
-- **Read-only MCP resources** — expose aitm state over `/api/mcp` so external MCP clients can discover config, repositories, workflow runs, sessions, chats, and workflow artifacts
+- **Read-only MCP resources** — expose aitm state over `/api/mcp` for external MCP clients, and attach the same read-only aitm MCP server to launched Claude/Codex workflow agents and planning chats
 - **Real-time monitoring** — kanban board view groups workflow runs by status for at-a-glance progress tracking
 - **Manual repository sync** — trigger a full house-keeping sweep from the header when you want to refresh all configured repositories immediately
 - **User input mechanism** — agents can ask clarifying questions mid-session; the session pauses until the user replies
