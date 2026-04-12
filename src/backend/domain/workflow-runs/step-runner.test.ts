@@ -211,7 +211,7 @@ describe("StepRunner", () => {
       ".aitm",
       "runs",
       "run-1",
-      "command-output",
+      "command-outputs",
       `${execution.id}.log`,
     );
     expect(storedExecution?.output_file_path).toBe(expectedOutputPath);

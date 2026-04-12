@@ -84,7 +84,7 @@ export class WorkflowRunMaterializer {
 
     const outputDir = join(
       resolveWorkflowRunDir(worktree, workflowRunId),
-      "command-output",
+      "command-outputs",
     );
     await this.ensureWorkflowRunDir(workflowRunId, worktree);
     await mkdir(outputDir, { recursive: true });

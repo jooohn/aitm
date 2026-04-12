@@ -402,7 +402,7 @@ describe("WorkflowRunRepository event emission", () => {
     });
     workflowRunRepository.setStepExecutionOutputFilePath(
       "exec-3",
-      "/tmp/run-3/command-output/exec-3.log",
+      "/tmp/run-3/command-outputs/exec-3.log",
     );
     workflowRunRepository.completeStepExecution(
       "exec-3",
@@ -410,9 +410,9 @@ describe("WorkflowRunRepository event emission", () => {
         transition: "success",
         reason: "Command succeeded",
         handoff_summary:
-          "Command succeeded. Detailed output: /tmp/run-3/command-output/exec-3.log",
+          "Command succeeded. Detailed output: /tmp/run-3/command-outputs/exec-3.log",
       }),
-      "Command succeeded. Detailed output: /tmp/run-3/command-output/exec-3.log",
+      "Command succeeded. Detailed output: /tmp/run-3/command-outputs/exec-3.log",
       "2026-04-07T00:00:01.000Z",
       "success",
     );
@@ -422,15 +422,15 @@ describe("WorkflowRunRepository event emission", () => {
       workflowRunRepository.listCompletedExecutionsHandoff("run-3");
 
     expect(run?.step_executions[0].output_file_path).toBe(
-      "/tmp/run-3/command-output/exec-3.log",
+      "/tmp/run-3/command-outputs/exec-3.log",
     );
     expect(handoff).toEqual([
       {
         step: "lint",
         handoff_summary:
-          "Command succeeded. Detailed output: /tmp/run-3/command-output/exec-3.log",
+          "Command succeeded. Detailed output: /tmp/run-3/command-outputs/exec-3.log",
         log_file_path: null,
-        output_file_path: "/tmp/run-3/command-output/exec-3.log",
+        output_file_path: "/tmp/run-3/command-outputs/exec-3.log",
       },
     ]);
   });

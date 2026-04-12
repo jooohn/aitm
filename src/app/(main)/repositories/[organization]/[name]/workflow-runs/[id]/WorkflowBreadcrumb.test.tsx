@@ -95,14 +95,11 @@ describe("WorkflowBreadcrumb", () => {
 
     expect(screen.getByRole("link", { name: "feat/new" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "deploy" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "build" })).toHaveAttribute(
-      "href",
-      "/repositories/acme/app/workflow-runs/run-123/step-executions/exec-456",
-    );
+    expect(screen.getByText("build")).toBeInTheDocument();
 
-    // Session label is current page → plain text
+    // Step execution and session label are plain text
     expect(screen.getByText("Session abc12345")).toBeInTheDocument();
-    expect(screen.getAllByRole("link")).toHaveLength(3);
+    expect(screen.getAllByRole("link")).toHaveLength(2);
   });
 
   it("renders separators between segments", () => {
