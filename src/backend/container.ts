@@ -21,7 +21,8 @@ import { eventBus } from "@/backend/infra/event-bus";
 import { spawnAsync } from "@/backend/utils/process";
 
 const DEFAULT_CONFIG: ConfigSnapshot = {
-  agent: { provider: "claude" },
+  agents: { default: { provider: "claude" } },
+  default_agent: "default",
   repositories: [],
   workflows: {},
 };
@@ -71,13 +72,14 @@ function createContainer(cfg: ConfigSnapshot): Container {
     claude: new ClaudeSDK(),
     codex: new CodexSDK(),
   };
+  const defaultAgentConfig = cfg.agents[cfg.default_agent];
   const agentService = new AgentService(runtimes, sessionRepository, eventBus);
   const sessionService = new SessionService(
     sessionRepository,
     agentService,
     worktreeService,
     eventBus,
-    cfg.agent,
+    defaultAgentConfig,
   );
   const gitHubBranchService = new GitHubBranchService(spawnAsync);
   const commandStepExecutor = new CommandStepExecutor();
@@ -89,7 +91,8 @@ function createContainer(cfg: ConfigSnapshot): Container {
     commandStepExecutor,
     eventBus,
     cfg.workflows,
-    cfg.agent,
+    cfg.agents,
+    cfg.default_agent,
   );
   const chatService = new ChatService(
     chatRepository,
@@ -97,7 +100,7 @@ function createContainer(cfg: ConfigSnapshot): Container {
     worktreeService,
     workflowRunService,
     new BranchNameService(),
-    cfg.agent,
+    defaultAgentConfig,
     cfg.workflows,
   );
   const houseKeepingService = new HouseKeepingService(

@@ -1,7 +1,7 @@
 # Spec: aitm config.yaml
 
 **Status:** implemented
-**Last updated:** 2026-03-31
+**Last updated:** 2026-04-13
 
 ## Summary
 
@@ -26,23 +26,35 @@ repositories:
 
 See spec: repository-management.md for the full field reference.
 
-### Agent runtime
+### Named agent definitions
 
-The top-level `agent` block selects which runtime aitm uses for workflow steps:
+Agent profiles are defined under a top-level `agents` map. Each entry is a fully-specified agent config keyed by a user-chosen alias. The `default-agent` field selects which profile to use when a step does not specify one.
 
 ```yaml
-agent:
-  provider: claude # or codex
-  model: sonnet
-  permission_mode: edit
+agents:
+  claude-sonnet:
+    provider: claude
+    model: sonnet
+  codex-gpt5:
+    provider: codex
+    model: gpt-5.4
+  claude-full:
+    provider: claude
+    permission_mode: full
+
+default-agent: claude-sonnet
 ```
+
+Each agent profile has the following fields:
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `provider` | `claude` \| `codex` | no | Agent runtime to use. Defaults to `claude`. |
-| `model` | string | no | Optional model name passed through to the configured runtime when supported. |
-| `command` | string | no | Optional CLI executable path or command name. |
+| `provider` | `claude` \| `codex` | yes | Agent runtime to use. |
+| `model` | string | no | Model name passed through to the configured runtime when supported. |
+| `command` | string | no | CLI executable path or command name. |
 | `permission_mode` | `plan` \| `edit` \| `full` | no | Controls what the agent is allowed to do autonomously. Defaults to `edit`. `plan` = read-only, `edit` = can modify files, `full` = unrestricted. |
+
+`default-agent` is required and must reference a key in `agents`.
 
 ### Workflow definition
 
@@ -199,12 +211,21 @@ Goal-based steps have:
 | `goal` | string | yes | Fixed instruction string passed to the configured agent session as its objective |
 | `transitions` | list | yes | Ordered list of transition candidates; the configured agent selects the first matching one |
 
-Goal-based steps may also define an optional `agent` block that overrides the top-level runtime for that step only:
+Goal-based steps may specify an optional `agent` field as a string alias referencing a key in the top-level `agents` map. This selects a different agent profile for that step. Steps without an `agent` field use `default-agent`.
 
 ```yaml
-agent:
-  provider: claude
-  model: sonnet
+agents:
+  claude-sonnet:
+    provider: claude
+    model: sonnet
+  codex-gpt5:
+    provider: codex
+    model: gpt-5.4
+  claude-full:
+    provider: claude
+    permission_mode: full
+
+default-agent: claude-sonnet
 
 workflows:
   development-flow:
@@ -212,31 +233,26 @@ workflows:
     steps:
       plan:
         goal: Write a plan
-        agent:
-          provider: codex
-          model: gpt-5.4
+        agent: codex-gpt5
         transitions:
           - step: implement
             when: plan is ready
 
       implement:
         goal: Implement the plan
-        agent:
-          model: sonnet-4.5
+        transitions:
+          - terminal: success
+            when: done
+
+      commit-push-pr:
+        goal: Push and open a PR
+        agent: claude-full
         transitions:
           - terminal: success
             when: done
 ```
 
-Step-level `agent` fields use shallow inheritance from the top-level `agent` config:
-
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `provider` | `claude` \| `codex` | no | Optional. If omitted, the step inherits the top-level provider. |
-| `model` | string | no | Optional. Overrides the model for that step only. |
-| `command` | string | no | Optional. Overrides the CLI executable path or command name for that step only. |
-
-Command-based steps do not use `agent` config. If `provider` is omitted in a goal-step override, only the supplied fields are replaced and the remaining fields continue to inherit from the top-level `agent` block.
+Command-based steps do not use `agent` config.
 
 ### Command-based steps
 

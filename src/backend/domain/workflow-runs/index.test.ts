@@ -316,18 +316,23 @@ workflows:
 
   it("resolves and passes the effective agent config for a goal step", async () => {
     process.env.AITM_CONFIG_PATH = await writeTempConfig(`
-agent:
-  provider: claude
-  model: sonnet
-  command: /opt/homebrew/bin/claude
+agents:
+  claude-default:
+    provider: claude
+    model: sonnet
+    command: /opt/homebrew/bin/claude
+  claude-sonnet45:
+    provider: claude
+    model: sonnet-4.5
+    command: /opt/homebrew/bin/claude
+default-agent: claude-default
 workflows:
   my-flow:
     initial_step: plan
     steps:
       plan:
         goal: "Write a plan"
-        agent:
-          model: sonnet-4.5
+        agent: claude-sonnet45
         transitions:
           - terminal: success
             when: "done"

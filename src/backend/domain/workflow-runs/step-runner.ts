@@ -3,6 +3,7 @@ import { mkdir, writeFile } from "fs/promises";
 import { join } from "path";
 import {
   type AgentConfig,
+  type AgentsMap,
   type AgentWorkflowStep,
   type CommandWorkflowStep,
   resolveAgentConfig,
@@ -57,7 +58,8 @@ export class StepRunner {
     private worktreeService: WorktreeFinder,
     private commandStepExecutor: CommandExecutor,
     private workflows: Record<string, WorkflowDefinition>,
-    private agentConfig: AgentConfig,
+    private agents: AgentsMap,
+    private defaultAgent: string,
   ) {}
 
   setStepCompletionHandler(handler: StepCompletionHandler): void {
@@ -256,7 +258,11 @@ export class StepRunner {
     previousExecutions: PreviousExecutionHandoff[];
   }): Promise<void> {
     const goal = buildGoal(stepDef.goal, previousExecutions, artifacts, inputs);
-    const agentConfig = resolveAgentConfig(this.agentConfig, stepDef.agent);
+    const agentConfig = resolveAgentConfig(
+      this.agents,
+      stepDef.agent,
+      this.defaultAgent,
+    );
     const logFilePath = join(
       resolveWorkflowRunDir(worktree, workflowRunId),
       "logs",

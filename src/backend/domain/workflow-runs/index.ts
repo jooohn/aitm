@@ -1,5 +1,9 @@
 import { randomUUID } from "crypto";
-import type { AgentConfig, WorkflowDefinition } from "@/backend/infra/config";
+import type {
+  AgentConfig,
+  AgentsMap,
+  WorkflowDefinition,
+} from "@/backend/infra/config";
 import type { EventBus } from "@/backend/infra/event-bus";
 import { logger } from "@/backend/infra/logger";
 import { spawnAsync } from "@/backend/utils/process";
@@ -93,7 +97,8 @@ export class WorkflowRunService {
     private commandStepExecutor: CommandStepExecutor,
     private eventBus: EventBus,
     private workflows: Record<string, WorkflowDefinition>,
-    private agentConfig: AgentConfig,
+    private agents: AgentsMap,
+    private defaultAgent: string,
   ) {
     this.workflowRunQueries = new WorkflowRunQueries(workflowRunRepository);
     this.materializer = new WorkflowRunMaterializer(
@@ -108,7 +113,8 @@ export class WorkflowRunService {
       worktreeService,
       commandStepExecutor,
       workflows,
-      agentConfig,
+      agents,
+      defaultAgent,
     );
     this.workflowStateMachine = new WorkflowStateMachine(
       workflowRunRepository,

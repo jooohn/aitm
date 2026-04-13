@@ -13,17 +13,29 @@ repositories:
     #     label: "Run tests in watch mode"
     #     command: "npm run test:watch"
 
-agent:
-  provider: claude
-  # Optional: override the default model used by your agent CLI.
-  # model: sonnet
-  # Optional: override the CLI executable path or command name.
-  # command: /opt/homebrew/bin/claude
-  # Optional: permission mode for the agent.
-  # plan  - read-only, no mutations (Claude: plan, Codex: read-only sandbox)
-  # edit  - edit files in workspace (Claude: acceptEdits, Codex: workspace-write sandbox) [default]
-  # full  - full access incl. network (Claude: bypassPermissions, Codex: danger-full-access sandbox + network)
-  # permission_mode: edit
+# Define named agent profiles. Each entry is a fully-specified agent config.
+# `provider` is required; all other fields are optional.
+agents:
+  claude:
+    provider: claude
+    # Optional: override the default model used by your agent CLI.
+    # model: sonnet
+    # Optional: override the CLI executable path or command name.
+    # command: /opt/homebrew/bin/claude
+    # Optional: permission mode for the agent.
+    # plan  - read-only, no mutations (Claude: plan, Codex: read-only sandbox)
+    # edit  - edit files in workspace (Claude: acceptEdits, Codex: workspace-write sandbox) [default]
+    # full  - full access incl. network (Claude: bypassPermissions, Codex: danger-full-access sandbox + network)
+    # permission_mode: edit
+  # codex-gpt5:
+  #   provider: codex
+  #   model: gpt-5.4
+  # claude-full:
+  #   provider: claude
+  #   permission_mode: full
+
+# Which agent profile to use by default (must be a key in `agents`).
+default-agent: claude
 
 workflows:
   development-flow:
@@ -44,9 +56,8 @@ workflows:
           Read the task goal. If the spec is ambiguous or missing, ask clarifying
           questions and document a clear plan in the plan artifact. Otherwise, document your
           understanding and proceed.
-        agent:
-          provider: codex
-          model: gpt-5.4
+        # Reference a named agent profile instead of inlining config.
+        # agent: codex-gpt5
         transitions:
           - step: plan
             when: "specs need clarification or the plan is not yet documented"
@@ -58,10 +69,6 @@ workflows:
       implement:
         goal: |
           Implement the plan documented in the plan artifact. Write production-quality code.
-        agent:
-          # provider is optional here; this step inherits the top-level provider
-          # and only overrides the model.
-          model: sonnet-4.5
         transitions:
           - step: implement
             when: "implementation is incomplete"
@@ -105,8 +112,8 @@ workflows:
         goal: |
           Stage all relevant changes, create a well-formed git commit, push the
           branch to the remote repository, and open a pull request.
-        agent:
-          permission_mode: full
+        # Use a full-access agent for push operations.
+        # agent: claude-full
         output:
           presets:
             - pull_request_url

@@ -151,13 +151,191 @@ workflows:
     );
   });
 
-  it("returns a fresh snapshot on each call", async () => {
-    await writeConfig(`
+  describe("agents map and default-agent", () => {
+    it("parses agents map and default-agent", async () => {
+      await writeConfig(`
+agents:
+  claude-sonnet:
+    provider: claude
+    model: sonnet
+  codex-gpt5:
+    provider: codex
+    model: gpt-5.4
+default-agent: claude-sonnet
+repositories:
+  - path: /projects/org/repo1
+`);
+
+      const snapshot = loadConfig();
+      expect(snapshot.agents).toEqual({
+        "claude-sonnet": {
+          provider: "claude",
+          model: "sonnet",
+          command: undefined,
+          permission_mode: undefined,
+        },
+        "codex-gpt5": {
+          provider: "codex",
+          model: "gpt-5.4",
+          command: undefined,
+          permission_mode: undefined,
+        },
+      });
+      expect(snapshot.default_agent).toBe("claude-sonnet");
+    });
+
+    it("defaults to a single claude agent when agents and default-agent are omitted", async () => {
+      await writeConfig(`
+repositories:
+  - path: /projects/org/repo1
+`);
+
+      const snapshot = loadConfig();
+      expect(snapshot.agents).toEqual({
+        default: { provider: "claude" },
+      });
+      expect(snapshot.default_agent).toBe("default");
+    });
+
+    it("fails when default-agent references an unknown alias", async () => {
+      await writeConfig(`
+agents:
+  claude-sonnet:
+    provider: claude
+    model: sonnet
+default-agent: nonexistent
+`);
+
+      expect(() => loadConfig()).toThrow(
+        "default-agent must reference a key in agents",
+      );
+    });
+
+    it("fails when agents entry is missing provider", async () => {
+      await writeConfig(`
+agents:
+  my-agent:
+    model: sonnet
+default-agent: my-agent
+`);
+
+      expect(() => loadConfig()).toThrow("agents.my-agent.provider");
+    });
+
+    it("fails when the old top-level agent object is used", async () => {
+      await writeConfig(`
 agent:
   provider: codex
   model: gpt-5.4
-repositories:
-  - path: /projects/org/repo1
+`);
+
+      expect(() => loadConfig()).toThrow(
+        "Top-level 'agent' object is no longer supported",
+      );
+    });
+
+    it("fails when agents is not an object", async () => {
+      await writeConfig(`
+agents: "not-an-object"
+default-agent: foo
+`);
+
+      expect(() => loadConfig()).toThrow("agents must be an object");
+    });
+
+    it("fails when default-agent is provided without agents", async () => {
+      await writeConfig(`
+default-agent: my-agent
+`);
+
+      expect(() => loadConfig()).toThrow(
+        "default-agent must reference a key in agents",
+      );
+    });
+
+    it("parses agent with all optional fields", async () => {
+      await writeConfig(`
+agents:
+  claude-full:
+    provider: claude
+    model: sonnet
+    command: /opt/homebrew/bin/claude
+    permission_mode: full
+default-agent: claude-full
+`);
+
+      const snapshot = loadConfig();
+      expect(snapshot.agents["claude-full"]).toEqual({
+        provider: "claude",
+        model: "sonnet",
+        command: "/opt/homebrew/bin/claude",
+        permission_mode: "full",
+      });
+    });
+  });
+
+  describe("step-level agent alias", () => {
+    it("parses step agent as a string alias", async () => {
+      await writeConfig(`
+agents:
+  claude-sonnet:
+    provider: claude
+    model: sonnet
+  codex-gpt5:
+    provider: codex
+    model: gpt-5.4
+default-agent: claude-sonnet
+workflows:
+  my-flow:
+    initial_step: plan
+    steps:
+      plan:
+        goal: "Write a plan"
+        agent: codex-gpt5
+        transitions:
+          - terminal: success
+            when: done
+`);
+
+      const snapshot = loadConfig();
+      const step = snapshot.workflows["my-flow"].steps.plan;
+      expect(step.type).toBe("agent");
+      if (step.type === "agent") {
+        expect(step.agent).toBe("codex-gpt5");
+      }
+    });
+
+    it("fails when step agent references an unknown alias", async () => {
+      await writeConfig(`
+agents:
+  claude-sonnet:
+    provider: claude
+    model: sonnet
+default-agent: claude-sonnet
+workflows:
+  my-flow:
+    initial_step: plan
+    steps:
+      plan:
+        goal: "Write a plan"
+        agent: nonexistent
+        transitions:
+          - terminal: success
+            when: done
+`);
+
+      expect(() => loadConfig()).toThrow(
+        "workflows.my-flow.steps.plan.agent must reference a key in agents",
+      );
+    });
+
+    it("allows steps without an agent field (uses default)", async () => {
+      await writeConfig(`
+agents:
+  claude-sonnet:
+    provider: claude
+    model: sonnet
+default-agent: claude-sonnet
 workflows:
   my-flow:
     initial_step: plan
@@ -169,16 +347,38 @@ workflows:
             when: done
 `);
 
-    const snapshot = loadConfig();
-    expect(snapshot.repositories).toEqual([{ path: "/projects/org/repo1" }]);
-    expect(snapshot.agent).toEqual({
-      provider: "codex",
-      model: "gpt-5.4",
-      command: undefined,
-      permission_mode: undefined,
+      const snapshot = loadConfig();
+      const step = snapshot.workflows["my-flow"].steps.plan;
+      expect(step.type).toBe("agent");
+      if (step.type === "agent") {
+        expect(step.agent).toBeUndefined();
+      }
     });
-    expect(snapshot.workflows).toMatchObject({
-      "my-flow": { initial_step: "plan" },
+
+    it("fails when step agent is an inline object instead of a string", async () => {
+      await writeConfig(`
+agents:
+  claude-sonnet:
+    provider: claude
+    model: sonnet
+default-agent: claude-sonnet
+workflows:
+  my-flow:
+    initial_step: plan
+    steps:
+      plan:
+        goal: "Write a plan"
+        agent:
+          provider: codex
+          model: gpt-5.4
+        transitions:
+          - terminal: success
+            when: done
+`);
+
+      expect(() => loadConfig()).toThrow(
+        "workflows.my-flow.steps.plan.agent must be a string",
+      );
     });
   });
 
@@ -257,12 +457,17 @@ repositories:
     });
   });
 
-  it("normalizes valid workflows", async () => {
+  it("normalizes valid workflows with agent aliases", async () => {
     await writeConfig(`
-agent:
-  provider: claude
-  model: sonnet
-  permission_mode: edit
+agents:
+  claude-edit:
+    provider: claude
+    model: sonnet
+    permission_mode: edit
+  codex-gpt5:
+    provider: codex
+    model: gpt-5.4
+default-agent: claude-edit
 repositories:
   - path: /projects/org/repo1
 workflows:
@@ -280,9 +485,7 @@ workflows:
     steps:
       plan:
         goal: "Write a plan"
-        agent:
-          provider: codex
-          model: gpt-5.4
+        agent: codex-gpt5
         output:
           presets:
             - pull_request_url
@@ -322,6 +525,21 @@ workflows:
 
     const snapshot = loadConfig();
 
+    expect(snapshot.agents).toEqual({
+      "claude-edit": {
+        provider: "claude",
+        model: "sonnet",
+        command: undefined,
+        permission_mode: "edit",
+      },
+      "codex-gpt5": {
+        provider: "codex",
+        model: "gpt-5.4",
+        command: undefined,
+        permission_mode: undefined,
+      },
+    });
+    expect(snapshot.default_agent).toBe("claude-edit");
     expect(snapshot.repositories).toEqual([{ path: "/projects/org/repo1" }]);
     expect(snapshot.workflows).toEqual({
       "my-flow": {
@@ -340,12 +558,7 @@ workflows:
           plan: {
             type: "agent",
             goal: "Write a plan",
-            agent: {
-              provider: "codex",
-              model: "gpt-5.4",
-              command: undefined,
-              permission_mode: undefined,
-            },
+            agent: "codex-gpt5",
             output: {
               metadata: {
                 presets__pull_request_url: {
@@ -395,44 +608,48 @@ workflows:
 });
 
 describe("resolveAgentConfig", () => {
-  it("inherits provider fields from the base config", () => {
-    const base = {
-      provider: "codex" as const,
-      model: "gpt-5.4",
-      command: "/opt/homebrew/bin/codex",
-      permission_mode: "full" as const,
+  it("returns the agent for the given alias", () => {
+    const agents = {
+      "claude-sonnet": {
+        provider: "claude" as const,
+        model: "sonnet",
+      },
+      "codex-gpt5": {
+        provider: "codex" as const,
+        model: "gpt-5.4",
+      },
     };
 
-    expect(
-      resolveAgentConfig(base, {
-        model: "gpt-5.4-mini",
-      }),
-    ).toEqual({
+    expect(resolveAgentConfig(agents, "codex-gpt5", "claude-sonnet")).toEqual({
       provider: "codex",
-      model: "gpt-5.4-mini",
-      command: "/opt/homebrew/bin/codex",
-      permission_mode: "full",
+      model: "gpt-5.4",
     });
   });
 
-  it("drops provider-specific fields when switching providers", () => {
-    const base = {
-      provider: "claude" as const,
-      model: "sonnet",
-      command: "/opt/homebrew/bin/claude",
-      permission_mode: "edit" as const,
+  it("returns the default agent when no alias is provided", () => {
+    const agents = {
+      "claude-sonnet": {
+        provider: "claude" as const,
+        model: "sonnet",
+      },
     };
 
-    expect(
-      resolveAgentConfig(base, {
-        provider: "codex",
-        permission_mode: "full",
-      }),
-    ).toEqual({
-      provider: "codex",
-      model: undefined,
-      command: undefined,
-      permission_mode: "full",
+    expect(resolveAgentConfig(agents, undefined, "claude-sonnet")).toEqual({
+      provider: "claude",
+      model: "sonnet",
     });
+  });
+
+  it("throws when alias is not found in agents map", () => {
+    const agents = {
+      "claude-sonnet": {
+        provider: "claude" as const,
+        model: "sonnet",
+      },
+    };
+
+    expect(() =>
+      resolveAgentConfig(agents, "nonexistent", "claude-sonnet"),
+    ).toThrow("nonexistent");
   });
 });
