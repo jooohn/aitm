@@ -24,7 +24,7 @@ export interface AgentConfig {
   permission_mode?: PermissionMode;
 }
 
-export type AgentConfigOverride = Partial<AgentConfig>;
+export type AgentsMap = Record<string, AgentConfig>;
 
 export interface ConfigRepositoryCommand {
   id: string;
@@ -50,7 +50,7 @@ export interface AgentWorkflowStep {
   type: "agent";
   goal: string;
   transitions: WorkflowTransition[];
-  agent?: AgentConfigOverride;
+  agent?: string;
   output?: {
     metadata?: Record<string, OutputMetadataFieldDef>;
   };
@@ -102,7 +102,8 @@ export interface WorkflowDefinition {
 }
 
 export interface ConfigSnapshot {
-  agent: AgentConfig;
+  agents: AgentsMap;
+  default_agent: string;
   repositories: ConfigRepository[];
   workflows: Record<string, WorkflowDefinition>;
 }
@@ -150,13 +151,6 @@ const transitionSchema = z
   });
 
 const transitionsSchema = z.array(transitionSchema).nonempty();
-
-const agentConfigSchema = z.object({
-  provider: agentProviderSchema.optional(),
-  model: z.string().optional(),
-  command: z.string().optional(),
-  permission_mode: permissionModeSchema.optional(),
-});
 
 const outputMetadataFieldSchema = z.object({
   type: z.string(),
@@ -261,7 +255,28 @@ function validateAgentOutput(
   return Object.keys(metadata).length > 0 ? { metadata } : undefined;
 }
 
-function validateWorkflowStep(value: unknown, path: string): WorkflowStep {
+function validateStepAgentAlias(
+  value: unknown,
+  path: string,
+  agentAliases: Set<string>,
+): string | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== "string") {
+    fail(
+      `${path} must be a string (agent alias), not an inline object. Define agents under 'agents' and reference by name.`,
+    );
+  }
+  if (!agentAliases.has(value)) {
+    fail(`${path} must reference a key in agents, got "${value}"`);
+  }
+  return value;
+}
+
+function validateWorkflowStep(
+  value: unknown,
+  path: string,
+  agentAliases: Set<string>,
+): WorkflowStep {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     fail(`${path} must be an object`);
   }
@@ -304,14 +319,11 @@ function validateWorkflowStep(value: unknown, path: string): WorkflowStep {
       type: "agent",
       goal: record.goal,
       transitions,
-      agent:
-        record.agent === undefined
-          ? undefined
-          : (parseZodWithPath(
-              agentConfigSchema,
-              record.agent,
-              `${path}.agent`,
-            ) as AgentConfigOverride),
+      agent: validateStepAgentAlias(
+        record.agent,
+        `${path}.agent`,
+        agentAliases,
+      ),
       output: validateAgentOutput(record.output, `${path}.output`),
     };
   }
@@ -335,14 +347,7 @@ function validateWorkflowStep(value: unknown, path: string): WorkflowStep {
     type: "agent",
     goal: record.goal,
     transitions,
-    agent:
-      record.agent === undefined
-        ? undefined
-        : (parseZodWithPath(
-            agentConfigSchema,
-            record.agent,
-            `${path}.agent`,
-          ) as AgentConfigOverride),
+    agent: validateStepAgentAlias(record.agent, `${path}.agent`, agentAliases),
     output: validateAgentOutput(record.output, `${path}.output`),
   };
 }
@@ -350,6 +355,7 @@ function validateWorkflowStep(value: unknown, path: string): WorkflowStep {
 function validateWorkflowDefinition(
   name: string,
   value: unknown,
+  agentAliases: Set<string>,
 ): WorkflowDefinition {
   const path = `workflows.${name}`;
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
@@ -443,7 +449,11 @@ function validateWorkflowDefinition(
     Object.entries(record.steps as Record<string, unknown>).map(
       ([stepName, stepDef]) => [
         stepName,
-        validateWorkflowStep(stepDef, `${path}.steps.${stepName}`),
+        validateWorkflowStep(
+          stepDef,
+          `${path}.steps.${stepName}`,
+          agentAliases,
+        ),
       ],
     ),
   );
@@ -476,6 +486,38 @@ function validateWorkflowDefinition(
   };
 }
 
+const requiredAgentConfigSchema = z.object({
+  provider: agentProviderSchema,
+  model: z.string().optional(),
+  command: z.string().optional(),
+  permission_mode: permissionModeSchema.optional(),
+});
+
+function validateAgentsMap(value: unknown): AgentsMap {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    fail("agents must be an object");
+  }
+  const record = value as Record<string, unknown>;
+  const entries: [string, AgentConfig][] = [];
+  for (const [name, def] of Object.entries(record)) {
+    const parsed = parseZodWithPath(
+      requiredAgentConfigSchema,
+      def,
+      `agents.${name}`,
+    );
+    entries.push([
+      name,
+      {
+        provider: parsed.provider,
+        model: parsed.model,
+        command: parsed.command,
+        permission_mode: parsed.permission_mode as PermissionMode | undefined,
+      },
+    ]);
+  }
+  return Object.fromEntries(entries);
+}
+
 function validateConfig(raw: unknown): ConfigSnapshot {
   if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
     fail("Invalid config root: expected an object");
@@ -485,24 +527,41 @@ function validateConfig(raw: unknown): ConfigSnapshot {
     fail("workflows must be an object");
   }
 
-  const agent: AgentConfig =
-    record.agent !== undefined
-      ? (() => {
-          const parsed = parseZodWithPath(
-            agentConfigSchema,
-            record.agent,
-            "agent",
-          );
-          return {
-            provider: parsed.provider ?? "claude",
-            model: parsed.model,
-            command: parsed.command,
-            permission_mode: parsed.permission_mode as
-              | PermissionMode
-              | undefined,
-          };
-        })()
-      : { provider: "claude" };
+  if (record.agent !== undefined) {
+    fail(
+      "Top-level 'agent' object is no longer supported. Define agents under 'agents' and set 'default-agent' to an alias.",
+    );
+  }
+
+  let agents: AgentsMap;
+  let default_agent: string;
+
+  if (record.agents !== undefined) {
+    agents = validateAgentsMap(record.agents);
+    const rawDefaultAgent = record["default-agent"];
+    if (typeof rawDefaultAgent !== "string") {
+      fail("default-agent must be a string when agents is defined");
+    }
+    if (!(rawDefaultAgent in agents)) {
+      fail(
+        `default-agent must reference a key in agents, got "${rawDefaultAgent}"`,
+      );
+    }
+    default_agent = rawDefaultAgent;
+  } else {
+    agents = { default: { provider: "claude" } };
+    default_agent = "default";
+    if (
+      record["default-agent"] !== undefined &&
+      record["default-agent"] !== "default"
+    ) {
+      fail(
+        `default-agent must reference a key in agents, got "${record["default-agent"]}"`,
+      );
+    }
+  }
+
+  const agentAliases = new Set(Object.keys(agents));
 
   const repositoryCommandSchema = z.object({
     label: z.string().optional(),
@@ -541,12 +600,15 @@ function validateConfig(raw: unknown): ConfigSnapshot {
     record.workflows !== undefined
       ? Object.fromEntries(
           Object.entries(record.workflows as Record<string, unknown>).map(
-            ([name, def]) => [name, validateWorkflowDefinition(name, def)],
+            ([name, def]) => [
+              name,
+              validateWorkflowDefinition(name, def, agentAliases),
+            ],
           ),
         )
       : {};
 
-  return { agent, repositories, workflows };
+  return { agents, default_agent, repositories, workflows };
 }
 
 export function loadConfig(): ConfigSnapshot {
@@ -580,19 +642,14 @@ export function loadConfig(): ConfigSnapshot {
 }
 
 export function resolveAgentConfig(
-  base: AgentConfig,
-  override?: AgentConfigOverride,
+  agents: AgentsMap,
+  alias: string | undefined,
+  defaultAgent: string,
 ): AgentConfig {
-  const inheritsProviderFields =
-    override?.provider === undefined || override.provider === base.provider;
-
-  return {
-    provider: override?.provider ?? base.provider,
-    model: override?.model ?? (inheritsProviderFields ? base.model : undefined),
-    command:
-      override?.command ?? (inheritsProviderFields ? base.command : undefined),
-    permission_mode:
-      override?.permission_mode ??
-      (inheritsProviderFields ? base.permission_mode : undefined),
-  };
+  const key = alias ?? defaultAgent;
+  const config = agents[key];
+  if (!config) {
+    throw new Error(`Agent alias "${key}" not found in agents map`);
+  }
+  return config;
 }

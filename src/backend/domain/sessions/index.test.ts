@@ -158,10 +158,12 @@ describe("createSession", () => {
     await writeTestConfig(
       configFile,
       `
-agent:
-  provider: codex
-  model: gpt-5.4
-  command: /opt/homebrew/bin/codex
+agents:
+  default:
+    provider: codex
+    model: gpt-5.4
+    command: /opt/homebrew/bin/codex
+default-agent: default
 workflows: {}
 `,
     );

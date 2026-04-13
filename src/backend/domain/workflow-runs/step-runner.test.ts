@@ -11,7 +11,10 @@ import { CommandExecutionRepository } from "./command-execution-repository";
 import { StepRunner } from "./step-runner";
 import { WorkflowRunRepository } from "./workflow-run-repository";
 
-const DEFAULT_AGENT_CONFIG: AgentConfig = { provider: "claude" };
+const DEFAULT_AGENTS: Record<string, AgentConfig> = {
+  default: { provider: "claude" },
+};
+const DEFAULT_AGENT_ALIAS = "default";
 
 describe("StepRunner", () => {
   let db: Database.Database;
@@ -72,7 +75,8 @@ describe("StepRunner", () => {
       { findWorktree } as never,
       { execute: vi.fn() } as never,
       workflows,
-      DEFAULT_AGENT_CONFIG,
+      DEFAULT_AGENTS,
+      DEFAULT_AGENT_ALIAS,
     );
     stepRunner.setStepCompletionHandler(completeStepExecution);
 
@@ -145,6 +149,71 @@ describe("StepRunner", () => {
     expect(completeStepExecution).not.toHaveBeenCalled();
   });
 
+  it("resolves step-level agent alias from the agents map", async () => {
+    const agents: Record<string, AgentConfig> = {
+      default: { provider: "claude" },
+      "codex-gpt5": { provider: "codex", model: "gpt-5.4" },
+    };
+    const workflows: Record<string, WorkflowDefinition> = {
+      "my-flow": {
+        initial_step: "plan",
+        steps: {
+          plan: {
+            type: "agent",
+            goal: "Write a plan",
+            agent: "codex-gpt5",
+            transitions: [{ terminal: "success", when: "done" }],
+          },
+        },
+      },
+    };
+    const createSession = vi.fn().mockResolvedValue(undefined);
+    const findWorktree = vi.fn().mockResolvedValue({
+      branch: "feat/test",
+      path: worktreePath,
+      is_main: false,
+      is_bare: false,
+      head: "abc1234",
+    } satisfies Worktree);
+
+    const stepRunner = new StepRunner(
+      workflowRunRepository,
+      commandExecutionRepository,
+      { createSession } as never,
+      { findWorktree } as never,
+      { execute: vi.fn() } as never,
+      workflows,
+      agents,
+      "default",
+    );
+    stepRunner.setStepCompletionHandler(vi.fn());
+
+    workflowRunRepository.insertWorkflowRun({
+      id: "run-1",
+      repository_path: "/tmp/repo",
+      worktree_branch: "feat/test",
+      workflow_name: "my-flow",
+      initial_step: "plan",
+      inputs_json: null,
+      now: "2026-04-07T00:00:00.000Z",
+    });
+
+    await stepRunner.startStepExecution({
+      workflowRunId: "run-1",
+      stepName: "plan",
+      repositoryPath: "/tmp/repo",
+      worktreeBranch: "feat/test",
+      workflowName: "my-flow",
+      previousExecutions: [],
+    });
+
+    expect(createSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        agent_config: { provider: "codex", model: "gpt-5.4" },
+      }),
+    );
+  });
+
   it("completes command steps via the bound completion handler", async () => {
     const workflows: Record<string, WorkflowDefinition> = {
       "command-flow": {
@@ -183,7 +252,8 @@ describe("StepRunner", () => {
       { findWorktree } as never,
       { execute } as never,
       workflows,
-      DEFAULT_AGENT_CONFIG,
+      DEFAULT_AGENTS,
+      DEFAULT_AGENT_ALIAS,
     );
     stepRunner.setStepCompletionHandler(completeStepExecution);
 
@@ -269,7 +339,8 @@ describe("StepRunner", () => {
       { findWorktree: vi.fn().mockResolvedValue(undefined) } as never,
       { execute: vi.fn() } as never,
       workflows,
-      DEFAULT_AGENT_CONFIG,
+      DEFAULT_AGENTS,
+      DEFAULT_AGENT_ALIAS,
     );
     stepRunner.setStepCompletionHandler(completeStepExecution);
 

@@ -20,7 +20,8 @@ describe("container bootstrap", () => {
     const { getContainer } = await import("./container");
 
     expect(getContainer().config).toEqual({
-      agent: { provider: "claude" },
+      agents: { default: { provider: "claude" } },
+      default_agent: "default",
       repositories: [],
       workflows: {},
     });
@@ -33,7 +34,8 @@ describe("container bootstrap", () => {
     const { getContainer } = await import("./container");
 
     expect(getContainer().config).toEqual({
-      agent: { provider: "claude" },
+      agents: { default: { provider: "claude" } },
+      default_agent: "default",
       repositories: [],
       workflows: {},
     });

@@ -114,7 +114,7 @@ export interface AgentWorkflowStepDto {
   type: "agent";
   goal: string;
   transitions: WorkflowTransitionDto[];
-  agent?: Partial<AgentConfigDto>;
+  agent?: string;
   output?: {
     metadata?: Record<string, OutputMetadataFieldDefDto>;
   };
