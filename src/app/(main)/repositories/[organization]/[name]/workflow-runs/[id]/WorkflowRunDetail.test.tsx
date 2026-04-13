@@ -373,23 +373,18 @@ describe("WorkflowRunDetail", () => {
     expect(
       screen.getByText("Defined the implementation steps."),
     ).toBeInTheDocument();
-    expect(screen.getAllByText("Reason")).toHaveLength(1);
-    expect(screen.getAllByText("Summary")).toHaveLength(1);
+    expect(screen.getAllByText("Reason")).toHaveLength(2);
+    expect(screen.getAllByText("Summary")).toHaveLength(2);
 
     const commandItem = screen.getByText("lint").closest("li");
     expect(commandItem).not.toBeNull();
-    const commandOutput = within(commandItem!).getByTestId(
-      "command-output-lint-execution",
-    );
-    const outputLink = within(commandOutput).getByRole("link", {
+    const outputLink = within(commandItem!).getByRole("link", {
       name: "Output lint.log",
     });
     expect(outputLink).toHaveAttribute(
       "href",
       "/repositories/tmp/repo/workflow-runs/run-1/command-outputs/lint.log",
     );
-    expect(commandOutput).not.toHaveTextContent("/tmp/run-1/command-outputs");
-    expect(within(commandItem!).queryByText("Command succeeded")).toBeNull();
   });
 
   it("renders a pull request banner when metadata contains a PR URL", () => {

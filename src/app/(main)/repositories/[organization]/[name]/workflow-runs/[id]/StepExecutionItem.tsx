@@ -40,7 +40,6 @@ export default function StepExecutionItem({
 }: StepExecutionItemProps) {
   const [approvalReason, setApprovalReason] = useState("");
   const decision: TransitionDecisionDto | null = execution.transition_decision;
-  const isCommandExecution = execution.step_type === "command";
   const outputFilename = execution.output_file_path
     ? getOutputFilename(execution.output_file_path)
     : null;
@@ -70,6 +69,11 @@ export default function StepExecutionItem({
             className={styles.sessionLink}
           >
             Session {execution.session_id.slice(0, 8)}…
+          </Link>
+        )}
+        {commandOutputHref && outputFilename && (
+          <Link href={commandOutputHref} className={styles.sessionLink}>
+            Output {outputFilename}
           </Link>
         )}
         <span className={styles.timestamp}>
@@ -108,65 +112,35 @@ export default function StepExecutionItem({
           </div>
         </div>
       )}
-      {(decision || isCommandExecution) && (
+      {decision && (
         <div className={styles.decision}>
-          {decision && (
-            <div className={styles.decisionTransition}>
-              <span className={styles.decisionLabel}>Transition</span>
-              <span
-                className={`${styles.transitionTarget} ${
-                  decision.transition === "success"
-                    ? styles["transition-success"]
-                    : decision.transition === "failure"
-                      ? styles["transition-failure"]
-                      : styles["transition-state"]
-                }`}
-              >
-                {decision.transition}
-              </span>
+          <div className={styles.decisionTransition}>
+            <span className={styles.decisionLabel}>Transition</span>
+            <span
+              className={`${styles.transitionTarget} ${
+                decision.transition === "success"
+                  ? styles["transition-success"]
+                  : decision.transition === "failure"
+                    ? styles["transition-failure"]
+                    : styles["transition-state"]
+              }`}
+            >
+              {decision.transition}
+            </span>
+          </div>
+          {decision.reason && (
+            <div className={styles.decisionRow}>
+              <span className={styles.decisionLabel}>Reason</span>
+              <span className={styles.decisionValue}>{decision.reason}</span>
             </div>
           )}
-          {isCommandExecution ? (
-            <div className={styles.decisionColumn}>
-              <span className={styles.decisionLabel}>Output</span>
-              <div
-                className={styles.commandOutput}
-                data-testid={`command-output-${execution.id}`}
-              >
-                {commandOutputHref && outputFilename ? (
-                  <div className={styles.commandOutputLine}>
-                    <Link href={commandOutputHref}>
-                      Output {outputFilename}
-                    </Link>
-                  </div>
-                ) : (
-                  <div
-                    className={`${styles.commandOutputLine} ${styles.commandOutputEmpty}`}
-                  >
-                    No output file recorded.
-                  </div>
-                )}
-              </div>
+          {decision.handoff_summary && (
+            <div className={styles.decisionRow}>
+              <span className={styles.decisionLabel}>Summary</span>
+              <span className={styles.decisionValue}>
+                {decision.handoff_summary}
+              </span>
             </div>
-          ) : (
-            <>
-              {decision && (
-                <div className={styles.decisionRow}>
-                  <span className={styles.decisionLabel}>Reason</span>
-                  <span className={styles.decisionValue}>
-                    {decision.reason}
-                  </span>
-                </div>
-              )}
-              {decision?.handoff_summary && (
-                <div className={styles.decisionRow}>
-                  <span className={styles.decisionLabel}>Summary</span>
-                  <span className={styles.decisionValue}>
-                    {decision.handoff_summary}
-                  </span>
-                </div>
-              )}
-            </>
           )}
         </div>
       )}
