@@ -140,24 +140,6 @@ export default function RepositoryShell({
             </a>
           )}
         </div>
-        <section className={styles.paneSection}>
-          <button
-            type="button"
-            className={styles.launchButton}
-            onClick={() => setShowLaunchModal(true)}
-          >
-            Run Workflow
-          </button>
-          <button
-            type="button"
-            className={styles.newChatButton}
-            onClick={() => {
-              router.push(`/repositories/${organization}/${name}/chat/new`);
-            }}
-          >
-            New Chat
-          </button>
-        </section>
         {repo && (
           <WorktreeRunsSection
             organization={organization}
@@ -167,11 +149,21 @@ export default function RepositoryShell({
             loading={dataLoading}
             hasLoadedOnce={dataHasLoadedOnce}
             error={dataErrorMessage}
+            onRunWorkflow={() => setShowLaunchModal(true)}
           />
         )}
-        {chats && chats.length > 0 && (
-          <section className={styles.paneSection}>
-            <h3 className={styles.paneHeading}>Chats</h3>
+        <section className={styles.paneSection}>
+          <h3 className={styles.paneHeading}>Chats</h3>
+          <button
+            type="button"
+            className={styles.newChatButton}
+            onClick={() => {
+              router.push(`/repositories/${organization}/${name}/chat/new`);
+            }}
+          >
+            New Chat
+          </button>
+          {chats && chats.length > 0 && (
             <div className={styles.runsList}>
               {chats.map((chat) => (
                 <ChatListItem
@@ -183,8 +175,8 @@ export default function RepositoryShell({
                 />
               ))}
             </div>
-          </section>
-        )}
+          )}
+        </section>
       </aside>
       <div className={styles.content}>{children}</div>
       {showLaunchModal && (
