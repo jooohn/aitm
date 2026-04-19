@@ -3,6 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import styles from "@/app/(main)/sessions/SessionDrawer.module.css";
+import IconButton from "@/app/components/IconButton";
 import CloseIcon from "@/app/components/icons/CloseIcon";
 
 interface CommandOutputDrawerProps {
@@ -50,14 +51,13 @@ export default function CommandOutputDrawer({
       >
         <div className={styles.drawerHeader}>
           <h2 className={styles.drawerTitle}>{filename}</h2>
-          <button
-            type="button"
-            className={styles.closeButton}
+          <IconButton
+            size="sm"
             onClick={handleClose}
             aria-label="Close command output drawer"
           >
             <CloseIcon />
-          </button>
+          </IconButton>
         </div>
         <div className={styles.drawerBody}>
           <pre

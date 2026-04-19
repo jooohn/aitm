@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { mutate } from "swr";
+import IconButton from "@/app/components/IconButton";
 import EllipsisIcon from "@/app/components/icons/EllipsisIcon";
 import { swrKeys, useWorktrees } from "@/lib/hooks/swr";
 import { cleanMergedWorktrees, createWorktree } from "@/lib/utils/api";
@@ -99,9 +100,8 @@ export default function WorktreeSection({ organization, name }: Props) {
       <div className={styles.headingRow}>
         <h2 className={styles.heading}>Worktrees</h2>
         <div className={styles.menuWrapper} ref={menuRef}>
-          <button
-            type="button"
-            className={styles.menuButton}
+          <IconButton
+            size="sm"
             onClick={() => setMenuOpen((open) => !open)}
             aria-label="Worktree actions"
             aria-haspopup="menu"
@@ -109,7 +109,7 @@ export default function WorktreeSection({ organization, name }: Props) {
             title="Worktree actions"
           >
             <EllipsisIcon />
-          </button>
+          </IconButton>
           {menuOpen && (
             <div className={styles.menu} role="menu">
               <button

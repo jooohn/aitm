@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { mutate } from "swr";
+import IconButton from "@/app/components/IconButton";
 import PlayIcon from "@/app/components/icons/PlayIcon";
 import { swrKeys, useProcesses } from "@/lib/hooks/swr";
 import {
@@ -42,7 +43,7 @@ export default function WorktreePlayMenu({
 }: Props) {
   const router = useRouter();
   const wrapperRef = useRef<HTMLDivElement>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
+  const triggerRef = useRef<HTMLSpanElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [showLaunchModal, setShowLaunchModal] = useState(false);
@@ -158,19 +159,19 @@ export default function WorktreePlayMenu({
 
   return (
     <div className={styles.wrapper} ref={wrapperRef}>
-      <button
-        ref={triggerRef}
-        type="button"
-        className={styles.trigger}
-        onClick={() => setOpen((o) => !o)}
-        aria-label="Run command or workflow"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        title="Run command or workflow"
-        disabled={busy}
-      >
-        <PlayIcon size={14} />
-      </button>
+      <span ref={triggerRef} className={styles.triggerWrapper}>
+        <IconButton
+          size="sm"
+          onClick={() => setOpen((o) => !o)}
+          aria-label="Run command or workflow"
+          aria-haspopup="menu"
+          aria-expanded={open}
+          title="Run command or workflow"
+          disabled={busy}
+        >
+          <PlayIcon size={14} />
+        </IconButton>
+      </span>
       {open &&
         menuPos &&
         typeof document !== "undefined" &&

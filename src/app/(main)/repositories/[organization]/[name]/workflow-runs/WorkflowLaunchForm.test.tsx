@@ -3,7 +3,6 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import WorkflowLaunchForm from "./WorkflowLaunchForm";
-import styles from "./WorkflowLaunchForm.module.css";
 
 afterEach(() => {
   cleanup();
@@ -63,11 +62,13 @@ describe("WorkflowLaunchForm", () => {
     expect(screen.getByRole("button")).toHaveTextContent("Launching...");
   });
 
-  it("applies inline-flex alignment to button when submitting", () => {
+  it("renders spinner before submittingLabel when submitting", () => {
     render(<WorkflowLaunchForm {...defaultProps} isSubmitting />);
 
     const button = screen.getByRole("button");
-    expect(button).toHaveClass(styles.submitButtonSubmitting);
+    const spinner = screen.getByTestId("submit-spinner");
+    expect(button).toContainElement(spinner);
+    expect(button).toHaveTextContent("Launching...");
   });
 
   it("renders the workflow label in the selector", () => {

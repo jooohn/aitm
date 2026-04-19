@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
+import Button from "@/app/components/Button";
+import IconButton from "@/app/components/IconButton";
 import GitHubIcon from "@/app/components/icons/GitHubIcon";
 import TrashIcon from "@/app/components/icons/TrashIcon";
 import StatusDot, { type StatusDotVariant } from "@/app/components/StatusDot";
@@ -62,9 +63,9 @@ function ChatListItem({
           {chat.title ?? "Untitled chat"}
         </span>
       </Link>
-      <button
-        type="button"
-        className={styles.chatDeleteButton}
+      <IconButton
+        size="sm"
+        variant="destructive"
         onClick={async (e) => {
           e.preventDefault();
           if (deleting) return;
@@ -80,7 +81,7 @@ function ChatListItem({
         aria-label="Delete chat"
       >
         <TrashIcon size={14} />
-      </button>
+      </IconButton>
     </div>
   );
 }
@@ -91,7 +92,6 @@ export default function RepositoryShell({
   children,
 }: Props) {
   const alias = `${organization}/${name}`;
-  const router = useRouter();
   const [showLaunchModal, setShowLaunchModal] = useState(false);
   const { data: repo } = useRepository(organization, name);
   const { data: chats, mutate: mutateChats } = useChats(organization, name);
@@ -154,15 +154,9 @@ export default function RepositoryShell({
         )}
         <section className={styles.paneSection}>
           <h3 className={styles.paneHeading}>Chats</h3>
-          <button
-            type="button"
-            className={styles.newChatButton}
-            onClick={() => {
-              router.push(`/repositories/${organization}/${name}/chat/new`);
-            }}
-          >
+          <Button href={`/repositories/${organization}/${name}/chat/new`}>
             New Chat
-          </button>
+          </Button>
           {chats && chats.length > 0 && (
             <div className={styles.runsList}>
               {chats.map((chat) => (

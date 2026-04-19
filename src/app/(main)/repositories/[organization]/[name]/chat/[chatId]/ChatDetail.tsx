@@ -4,7 +4,9 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { mutate } from "swr";
+import Button from "@/app/components/Button";
 import ChatTranscript from "@/app/components/ChatTranscript/ChatTranscript";
+import IconButton from "@/app/components/IconButton";
 import CloseIcon from "@/app/components/icons/CloseIcon";
 import SendIcon from "@/app/components/icons/SendIcon";
 import type { StatusBadgeVariant } from "@/app/components/StatusBadge";
@@ -198,16 +200,15 @@ export default function ChatDetail({ chatId }: Props) {
           </StatusBadge>
         </div>
         {proposals.length > 0 && (
-          <button
-            type="button"
-            className={styles.proposalsButton}
+          <Button
+            size="sm"
             onClick={() => {
               setDrawerOpen(true);
               setDrawerClosing(false);
             }}
           >
             Suggested Runs{pendingCount > 0 ? ` (${pendingCount})` : ""}
-          </button>
+          </Button>
         )}
       </div>
 
@@ -237,14 +238,17 @@ export default function ChatDetail({ chatId }: Props) {
             disabled={!canSend}
             rows={3}
           />
-          <button
-            type="submit"
-            className={styles.sendButton}
-            disabled={!canSend || !messageText.trim()}
-            aria-label="Send message"
-          >
-            <SendIcon size={16} />
-          </button>
+          <span className={styles.sendButtonPosition}>
+            <IconButton
+              type="submit"
+              size="md"
+              variant="primary"
+              disabled={!canSend || !messageText.trim()}
+              aria-label="Send message"
+            >
+              <SendIcon size={16} />
+            </IconButton>
+          </span>
         </div>
         {sendError && <p className={styles.error}>{sendError}</p>}
       </form>
@@ -260,14 +264,13 @@ export default function ChatDetail({ chatId }: Props) {
           >
             <div className={styles.drawerHeader}>
               <h3 className={styles.drawerTitle}>Suggested Runs</h3>
-              <button
-                type="button"
-                className={styles.closeButton}
+              <IconButton
+                size="sm"
                 onClick={handleCloseDrawer}
                 aria-label="Close suggested runs"
               >
                 <CloseIcon />
-              </button>
+              </IconButton>
             </div>
             <div className={styles.drawerBody}>
               {proposals.length === 0 ? (

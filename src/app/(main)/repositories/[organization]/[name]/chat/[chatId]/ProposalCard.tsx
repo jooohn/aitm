@@ -2,6 +2,7 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
+import Button from "@/app/components/Button";
 import CollapsibleText from "@/app/components/CollapsibleText";
 import {
   approveChatProposal,
@@ -118,24 +119,24 @@ export default function ProposalCard({ chatId, proposal, onActioned }: Props) {
       {isPending && (
         <>
           <div className={styles.actions}>
-            <button
-              type="button"
-              className={styles.approveButton}
+            <Button
+              size="sm"
+              variant="primary"
               onClick={handleApprove}
               disabled={acting}
             >
               {acting ? "..." : "Approve"}
-            </button>
-            <button
-              type="button"
-              className={styles.rejectButton}
+            </Button>
+            <Button
+              size="sm"
+              variant="destructive"
               onClick={() =>
                 showRejectForm ? handleReject() : setShowRejectForm(true)
               }
               disabled={acting}
             >
               {showRejectForm ? (acting ? "..." : "Confirm Reject") : "Reject"}
-            </button>
+            </Button>
             <button
               type="button"
               className={styles.diveDeepButton}
@@ -145,9 +146,8 @@ export default function ProposalCard({ chatId, proposal, onActioned }: Props) {
               {acting ? "..." : "Dive Deep"}
             </button>
             {showRejectForm && (
-              <button
-                type="button"
-                className={styles.rejectButton}
+              <Button
+                size="sm"
                 onClick={() => {
                   setShowRejectForm(false);
                   setRejectReason("");
@@ -155,7 +155,7 @@ export default function ProposalCard({ chatId, proposal, onActioned }: Props) {
                 disabled={acting}
               >
                 Cancel
-              </button>
+              </Button>
             )}
           </div>
           {showRejectForm && (

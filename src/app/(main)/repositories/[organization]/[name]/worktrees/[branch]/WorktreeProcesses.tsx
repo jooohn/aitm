@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { mutate } from "swr";
+import Button from "@/app/components/Button";
+import IconButton from "@/app/components/IconButton";
 import PlayIcon from "@/app/components/icons/PlayIcon";
 import StopIcon from "@/app/components/icons/StopIcon";
 import { swrKeys, useProcesses } from "@/lib/hooks/swr";
@@ -92,10 +94,8 @@ export default function WorktreeProcesses({
 
       <div className={styles.launchers}>
         {commands.map((command) => (
-          <button
+          <Button
             key={command.id}
-            type="button"
-            className={styles.launchButton}
             onClick={() => handleLaunch(command.id)}
             disabled={launchingId === command.id}
           >
@@ -103,7 +103,7 @@ export default function WorktreeProcesses({
               <PlayIcon size={12} />
             </span>
             {command.label}
-          </button>
+          </Button>
         ))}
       </div>
 
@@ -149,16 +149,16 @@ export default function WorktreeProcesses({
                     {timeAgo(process.created_at)}
                   </span>
                   {isRunning && (
-                    <button
-                      type="button"
-                      className={styles.stopButton}
+                    <IconButton
+                      size="sm"
+                      variant="destructive"
                       onClick={() => handleStop(process.id)}
                       disabled={isStopping}
                       aria-label="Stop process"
                       title={isStopping ? "Stopping…" : "Stop process"}
                     >
                       <StopIcon />
-                    </button>
+                    </IconButton>
                   )}
                 </div>
               </li>

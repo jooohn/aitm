@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { mutate } from "swr";
+import IconButton from "@/app/components/IconButton";
 import EllipsisIcon from "@/app/components/icons/EllipsisIcon";
 import LoadingIndicator from "@/app/components/LoadingIndicator";
 import { extractPrInfos } from "@/app/components/PrChip";
@@ -142,9 +143,8 @@ export default function WorktreeRunsSection({
             />
           )}
           <div className={styles.menuWrapper} ref={menuRef}>
-            <button
-              type="button"
-              className={styles.menuButton}
+            <IconButton
+              size="sm"
               onClick={() => setMenuOpen((open) => !open)}
               aria-label="Worktree actions"
               aria-haspopup="menu"
@@ -152,7 +152,7 @@ export default function WorktreeRunsSection({
               title="Worktree actions"
             >
               <EllipsisIcon />
-            </button>
+            </IconButton>
             {menuOpen && (
               <div className={styles.menu} role="menu">
                 <button

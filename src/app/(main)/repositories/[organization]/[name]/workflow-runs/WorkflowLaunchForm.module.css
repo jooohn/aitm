@@ -29,9 +29,5 @@
 }
 
 .submitButton {
-  @apply self-start shrink-0 text-sm px-4 py-1.5 rounded bg-zinc-900 dark:bg-zinc-100 text-zinc-50 dark:text-zinc-900 hover:bg-zinc-700 dark:hover:bg-zinc-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors;
-}
-
-.submitButtonSubmitting {
-  @apply inline-flex items-center gap-1.5;
+  @apply self-start;
 }

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import IconButton from "@/app/components/IconButton";
 import ListIcon from "@/app/components/icons/ListIcon";
 import SyncIcon from "@/app/components/icons/SyncIcon";
 import { useAlert } from "@/lib/alert/AlertContext";
@@ -44,10 +45,9 @@ export default function Header() {
         aitm
       </Link>
       <div className={styles.actions}>
-        <button
-          type="button"
-          className={styles.iconButton}
+        <IconButton
           aria-label="Run house-keeping sync"
+          title="Run house-keeping sync"
           disabled={isSyncing}
           onClick={() => {
             void handleRunHouseKeeping();
@@ -56,15 +56,11 @@ export default function Header() {
           <SyncIcon
             className={`${styles.icon} ${isSyncing ? styles.syncingIcon : ""}`}
           />
-        </button>
+        </IconButton>
         <span className={styles.iconButtonWrapper}>
-          <Link
-            href="/todos"
-            className={styles.iconButton}
-            aria-label="Open todos"
-          >
+          <IconButton href="/todos" aria-label="Open todos">
             <ListIcon className={styles.icon} />
-          </Link>
+          </IconButton>
           {count > 0 && (
             <span
               role="status"

@@ -3,6 +3,7 @@
 import { notFound, useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import WorkflowKanbanBoard from "@/app/(main)/workflows/WorkflowKanbanBoard";
+import IconButton from "@/app/components/IconButton";
 import TrashIcon from "@/app/components/icons/TrashIcon";
 import PrChip, { extractPrInfos } from "@/app/components/PrChip";
 import { useRepository, useWorkflowRuns, useWorktrees } from "@/lib/hooks/swr";
@@ -88,16 +89,16 @@ export default function WorktreePage() {
         <div className={styles.headingRow}>
           <h1 className={styles.heading}>{branch || "(bare)"}</h1>
           {!worktree.is_main && (
-            <button
-              type="button"
-              className={styles.removeButton}
+            <IconButton
+              size="sm"
+              variant="destructive"
               disabled={removing}
               onClick={handleRemove}
               title={removing ? "Removing…" : "Remove worktree"}
               aria-label="Remove worktree"
             >
               <TrashIcon />
-            </button>
+            </IconButton>
           )}
         </div>
         {prs.length > 0 && (

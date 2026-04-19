@@ -1,5 +1,6 @@
 "use client";
 
+import Button from "@/app/components/Button";
 import LoadingIndicator from "@/app/components/LoadingIndicator";
 import type { WorkflowDefinition } from "@/lib/utils/api";
 import styles from "./WorkflowLaunchForm.module.css";
@@ -118,9 +119,10 @@ export default function WorkflowLaunchForm({
           </div>
         ))}
 
-      <button
+      <Button
         type="submit"
-        className={`${styles.submitButton}${isSubmitting ? ` ${styles.submitButtonSubmitting}` : ""}`}
+        variant="primary"
+        className={styles.submitButton}
         disabled={isSubmitDisabled}
       >
         {isSubmitting ? (
@@ -131,7 +133,7 @@ export default function WorkflowLaunchForm({
         ) : (
           submitLabel
         )}
-      </button>
+      </Button>
     </form>
   );
 }

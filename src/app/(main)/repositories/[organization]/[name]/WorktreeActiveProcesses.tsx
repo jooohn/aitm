@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { mutate } from "swr";
+import IconButton from "@/app/components/IconButton";
 import StopIcon from "@/app/components/icons/StopIcon";
 import { swrKeys, useProcesses } from "@/lib/hooks/swr";
 import { type Process, stopProcess } from "@/lib/utils/api";
@@ -103,16 +104,16 @@ export default function WorktreeActiveProcesses({
                   </span>
                 </Link>
                 {isRunning && (
-                  <button
-                    type="button"
-                    className={styles.stopButton}
+                  <IconButton
+                    size="sm"
+                    variant="destructive"
                     onClick={() => handleStop(process.id)}
                     disabled={isStopping}
                     aria-label="Stop process"
                     title={isStopping ? "Stopping\u2026" : "Stop process"}
                   >
                     <StopIcon size={12} />
-                  </button>
+                  </IconButton>
                 )}
               </div>
             </li>

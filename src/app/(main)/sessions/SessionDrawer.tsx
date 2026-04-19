@@ -3,6 +3,7 @@
 import { notFound, useParams, usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import SessionDetail from "@/app/(main)/sessions/[id]/SessionDetail";
+import IconButton from "@/app/components/IconButton";
 import CloseIcon from "@/app/components/icons/CloseIcon";
 import { useSession } from "@/lib/hooks/swr";
 import { isNotFoundError } from "@/lib/utils/api";
@@ -45,14 +46,13 @@ export default function SessionDrawer() {
         <aside className={styles.drawer}>
           <div className={styles.drawerHeader}>
             <h2 className={styles.drawerTitle}>Session unavailable</h2>
-            <button
-              type="button"
-              className={styles.closeButton}
+            <IconButton
+              size="sm"
               onClick={handleClose}
               aria-label="Close session drawer"
             >
               <CloseIcon />
-            </button>
+            </IconButton>
           </div>
           <div className={styles.drawerBody}>
             <p className={styles.error}>
@@ -80,14 +80,13 @@ export default function SessionDrawer() {
           <h2 className={styles.drawerTitle}>
             {session.step_name ?? `Session ${session.id.slice(0, 8)}`}
           </h2>
-          <button
-            type="button"
-            className={styles.closeButton}
+          <IconButton
+            size="sm"
             onClick={handleClose}
             aria-label="Close session drawer"
           >
             <CloseIcon />
-          </button>
+          </IconButton>
         </div>
         <div className={styles.drawerBody}>
           <SessionDetail session={session} />

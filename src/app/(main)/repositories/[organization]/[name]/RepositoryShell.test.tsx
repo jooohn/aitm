@@ -153,9 +153,7 @@ describe("RepositoryShell", () => {
     expect(screen.getByText("child")).toBeInTheDocument();
   });
 
-  it("navigates to /chat/new when New Chat button is clicked", async () => {
-    const user = userEvent.setup();
-
+  it("renders New Chat as a link to /chat/new", async () => {
     render(
       <SWRTestProvider>
         <RepositoryShell organization="org" name="repo">
@@ -168,9 +166,8 @@ describe("RepositoryShell", () => {
       expect(mockFetchWorktrees).toHaveBeenCalledTimes(1);
     });
 
-    await user.click(screen.getByText("New Chat"));
-
-    expect(mockPush).toHaveBeenCalledWith("/repositories/org/repo/chat/new");
+    const link = screen.getByRole("link", { name: "New Chat" });
+    expect(link).toHaveAttribute("href", "/repositories/org/repo/chat/new");
   });
 
   it("renders StatusDot for each chat status instead of text labels", async () => {

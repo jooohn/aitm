@@ -4,7 +4,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { mutate } from "swr";
+import Button from "@/app/components/Button";
 import CollapsibleText from "@/app/components/CollapsibleText";
+import IconButton from "@/app/components/IconButton";
 import EllipsisIcon from "@/app/components/icons/EllipsisIcon";
 import ExternalLinkIcon from "@/app/components/icons/ExternalLinkIcon";
 import StatusBadge from "@/app/components/StatusBadge";
@@ -278,36 +280,34 @@ export default function WorkflowRunDetailView({
         <div className={styles.headerRight}>
           {canStop && (
             <div className={styles.stopActions}>
-              <button
-                className={styles.stopButton}
+              <Button
+                variant="destructive"
                 onClick={handleStop}
                 disabled={stopping}
               >
                 {stopping ? "Stopping…" : "Stop Immediately"}
-              </button>
+              </Button>
               {stopError && <p className={styles.rerunError}>{stopError}</p>}
             </div>
           )}
           {currentRun.status === "failure" && (
             <div className={styles.headerActions}>
-              <button
-                className={styles.rerunButton}
+              <Button
                 onClick={handleRerunFromFailed}
                 disabled={rerunningFromFailed}
               >
                 {rerunningFromFailed
                   ? "Re-running…"
                   : "Re-run from failed step"}
-              </button>
+              </Button>
               {rerunFromFailedError && (
                 <p className={styles.rerunError}>{rerunFromFailedError}</p>
               )}
             </div>
           )}
           <div className={styles.menuWrapper} ref={menuRef}>
-            <button
-              type="button"
-              className={styles.menuButton}
+            <IconButton
+              size="sm"
               onClick={() => setMenuOpen((open) => !open)}
               aria-label="Actions"
               aria-haspopup="menu"
@@ -315,7 +315,7 @@ export default function WorkflowRunDetailView({
               title="Actions"
             >
               <EllipsisIcon />
-            </button>
+            </IconButton>
             {menuOpen && (
               <div className={styles.menu} role="menu">
                 <button
@@ -368,17 +368,15 @@ export default function WorkflowRunDetailView({
           </div>
           <div className={styles.suggestionList}>
             {suggestedWorkflows.map((suggestion) => (
-              <button
+              <Button
                 key={suggestion.workflow}
-                type="button"
-                className={styles.suggestionButton}
                 disabled={submittingSuggestion === suggestion.workflow}
                 onClick={() => handleSuggestionClick(suggestion)}
               >
                 {submittingSuggestion === suggestion.workflow
                   ? "Starting…"
                   : `Start ${suggestion.label}`}
-              </button>
+              </Button>
             ))}
           </div>
         </section>

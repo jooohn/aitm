@@ -3,6 +3,7 @@
 import { notFound, useParams, usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { mutate } from "swr";
+import IconButton from "@/app/components/IconButton";
 import CloseIcon from "@/app/components/icons/CloseIcon";
 import StopIcon from "@/app/components/icons/StopIcon";
 import { swrKeys, useProcess } from "@/lib/hooks/swr";
@@ -148,14 +149,13 @@ export default function ProcessDrawer() {
           <div className={styles.drawerHeader}>
             <h2 className={styles.title}>Process unavailable</h2>
             <div className={styles.headerActions}>
-              <button
-                type="button"
-                className={styles.iconButton}
+              <IconButton
+                size="sm"
                 onClick={handleClose}
                 aria-label="Close process drawer"
               >
                 <CloseIcon />
-              </button>
+              </IconButton>
             </div>
           </div>
           <p className={styles.error}>
@@ -189,25 +189,24 @@ export default function ProcessDrawer() {
           </h2>
           <div className={styles.headerActions}>
             {isRunning && (
-              <button
-                type="button"
-                className={styles.iconButton}
+              <IconButton
+                size="sm"
+                variant="destructive"
                 onClick={handleStop}
                 disabled={stopping}
                 aria-label="Stop process"
                 title={stopping ? "Stopping…" : "Stop process"}
               >
                 <StopIcon />
-              </button>
+              </IconButton>
             )}
-            <button
-              type="button"
-              className={styles.iconButton}
+            <IconButton
+              size="sm"
               onClick={handleClose}
               aria-label="Close process drawer"
             >
               <CloseIcon />
-            </button>
+            </IconButton>
           </div>
         </div>
 
