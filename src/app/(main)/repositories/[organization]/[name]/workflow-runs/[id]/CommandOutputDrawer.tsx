@@ -65,7 +65,7 @@ export default function CommandOutputDrawer({
               margin: 0,
               whiteSpace: "pre-wrap",
               overflowWrap: "anywhere",
-              fontFamily: "var(--font-geist-mono), monospace",
+              fontFamily: "var(--font-jetbrains-mono), monospace",
             }}
           >
             {content}

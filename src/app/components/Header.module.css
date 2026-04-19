@@ -1,7 +1,8 @@
 @reference "tailwindcss";
 
 .header {
-  @apply flex items-center justify-between px-4 sm:px-6 h-[var(--header-h)] border-b border-zinc-200 dark:border-zinc-800 shrink-0;
+  @apply flex items-center justify-between px-4 sm:px-6 h-[var(--header-h)] shrink-0;
+  border-bottom: 1px solid var(--border);
 }
 
 .stickyHeader {
@@ -9,19 +10,42 @@
 }
 
 .backdropHeader {
-  @apply bg-white/85 dark:bg-zinc-950/85 backdrop-blur supports-[backdrop-filter]:bg-white/75 dark:supports-[backdrop-filter]:bg-zinc-950/75;
+  background: color-mix(in srgb, var(--bg) 85%, transparent);
+  backdrop-filter: blur(6px);
 }
 
 .logo {
-  @apply font-mono font-bold text-lg text-zinc-900 dark:text-zinc-50 no-underline hover:opacity-70 transition-opacity;
+  @apply no-underline transition-opacity;
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  font-weight: 500;
+  font-size: 1.375rem;
+  letter-spacing: 0.02em;
+  color: var(--fg);
+}
+
+.logo:hover {
+  opacity: 0.7;
 }
 
 .actions {
-  @apply flex items-center gap-2 sm:gap-3;
+  @apply flex items-center gap-1 sm:gap-2;
 }
 
 .iconButton {
-  @apply inline-flex items-center justify-center h-9 w-9 rounded border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer;
+  @apply inline-flex items-center justify-center h-9 w-9 rounded-full transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed;
+  color: var(--fg-muted);
+  background: transparent;
+  border: 0;
+}
+
+.iconButton:hover:not(:disabled) {
+  background: var(--paper-1);
+  color: var(--fg);
+}
+
+.iconButton:active:not(:disabled) {
+  background: var(--paper-2);
+  color: var(--fg);
 }
 
 .icon {
@@ -37,12 +61,16 @@
 }
 
 .todosBadge {
-  @apply absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-red-500;
+  @apply absolute h-2.5 w-2.5 rounded-full;
+  top: 0.25rem;
+  right: 0.25rem;
+  background: var(--rust-500);
 }
 
 .todosBadge::before {
   content: "";
-  @apply absolute inset-0 rounded-full bg-red-500;
+  @apply absolute inset-0 rounded-full;
+  background: var(--rust-500);
   animation: ripple 1.5s ease-out infinite;
 }
 

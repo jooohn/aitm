@@ -5,25 +5,25 @@
 }
 
 .running {
-  @apply bg-blue-500;
+  background: var(--status-running);
   animation: blink-fade 1.5s ease-in-out infinite;
 }
 
 .awaiting {
-  @apply bg-amber-400;
+  background: var(--status-awaiting);
   animation: blink-fade 1.5s ease-in-out infinite;
 }
 
 .success {
-  @apply bg-green-500;
+  background: var(--status-success);
 }
 
 .failure {
-  @apply bg-red-500;
+  background: var(--status-failure);
 }
 
 .idle {
-  @apply bg-zinc-400;
+  background: var(--status-idle);
 }
 
 @keyframes blink-fade {

@@ -70,7 +70,7 @@ describe("mobile layout plan", () => {
     );
 
     expect(headerCss).toContain(
-      "@apply flex items-center justify-between px-4 sm:px-6 h-[var(--header-h)] border-b border-zinc-200 dark:border-zinc-800 shrink-0;",
+      "@apply flex items-center justify-between px-4 sm:px-6 h-[var(--header-h)] shrink-0;",
     );
     expect(workflowRunCss).toContain(
       "@apply flex flex-col items-start gap-4 lg:flex-row lg:items-start lg:justify-between;",

@@ -17,6 +17,6 @@ describe("StatusDot.module.css", () => {
     const css = readCssContent();
     const match = css.match(/\.idle\s*\{([^}]+)\}/);
     expect(match).not.toBeNull();
-    expect(match![1]).toMatch(/bg-zinc-400/);
+    expect(match![1]).toMatch(/var\(--status-idle\)/);
   });
 });
