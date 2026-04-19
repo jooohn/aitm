@@ -9,23 +9,47 @@
 }
 
 .label {
-  @apply text-xs font-medium text-zinc-700 dark:text-zinc-300 flex items-center gap-0.5;
+  @apply text-xs font-medium flex items-center gap-0.5;
+  color: var(--fg-muted);
 }
 
 .required {
-  @apply text-red-500;
+  color: var(--rust-500);
 }
 
 .description {
-  @apply text-xs text-zinc-500 dark:text-zinc-400;
+  @apply text-xs;
+  color: var(--fg-subtle);
 }
 
 .input {
-  @apply text-sm px-3 py-1.5 rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-500 disabled:opacity-40 disabled:cursor-not-allowed;
+  @apply text-sm px-3 py-1.5 disabled:opacity-40 disabled:cursor-not-allowed;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-raised);
+  color: var(--fg);
+}
+
+.input::placeholder {
+  color: var(--fg-faint);
+}
+
+.input:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
 .select {
-  @apply text-sm px-3 py-1.5 rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-500 disabled:opacity-40 disabled:cursor-not-allowed;
+  @apply text-sm px-3 py-1.5 disabled:opacity-40 disabled:cursor-not-allowed;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-raised);
+  color: var(--fg);
+}
+
+.select:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
 .submitButton {

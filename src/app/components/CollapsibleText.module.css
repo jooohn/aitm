@@ -14,5 +14,6 @@
 }
 
 .toggle {
-  @apply mt-1 text-xs text-blue-600 dark:text-blue-400 hover:underline cursor-pointer bg-transparent border-none p-0;
+  @apply mt-1 text-xs hover:underline cursor-pointer bg-transparent border-none p-0;
+  color: var(--sky-700);
 }

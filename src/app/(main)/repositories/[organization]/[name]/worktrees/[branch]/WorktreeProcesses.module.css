@@ -5,7 +5,8 @@
 }
 
 .heading {
-  @apply text-lg font-semibold text-zinc-900 dark:text-zinc-50;
+  @apply text-lg font-semibold;
+  color: var(--fg);
 }
 
 .launchers {
@@ -13,15 +14,17 @@
 }
 
 .launchIcon {
-  @apply text-zinc-400 dark:text-zinc-500;
+  color: var(--fg-faint);
 }
 
 .error {
-  @apply text-sm text-red-600 dark:text-red-400;
+  @apply text-sm;
+  color: var(--rust-700);
 }
 
 .empty {
-  @apply text-sm text-zinc-500 dark:text-zinc-400;
+  @apply text-sm;
+  color: var(--fg-subtle);
 }
 
 .list {
@@ -29,28 +32,36 @@
 }
 
 .item {
-  @apply flex items-center gap-3 px-3 py-2 rounded-md border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer;
+  @apply flex items-center gap-3 px-3 py-2 transition-colors cursor-pointer;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+}
+
+.item:hover {
+  background: var(--paper-1);
 }
 
 .itemActive {
-  @apply bg-zinc-100 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-600;
+  background: var(--paper-1);
+  border-color: var(--border-strong);
 }
 
 .dot {
-  @apply shrink-0 inline-block w-2 h-2 rounded-full;
+  @apply shrink-0 inline-block w-2 h-2;
+  border-radius: var(--radius-pill);
 }
 
 .dotRunning {
-  @apply bg-blue-500;
+  background: var(--sky-500);
   animation: blink-fade 1.5s ease-in-out infinite;
 }
 
 .dotStopped {
-  @apply bg-zinc-400 dark:bg-zinc-500;
+  background: var(--ink-3);
 }
 
 .dotCrashed {
-  @apply bg-red-500;
+  background: var(--rust-500);
 }
 
 .info {
@@ -62,19 +73,23 @@
 }
 
 .label {
-  @apply text-sm font-medium text-zinc-900 dark:text-zinc-50 truncate;
+  @apply text-sm font-medium truncate;
+  color: var(--fg);
 }
 
 .exitCode {
-  @apply shrink-0 text-xs text-zinc-500 dark:text-zinc-400;
+  @apply shrink-0 text-xs;
+  color: var(--fg-subtle);
 }
 
 .command {
-  @apply text-xs font-mono text-zinc-500 dark:text-zinc-400 truncate;
+  @apply text-xs font-mono truncate;
+  color: var(--fg-subtle);
 }
 
 .meta {
-  @apply shrink-0 text-xs text-zinc-500 dark:text-zinc-400;
+  @apply shrink-0 text-xs;
+  color: var(--fg-subtle);
 }
 
 @keyframes blink-fade {

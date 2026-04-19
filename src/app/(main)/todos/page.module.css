@@ -9,7 +9,9 @@
 }
 
 .listPane {
-  @apply border-b border-zinc-200 dark:border-zinc-800 px-4 py-4 flex flex-col gap-4 lg:border-b-0 lg:border-r sm:px-5 sm:py-6 lg:sticky lg:top-[var(--header-h,49px)] lg:h-[calc(100vh-var(--header-h,49px))] lg:overflow-y-auto;
+  @apply px-4 py-4 flex flex-col gap-4 lg:border-b-0 lg:border-r sm:px-5 sm:py-6 lg:sticky lg:top-[var(--header-h,49px)] lg:h-[calc(100vh-var(--header-h,49px))] lg:overflow-y-auto;
+  border-color: var(--border);
+  border-bottom: 1px solid var(--border);
 }
 
 .listHeader {
@@ -17,15 +19,18 @@
 }
 
 .title {
-  @apply text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide;
+  @apply text-sm font-bold uppercase tracking-wide;
+  color: var(--fg-subtle);
 }
 
 .status {
-  @apply text-sm text-zinc-500 dark:text-zinc-400;
+  @apply text-sm;
+  color: var(--fg-subtle);
 }
 
 .error {
-  @apply text-sm text-red-600 dark:text-red-400;
+  @apply text-sm;
+  color: var(--rust-700);
 }
 
 .list {
@@ -33,19 +38,26 @@
 }
 
 .sessionLink {
-  @apply block px-3 py-3 flex flex-col gap-1 rounded-lg no-underline hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors;
+  @apply block px-3 py-3 flex flex-col gap-1 no-underline transition-colors;
+  border-radius: var(--radius-lg);
+}
+
+.sessionLink:hover {
+  background: var(--paper-1);
 }
 
 .sessionLinkActive {
-  @apply bg-zinc-100 dark:bg-zinc-800;
+  background: var(--paper-1);
 }
 
 .sessionPrimary {
-  @apply text-sm font-semibold text-zinc-950 dark:text-zinc-50 truncate flex items-center gap-2;
+  @apply text-sm font-semibold truncate flex items-center gap-2;
+  color: var(--fg);
 }
 
 .sessionSecondary {
-  @apply flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400;
+  @apply flex items-center gap-2 text-xs;
+  color: var(--fg-subtle);
 }
 
 .detailPane {
@@ -53,5 +65,6 @@
 }
 
 .emptyDetail {
-  @apply text-sm text-zinc-500 dark:text-zinc-400;
+  @apply text-sm;
+  color: var(--fg-subtle);
 }

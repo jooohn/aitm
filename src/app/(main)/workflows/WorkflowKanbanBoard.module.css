@@ -5,19 +5,23 @@
 }
 
 .heading {
-  @apply text-lg font-semibold text-zinc-900 dark:text-zinc-50;
+  @apply text-lg font-semibold;
+  color: var(--fg);
 }
 
 .status {
-  @apply text-sm text-zinc-500;
+  @apply text-sm;
+  color: var(--fg-subtle);
 }
 
 .error {
-  @apply text-sm text-red-600 dark:text-red-400;
+  @apply text-sm;
+  color: var(--rust-700);
 }
 
 .workflowHeading {
-  @apply text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-2;
+  @apply text-sm font-bold uppercase tracking-wide mb-2;
+  color: var(--fg-subtle);
 }
 
 .boardScroll {
@@ -30,28 +34,24 @@
 }
 
 .boardScroll::-webkit-scrollbar-track {
-  @apply bg-zinc-100 dark:bg-zinc-800 rounded;
+  background: var(--paper-1);
+  border-radius: var(--radius-sm);
 }
 
 .boardScroll::-webkit-scrollbar-thumb {
-  @apply bg-zinc-300 dark:bg-zinc-600 rounded;
+  background: var(--paper-3);
+  border-radius: var(--radius-sm);
 }
 
 .boardScroll::-webkit-scrollbar-thumb:hover {
-  @apply bg-zinc-400 dark:bg-zinc-500;
+  background: var(--ink-3);
 }
 
 /* Firefox: standard properties */
 @supports not selector(::-webkit-scrollbar) {
   .boardScroll {
     scrollbar-width: thin;
-    scrollbar-color: var(--color-zinc-300) var(--color-zinc-100);
-  }
-
-  @media (prefers-color-scheme: dark) {
-    .boardScroll {
-      scrollbar-color: var(--color-zinc-600) var(--color-zinc-800);
-    }
+    scrollbar-color: var(--paper-3) var(--paper-1);
   }
 }
 
@@ -64,7 +64,10 @@
 }
 
 .columnHeader {
-  @apply text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide px-2 py-1.5 bg-zinc-100 dark:bg-zinc-800 rounded;
+  @apply text-xs font-semibold uppercase tracking-wide px-2 py-1.5;
+  color: var(--fg-subtle);
+  background: var(--paper-1);
+  border-radius: var(--radius-sm);
 }
 
 .columnCards {
@@ -72,77 +75,66 @@
 }
 
 .card {
-  @apply flex flex-col gap-1.5 p-3 rounded-sm border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm hover:shadow-md transition-shadow no-underline;
+  @apply flex flex-col gap-1.5 p-3 transition-shadow no-underline;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-raised);
+  box-shadow: var(--shadow-sm);
+}
+
+.card:hover {
+  box-shadow: var(--shadow-md);
 }
 
 .cardRunning {
-  @apply border-blue-400 dark:border-blue-600;
+  border-color: var(--sky-300);
   animation: blink-blue 2s ease-in-out infinite;
 }
 
 .cardSuccess {
-  @apply border-green-400 dark:border-green-600;
+  border-color: var(--moss-300);
 }
 
 .cardAwaiting {
-  @apply border-amber-400 dark:border-amber-600;
+  border-color: var(--amber-300);
   animation: blink-amber 2s ease-in-out infinite;
 }
 
 @keyframes blink-blue {
   0%,
   100% {
-    border-color: var(--color-blue-400);
+    border-color: var(--sky-300);
   }
   50% {
-    border-color: var(--color-blue-100);
+    border-color: var(--sky-100);
   }
 }
 
 @keyframes blink-amber {
   0%,
   100% {
-    border-color: var(--color-amber-400);
+    border-color: var(--amber-300);
   }
   50% {
-    border-color: var(--color-amber-100);
-  }
-}
-
-@media (prefers-color-scheme: dark) {
-  @keyframes blink-blue {
-    0%,
-    100% {
-      border-color: var(--color-blue-600);
-    }
-    50% {
-      border-color: var(--color-blue-900);
-    }
-  }
-
-  @keyframes blink-amber {
-    0%,
-    100% {
-      border-color: var(--color-amber-600);
-    }
-    50% {
-      border-color: var(--color-amber-900);
-    }
+    border-color: var(--amber-100);
   }
 }
 
 .cardFailure {
-  @apply border-red-400 dark:border-red-600;
+  border-color: var(--rust-300);
 }
 
 .cardRepo {
-  @apply text-xs text-zinc-500 dark:text-zinc-400 truncate;
+  @apply text-xs truncate;
+  color: var(--fg-subtle);
 }
 
 .cardBranch {
-  @apply text-sm font-medium font-mono text-zinc-900 dark:text-zinc-100 truncate;
+  @apply text-sm font-medium font-mono truncate;
+  color: var(--fg);
 }
 
 .cardMeta {
-  @apply flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400;
+  @apply flex items-center gap-1.5 text-xs;
+  color: var(--fg-subtle);
 }

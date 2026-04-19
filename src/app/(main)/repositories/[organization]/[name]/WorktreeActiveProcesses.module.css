@@ -1,11 +1,17 @@
 @reference "tailwindcss";
 
 .list {
-  @apply flex flex-col ml-3 border-l border-zinc-200 dark:border-zinc-700;
+  @apply flex flex-col ml-3;
+  border-left: 1px solid var(--border);
 }
 
 .item {
-  @apply flex items-center gap-1 py-1 px-2 ml-1 rounded text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors;
+  @apply flex items-center gap-1 py-1 px-2 ml-1 text-sm transition-colors;
+  border-radius: var(--radius-sm);
+}
+
+.item:hover {
+  background: var(--paper-1);
 }
 
 .link {
@@ -13,20 +19,21 @@
 }
 
 .itemActive {
-  @apply bg-zinc-100 dark:bg-zinc-800;
+  background: var(--paper-1);
 }
 
 .dot {
-  @apply shrink-0 inline-block w-2 h-2 rounded-full;
+  @apply shrink-0 inline-block w-2 h-2;
+  border-radius: var(--radius-pill);
 }
 
 .dotRunning {
-  @apply bg-blue-500;
+  background: var(--sky-500);
   animation: blink-fade 1.5s ease-in-out infinite;
 }
 
 .dotCrashed {
-  @apply bg-red-500;
+  background: var(--rust-500);
 }
 
 .info {
@@ -34,19 +41,23 @@
 }
 
 .prompt {
-  @apply shrink-0 text-zinc-400 dark:text-zinc-500 select-none;
+  @apply shrink-0 select-none;
+  color: var(--fg-faint);
 }
 
 .label {
-  @apply text-zinc-700 dark:text-zinc-300 truncate;
+  @apply truncate;
+  color: var(--fg-muted);
 }
 
 .time {
-  @apply shrink-0 text-xs text-zinc-400 dark:text-zinc-500 tabular-nums;
+  @apply shrink-0 text-xs tabular-nums;
+  color: var(--fg-faint);
 }
 
 .divider {
-  @apply ml-3 my-1 border-t border-dashed border-zinc-200 dark:border-zinc-700;
+  @apply ml-3 my-1;
+  border-top: 1px dashed var(--border);
 }
 
 @keyframes blink-fade {

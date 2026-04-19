@@ -5,7 +5,9 @@
 }
 
 .sidebar {
-  @apply border-b border-zinc-200 dark:border-zinc-800 px-4 py-4 flex flex-col gap-4 lg:border-b-0 lg:border-r sm:px-5 sm:py-6 lg:sticky lg:top-[var(--header-h,49px)] lg:h-[calc(100vh-var(--header-h,49px))] lg:overflow-y-auto;
+  @apply px-4 py-4 flex flex-col gap-4 lg:border-b-0 lg:border-r sm:px-5 sm:py-6 lg:sticky lg:top-[var(--header-h,49px)] lg:h-[calc(100vh-var(--header-h,49px))] lg:overflow-y-auto;
+  border-color: var(--border);
+  border-bottom: 1px solid var(--border);
 }
 
 .content {
@@ -21,7 +23,8 @@
 }
 
 .paneHeading {
-  @apply text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide;
+  @apply text-sm font-bold uppercase tracking-wide;
+  color: var(--fg-subtle);
 }
 
 .repoList {
@@ -29,13 +32,21 @@
 }
 
 .repoLink {
-  @apply flex items-center py-1.5 px-2 -mx-2 rounded text-sm text-zinc-900 dark:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 no-underline transition-colors;
+  @apply flex items-center py-1.5 px-2 -mx-2 text-sm no-underline transition-colors;
+  border-radius: var(--radius-sm);
+  color: var(--fg);
+}
+
+.repoLink:hover {
+  background: var(--paper-1);
 }
 
 .error {
-  @apply text-sm text-red-600 dark:text-red-400;
+  @apply text-sm;
+  color: var(--rust-700);
 }
 
 .empty {
-  @apply text-sm text-zinc-500;
+  @apply text-sm;
+  color: var(--fg-subtle);
 }

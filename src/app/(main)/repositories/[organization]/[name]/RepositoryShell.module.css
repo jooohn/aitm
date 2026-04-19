@@ -9,7 +9,9 @@
 }
 
 .leftPane {
-  @apply min-w-0 border-b border-zinc-200 dark:border-zinc-800 px-4 py-4 flex flex-col gap-4 lg:border-b-0 lg:border-r sm:px-5 sm:py-6 lg:sticky lg:top-[var(--header-h,49px)] lg:h-[calc(100vh-var(--header-h,49px))] lg:overflow-y-auto;
+  @apply min-w-0 px-4 py-4 flex flex-col gap-4 lg:border-b-0 lg:border-r sm:px-5 sm:py-6 lg:sticky lg:top-[var(--header-h,49px)] lg:h-[calc(100vh-var(--header-h,49px))] lg:overflow-y-auto;
+  border-color: var(--border);
+  border-bottom: 1px solid var(--border);
 }
 
 .headingRow {
@@ -17,7 +19,8 @@
 }
 
 .heading {
-  @apply min-w-0 flex-1 text-base font-semibold text-zinc-900 dark:text-zinc-50;
+  @apply min-w-0 flex-1 text-base font-semibold;
+  color: var(--fg);
 }
 
 .headingLink {
@@ -25,7 +28,12 @@
 }
 
 .githubLink {
-  @apply shrink-0 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors;
+  @apply shrink-0 transition-colors;
+  color: var(--fg-faint);
+}
+
+.githubLink:hover {
+  color: var(--fg);
 }
 
 .paneSection {
@@ -33,7 +41,8 @@
 }
 
 .paneHeading {
-  @apply text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide;
+  @apply text-sm font-bold uppercase tracking-wide;
+  color: var(--fg-subtle);
 }
 
 .runsList {
@@ -41,11 +50,16 @@
 }
 
 .runItem {
-  @apply flex items-center gap-2 py-1.5 px-2 -mx-2 rounded text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 no-underline transition-colors;
+  @apply flex items-center gap-2 py-1.5 px-2 -mx-2 text-sm no-underline transition-colors;
+  border-radius: var(--radius-sm);
+}
+
+.runItem:hover {
+  background: var(--paper-1);
 }
 
 .runItemActive {
-  @apply bg-zinc-100 dark:bg-zinc-800;
+  background: var(--paper-1);
 }
 
 .runInfo {
@@ -53,15 +67,18 @@
 }
 
 .runBranch {
-  @apply text-zinc-900 dark:text-zinc-100 truncate;
+  @apply truncate;
+  color: var(--fg);
 }
 
 .runWorkflow {
-  @apply text-xs text-zinc-500 dark:text-zinc-400 truncate;
+  @apply text-xs truncate;
+  color: var(--fg-subtle);
 }
 
 .runsEmpty {
-  @apply text-sm text-zinc-500 dark:text-zinc-400;
+  @apply text-sm;
+  color: var(--fg-subtle);
 }
 
 .srOnly {
@@ -69,5 +86,6 @@
 }
 
 .error {
-  @apply text-sm text-red-600 dark:text-red-400;
+  @apply text-sm;
+  color: var(--rust-700);
 }

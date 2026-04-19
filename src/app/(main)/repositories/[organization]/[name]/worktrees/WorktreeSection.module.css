@@ -9,7 +9,8 @@
 }
 
 .heading {
-  @apply text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide;
+  @apply text-sm font-bold uppercase tracking-wide;
+  color: var(--fg-subtle);
 }
 
 .menuWrapper {
@@ -21,11 +22,15 @@
 }
 
 .overlay {
-  @apply fixed inset-0 z-50 flex items-center justify-center bg-black/50;
+  @apply fixed inset-0 z-50 flex items-center justify-center;
+  background: rgba(0, 0, 0, 0.5);
 }
 
 .panel {
-  @apply w-full max-w-md mx-4 rounded-lg bg-white dark:bg-zinc-900 shadow-xl p-6 flex flex-col gap-4;
+  @apply w-full max-w-md mx-4 p-6 flex flex-col gap-4;
+  border-radius: var(--radius-lg);
+  background: var(--bg-raised);
+  box-shadow: var(--shadow-lg);
 }
 
 .titleRow {
@@ -33,19 +38,27 @@
 }
 
 .title {
-  @apply text-lg font-semibold text-zinc-900 dark:text-zinc-50;
+  @apply text-lg font-semibold;
+  color: var(--fg);
 }
 
 .closeButton {
-  @apply text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-100 transition-colors cursor-pointer text-xl leading-none;
+  @apply transition-colors cursor-pointer text-xl leading-none;
+  color: var(--fg-subtle);
+}
+
+.closeButton:hover {
+  color: var(--fg);
 }
 
 .status {
-  @apply text-sm text-zinc-500;
+  @apply text-sm;
+  color: var(--fg-subtle);
 }
 
 .error {
-  @apply text-sm text-red-600 dark:text-red-400;
+  @apply text-sm;
+  color: var(--rust-700);
 }
 
 .list {
@@ -53,15 +66,21 @@
 }
 
 .item {
-  @apply flex items-center gap-2 py-1.5 px-2 -mx-2 rounded text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 no-underline transition-colors;
+  @apply flex items-center gap-2 py-1.5 px-2 -mx-2 text-sm no-underline transition-colors;
+  border-radius: var(--radius-sm);
+}
+
+.item:hover {
+  background: var(--paper-1);
 }
 
 .itemActive {
-  @apply bg-zinc-100 dark:bg-zinc-800;
+  background: var(--paper-1);
 }
 
 .branch {
-  @apply text-zinc-900 dark:text-zinc-100 truncate;
+  @apply truncate;
+  color: var(--fg);
 }
 
 .form {
@@ -69,9 +88,29 @@
 }
 
 .input {
-  @apply flex-1 text-sm px-3 py-1.5 rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-500;
+  @apply flex-1 text-sm px-3 py-1.5;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-raised);
+  color: var(--fg);
+}
+
+.input::placeholder {
+  color: var(--fg-faint);
+}
+
+.input:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
 .createButton {
-  @apply shrink-0 text-sm px-3 py-1.5 rounded bg-zinc-900 dark:bg-zinc-100 text-zinc-50 dark:text-zinc-900 hover:bg-zinc-700 dark:hover:bg-zinc-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors;
+  @apply shrink-0 text-sm px-3 py-1.5 disabled:opacity-40 disabled:cursor-not-allowed transition-colors;
+  border-radius: var(--radius-sm);
+  background: var(--fg);
+  color: var(--bg-raised);
+}
+
+.createButton:hover {
+  background: var(--fg-muted);
 }

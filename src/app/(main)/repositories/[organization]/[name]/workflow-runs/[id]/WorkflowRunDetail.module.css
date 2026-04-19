@@ -43,11 +43,13 @@
 }
 
 .rerunError {
-  @apply text-xs text-red-600 dark:text-red-400 max-w-xs text-right;
+  @apply text-xs max-w-xs text-right;
+  color: var(--rust-700);
 }
 
 .title {
-  @apply text-xl font-semibold text-zinc-900 dark:text-zinc-50 break-words sm:text-2xl;
+  @apply text-xl font-semibold break-words sm:text-2xl;
+  color: var(--fg);
 }
 
 .headerMeta {
@@ -55,7 +57,8 @@
 }
 
 .headerTimestamps {
-  @apply text-xs text-zinc-400 dark:text-zinc-500 tabular-nums;
+  @apply text-xs tabular-nums;
+  color: var(--fg-faint);
 }
 
 .titleBranchLink {
@@ -63,11 +66,13 @@
 }
 
 .titleSeparator {
-  @apply mx-1.5 text-zinc-400 dark:text-zinc-500 font-normal;
+  @apply mx-1.5 font-normal;
+  color: var(--fg-faint);
 }
 
 .titleRunId {
-  @apply ml-2 text-sm font-normal text-zinc-400 dark:text-zinc-500 break-all sm:text-base;
+  @apply ml-2 text-sm font-normal break-all sm:text-base;
+  color: var(--fg-faint);
 }
 
 .prBanner {
@@ -101,7 +106,11 @@
 
 /* Details */
 .details {
-  @apply flex flex-col divide-y divide-zinc-200 dark:divide-zinc-700;
+  @apply flex flex-col;
+}
+
+.details > * + * {
+  border-top: 1px solid var(--border);
 }
 
 .detailRow {
@@ -109,11 +118,13 @@
 }
 
 .detailLabel {
-  @apply text-sm font-medium text-zinc-500 sm:w-44 shrink-0;
+  @apply text-sm font-medium sm:w-44 shrink-0;
+  color: var(--fg-subtle);
 }
 
 .detailValue {
-  @apply text-sm text-zinc-800 dark:text-zinc-200 whitespace-pre-wrap break-words;
+  @apply text-sm whitespace-pre-wrap break-words;
+  color: var(--fg);
 }
 
 .inputsList {
@@ -125,20 +136,24 @@
 }
 
 .inputKey {
-  @apply text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400;
+  @apply text-xs font-medium uppercase tracking-wide;
+  color: var(--fg-subtle);
 }
 
 .inputValue {
-  @apply text-sm text-zinc-800 dark:text-zinc-200 whitespace-pre-wrap break-words;
+  @apply text-sm whitespace-pre-wrap break-words;
+  color: var(--fg);
 }
 
 /* Section headings */
 .sectionHeading {
-  @apply text-sm font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-3;
+  @apply text-sm font-semibold uppercase tracking-wide mb-3;
+  color: var(--fg-subtle);
 }
 
 .empty {
-  @apply text-sm text-zinc-500;
+  @apply text-sm;
+  color: var(--fg-subtle);
 }
 
 .artifactList {
@@ -150,11 +165,13 @@
 }
 
 .artifactLink {
-  @apply inline-flex items-center gap-1.5 text-sm font-medium text-zinc-800 dark:text-zinc-200 hover:underline underline-offset-4 w-fit;
+  @apply inline-flex items-center gap-1.5 text-sm font-medium hover:underline underline-offset-4 w-fit;
+  color: var(--fg);
 }
 
 .artifactDescription {
-  @apply text-sm text-zinc-500 dark:text-zinc-400;
+  @apply text-sm;
+  color: var(--fg-subtle);
 }
 
 /* State executions list */
@@ -163,7 +180,9 @@
 }
 
 .execution {
-  @apply flex flex-col gap-2 rounded-lg border border-zinc-200 dark:border-zinc-700 px-4 py-3 transition-colors duration-500;
+  @apply flex flex-col gap-2 px-4 py-3 transition-colors duration-500;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
 }
 
 .execution-running {
@@ -175,35 +194,36 @@
 }
 
 .execution-success {
-  @apply border-green-400 dark:border-green-500;
+  border-color: var(--moss-300);
 }
 
 .execution-failure {
-  @apply border-red-400 dark:border-red-500;
+  border-color: var(--rust-300);
 }
 
 @keyframes border-blink-blue {
   0%,
   100% {
-    border-color: rgb(96 165 250); /* blue-400 */
+    border-color: var(--sky-300);
   }
   50% {
-    border-color: rgb(96 165 250 / 0.3);
+    border-color: var(--sky-100);
   }
 }
 
 @keyframes border-blink-amber {
   0%,
   100% {
-    border-color: rgb(251 191 36); /* amber-400 */
+    border-color: var(--amber-300);
   }
   50% {
-    border-color: rgb(251 191 36 / 0.3);
+    border-color: var(--amber-100);
   }
 }
 
 .highlight {
-  @apply border-blue-400 dark:border-blue-500 bg-blue-50 dark:bg-blue-950;
+  border-color: var(--sky-300);
+  background: var(--sky-50);
 }
 
 .executionHeader {
@@ -211,15 +231,21 @@
 }
 
 .stateName {
-  @apply text-sm font-semibold text-zinc-900 dark:text-zinc-100 font-mono;
+  @apply text-sm font-semibold font-mono;
+  color: var(--fg);
 }
 
 .executionMeta {
-  @apply flex flex-wrap items-center gap-3 text-xs text-zinc-500 dark:text-zinc-400;
+  @apply flex flex-wrap items-center gap-3 text-xs;
+  color: var(--fg-subtle);
 }
 
 .sessionLink {
-  @apply font-mono hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors underline underline-offset-2;
+  @apply font-mono transition-colors underline underline-offset-2;
+}
+
+.sessionLink:hover {
+  color: var(--fg);
 }
 
 .timestamp {
@@ -228,7 +254,8 @@
 
 /* Transition decision */
 .decision {
-  @apply flex flex-col gap-1.5 mt-1 pt-2 border-t border-zinc-100 dark:border-zinc-800;
+  @apply flex flex-col gap-1.5 mt-1 pt-2;
+  border-top: 1px solid var(--border-soft);
 }
 
 .decisionTransition {
@@ -240,27 +267,33 @@
 }
 
 .decisionLabel {
-  @apply text-xs font-medium text-zinc-400 dark:text-zinc-500 sm:w-20 shrink-0;
+  @apply text-xs font-medium sm:w-20 shrink-0;
+  color: var(--fg-faint);
 }
 
 .decisionValue {
-  @apply text-xs text-zinc-700 dark:text-zinc-300;
+  @apply text-xs;
+  color: var(--fg-muted);
 }
 
 .transitionTarget {
-  @apply text-xs font-medium font-mono px-1.5 py-0.5 rounded;
+  @apply text-xs font-medium font-mono px-1.5 py-0.5;
+  border-radius: var(--radius-sm);
 }
 
 .transition-success {
-  @apply bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300;
+  background: var(--moss-100);
+  color: var(--moss-700);
 }
 
 .transition-failure {
-  @apply bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-400;
+  background: var(--rust-100);
+  color: var(--rust-700);
 }
 
 .transition-state {
-  @apply bg-zinc-100 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-200;
+  background: var(--paper-1);
+  color: var(--fg-muted);
 }
 
 /* Manual approval actions */
@@ -269,7 +302,20 @@
 }
 
 .approvalReason {
-  @apply text-sm px-3 py-2 rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-500 resize-y;
+  @apply text-sm px-3 py-2 resize-y;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-raised);
+  color: var(--fg);
+}
+
+.approvalReason::placeholder {
+  color: var(--fg-faint);
+}
+
+.approvalReason:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
 .approvalActions {
@@ -277,13 +323,26 @@
 }
 
 .approvalButton {
-  @apply text-sm font-medium px-3 py-1.5 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+  @apply text-sm font-medium px-3 py-1.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+  border-radius: var(--radius-sm);
 }
 
 .approvalButton-approve {
-  @apply border border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300 hover:bg-green-100 dark:hover:bg-green-900;
+  border: 1px solid var(--moss-100);
+  background: var(--moss-50);
+  color: var(--moss-700);
+}
+
+.approvalButton-approve:hover {
+  background: var(--moss-100);
 }
 
 .approvalButton-reject {
-  @apply border border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900;
+  border: 1px solid var(--rust-100);
+  background: var(--rust-50);
+  color: var(--rust-700);
+}
+
+.approvalButton-reject:hover {
+  background: var(--rust-100);
 }

@@ -1,11 +1,15 @@
 @reference "tailwindcss";
 
 .overlay {
-  @apply fixed inset-0 z-50 flex items-center justify-center bg-black/50;
+  @apply fixed inset-0 z-50 flex items-center justify-center;
+  background: rgba(0, 0, 0, 0.5);
 }
 
 .panel {
-  @apply w-full max-w-md mx-4 rounded-lg bg-white dark:bg-zinc-900 shadow-xl p-6 flex flex-col gap-4;
+  @apply w-full max-w-md mx-4 p-6 flex flex-col gap-4;
+  border-radius: var(--radius-lg);
+  background: var(--bg-raised);
+  box-shadow: var(--shadow-lg);
 }
 
 .titleRow {
@@ -13,19 +17,27 @@
 }
 
 .title {
-  @apply text-lg font-semibold text-zinc-900 dark:text-zinc-50;
+  @apply text-lg font-semibold;
+  color: var(--fg);
 }
 
 .closeButton {
-  @apply text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-100 transition-colors cursor-pointer text-xl leading-none;
+  @apply transition-colors cursor-pointer text-xl leading-none;
+  color: var(--fg-subtle);
+}
+
+.closeButton:hover {
+  color: var(--fg);
 }
 
 .status {
-  @apply text-sm text-zinc-500;
+  @apply text-sm;
+  color: var(--fg-subtle);
 }
 
 .error {
-  @apply text-sm text-red-600 dark:text-red-400;
+  @apply text-sm;
+  color: var(--rust-700);
 }
 
 .fieldGroup {
@@ -33,23 +45,47 @@
 }
 
 .label {
-  @apply text-xs font-medium text-zinc-700 dark:text-zinc-300 flex items-center gap-0.5;
+  @apply text-xs font-medium flex items-center gap-0.5;
+  color: var(--fg-muted);
 }
 
 .required {
-  @apply text-red-500;
+  color: var(--rust-500);
 }
 
 .input {
-  @apply text-sm px-3 py-1.5 rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-500 disabled:opacity-40 disabled:cursor-not-allowed;
+  @apply text-sm px-3 py-1.5 disabled:opacity-40 disabled:cursor-not-allowed;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-raised);
+  color: var(--fg);
+}
+
+.input::placeholder {
+  color: var(--fg-faint);
+}
+
+.input:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
 .select {
-  @apply text-sm px-3 py-1.5 rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-500 disabled:opacity-40 disabled:cursor-not-allowed;
+  @apply text-sm px-3 py-1.5 disabled:opacity-40 disabled:cursor-not-allowed;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-raised);
+  color: var(--fg);
+}
+
+.select:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
 .fixedValue {
-  @apply text-sm py-1.5 text-zinc-900 dark:text-zinc-100;
+  @apply text-sm py-1.5;
+  color: var(--fg);
 }
 
 .checkboxRow {
@@ -57,9 +93,15 @@
 }
 
 .checkboxLabel {
-  @apply text-xs text-zinc-600 dark:text-zinc-400 cursor-pointer;
+  @apply text-xs cursor-pointer;
+  color: var(--fg-muted);
 }
 
 .linkButton {
-  @apply text-xs text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200 underline cursor-pointer bg-transparent border-none p-0 disabled:opacity-40 disabled:cursor-not-allowed;
+  @apply text-xs underline cursor-pointer bg-transparent border-none p-0 disabled:opacity-40 disabled:cursor-not-allowed;
+  color: var(--fg-subtle);
+}
+
+.linkButton:hover {
+  color: var(--fg);
 }

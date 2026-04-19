@@ -1,15 +1,23 @@
 @reference "tailwindcss";
 
 .list {
-  @apply flex flex-col ml-3 border-l border-zinc-200 dark:border-zinc-700;
+  @apply flex flex-col ml-3;
+  border-left: 1px solid var(--border);
 }
 
 .item {
-  @apply flex items-center gap-2 py-1 px-2 ml-1 rounded text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 no-underline transition-colors;
+  @apply flex items-center gap-2 py-1 px-2 ml-1 text-sm no-underline transition-colors;
+  border-radius: var(--radius-sm);
+  color: var(--fg-muted);
+}
+
+.item:hover {
+  background: var(--paper-1);
 }
 
 .iconWrap {
-  @apply shrink-0 w-2 flex justify-center text-emerald-600 dark:text-emerald-400;
+  @apply shrink-0 w-2 flex justify-center;
+  color: var(--moss-500);
 }
 
 .icon {
@@ -21,9 +29,11 @@
 }
 
 .external {
-  @apply shrink-0 text-zinc-400 dark:text-zinc-500;
+  @apply shrink-0;
+  color: var(--fg-faint);
 }
 
 .divider {
-  @apply ml-3 my-1 border-t border-dashed border-zinc-200 dark:border-zinc-700;
+  @apply ml-3 my-1;
+  border-top: 1px dashed var(--border);
 }

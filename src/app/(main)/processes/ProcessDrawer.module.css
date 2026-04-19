@@ -5,38 +5,45 @@
 }
 
 .backdrop {
-  @apply absolute inset-0 bg-black/30 dark:bg-black/50;
+  @apply absolute inset-0;
+  background: rgba(0, 0, 0, 0.3);
   animation: fadeIn 200ms ease-out;
 }
 
 .drawer {
-  @apply relative w-full h-full bg-white dark:bg-zinc-900 border-l border-zinc-200 dark:border-zinc-700 shadow-2xl flex flex-col sm:max-w-3xl;
+  @apply relative w-full h-full flex flex-col sm:max-w-3xl;
+  background: var(--bg-raised);
+  border-left: 1px solid var(--border);
+  box-shadow: var(--shadow-lg);
   animation: slideIn 250ms ease-out;
 }
 
 .drawerHeader {
-  @apply flex items-center gap-3 px-4 py-4 border-b border-zinc-200 dark:border-zinc-700 shrink-0 sm:px-6;
+  @apply flex items-center gap-3 px-4 py-4 shrink-0 sm:px-6;
+  border-bottom: 1px solid var(--border);
 }
 
 .title {
-  @apply flex-1 min-w-0 text-lg font-semibold text-zinc-900 dark:text-zinc-50 truncate flex items-center gap-2;
+  @apply flex-1 min-w-0 text-lg font-semibold truncate flex items-center gap-2;
+  color: var(--fg);
 }
 
 .dot {
-  @apply shrink-0 inline-block w-2 h-2 rounded-full;
+  @apply shrink-0 inline-block w-2 h-2;
+  border-radius: var(--radius-pill);
 }
 
 .dotRunning {
-  @apply bg-blue-500;
+  background: var(--sky-500);
   animation: blink-fade 1.5s ease-in-out infinite;
 }
 
 .dotStopped {
-  @apply bg-zinc-400 dark:bg-zinc-500;
+  background: var(--ink-3);
 }
 
 .dotCrashed {
-  @apply bg-red-500;
+  background: var(--rust-500);
 }
 
 .headerActions {
@@ -44,11 +51,14 @@
 }
 
 .meta {
-  @apply px-4 py-3 border-b border-zinc-200 dark:border-zinc-700 shrink-0 flex flex-col gap-1 text-xs text-zinc-600 dark:text-zinc-400 sm:px-6;
+  @apply px-4 py-3 shrink-0 flex flex-col gap-1 text-xs sm:px-6;
+  border-bottom: 1px solid var(--border);
+  color: var(--fg-muted);
 }
 
 .metaCommand {
-  @apply font-mono text-zinc-700 dark:text-zinc-300 break-all;
+  @apply font-mono break-all;
+  color: var(--fg);
 }
 
 .metaRow {
@@ -56,19 +66,23 @@
 }
 
 .metaLabel {
-  @apply text-zinc-500 dark:text-zinc-500;
+  color: var(--fg-subtle);
 }
 
 .terminal {
-  @apply flex-1 min-h-0 overflow-auto bg-zinc-950 text-zinc-100 font-mono text-xs leading-5 px-4 py-3 sm:px-6 whitespace-pre;
+  @apply flex-1 min-h-0 overflow-auto font-mono text-xs leading-5 px-4 py-3 sm:px-6 whitespace-pre;
+  background: var(--ink-0);
+  color: var(--paper-1);
 }
 
 .terminalEmpty {
-  @apply italic text-zinc-500;
+  @apply italic;
+  color: var(--fg-subtle);
 }
 
 .error {
-  @apply text-sm text-red-600 dark:text-red-400 px-4 py-4 sm:px-6;
+  @apply text-sm px-4 py-4 sm:px-6;
+  color: var(--rust-700);
 }
 
 .backdropClosing {

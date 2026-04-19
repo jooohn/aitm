@@ -1,17 +1,25 @@
 @reference "tailwindcss";
 
 .breadcrumb {
-  @apply flex items-center gap-1.5 text-sm text-zinc-500 dark:text-zinc-400;
+  @apply flex items-center gap-1.5 text-sm;
+  color: var(--fg-subtle);
 }
 
 .breadcrumbLink {
-  @apply text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors;
+  @apply transition-colors;
+  color: var(--fg-muted);
+}
+
+.breadcrumbLink:hover {
+  color: var(--fg);
 }
 
 .breadcrumbSep {
-  @apply text-zinc-400 dark:text-zinc-600 select-none;
+  @apply select-none;
+  color: var(--fg-faint);
 }
 
 .breadcrumbCurrent {
-  @apply text-zinc-900 dark:text-zinc-100 font-medium;
+  @apply font-medium;
+  color: var(--fg);
 }

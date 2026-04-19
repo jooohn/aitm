@@ -5,7 +5,8 @@
 }
 
 .header {
-  @apply flex items-center justify-between gap-4 px-6 py-4 shrink-0 border-b border-zinc-200 dark:border-zinc-800;
+  @apply flex items-center justify-between gap-4 px-6 py-4 shrink-0;
+  border-bottom: 1px solid var(--border);
 }
 
 .headerLeft {
@@ -13,11 +14,13 @@
 }
 
 .parentLink {
-  @apply text-xs text-purple-600 dark:text-purple-400 hover:underline shrink-0;
+  @apply text-xs hover:underline shrink-0;
+  color: var(--clay-500);
 }
 
 .title {
-  @apply text-lg font-semibold text-zinc-900 dark:text-zinc-50 truncate;
+  @apply text-lg font-semibold truncate;
+  color: var(--fg);
 }
 
 /* Output pane */
@@ -28,7 +31,8 @@
 
 /* Input form */
 .inputForm {
-  @apply flex flex-col gap-2 px-6 py-4 shrink-0 border-t border-zinc-200 dark:border-zinc-800;
+  @apply flex flex-col gap-2 px-6 py-4 shrink-0;
+  border-top: 1px solid var(--border);
 }
 
 .inputWrapper {
@@ -36,7 +40,20 @@
 }
 
 .messageInput {
-  @apply w-full text-sm px-3 py-2 pr-12 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none min-h-16;
+  @apply w-full text-sm px-3 py-2 pr-12 resize-none min-h-16;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: var(--bg-raised);
+  color: var(--fg);
+}
+
+.messageInput::placeholder {
+  color: var(--fg-faint);
+}
+
+.messageInput:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
 .sendButtonPosition {
@@ -49,7 +66,8 @@
 }
 
 .backdrop {
-  @apply absolute inset-0 bg-black/30 dark:bg-black/50;
+  @apply absolute inset-0;
+  background: rgba(0, 0, 0, 0.3);
   animation: fadeIn 200ms ease-out;
 }
 
@@ -58,7 +76,10 @@
 }
 
 .drawer {
-  @apply relative w-full h-full bg-white dark:bg-zinc-900 border-l border-zinc-200 dark:border-zinc-700 shadow-2xl flex flex-col sm:max-w-3xl;
+  @apply relative w-full h-full flex flex-col sm:max-w-3xl;
+  background: var(--bg-raised);
+  border-left: 1px solid var(--border);
+  box-shadow: var(--shadow-lg);
   animation: slideIn 250ms ease-out;
 }
 
@@ -67,11 +88,13 @@
 }
 
 .drawerHeader {
-  @apply flex items-center justify-between px-4 py-4 border-b border-zinc-200 dark:border-zinc-700 shrink-0 sm:px-6;
+  @apply flex items-center justify-between px-4 py-4 shrink-0 sm:px-6;
+  border-bottom: 1px solid var(--border);
 }
 
 .drawerTitle {
-  @apply text-lg font-semibold text-zinc-900 dark:text-zinc-50;
+  @apply text-lg font-semibold;
+  color: var(--fg);
 }
 
 .drawerBody {
@@ -80,16 +103,19 @@
 }
 
 .drawerEmpty {
-  @apply text-sm text-zinc-400 dark:text-zinc-500;
+  @apply text-sm;
+  color: var(--fg-faint);
 }
 
 .drawerSectionHeading {
-  @apply text-xs font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wide mt-4 mb-1;
+  @apply text-xs font-bold uppercase tracking-wide mt-4 mb-1;
+  color: var(--fg-faint);
 }
 
 /* Error */
 .error {
-  @apply text-sm text-red-600 dark:text-red-400;
+  @apply text-sm;
+  color: var(--rust-700);
 }
 
 @keyframes slideIn {

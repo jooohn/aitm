@@ -5,11 +5,13 @@
 }
 
 .error {
-  @apply text-sm text-red-600 dark:text-red-400;
+  @apply text-sm;
+  color: var(--rust-700);
 }
 
 .loading {
-  @apply text-sm text-zinc-500 dark:text-zinc-400;
+  @apply text-sm;
+  color: var(--fg-subtle);
 }
 
 .header {
@@ -17,63 +19,87 @@
 }
 
 .title {
-  @apply text-2xl font-semibold text-zinc-900 dark:text-zinc-50 font-mono;
+  @apply text-2xl font-semibold font-mono;
+  color: var(--fg);
 }
 
 .description {
-  @apply text-sm text-zinc-500 dark:text-zinc-400;
+  @apply text-sm;
+  color: var(--fg-subtle);
 }
 
 /* Viewer panel (toolbar + content) */
 
 .viewerPanel {
-  @apply rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden;
+  @apply overflow-hidden;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
 }
 
 .viewerToolbar {
-  @apply flex items-center justify-between px-4 py-2 bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-700;
+  @apply flex items-center justify-between px-4 py-2;
+  background: var(--paper-1);
+  border-bottom: 1px solid var(--border);
 }
 
 .downloadButton {
-  @apply ml-auto p-1.5 rounded-md text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-200/50 dark:hover:bg-zinc-700/50 transition-colors;
+  @apply ml-auto p-1.5 transition-colors;
+  border-radius: var(--radius-md);
+  color: var(--fg-subtle);
+}
+
+.downloadButton:hover {
+  color: var(--fg);
+  background: var(--paper-2);
 }
 
 .viewModeToggle {
-  @apply flex gap-0.5 rounded-md border border-zinc-200 dark:border-zinc-700 overflow-hidden;
+  @apply flex gap-0.5 overflow-hidden;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
 }
 
 .viewModeButton {
-  @apply px-3 py-1 text-xs text-zinc-600 dark:text-zinc-400 bg-transparent cursor-pointer transition-colors border-none;
+  @apply px-3 py-1 text-xs bg-transparent cursor-pointer transition-colors border-none;
+  color: var(--fg-muted);
 }
 
 .viewModeButtonActive {
-  @apply bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 font-medium;
+  background: var(--bg-raised);
+  color: var(--fg);
+  font-weight: 500;
 }
 
 .viewerContent {
-  @apply bg-white dark:bg-zinc-900 p-6 overflow-auto;
+  @apply p-6 overflow-auto;
+  background: var(--bg-raised);
 }
 
 .viewerContent pre {
-  @apply font-mono text-sm leading-relaxed text-zinc-800 dark:text-zinc-200 whitespace-pre-wrap break-words;
+  @apply font-mono text-sm leading-relaxed whitespace-pre-wrap break-words;
+  color: var(--fg);
 }
 
 /* Markdown styles */
 
 .viewerContent h1 {
-  @apply text-2xl font-bold text-zinc-900 dark:text-zinc-50 mb-4 mt-6 first:mt-0;
+  @apply text-2xl font-bold mb-4 mt-6 first:mt-0;
+  color: var(--fg);
 }
 
 .viewerContent h2 {
-  @apply text-xl font-semibold text-zinc-900 dark:text-zinc-50 mb-3 mt-5;
+  @apply text-xl font-semibold mb-3 mt-5;
+  color: var(--fg);
 }
 
 .viewerContent h3 {
-  @apply text-lg font-semibold text-zinc-900 dark:text-zinc-50 mb-2 mt-4;
+  @apply text-lg font-semibold mb-2 mt-4;
+  color: var(--fg);
 }
 
 .viewerContent p {
-  @apply text-sm text-zinc-700 dark:text-zinc-300 mb-3 leading-relaxed;
+  @apply text-sm mb-3 leading-relaxed;
+  color: var(--fg-muted);
 }
 
 .viewerContent ul {
@@ -81,7 +107,8 @@
 }
 
 .viewerContent li {
-  @apply text-sm text-zinc-700 dark:text-zinc-300 mb-1;
+  @apply text-sm mb-1;
+  color: var(--fg-muted);
 }
 
 .viewerContent table {
@@ -89,15 +116,22 @@
 }
 
 .viewerContent th {
-  @apply text-left font-semibold text-zinc-900 dark:text-zinc-100 px-3 py-2 border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800;
+  @apply text-left font-semibold px-3 py-2;
+  color: var(--fg);
+  border: 1px solid var(--border);
+  background: var(--paper-1);
 }
 
 .viewerContent td {
-  @apply text-zinc-700 dark:text-zinc-300 px-3 py-2 border border-zinc-200 dark:border-zinc-700;
+  @apply px-3 py-2;
+  color: var(--fg-muted);
+  border: 1px solid var(--border);
 }
 
 .viewerContent code {
-  @apply bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded text-sm font-mono;
+  @apply px-1 py-0.5 text-sm font-mono;
+  border-radius: var(--radius-sm);
+  background: var(--paper-1);
 }
 
 .viewerContent strong {
@@ -109,5 +143,10 @@
 }
 
 .backLink {
-  @apply text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors;
+  @apply text-sm transition-colors;
+  color: var(--fg-subtle);
+}
+
+.backLink:hover {
+  color: var(--fg);
 }

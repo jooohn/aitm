@@ -13,11 +13,19 @@
 }
 
 .heading {
-  @apply text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide;
+  @apply text-sm font-bold uppercase tracking-wide;
+  color: var(--fg-subtle);
 }
 
 .launchButton {
-  @apply text-sm px-3 py-1.5 rounded bg-zinc-900 dark:bg-zinc-100 text-zinc-50 dark:text-zinc-900 hover:bg-zinc-700 dark:hover:bg-zinc-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer;
+  @apply text-sm px-3 py-1.5 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer;
+  border-radius: var(--radius-sm);
+  background: var(--fg);
+  color: var(--bg-raised);
+}
+
+.launchButton:hover {
+  background: var(--fg-muted);
 }
 
 .menuWrapper {
@@ -29,11 +37,13 @@
 }
 
 .status {
-  @apply text-sm text-zinc-500;
+  @apply text-sm;
+  color: var(--fg-subtle);
 }
 
 .error {
-  @apply text-sm text-red-600 dark:text-red-400;
+  @apply text-sm;
+  color: var(--rust-700);
 }
 
 .groupList {
@@ -49,27 +59,39 @@
 }
 
 .groupToggle {
-  @apply flex items-center gap-1.5 flex-1 min-w-0 py-1.5 px-2 rounded text-sm text-left hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer;
+  @apply flex items-center gap-1.5 flex-1 min-w-0 py-1.5 px-2 text-sm text-left transition-colors cursor-pointer;
+  border-radius: var(--radius-sm);
+}
+
+.groupToggle:hover {
+  background: var(--paper-1);
 }
 
 .groupToggleActive {
-  @apply bg-zinc-100 dark:bg-zinc-800;
+  background: var(--paper-1);
 }
 
 .groupLabel {
-  @apply flex-1 text-zinc-900 dark:text-zinc-100 truncate font-medium;
+  @apply flex-1 truncate font-medium;
+  color: var(--fg);
 }
 
 .runsList {
-  @apply flex flex-col ml-3 border-l border-zinc-200 dark:border-zinc-700;
+  @apply flex flex-col ml-3;
+  border-left: 1px solid var(--border);
 }
 
 .runItem {
-  @apply flex items-center gap-2 py-1 px-2 ml-1 rounded text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 no-underline transition-colors;
+  @apply flex items-center gap-2 py-1 px-2 ml-1 text-sm no-underline transition-colors;
+  border-radius: var(--radius-sm);
+}
+
+.runItem:hover {
+  background: var(--paper-1);
 }
 
 .runItemActive {
-  @apply bg-zinc-100 dark:bg-zinc-800;
+  background: var(--paper-1);
 }
 
 .runInfo {
@@ -81,36 +103,50 @@
 }
 
 .runWorkflow {
-  @apply text-zinc-700 dark:text-zinc-300 truncate;
+  @apply truncate;
+  color: var(--fg-muted);
 }
 
 .runStepSeparator {
-  @apply shrink-0 text-zinc-400 dark:text-zinc-500;
+  @apply shrink-0;
+  color: var(--fg-faint);
 }
 
 .runStep {
-  @apply text-xs text-zinc-500 dark:text-zinc-400 truncate;
+  @apply text-xs truncate;
+  color: var(--fg-subtle);
 }
 
 .runBranch {
-  @apply text-xs text-zinc-500 dark:text-zinc-400 truncate;
+  @apply text-xs truncate;
+  color: var(--fg-subtle);
 }
 
 .runTime {
-  @apply shrink-0 text-xs text-zinc-400 dark:text-zinc-500 tabular-nums;
+  @apply shrink-0 text-xs tabular-nums;
+  color: var(--fg-faint);
 }
 
 .showAllButton {
-  @apply text-xs text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 py-1 px-2 ml-1 cursor-pointer transition-colors;
+  @apply text-xs py-1 px-2 ml-1 cursor-pointer transition-colors;
+  color: var(--fg-subtle);
+}
+
+.showAllButton:hover {
+  color: var(--fg-muted);
 }
 
 /* Create worktree modal - reused from WorktreeSection */
 .overlay {
-  @apply fixed inset-0 z-50 flex items-center justify-center bg-black/50;
+  @apply fixed inset-0 z-50 flex items-center justify-center;
+  background: rgba(0, 0, 0, 0.5);
 }
 
 .panel {
-  @apply w-full max-w-md mx-4 rounded-lg bg-white dark:bg-zinc-900 shadow-xl p-6 flex flex-col gap-4;
+  @apply w-full max-w-md mx-4 p-6 flex flex-col gap-4;
+  border-radius: var(--radius-lg);
+  background: var(--bg-raised);
+  box-shadow: var(--shadow-lg);
 }
 
 .titleRow {
@@ -118,11 +154,17 @@
 }
 
 .title {
-  @apply text-lg font-semibold text-zinc-900 dark:text-zinc-50;
+  @apply text-lg font-semibold;
+  color: var(--fg);
 }
 
 .closeButton {
-  @apply text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-100 transition-colors cursor-pointer text-xl leading-none;
+  @apply transition-colors cursor-pointer text-xl leading-none;
+  color: var(--fg-subtle);
+}
+
+.closeButton:hover {
+  color: var(--fg);
 }
 
 .form {
@@ -130,9 +172,29 @@
 }
 
 .input {
-  @apply flex-1 text-sm px-3 py-1.5 rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-500;
+  @apply flex-1 text-sm px-3 py-1.5;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-raised);
+  color: var(--fg);
+}
+
+.input::placeholder {
+  color: var(--fg-faint);
+}
+
+.input:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
 .createButton {
-  @apply shrink-0 text-sm px-3 py-1.5 rounded bg-zinc-900 dark:bg-zinc-100 text-zinc-50 dark:text-zinc-900 hover:bg-zinc-700 dark:hover:bg-zinc-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors;
+  @apply shrink-0 text-sm px-3 py-1.5 disabled:opacity-40 disabled:cursor-not-allowed transition-colors;
+  border-radius: var(--radius-sm);
+  background: var(--fg);
+  color: var(--bg-raised);
+}
+
+.createButton:hover {
+  background: var(--fg-muted);
 }

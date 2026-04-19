@@ -1,19 +1,26 @@
 @reference "tailwindcss";
 
 .card {
-  @apply rounded-lg border p-4 text-sm;
+  @apply p-4 text-sm;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
 }
 
 .cardPending {
-  @apply border-blue-300 bg-blue-50 dark:border-blue-700/50 dark:bg-blue-950/30;
+  border-color: var(--sky-100);
+  background: var(--sky-50);
 }
 
 .cardApproved {
-  @apply border-green-300 bg-green-50 opacity-80 dark:border-green-700/50 dark:bg-green-950/20;
+  border-color: var(--moss-100);
+  background: var(--moss-50);
+  opacity: 0.8;
 }
 
 .cardRejected {
-  @apply border-zinc-300 bg-zinc-50 opacity-60 dark:border-zinc-700/50 dark:bg-zinc-950/20;
+  border-color: var(--border-strong);
+  background: var(--paper-1);
+  opacity: 0.6;
 }
 
 .header {
@@ -21,27 +28,33 @@
 }
 
 .workflowName {
-  @apply font-semibold text-zinc-900 dark:text-zinc-100;
+  @apply font-semibold;
+  color: var(--fg);
 }
 
 .statusBadge {
-  @apply text-xs px-2 py-0.5 rounded-full font-medium;
+  @apply text-xs px-2 py-0.5 font-medium;
+  border-radius: var(--radius-pill);
 }
 
 .badgeApproved {
-  @apply bg-green-100 text-green-700 dark:bg-green-800/50 dark:text-green-300;
+  background: var(--moss-100);
+  color: var(--moss-700);
 }
 
 .badgeRejected {
-  @apply bg-zinc-200 text-zinc-600 dark:bg-zinc-700/50 dark:text-zinc-400;
+  background: var(--paper-2);
+  color: var(--fg-muted);
 }
 
 .rationale {
-  @apply text-zinc-600 dark:text-zinc-300 mb-3 leading-relaxed;
+  @apply mb-3 leading-relaxed;
+  color: var(--fg-muted);
 }
 
 .inputs {
-  @apply flex flex-col gap-1 mb-3 pl-2 border-l-2 border-zinc-300 dark:border-zinc-700 overflow-hidden;
+  @apply flex flex-col gap-1 mb-3 pl-2 overflow-hidden;
+  border-left: 2px solid var(--border);
 }
 
 .inputRow {
@@ -49,12 +62,14 @@
 }
 
 .inputKey {
-  @apply text-zinc-500 dark:text-zinc-400 font-medium shrink-0;
+  @apply font-medium shrink-0;
+  color: var(--fg-subtle);
 }
 
 .inputValue {
-  @apply text-zinc-800 dark:text-zinc-200 break-words min-w-0;
+  @apply break-words min-w-0;
   overflow-wrap: anywhere;
+  color: var(--fg);
 }
 
 .actions {
@@ -66,9 +81,23 @@
 }
 
 .rejectReasonInput {
-  @apply mt-2 w-full text-xs px-3 py-2 rounded border border-zinc-300 bg-white text-zinc-800 placeholder:text-zinc-400 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-200 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-400 dark:focus:ring-zinc-500 resize-y;
+  @apply mt-2 w-full text-xs px-3 py-2 resize-y;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-raised);
+  color: var(--fg);
+}
+
+.rejectReasonInput::placeholder {
+  color: var(--fg-faint);
+}
+
+.rejectReasonInput:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
 .error {
-  @apply text-xs text-red-600 dark:text-red-400 mt-2;
+  @apply text-xs mt-2;
+  color: var(--rust-700);
 }

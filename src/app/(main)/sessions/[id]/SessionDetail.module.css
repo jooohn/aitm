@@ -14,16 +14,25 @@
 }
 
 .goal {
-  @apply text-xl font-semibold text-zinc-900 dark:text-zinc-50 break-words sm:text-2xl;
+  @apply text-xl font-semibold break-words sm:text-2xl;
+  color: var(--fg);
 }
 
 .goalPane {
-  @apply max-h-48 overflow-y-auto rounded-lg bg-zinc-900 dark:bg-zinc-950 p-4 font-mono text-xs text-zinc-200 leading-relaxed whitespace-pre-wrap break-words;
+  @apply max-h-48 overflow-y-auto p-4 font-mono text-xs leading-relaxed whitespace-pre-wrap break-words;
+  border-radius: var(--radius-lg);
+  background: var(--ink-0);
+  color: var(--paper-2);
 }
 
 /* Details */
 .details {
-  @apply flex flex-col divide-y divide-zinc-200 dark:divide-zinc-700;
+  @apply flex flex-col divide-y;
+  --tw-divide-opacity: 1;
+}
+
+.details > * + * {
+  border-top: 1px solid var(--border);
 }
 
 .detailRow {
@@ -31,20 +40,26 @@
 }
 
 .detailLabel {
-  @apply text-sm font-medium text-zinc-500 sm:w-44 shrink-0;
+  @apply text-sm font-medium sm:w-44 shrink-0;
+  color: var(--fg-subtle);
 }
 
 .detailValue {
-  @apply text-sm text-zinc-800 dark:text-zinc-200;
+  @apply text-sm;
+  color: var(--fg);
 }
 
 .attachCommand {
-  @apply text-xs font-mono bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 px-2 py-1 rounded break-all;
+  @apply text-xs font-mono px-2 py-1 break-all;
+  border-radius: var(--radius-sm);
+  background: var(--paper-1);
+  color: var(--fg-muted);
 }
 
 /* Section headings */
 .sectionHeading {
-  @apply text-sm font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-2;
+  @apply text-sm font-semibold uppercase tracking-wide mb-2;
+  color: var(--fg-subtle);
 }
 
 /* Output pane */
@@ -57,19 +72,28 @@
 }
 
 .commandRow {
-  @apply flex flex-col gap-1 rounded-md border px-3 py-2 my-1;
+  @apply flex flex-col gap-1 px-3 py-2 my-1;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--ink-1);
 }
 
 .commandRowSuccess {
-  @apply border-zinc-800 bg-zinc-950/60;
+  border-color: var(--ink-1);
+  background: rgba(9, 9, 11, 0.6);
 }
 
 .commandRowFailed {
-  @apply border-red-800 bg-red-950/30;
+  border-color: var(--rust-700);
+  background: rgba(143, 32, 16, 0.2);
 }
 
 .commandHeader {
-  @apply flex items-center gap-2 text-left w-full text-zinc-100 hover:text-white transition-colors;
+  @apply flex items-center gap-2 text-left w-full transition-colors;
+  color: var(--paper-1);
+}
+
+.commandHeader:hover {
+  color: var(--paper-0);
 }
 
 .commandSummary {
@@ -77,15 +101,17 @@
 }
 
 .commandStatus {
-  @apply ml-auto text-[11px] text-zinc-400;
+  @apply ml-auto text-[11px];
+  color: var(--ink-3);
 }
 
 .commandStatus[data-failed] {
-  @apply text-red-300;
+  color: var(--rust-100);
 }
 
 .commandPreview {
-  @apply text-zinc-400 break-all;
+  @apply break-all;
+  color: var(--ink-3);
 }
 
 .commandBody {
@@ -93,7 +119,8 @@
 }
 
 .commandOutput {
-  @apply whitespace-pre-wrap break-words text-zinc-200 max-h-64 overflow-y-auto;
+  @apply whitespace-pre-wrap break-words max-h-64 overflow-y-auto;
+  color: var(--paper-2);
 }
 
 .commandGroupRow {
@@ -114,7 +141,12 @@
 }
 
 .toolCallHeader {
-  @apply flex items-center gap-1.5 text-left cursor-pointer hover:text-zinc-50 text-zinc-300 transition-colors py-0.5 w-full;
+  @apply flex items-center gap-1.5 text-left cursor-pointer transition-colors py-0.5 w-full;
+  color: var(--paper-3);
+}
+
+.toolCallHeader:hover {
+  color: var(--paper-0);
 }
 
 .toolCallChevron {
@@ -130,7 +162,8 @@
 }
 
 .toolCallNoDetails {
-  @apply italic text-zinc-500;
+  @apply italic;
+  color: var(--ink-3);
 }
 
 .toolCallInputList {
@@ -142,15 +175,18 @@
 }
 
 .toolCallInputKey {
-  @apply text-zinc-400 shrink-0;
+  @apply shrink-0;
+  color: var(--ink-3);
 }
 
 .toolCallInputValue {
-  @apply text-zinc-200 break-all;
+  @apply break-all;
+  color: var(--paper-2);
 }
 
 .toolCallInputPre {
-  @apply whitespace-pre-wrap break-words text-zinc-200;
+  @apply whitespace-pre-wrap break-words;
+  color: var(--paper-2);
 }
 
 .toolGroupRow {
@@ -163,11 +199,15 @@
 
 /* User input */
 .userInputRow {
-  @apply flex flex-col gap-1 rounded-md border-l-2 border-blue-500 bg-blue-950/20 px-3 py-2 my-1;
+  @apply flex flex-col gap-1 px-3 py-2 my-1;
+  border-radius: var(--radius-md);
+  border-left: 2px solid var(--sky-500);
+  background: rgba(14, 92, 120, 0.2);
 }
 
 .userInputLabel {
-  @apply text-xs font-bold text-blue-400;
+  @apply text-xs font-bold;
+  color: var(--sky-300);
 }
 
 .userInputContent {
@@ -180,7 +220,12 @@
 }
 
 .processingStepsHeader {
-  @apply flex items-center gap-1.5 text-left cursor-pointer hover:text-zinc-50 text-zinc-400 transition-colors py-0.5 w-full;
+  @apply flex items-center gap-1.5 text-left cursor-pointer transition-colors py-0.5 w-full;
+  color: var(--ink-3);
+}
+
+.processingStepsHeader:hover {
+  color: var(--paper-0);
 }
 
 .processingStepsLabel {
@@ -193,11 +238,13 @@
 
 /* Reply form */
 .replyForm {
-  @apply flex flex-col gap-2 mt-4 pt-4 border-t border-zinc-700;
+  @apply flex flex-col gap-2 mt-4 pt-4;
+  border-top: 1px solid var(--ink-1);
 }
 
 .clarifyingQuestion {
-  @apply text-xs leading-relaxed text-zinc-200 whitespace-pre-wrap break-words;
+  @apply text-xs leading-relaxed whitespace-pre-wrap break-words;
+  color: var(--paper-2);
 }
 
 .replyInputWrapper {
@@ -205,14 +252,35 @@
 }
 
 .replyInput {
-  @apply w-full text-xs font-mono px-3 py-2 pr-10 rounded border border-zinc-700 bg-zinc-800 text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 resize-none min-h-16;
+  @apply w-full text-xs font-mono px-3 py-2 pr-10 resize-none min-h-16;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--ink-1);
+  background: var(--ink-1);
+  color: var(--paper-1);
+}
+
+.replyInput::placeholder {
+  color: var(--ink-3);
+}
+
+.replyInput:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
 .replyButton {
-  @apply absolute bottom-2.5 right-2.5 p-1 rounded-full bg-zinc-100 text-zinc-900 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer;
+  @apply absolute bottom-2.5 right-2.5 p-1 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer;
+  border-radius: var(--radius-pill);
+  background: var(--paper-1);
+  color: var(--fg);
+}
+
+.replyButton:hover {
+  background: var(--paper-0);
 }
 
 /* Error */
 .error {
-  @apply text-sm text-red-600 dark:text-red-400;
+  @apply text-sm;
+  color: var(--rust-700);
 }

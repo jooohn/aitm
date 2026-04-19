@@ -20,8 +20,9 @@ describe("mobile layout plan", () => {
       "@apply w-full min-w-0 max-w-full flex-1 grid lg:grid-cols-[16rem_minmax(0,1fr)] overflow-x-hidden;",
     );
     expect(css).toContain(
-      "@apply border-b border-zinc-200 dark:border-zinc-800 px-4 py-4 flex flex-col gap-4 lg:border-b-0 lg:border-r sm:px-5 sm:py-6 lg:sticky lg:top-[var(--header-h,49px)] lg:h-[calc(100vh-var(--header-h,49px))] lg:overflow-y-auto;",
+      "@apply px-4 py-4 flex flex-col gap-4 lg:border-b-0 lg:border-r sm:px-5 sm:py-6 lg:sticky lg:top-[var(--header-h,49px)] lg:h-[calc(100vh-var(--header-h,49px))] lg:overflow-y-auto;",
     );
+    expect(css).toContain("border-bottom: 1px solid var(--border);");
   });
 
   it("stacks repository and todo split panes on mobile", () => {
@@ -31,11 +32,13 @@ describe("mobile layout plan", () => {
     const todosCss = read("src/app/(main)/todos/page.module.css");
 
     expect(repositoryCss).toContain(
-      "@apply min-w-0 border-b border-zinc-200 dark:border-zinc-800 px-4 py-4 flex flex-col gap-4 lg:border-b-0 lg:border-r sm:px-5 sm:py-6 lg:sticky lg:top-[var(--header-h,49px)] lg:h-[calc(100vh-var(--header-h,49px))] lg:overflow-y-auto;",
+      "@apply min-w-0 px-4 py-4 flex flex-col gap-4 lg:border-b-0 lg:border-r sm:px-5 sm:py-6 lg:sticky lg:top-[var(--header-h,49px)] lg:h-[calc(100vh-var(--header-h,49px))] lg:overflow-y-auto;",
     );
+    expect(repositoryCss).toContain("border-bottom: 1px solid var(--border);");
     expect(todosCss).toContain(
-      "@apply border-b border-zinc-200 dark:border-zinc-800 px-4 py-4 flex flex-col gap-4 lg:border-b-0 lg:border-r sm:px-5 sm:py-6 lg:sticky lg:top-[var(--header-h,49px)] lg:h-[calc(100vh-var(--header-h,49px))] lg:overflow-y-auto;",
+      "@apply px-4 py-4 flex flex-col gap-4 lg:border-b-0 lg:border-r sm:px-5 sm:py-6 lg:sticky lg:top-[var(--header-h,49px)] lg:h-[calc(100vh-var(--header-h,49px))] lg:overflow-y-auto;",
     );
+    expect(todosCss).toContain("border-bottom: 1px solid var(--border);");
     expect(todosCss).toContain(
       "@apply min-w-0 px-4 py-4 flex flex-col gap-4 sm:px-6 sm:py-6;",
     );
@@ -93,10 +96,10 @@ describe("mobile layout plan", () => {
     );
 
     expect(drawerCss).toContain(
-      "@apply relative w-full h-full bg-white dark:bg-zinc-900 border-l border-zinc-200 dark:border-zinc-700 shadow-2xl flex flex-col sm:max-w-2xl;",
+      "@apply relative w-full h-full flex flex-col sm:max-w-2xl;",
     );
     expect(drawerCss).toContain(
-      "@apply flex items-center justify-between px-4 py-4 border-b border-zinc-200 dark:border-zinc-700 shrink-0 sm:px-6;",
+      "@apply flex items-center justify-between px-4 py-4 shrink-0 sm:px-6;",
     );
     expect(drawerCss).toContain(
       "@apply flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-6;",

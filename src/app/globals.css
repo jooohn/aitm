@@ -114,10 +114,33 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    /* Dark mode is deliberately not yet in the design direction — keep legacy
-       neutrals so existing components don't break if the OS is in dark mode. */
-    --bg: #0a0a0a;
-    --fg: #ededed;
+    /* Dark mode is not a first-class direction yet, but we mirror the token
+       ramp so components that use design-system tokens still render coherently
+       on OS-level dark mode. */
+    --paper-0: #09090b;
+    --paper-1: #18181b;
+    --paper-2: #27272a;
+    --paper-3: #3f3f46;
+
+    --ink-0: #fafafa;
+    --ink-1: #e4e4e7;
+    --ink-2: #a1a1aa;
+    --ink-3: #71717a;
+
+    --bg: var(--paper-0);
+    --bg-raised: var(--paper-1);
+    --bg-sunken: var(--paper-1);
+    --bg-fill: var(--paper-2);
+
+    --fg: var(--ink-0);
+    --fg-muted: var(--ink-1);
+    --fg-subtle: var(--ink-2);
+    --fg-faint: var(--ink-3);
+
+    --border: #27272a;
+    --border-soft: #1f1f22;
+    --border-strong: #3f3f46;
+
     --background: var(--bg);
     --foreground: var(--fg);
   }

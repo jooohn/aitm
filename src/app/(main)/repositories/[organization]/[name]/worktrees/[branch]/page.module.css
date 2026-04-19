@@ -17,9 +17,11 @@
 }
 
 .heading {
-  @apply text-2xl font-semibold text-zinc-900 dark:text-zinc-50;
+  @apply text-2xl font-semibold;
+  color: var(--fg);
 }
 
 .error {
-  @apply text-sm text-red-600 dark:text-red-400;
+  @apply text-sm;
+  color: var(--rust-700);
 }
