@@ -61,8 +61,8 @@
   @apply flex gap-2;
 }
 
-.diveDeepButton {
-  @apply px-3 py-1.5 rounded text-xs font-medium bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/40 dark:text-purple-300 dark:hover:bg-purple-800/50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer ml-auto;
+.diveDeepSlot {
+  @apply ml-auto inline-flex;
 }
 
 .rejectReasonInput {

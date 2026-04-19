@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { mutate } from "swr";
 import IconButton from "@/app/components/IconButton";
 import EllipsisIcon from "@/app/components/icons/EllipsisIcon";
+import { MenuItem, MenuSurface } from "@/app/components/Menu";
 import { swrKeys, useWorktrees } from "@/lib/hooks/swr";
 import { cleanMergedWorktrees, createWorktree } from "@/lib/utils/api";
 import { branchToSlug } from "@/lib/utils/branch-slug";
@@ -111,11 +112,9 @@ export default function WorktreeSection({ organization, name }: Props) {
             <EllipsisIcon />
           </IconButton>
           {menuOpen && (
-            <div className={styles.menu} role="menu">
-              <button
-                type="button"
+            <MenuSurface className={styles.menu} role="menu">
+              <MenuItem
                 role="menuitem"
-                className={styles.menuItem}
                 onClick={() => {
                   setMenuOpen(false);
                   setCreateError(null);
@@ -123,11 +122,9 @@ export default function WorktreeSection({ organization, name }: Props) {
                 }}
               >
                 Add new worktree
-              </button>
-              <button
-                type="button"
+              </MenuItem>
+              <MenuItem
                 role="menuitem"
-                className={styles.menuItem}
                 disabled={cleaningMerged || loading}
                 onClick={() => {
                   setMenuOpen(false);
@@ -135,8 +132,8 @@ export default function WorktreeSection({ organization, name }: Props) {
                 }}
               >
                 {cleaningMerged ? "Cleaning up…" : "Cleanup merged worktrees"}
-              </button>
-            </div>
+              </MenuItem>
+            </MenuSurface>
           )}
         </div>
       </div>

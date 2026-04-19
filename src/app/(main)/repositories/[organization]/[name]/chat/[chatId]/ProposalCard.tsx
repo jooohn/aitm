@@ -137,14 +137,11 @@ export default function ProposalCard({ chatId, proposal, onActioned }: Props) {
             >
               {showRejectForm ? (acting ? "..." : "Confirm Reject") : "Reject"}
             </Button>
-            <button
-              type="button"
-              className={styles.diveDeepButton}
-              onClick={handleDiveDeep}
-              disabled={acting}
-            >
-              {acting ? "..." : "Dive Deep"}
-            </button>
+            <span className={styles.diveDeepSlot}>
+              <Button size="sm" onClick={handleDiveDeep} disabled={acting}>
+                {acting ? "..." : "Dive Deep"}
+              </Button>
+            </span>
             {showRejectForm && (
               <Button
                 size="sm"

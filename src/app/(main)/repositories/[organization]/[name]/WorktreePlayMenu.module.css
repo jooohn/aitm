@@ -9,25 +9,26 @@
 }
 
 .menu {
-  @apply fixed z-50 min-w-[220px] rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-lg py-1 flex flex-col;
+  @apply fixed z-50;
+  min-width: 220px;
 }
 
 .groupHeading {
-  @apply px-3 pt-1 pb-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500;
-}
-
-.item {
-  @apply text-left text-sm px-3 py-1.5 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors cursor-pointer;
+  @apply px-3 pt-1 pb-0.5 text-[10px] font-semibold uppercase tracking-wide;
+  color: var(--fg-faint);
 }
 
 .empty {
-  @apply px-3 py-1 text-xs text-zinc-400 dark:text-zinc-500 italic;
+  @apply px-3 py-1 text-xs italic;
+  color: var(--fg-faint);
 }
 
 .separator {
-  @apply my-1 border-t border-zinc-200 dark:border-zinc-700;
+  @apply my-1 border-t;
+  border-color: var(--border);
 }
 
 .error {
-  @apply px-3 py-1 text-xs text-red-600 dark:text-red-400;
+  @apply px-3 py-1 text-xs;
+  color: var(--rust-700);
 }

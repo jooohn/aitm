@@ -6,6 +6,7 @@ import { createPortal } from "react-dom";
 import { mutate } from "swr";
 import IconButton from "@/app/components/IconButton";
 import PlayIcon from "@/app/components/icons/PlayIcon";
+import { MenuItem, MenuSurface } from "@/app/components/Menu";
 import { swrKeys, useProcesses } from "@/lib/hooks/swr";
 import {
   createWorkflowRun,
@@ -176,7 +177,7 @@ export default function WorktreePlayMenu({
         menuPos &&
         typeof document !== "undefined" &&
         createPortal(
-          <div
+          <MenuSurface
             ref={menuRef}
             className={styles.menu}
             role="menu"
@@ -187,17 +188,15 @@ export default function WorktreePlayMenu({
               commands.map((command) => {
                 const running = activeCommandIds.has(command.id);
                 return (
-                  <button
+                  <MenuItem
                     key={command.id}
-                    type="button"
                     role="menuitem"
-                    className={styles.item}
                     disabled={running || busy}
                     title={running ? "Already running" : undefined}
                     onClick={() => handleStartCommand(command.id)}
                   >
                     {command.label}
-                  </button>
+                  </MenuItem>
                 );
               })
             ) : (
@@ -207,21 +206,17 @@ export default function WorktreePlayMenu({
             <div className={styles.groupHeading}>Workflows</div>
             {hasSuggestions &&
               suggestions.map((suggestion) => (
-                <button
+                <MenuItem
                   key={suggestion.workflow}
-                  type="button"
                   role="menuitem"
-                  className={styles.item}
                   disabled={busy}
                   onClick={() => handleStartWorkflow(suggestion)}
                 >
                   {suggestion.label}
-                </button>
+                </MenuItem>
               ))}
-            <button
-              type="button"
+            <MenuItem
               role="menuitem"
-              className={styles.item}
               disabled={busy}
               onClick={() => {
                 setOpen(false);
@@ -229,9 +224,9 @@ export default function WorktreePlayMenu({
               }}
             >
               Select workflow to run…
-            </button>
+            </MenuItem>
             {error && <p className={styles.error}>{error}</p>}
-          </div>,
+          </MenuSurface>,
           document.body,
         )}
       {showLaunchModal && (

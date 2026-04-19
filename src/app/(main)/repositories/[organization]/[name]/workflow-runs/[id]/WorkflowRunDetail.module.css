@@ -27,11 +27,7 @@
 }
 
 .menu {
-  @apply absolute right-0 top-full mt-1 z-10 min-w-[200px] rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-lg py-1 flex flex-col;
-}
-
-.menuItem {
-  @apply text-left text-sm px-3 py-1.5 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed;
+  @apply absolute right-0 top-full mt-1 z-10;
 }
 
 .sectionHeader {
@@ -75,11 +71,20 @@
 }
 
 .prBanner {
-  @apply flex items-center gap-3 px-4 py-3 rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950 hover:bg-green-100 dark:hover:bg-green-900 transition-colors;
+  @apply flex items-center gap-3 px-4 py-3 transition-colors;
+  background: var(--moss-50);
+  border: 1px solid var(--moss-100);
+  border-radius: var(--radius-md);
+  color: var(--moss-700);
+}
+
+.prBanner:hover {
+  background: var(--moss-100);
 }
 
 .prBannerText {
-  @apply text-sm text-green-700 dark:text-green-300;
+  @apply text-sm;
+  color: var(--moss-700);
 }
 
 .prBannerUrl {

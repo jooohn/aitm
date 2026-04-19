@@ -9,6 +9,7 @@ import CollapsibleText from "@/app/components/CollapsibleText";
 import IconButton from "@/app/components/IconButton";
 import EllipsisIcon from "@/app/components/icons/EllipsisIcon";
 import ExternalLinkIcon from "@/app/components/icons/ExternalLinkIcon";
+import { MenuItem, MenuSurface } from "@/app/components/Menu";
 import StatusBadge from "@/app/components/StatusBadge";
 import {
   swrKeys,
@@ -317,25 +318,18 @@ export default function WorkflowRunDetailView({
               <EllipsisIcon />
             </IconButton>
             {menuOpen && (
-              <div className={styles.menu} role="menu">
-                <button
-                  type="button"
+              <MenuSurface className={styles.menu} role="menu">
+                <MenuItem
                   role="menuitem"
-                  className={styles.menuItem}
                   onClick={handleMenuRerun}
                   disabled={rerunning}
                 >
                   {rerunning ? "Re-running…" : "Re-run"}
-                </button>
-                <button
-                  type="button"
-                  role="menuitem"
-                  className={styles.menuItem}
-                  onClick={openLaunchModal}
-                >
+                </MenuItem>
+                <MenuItem role="menuitem" onClick={openLaunchModal}>
                   Run another workflow
-                </button>
-              </div>
+                </MenuItem>
+              </MenuSurface>
             )}
           </div>
           {rerunError && <p className={styles.rerunError}>{rerunError}</p>}

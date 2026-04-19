@@ -7,6 +7,7 @@ import { mutate } from "swr";
 import IconButton from "@/app/components/IconButton";
 import EllipsisIcon from "@/app/components/icons/EllipsisIcon";
 import LoadingIndicator from "@/app/components/LoadingIndicator";
+import { MenuItem, MenuSurface } from "@/app/components/Menu";
 import { extractPrInfos } from "@/app/components/PrChip";
 import StatusDot from "@/app/components/StatusDot";
 import { swrKeys, useRepository, useWorkflows } from "@/lib/hooks/swr";
@@ -154,11 +155,9 @@ export default function WorktreeRunsSection({
               <EllipsisIcon />
             </IconButton>
             {menuOpen && (
-              <div className={styles.menu} role="menu">
-                <button
-                  type="button"
+              <MenuSurface className={styles.menu} role="menu">
+                <MenuItem
                   role="menuitem"
-                  className={styles.menuItem}
                   onClick={() => {
                     setMenuOpen(false);
                     setCreateError(null);
@@ -166,11 +165,9 @@ export default function WorktreeRunsSection({
                   }}
                 >
                   Add new worktree
-                </button>
-                <button
-                  type="button"
+                </MenuItem>
+                <MenuItem
                   role="menuitem"
-                  className={styles.menuItem}
                   disabled={cleaningMerged || loading}
                   onClick={() => {
                     setMenuOpen(false);
@@ -178,8 +175,8 @@ export default function WorktreeRunsSection({
                   }}
                 >
                   {cleaningMerged ? "Cleaning up…" : "Cleanup merged worktrees"}
-                </button>
-              </div>
+                </MenuItem>
+              </MenuSurface>
             )}
           </div>
         </div>
