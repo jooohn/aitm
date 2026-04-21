@@ -1,6 +1,7 @@
 import type { WorkflowRun, Worktree } from "@/lib/utils/api";
 
 export interface WorktreeGroup {
+  kind: "worktree" | "main" | "orphan";
   worktree: Worktree | null;
   runs: WorkflowRun[];
   hasRunningWorkflow: boolean;
@@ -10,11 +11,13 @@ export function groupRunsByWorktree(
   worktrees: Worktree[],
   runs: WorkflowRun[],
 ): WorktreeGroup[] {
+  const mainWorktree = worktrees.find((w) => w.is_main) ?? null;
   const nonMainWorktrees = worktrees.filter((w) => !w.is_main);
   const branchSet = new Set(nonMainWorktrees.map((w) => w.branch));
 
   // Bucket runs by branch
   const runsByBranch = new Map<string, WorkflowRun[]>();
+  const mainRuns: WorkflowRun[] = [];
   const orphanedRuns: WorkflowRun[] = [];
   for (const run of runs) {
     if (branchSet.has(run.worktree_branch)) {
@@ -24,6 +27,8 @@ export function groupRunsByWorktree(
       } else {
         runsByBranch.set(run.worktree_branch, [run]);
       }
+    } else if (mainWorktree && run.worktree_branch === mainWorktree.branch) {
+      mainRuns.push(run);
     } else {
       orphanedRuns.push(run);
     }
@@ -33,6 +38,7 @@ export function groupRunsByWorktree(
   const groups: WorktreeGroup[] = nonMainWorktrees.map((worktree) => {
     const branchRuns = runsByBranch.get(worktree.branch) ?? [];
     return {
+      kind: "worktree",
       worktree,
       runs: branchRuns,
       hasRunningWorkflow: branchRuns.some((r) => r.status === "running"),
@@ -58,9 +64,20 @@ export function groupRunsByWorktree(
     return oldestB.localeCompare(oldestA);
   });
 
+  // Prepend main group if any
+  if (mainRuns.length > 0) {
+    groups.unshift({
+      kind: "main",
+      worktree: mainWorktree,
+      runs: mainRuns,
+      hasRunningWorkflow: mainRuns.some((r) => r.status === "running"),
+    });
+  }
+
   // Append orphaned group if any
   if (orphanedRuns.length > 0) {
     groups.push({
+      kind: "orphan",
       worktree: null,
       runs: orphanedRuns,
       hasRunningWorkflow: orphanedRuns.some((r) => r.status === "running"),
