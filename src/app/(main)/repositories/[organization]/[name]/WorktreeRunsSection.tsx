@@ -196,13 +196,24 @@ export default function WorktreeRunsSection({
       {(hasLoadedOnce || !loading) && !error && (
         <ul className={styles.groupList}>
           {groups.map((group) => {
-            const key = group.worktree?.branch ?? "__orphaned__";
-            const label = group.worktree?.branch ?? "Archived";
-            const isWorktreeActive = group.worktree
-              ? pathname.startsWith(
-                  `/repositories/${organization}/${name}/worktrees/${branchToSlug(group.worktree.branch)}`,
-                )
-              : false;
+            const key =
+              group.kind === "main"
+                ? "__main__"
+                : group.kind === "orphan"
+                  ? "__orphaned__"
+                  : group.worktree!.branch;
+            const label =
+              group.kind === "main"
+                ? "Main branch"
+                : group.kind === "orphan"
+                  ? "Archived"
+                  : group.worktree!.branch;
+            const isWorktreeActive =
+              group.kind === "worktree"
+                ? pathname.startsWith(
+                    `/repositories/${organization}/${name}/worktrees/${branchToSlug(group.worktree!.branch)}`,
+                  )
+                : false;
 
             const showAll = showAllRunsBranches.has(key);
             const visibleRuns = showAll
@@ -215,9 +226,9 @@ export default function WorktreeRunsSection({
             return (
               <li key={key} className={styles.group}>
                 <div className={styles.groupHeader}>
-                  {group.worktree ? (
+                  {group.kind === "worktree" ? (
                     <Link
-                      href={`/repositories/${organization}/${name}/worktrees/${branchToSlug(group.worktree.branch)}`}
+                      href={`/repositories/${organization}/${name}/worktrees/${branchToSlug(group.worktree!.branch)}`}
                       className={`${styles.groupToggle} ${isWorktreeActive ? styles.groupToggleActive : ""}`}
                     >
                       <span className={styles.groupLabel}>{label}</span>
@@ -227,11 +238,11 @@ export default function WorktreeRunsSection({
                       <span className={styles.groupLabel}>{label}</span>
                     </span>
                   )}
-                  {group.worktree && (
+                  {group.kind === "worktree" && (
                     <WorktreePlayMenu
                       organization={organization}
                       name={name}
-                      branch={group.worktree.branch}
+                      branch={group.worktree!.branch}
                       runs={group.runs}
                       commands={commands}
                       workflows={workflows}
@@ -239,11 +250,11 @@ export default function WorktreeRunsSection({
                   )}
                 </div>
                 <WorktreePullRequests prs={prs} />
-                {group.worktree && (
+                {group.kind === "worktree" && (
                   <WorktreeActiveProcesses
                     organization={organization}
                     name={name}
-                    branch={group.worktree.branch}
+                    branch={group.worktree!.branch}
                   />
                 )}
                 <ul className={styles.runsList}>
@@ -276,7 +287,7 @@ export default function WorktreeRunsSection({
                                 </>
                               )}
                             </span>
-                            {group.worktree === null && (
+                            {group.kind === "orphan" && (
                               <span className={styles.runBranch}>
                                 {run.worktree_branch}
                               </span>

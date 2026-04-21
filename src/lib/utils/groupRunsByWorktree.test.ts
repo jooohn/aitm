@@ -31,7 +31,7 @@ function makeRun(overrides: Partial<WorkflowRun> = {}): WorkflowRun {
 }
 
 describe("groupRunsByWorktree", () => {
-  it("excludes main worktree from results", () => {
+  it("does not create a main group when there are no main-branch runs", () => {
     const worktrees = [
       makeWorktree({ branch: "main", is_main: true }),
       makeWorktree({ branch: "feature-a", is_main: false }),
@@ -39,6 +39,7 @@ describe("groupRunsByWorktree", () => {
     const result = groupRunsByWorktree(worktrees, []);
 
     expect(result).toHaveLength(1);
+    expect(result[0].kind).toBe("worktree");
     expect(result[0].worktree!.branch).toBe("feature-a");
     expect(result[0].runs).toEqual([]);
   });
@@ -59,17 +60,21 @@ describe("groupRunsByWorktree", () => {
     ];
     const result = groupRunsByWorktree(worktrees, runs);
 
-    // main is excluded, r3 goes to orphaned
     const featureGroup = result.find(
       (g) => g.worktree?.branch === "feature-a",
     )!;
+    expect(featureGroup.kind).toBe("worktree");
     expect(featureGroup.runs).toHaveLength(2);
 
-    // main's run becomes orphaned since main worktree is hidden
-    const orphaned = result.find((g) => g.worktree === null);
-    expect(orphaned).toBeDefined();
-    expect(orphaned!.runs).toHaveLength(1);
-    expect(orphaned!.runs[0].id).toBe("r3");
+    // main-branch run goes to the main group, not orphaned
+    const mainGroup = result.find((g) => g.kind === "main")!;
+    expect(mainGroup).toBeDefined();
+    expect(mainGroup.worktree!.is_main).toBe(true);
+    expect(mainGroup.runs).toHaveLength(1);
+    expect(mainGroup.runs[0].id).toBe("r3");
+
+    const orphaned = result.find((g) => g.kind === "orphan");
+    expect(orphaned).toBeUndefined();
   });
 
   it("puts orphaned runs (no matching worktree) in a separate group at the end", () => {
@@ -218,5 +223,71 @@ describe("groupRunsByWorktree", () => {
     const idleGroup = result.find((g) => g.worktree?.branch === "idle")!;
     expect(activeGroup.hasRunningWorkflow).toBe(true);
     expect(idleGroup.hasRunningWorkflow).toBe(false);
+  });
+
+  it("puts runs targeting the main branch into a main group", () => {
+    const worktrees = [
+      makeWorktree({ branch: "main", is_main: true }),
+      makeWorktree({ branch: "feature-a", is_main: false }),
+    ];
+    const runs = [
+      makeRun({ id: "r1", worktree_branch: "main" }),
+      makeRun({ id: "r2", worktree_branch: "main" }),
+    ];
+    const result = groupRunsByWorktree(worktrees, runs);
+
+    const mainGroup = result.find((g) => g.kind === "main")!;
+    expect(mainGroup).toBeDefined();
+    expect(mainGroup.worktree!.is_main).toBe(true);
+    expect(mainGroup.worktree!.branch).toBe("main");
+    expect(mainGroup.runs).toHaveLength(2);
+  });
+
+  it("prepends the main group before worktree groups", () => {
+    const worktrees = [
+      makeWorktree({ branch: "main", is_main: true }),
+      makeWorktree({ branch: "feature-a", is_main: false }),
+    ];
+    const runs = [
+      makeRun({ id: "r1", worktree_branch: "main" }),
+      makeRun({ id: "r2", worktree_branch: "feature-a" }),
+    ];
+    const result = groupRunsByWorktree(worktrees, runs);
+
+    expect(result[0].kind).toBe("main");
+    expect(result[1].kind).toBe("worktree");
+  });
+
+  it("main group and orphan group can coexist", () => {
+    const worktrees = [makeWorktree({ branch: "main", is_main: true })];
+    const runs = [
+      makeRun({ id: "r1", worktree_branch: "main" }),
+      makeRun({ id: "r2", worktree_branch: "deleted-branch" }),
+    ];
+    const result = groupRunsByWorktree(worktrees, runs);
+
+    expect(result).toHaveLength(2);
+    expect(result[0].kind).toBe("main");
+    expect(result[0].runs[0].id).toBe("r1");
+    expect(result[1].kind).toBe("orphan");
+    expect(result[1].runs[0].id).toBe("r2");
+  });
+
+  it("sets kind on all group types", () => {
+    const worktrees = [
+      makeWorktree({ branch: "main", is_main: true }),
+      makeWorktree({ branch: "feature-a", is_main: false }),
+    ];
+    const runs = [
+      makeRun({ id: "r1", worktree_branch: "main" }),
+      makeRun({ id: "r2", worktree_branch: "feature-a" }),
+      makeRun({ id: "r3", worktree_branch: "deleted-branch" }),
+    ];
+    const result = groupRunsByWorktree(worktrees, runs);
+
+    const kinds = result.map((g) => g.kind);
+    expect(kinds).toContain("main");
+    expect(kinds).toContain("worktree");
+    expect(kinds).toContain("orphan");
   });
 });
