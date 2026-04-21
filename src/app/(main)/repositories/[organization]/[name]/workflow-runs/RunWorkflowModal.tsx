@@ -95,15 +95,19 @@ export default function RunWorkflowModal({
 
   useEffect(() => {
     if (workflows && !selectedWorkflow) {
-      const names = initialWorkflow
-        ? [
-            initialWorkflow,
-            ...Object.keys(workflows).filter((wf) => wf !== initialWorkflow),
-          ]
-        : Object.keys(workflows);
+      const allNames = Object.keys(workflows).filter(
+        (name) => !fixedBranch || workflows[name]?.runs_on !== "main",
+      );
+      const names =
+        initialWorkflow && allNames.includes(initialWorkflow)
+          ? [
+              initialWorkflow,
+              ...allNames.filter((wf) => wf !== initialWorkflow),
+            ]
+          : allNames;
       if (names.length > 0) setSelectedWorkflow(names[0]);
     }
-  }, [initialWorkflow, selectedWorkflow, workflows]);
+  }, [initialWorkflow, selectedWorkflow, workflows, fixedBranch]);
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -162,7 +166,11 @@ export default function RunWorkflowModal({
         )
       : [];
 
-  const workflowNames = workflows ? Object.keys(workflows) : [];
+  const workflowNames = workflows
+    ? Object.keys(workflows).filter(
+        (name) => !fixedBranch || workflows[name]?.runs_on !== "main",
+      )
+    : [];
   const runsOnMain =
     workflows && selectedWorkflow
       ? workflows[selectedWorkflow]?.runs_on === "main"
@@ -286,6 +294,95 @@ export default function RunWorkflowModal({
               submitLabel="Create & launch"
               submittingLabel="Launching…"
               idPrefix="rwm"
+              afterWorkflowSelector={
+                !runsOnMain && (
+                  <div className={styles.fieldGroup}>
+                    <label htmlFor="rwm-branch" className={styles.label}>
+                      Branch name
+                      {!fixedBranch && !autoGenerate && !importMode && (
+                        <span className={styles.required}>*</span>
+                      )}
+                    </label>
+                    {fixedBranch ? (
+                      <span className={styles.fixedValue}>{fixedBranch}</span>
+                    ) : importMode ? (
+                      <>
+                        {remoteBranchesLoading && (
+                          <p className={styles.status}>
+                            Loading remote branches…
+                          </p>
+                        )}
+                        {!remoteBranchesLoading && (
+                          <select
+                            id="rwm-branch"
+                            className={styles.select}
+                            value={branch}
+                            onChange={(e) => setBranch(e.target.value)}
+                            disabled={submitting}
+                            aria-label="Branch name"
+                          >
+                            {availableRemoteBranches.map((rb) => (
+                              <option key={rb.branch} value={rb.branch}>
+                                {rb.branch} — PR #{rb.pr_number}: {rb.pr_title}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                        <button
+                          type="button"
+                          className={styles.linkButton}
+                          onClick={exitImportMode}
+                          disabled={submitting}
+                        >
+                          Back to auto-generate
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <div className={styles.checkboxRow}>
+                          <label>
+                            <input
+                              type="checkbox"
+                              checked={autoGenerate}
+                              onChange={(e) => {
+                                setAutoGenerate(e.target.checked);
+                                if (e.target.checked) setBranch("");
+                              }}
+                              disabled={submitting}
+                              aria-label="Auto-generate"
+                            />
+                            <span className={styles.checkboxLabel}>
+                              Auto-generate
+                            </span>
+                          </label>
+                          <button
+                            type="button"
+                            className={styles.linkButton}
+                            onClick={enterImportMode}
+                            disabled={submitting}
+                          >
+                            Import remote branch
+                          </button>
+                        </div>
+                        <input
+                          id="rwm-branch"
+                          type="text"
+                          className={styles.input}
+                          placeholder={
+                            autoGenerate
+                              ? "Will be generated automatically"
+                              : "e.g. feature/my-change"
+                          }
+                          value={branch}
+                          onChange={(e) => setBranch(e.target.value)}
+                          disabled={submitting || autoGenerate}
+                          required={!autoGenerate}
+                        />
+                      </>
+                    )}
+                  </div>
+                )
+              }
             >
               <div className={styles.fieldGroup}>
                 <label htmlFor="rwm-repo" className={styles.label}>
@@ -310,94 +407,6 @@ export default function RunWorkflowModal({
                   </select>
                 )}
               </div>
-
-              {!runsOnMain && (
-                <div className={styles.fieldGroup}>
-                  <label htmlFor="rwm-branch" className={styles.label}>
-                    Branch name
-                    {!fixedBranch && !autoGenerate && !importMode && (
-                      <span className={styles.required}>*</span>
-                    )}
-                  </label>
-                  {fixedBranch ? (
-                    <span className={styles.fixedValue}>{fixedBranch}</span>
-                  ) : importMode ? (
-                    <>
-                      {remoteBranchesLoading && (
-                        <p className={styles.status}>
-                          Loading remote branches…
-                        </p>
-                      )}
-                      {!remoteBranchesLoading && (
-                        <select
-                          id="rwm-branch"
-                          className={styles.select}
-                          value={branch}
-                          onChange={(e) => setBranch(e.target.value)}
-                          disabled={submitting}
-                          aria-label="Branch name"
-                        >
-                          {availableRemoteBranches.map((rb) => (
-                            <option key={rb.branch} value={rb.branch}>
-                              {rb.branch} — PR #{rb.pr_number}: {rb.pr_title}
-                            </option>
-                          ))}
-                        </select>
-                      )}
-                      <button
-                        type="button"
-                        className={styles.linkButton}
-                        onClick={exitImportMode}
-                        disabled={submitting}
-                      >
-                        Back to auto-generate
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <div className={styles.checkboxRow}>
-                        <label>
-                          <input
-                            type="checkbox"
-                            checked={autoGenerate}
-                            onChange={(e) => {
-                              setAutoGenerate(e.target.checked);
-                              if (e.target.checked) setBranch("");
-                            }}
-                            disabled={submitting}
-                            aria-label="Auto-generate"
-                          />
-                          <span className={styles.checkboxLabel}>
-                            Auto-generate
-                          </span>
-                        </label>
-                        <button
-                          type="button"
-                          className={styles.linkButton}
-                          onClick={enterImportMode}
-                          disabled={submitting}
-                        >
-                          Import remote branch
-                        </button>
-                      </div>
-                      <input
-                        id="rwm-branch"
-                        type="text"
-                        className={styles.input}
-                        placeholder={
-                          autoGenerate
-                            ? "Will be generated automatically"
-                            : "e.g. feature/my-change"
-                        }
-                        value={branch}
-                        onChange={(e) => setBranch(e.target.value)}
-                        disabled={submitting || autoGenerate}
-                        required={!autoGenerate}
-                      />
-                    </>
-                  )}
-                </div>
-              )}
             </WorkflowLaunchForm>
           )}
 

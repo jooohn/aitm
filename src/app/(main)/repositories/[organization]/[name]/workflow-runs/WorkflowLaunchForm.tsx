@@ -6,8 +6,10 @@ import type { WorkflowDefinition } from "@/lib/utils/api";
 import styles from "./WorkflowLaunchForm.module.css";
 
 interface Props {
-  /** Extra fields (e.g. branch name) rendered at the top of the form, before the workflow selector. */
+  /** Extra fields (e.g. repository) rendered at the top of the form, before the workflow selector. */
   children?: React.ReactNode;
+  /** Extra fields (e.g. branch name) rendered between the workflow selector and the workflow inputs. */
+  afterWorkflowSelector?: React.ReactNode;
   workflowNames: string[];
   workflows: Record<string, WorkflowDefinition>;
   selectedWorkflow: string;
@@ -28,6 +30,7 @@ interface Props {
 
 export default function WorkflowLaunchForm({
   children,
+  afterWorkflowSelector,
   workflowNames,
   workflows,
   selectedWorkflow,
@@ -78,6 +81,8 @@ export default function WorkflowLaunchForm({
           ))}
         </select>
       </div>
+
+      {afterWorkflowSelector}
 
       {selectedWorkflow &&
         (workflows[selectedWorkflow]?.inputs ?? []).map((inputDef) => (
