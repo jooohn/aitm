@@ -6,6 +6,7 @@ import { getContainer, initializeContainer } from "@/backend/container";
 import { ValidationError } from "@/backend/domain/errors";
 import { db } from "@/backend/infra/db";
 import { eventBus, type WorkflowRunContext } from "@/backend/infra/event-bus";
+import * as processUtils from "@/backend/utils/process";
 import { splitAlias } from "@/lib/utils/inferAlias";
 import { setupTestConfigDir, writeTestConfig } from "@/test-config-helper";
 
@@ -1438,6 +1439,117 @@ describe("getWorkflowRun", () => {
     expect(
       getContainer().workflowRunService.getWorkflowRun("nonexistent"),
     ).toBeUndefined();
+  });
+});
+
+describe("rerunWorkflowRun", () => {
+  const MAIN_WORKFLOW_CONFIG = `
+workflows:
+  investigate:
+    runs_on: main
+    initial_step: look
+    steps:
+      look:
+        goal: "Investigate the issue"
+        transitions:
+          - terminal: success
+            when: "done"
+          - terminal: failure
+            when: "blocked"
+`;
+
+  it("skips git stash when workflow has runs_on: main", async () => {
+    process.env.AITM_CONFIG_PATH = await writeTempConfig(MAIN_WORKFLOW_CONFIG);
+    const repoPath = await makeFakeGitRepo();
+
+    const run = await getContainer().workflowRunService.createWorkflowRun({
+      repository_path: repoPath,
+      worktree_branch: "feat/test",
+      workflow_name: "investigate",
+    });
+
+    // Complete the run to success
+    const [exec] = db
+      .prepare(
+        "SELECT * FROM step_executions WHERE workflow_run_id = ? ORDER BY created_at ASC",
+      )
+      .all(run.id) as { id: string }[];
+    await getContainer().workflowRunService.completeStepExecution(exec.id, {
+      transition: "success",
+      reason: "Done",
+      handoff_summary: "Investigation complete",
+    });
+
+    const spawnSpy = vi
+      .spyOn(processUtils, "spawnAsync")
+      .mockResolvedValue({ stdout: "", stderr: "", code: 0 });
+
+    await getContainer().workflowRunService.rerunWorkflowRun(run.id);
+
+    const stashCalls = spawnSpy.mock.calls.filter(
+      ([cmd, args]) => cmd === "git" && args[0] === "stash",
+    );
+    expect(stashCalls).toHaveLength(0);
+
+    spawnSpy.mockRestore();
+  });
+
+  it("calls git stash when workflow has runs_on: worktree", async () => {
+    process.env.AITM_CONFIG_PATH = await writeTempConfig(
+      SIMPLE_WORKFLOW_CONFIG,
+    );
+    const repoPath = await makeFakeGitRepo();
+
+    const run = await getContainer().workflowRunService.createWorkflowRun({
+      repository_path: repoPath,
+      worktree_branch: "feat/test",
+      workflow_name: "my-flow",
+    });
+
+    // Complete plan → implement
+    const [planExec] = db
+      .prepare(
+        "SELECT * FROM step_executions WHERE workflow_run_id = ? ORDER BY created_at ASC",
+      )
+      .all(run.id) as { id: string }[];
+    await getContainer().workflowRunService.completeStepExecution(planExec.id, {
+      transition: "implement",
+      reason: "Plan done",
+      handoff_summary: "Wrote PLAN.md",
+    });
+
+    // Complete implement → success
+    const implementExec = db
+      .prepare(
+        "SELECT * FROM step_executions WHERE workflow_run_id = ? AND step = 'implement'",
+      )
+      .get(run.id) as { id: string };
+    await getContainer().workflowRunService.completeStepExecution(
+      implementExec.id,
+      {
+        transition: "success",
+        reason: "Code done",
+        handoff_summary: "Implementation complete",
+      },
+    );
+
+    const spawnSpy = vi
+      .spyOn(processUtils, "spawnAsync")
+      .mockResolvedValue({ stdout: "", stderr: "", code: 0 });
+
+    await getContainer().workflowRunService.rerunWorkflowRun(run.id);
+
+    const stashCalls = spawnSpy.mock.calls.filter(
+      ([cmd, args]) => cmd === "git" && args[0] === "stash",
+    );
+    expect(stashCalls).toHaveLength(1);
+    expect(stashCalls[0]).toEqual([
+      "git",
+      ["stash", "--include-untracked"],
+      { cwd: repoPath },
+    ]);
+
+    spawnSpy.mockRestore();
   });
 });
 
