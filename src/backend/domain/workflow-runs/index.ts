@@ -299,6 +299,9 @@ export class WorkflowRunService {
       throw new ValidationError("Only completed workflow runs can be re-run");
     }
 
+    const workflow = this.workflows[run.workflow_name];
+    const isMainBranch = workflow?.runs_on === "main";
+
     const worktrees = await this.worktreeService.listWorktrees(
       run.repository_path,
     );
@@ -307,13 +310,15 @@ export class WorkflowRunService {
       throw new NotFoundError("Worktree", run.worktree_branch);
     }
 
-    try {
-      await spawnAsync("git", ["stash", "--include-untracked"], {
-        cwd: worktree.path,
-      });
-    } catch (err) {
-      // Non-zero exit from git stash is non-blocking — log a warning and continue.
-      logger.warn({ err }, "git stash warning");
+    if (!isMainBranch) {
+      try {
+        await spawnAsync("git", ["stash", "--include-untracked"], {
+          cwd: worktree.path,
+        });
+      } catch (err) {
+        // Non-zero exit from git stash is non-blocking — log a warning and continue.
+        logger.warn({ err }, "git stash warning");
+      }
     }
 
     return await this.createWorkflowRun({

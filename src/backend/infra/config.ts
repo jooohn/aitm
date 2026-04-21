@@ -91,8 +91,11 @@ export interface WorkflowSuggestionRule {
   inputs?: Record<string, string>;
 }
 
+export type WorkflowRunsOn = "main" | "worktree";
+
 export interface WorkflowDefinition {
   label?: string;
+  runs_on?: WorkflowRunsOn;
   initial_step: string;
   max_steps?: number;
   inputs?: WorkflowInput[];
@@ -363,6 +366,14 @@ function validateWorkflowDefinition(
   }
   const record = value as Record<string, unknown>;
 
+  const validRunsOn = new Set(["main", "worktree"]);
+  if (
+    record.runs_on !== undefined &&
+    !validRunsOn.has(record.runs_on as string)
+  ) {
+    fail(`${path}.runs_on must be "main" or "worktree"`);
+  }
+
   if (typeof record.initial_step !== "string") {
     fail(`${path}.initial_step must be a string`);
   }
@@ -477,6 +488,7 @@ function validateWorkflowDefinition(
       typeof record.label === "string"
         ? parseZodWithPath(z.string(), record.label, `${path}.label`)
         : undefined,
+    runs_on: record.runs_on as WorkflowRunsOn | undefined,
     initial_step: record.initial_step,
     max_steps: record.max_steps as number | undefined,
     inputs,

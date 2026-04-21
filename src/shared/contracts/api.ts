@@ -138,6 +138,7 @@ export type WorkflowStepDto =
 
 export interface WorkflowDefinitionDto {
   label?: string;
+  runs_on?: "main" | "worktree";
   initial_step: string;
   max_steps?: number;
   inputs?: WorkflowInputDto[];

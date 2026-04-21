@@ -382,6 +382,80 @@ workflows:
     });
   });
 
+  describe("runs_on", () => {
+    it("parses runs_on: main", async () => {
+      await writeConfig(`
+workflows:
+  investigate:
+    runs_on: main
+    initial_step: look
+    steps:
+      look:
+        goal: "Investigate the issue"
+        transitions:
+          - terminal: success
+            when: done
+`);
+
+      const snapshot = loadConfig();
+      expect(snapshot.workflows.investigate.runs_on).toBe("main");
+    });
+
+    it("parses runs_on: worktree", async () => {
+      await writeConfig(`
+workflows:
+  my-flow:
+    runs_on: worktree
+    initial_step: plan
+    steps:
+      plan:
+        goal: "Write a plan"
+        transitions:
+          - terminal: success
+            when: done
+`);
+
+      const snapshot = loadConfig();
+      expect(snapshot.workflows["my-flow"].runs_on).toBe("worktree");
+    });
+
+    it("results in undefined when runs_on is omitted", async () => {
+      await writeConfig(`
+workflows:
+  my-flow:
+    initial_step: plan
+    steps:
+      plan:
+        goal: "Write a plan"
+        transitions:
+          - terminal: success
+            when: done
+`);
+
+      const snapshot = loadConfig();
+      expect(snapshot.workflows["my-flow"].runs_on).toBeUndefined();
+    });
+
+    it("fails on invalid runs_on value", async () => {
+      await writeConfig(`
+workflows:
+  my-flow:
+    runs_on: branch
+    initial_step: plan
+    steps:
+      plan:
+        goal: "Write a plan"
+        transitions:
+          - terminal: success
+            when: done
+`);
+
+      expect(() => loadConfig()).toThrow(
+        'runs_on must be "main" or "worktree"',
+      );
+    });
+  });
+
   describe("repository commands", () => {
     it("parses repositories with commands", async () => {
       await writeConfig(`
