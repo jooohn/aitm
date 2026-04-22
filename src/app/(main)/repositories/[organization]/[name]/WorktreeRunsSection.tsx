@@ -36,7 +36,6 @@ interface Props {
   loading: boolean;
   hasLoadedOnce: boolean;
   error: string | null;
-  onRunWorkflow: () => void;
 }
 
 export default function WorktreeRunsSection({
@@ -47,7 +46,6 @@ export default function WorktreeRunsSection({
   loading,
   hasLoadedOnce,
   error,
-  onRunWorkflow,
 }: Props) {
   const pathname = usePathname();
   const { data: repo } = useRepository(organization, name);
@@ -181,14 +179,6 @@ export default function WorktreeRunsSection({
           </div>
         </div>
       </div>
-
-      <button
-        type="button"
-        className={styles.launchButton}
-        onClick={onRunWorkflow}
-      >
-        Run Workflow
-      </button>
 
       {!hasLoadedOnce && loading && <p className={styles.status}>Loading…</p>}
       {error && <p className={styles.error}>{error}</p>}

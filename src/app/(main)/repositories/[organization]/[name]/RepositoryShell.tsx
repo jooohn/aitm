@@ -141,16 +141,24 @@ export default function RepositoryShell({
           )}
         </div>
         {repo && (
-          <WorktreeRunsSection
-            organization={organization}
-            name={name}
-            worktrees={worktrees ?? []}
-            runs={runs ?? []}
-            loading={dataLoading}
-            hasLoadedOnce={dataHasLoadedOnce}
-            error={dataErrorMessage}
-            onRunWorkflow={() => setShowLaunchModal(true)}
-          />
+          <>
+            <button
+              type="button"
+              className={styles.launchButton}
+              onClick={() => setShowLaunchModal(true)}
+            >
+              Run Workflow
+            </button>
+            <WorktreeRunsSection
+              organization={organization}
+              name={name}
+              worktrees={worktrees ?? []}
+              runs={runs ?? []}
+              loading={dataLoading}
+              hasLoadedOnce={dataHasLoadedOnce}
+              error={dataErrorMessage}
+            />
+          </>
         )}
         <section className={styles.paneSection}>
           <h3 className={styles.paneHeading}>Chats</h3>

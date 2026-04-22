@@ -17,17 +17,6 @@
   color: var(--fg-subtle);
 }
 
-.launchButton {
-  @apply text-sm px-3 py-1.5 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer;
-  border-radius: var(--radius-sm);
-  background: var(--fg);
-  color: var(--bg-raised);
-}
-
-.launchButton:hover {
-  background: var(--fg-muted);
-}
-
 .menuWrapper {
   @apply relative;
 }

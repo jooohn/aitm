@@ -117,7 +117,6 @@ describe("WorktreeRunsSection", () => {
           loading={false}
           hasLoadedOnce={true}
           error={null}
-          onRunWorkflow={() => {}}
         />
       </SWRTestProvider>,
     );
@@ -134,7 +133,6 @@ describe("WorktreeRunsSection", () => {
           loading={true}
           hasLoadedOnce={true}
           error={null}
-          onRunWorkflow={() => {}}
         />
       </SWRTestProvider>,
     );
@@ -172,7 +170,6 @@ describe("WorktreeRunsSection", () => {
           loading={false}
           hasLoadedOnce={true}
           error={null}
-          onRunWorkflow={() => {}}
         />
       </SWRTestProvider>,
     );
@@ -205,7 +202,6 @@ describe("WorktreeRunsSection", () => {
           loading={false}
           hasLoadedOnce={true}
           error={null}
-          onRunWorkflow={() => {}}
         />
       </SWRTestProvider>,
     );
@@ -228,7 +224,6 @@ describe("WorktreeRunsSection", () => {
           loading={false}
           hasLoadedOnce={true}
           error={null}
-          onRunWorkflow={() => {}}
         />
       </SWRTestProvider>,
     );
@@ -260,7 +255,6 @@ describe("WorktreeRunsSection", () => {
           loading={false}
           hasLoadedOnce={true}
           error={null}
-          onRunWorkflow={() => {}}
         />
       </SWRTestProvider>,
     );
@@ -296,7 +290,6 @@ describe("WorktreeRunsSection", () => {
           loading={false}
           hasLoadedOnce={true}
           error={null}
-          onRunWorkflow={() => {}}
         />
       </SWRTestProvider>,
     );
@@ -324,7 +317,6 @@ describe("WorktreeRunsSection", () => {
           loading={false}
           hasLoadedOnce={true}
           error={null}
-          onRunWorkflow={() => {}}
         />
       </SWRTestProvider>,
     );
@@ -379,7 +371,6 @@ describe("WorktreeRunsSection", () => {
           loading={false}
           hasLoadedOnce={true}
           error={null}
-          onRunWorkflow={() => {}}
         />
       </SWRTestProvider>,
     );
@@ -428,7 +419,6 @@ describe("WorktreeRunsSection", () => {
           loading={false}
           hasLoadedOnce={true}
           error={null}
-          onRunWorkflow={() => {}}
         />
       </SWRTestProvider>,
     );
@@ -458,7 +448,6 @@ describe("WorktreeRunsSection", () => {
           loading={false}
           hasLoadedOnce={true}
           error={null}
-          onRunWorkflow={() => {}}
         />
       </SWRTestProvider>,
     );
@@ -487,7 +476,6 @@ describe("WorktreeRunsSection", () => {
           loading={false}
           hasLoadedOnce={true}
           error={null}
-          onRunWorkflow={() => {}}
         />
       </SWRTestProvider>,
     );
@@ -523,7 +511,6 @@ describe("WorktreeRunsSection", () => {
           loading={false}
           hasLoadedOnce={true}
           error={null}
-          onRunWorkflow={() => {}}
         />
       </SWRTestProvider>,
     );
@@ -560,7 +547,6 @@ describe("WorktreeRunsSection", () => {
           loading={false}
           hasLoadedOnce={true}
           error={null}
-          onRunWorkflow={() => {}}
         />
       </SWRTestProvider>,
     );
