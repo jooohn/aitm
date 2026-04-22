@@ -1,0 +1,115 @@
+@reference "tailwindcss";
+
+.container {
+  @apply flex flex-col gap-4;
+}
+
+.file {
+  @apply overflow-hidden;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+}
+
+.fileHeader {
+  @apply flex items-center gap-2 px-4 py-2 cursor-pointer select-none;
+  background: var(--paper-1);
+  border-bottom: 1px solid var(--border);
+}
+
+.fileHeader:hover {
+  background: var(--paper-2);
+}
+
+.collapseIndicator {
+  @apply text-xs transition-transform;
+  color: var(--fg-subtle);
+}
+
+.collapseIndicatorOpen {
+  transform: rotate(90deg);
+}
+
+.filePath {
+  @apply text-sm font-mono font-medium truncate;
+  color: var(--fg);
+}
+
+.badge {
+  @apply text-xs font-medium px-1.5 py-0.5 shrink-0;
+  border-radius: var(--radius-xs);
+}
+
+.badgeAdded {
+  background: var(--moss-50);
+  color: var(--moss-700);
+}
+
+.badgeDeleted {
+  background: var(--rust-50);
+  color: var(--rust-700);
+}
+
+.badgeModified {
+  background: var(--sky-50);
+  color: var(--sky-700);
+}
+
+.badgeRenamed {
+  background: var(--amber-50);
+  color: var(--amber-700);
+}
+
+.binaryNotice {
+  @apply px-4 py-3 text-sm;
+  color: var(--fg-subtle);
+  background: var(--bg-raised);
+}
+
+.hunkTable {
+  @apply w-full text-sm font-mono;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.hunkHeader {
+  @apply text-xs px-4 py-1;
+  color: var(--fg-subtle);
+  background: var(--paper-1);
+  border-top: 1px solid var(--border);
+}
+
+.lineNumberOld,
+.lineNumberNew {
+  @apply py-0 px-2 text-right select-none align-top;
+  width: 50px;
+  min-width: 50px;
+  color: var(--fg-muted);
+  border-right: 1px solid var(--border);
+}
+
+.lineContent {
+  @apply py-0 px-3 whitespace-pre-wrap;
+  word-break: break-all;
+}
+
+.lineAdded {
+  background: color-mix(in srgb, var(--moss-50) 50%, transparent);
+}
+
+.lineAdded .lineNumberOld,
+.lineAdded .lineNumberNew {
+  background: color-mix(in srgb, var(--moss-50) 80%, transparent);
+}
+
+.lineRemoved {
+  background: color-mix(in srgb, var(--rust-50) 50%, transparent);
+}
+
+.lineRemoved .lineNumberOld,
+.lineRemoved .lineNumberNew {
+  background: color-mix(in srgb, var(--rust-50) 80%, transparent);
+}
+
+.lineContext {
+  background: var(--bg-raised);
+}
