@@ -296,6 +296,30 @@
   color: var(--fg-muted);
 }
 
+/* View changes link */
+.viewChangesLink {
+  @apply font-mono text-xs transition-colors underline underline-offset-2;
+  color: var(--fg-subtle);
+}
+
+.viewChangesLink:hover {
+  color: var(--fg);
+}
+
+/* Diff stats */
+.diffStats {
+  @apply flex flex-wrap items-center gap-2 text-xs;
+  color: var(--fg-subtle);
+}
+
+.diffStatsInsertion {
+  color: var(--moss-700);
+}
+
+.diffStatsDeletion {
+  color: var(--rust-700);
+}
+
 /* Manual approval actions */
 .approvalSection {
   @apply flex flex-col gap-2;
