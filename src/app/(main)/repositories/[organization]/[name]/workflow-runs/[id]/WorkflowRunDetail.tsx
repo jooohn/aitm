@@ -273,6 +273,16 @@ export default function WorkflowRunDetailView({
             <StatusBadge variant={currentRun.status}>
               {STATUS_LABELS[currentRun.status]}
             </StatusBadge>
+            {currentRun.worktree_branch && (
+              <Link
+                href={`/repositories/${currentRun.organization}/${currentRun.name}/workflow-runs/${currentRun.id}/changes`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={styles.viewChangesLink}
+              >
+                View Changes
+              </Link>
+            )}
             <p className={styles.headerTimestamps}>
               Created {timeAgo(currentRun.created_at)}, Last modified{" "}
               {timeAgo(currentRun.updated_at)}
@@ -451,6 +461,7 @@ export default function WorkflowRunDetailView({
                     basePath ??
                     `/repositories/${currentRun.organization}/${currentRun.name}/workflow-runs/${currentRun.id}`
                   }
+                  runId={currentRun.id}
                   onResolve={handleResolve}
                   resolvingId={resolvingId}
                 />

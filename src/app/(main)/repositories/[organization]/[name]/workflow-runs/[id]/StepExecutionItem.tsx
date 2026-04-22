@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import StatusBadge, {
   type StatusBadgeVariant,
 } from "@/app/components/StatusBadge";
-import type { StepExecution } from "@/lib/utils/api";
+import { fetchWorkflowRunDiff, type StepExecution } from "@/lib/utils/api";
+import { type DiffStat, parseDiffStat } from "@/lib/utils/parseDiffStat";
 import type { TransitionDecisionDto } from "@/shared/contracts/api";
 import styles from "./WorkflowRunDetail.module.css";
 
@@ -39,6 +40,7 @@ interface StepExecutionItemProps {
   execution: StepExecution;
   isCurrent: boolean;
   runBasePath: string;
+  runId: string;
   onResolve?: (
     executionId: string,
     decision: "approved" | "rejected",
@@ -56,10 +58,12 @@ export default function StepExecutionItem({
   execution,
   isCurrent,
   runBasePath,
+  runId,
   onResolve,
   resolvingId,
 }: StepExecutionItemProps) {
   const [approvalReason, setApprovalReason] = useState("");
+  const [diffStat, setDiffStat] = useState<DiffStat | null>(null);
   const { label: statusLabel, variant: statusVariant } =
     getStatusDisplay(execution);
   const decision: TransitionDecisionDto | null = execution.transition_decision;
@@ -72,6 +76,22 @@ export default function StepExecutionItem({
   const isPendingApproval =
     execution.step_type === "manual-approval" &&
     execution.status === "awaiting";
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: onResolve is an unstable reference from the parent; including it causes repeated fetches
+  useEffect(() => {
+    if (!isPendingApproval || !onResolve) return;
+    let cancelled = false;
+    fetchWorkflowRunDiff(runId)
+      .then((res) => {
+        if (!cancelled) setDiffStat(parseDiffStat(res.stat));
+      })
+      .catch(() => {
+        // Diff stats are best-effort; silently ignore errors
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isPendingApproval, runId]);
 
   return (
     <li
@@ -103,6 +123,32 @@ export default function StepExecutionItem({
       </div>
       {isPendingApproval && onResolve && (
         <div className={styles.approvalSection}>
+          {diffStat && (
+            <div className={styles.diffStats}>
+              <span>
+                {diffStat.filesChanged} file
+                {diffStat.filesChanged !== 1 ? "s" : ""} changed
+              </span>
+              {diffStat.insertions > 0 && (
+                <span className={styles.diffStatsInsertion}>
+                  +{diffStat.insertions}
+                </span>
+              )}
+              {diffStat.deletions > 0 && (
+                <span className={styles.diffStatsDeletion}>
+                  −{diffStat.deletions}
+                </span>
+              )}
+              <Link
+                href={`${runBasePath}/changes`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={styles.viewChangesLink}
+              >
+                View Changes
+              </Link>
+            </div>
+          )}
           <textarea
             className={styles.approvalReason}
             placeholder="Comment"
