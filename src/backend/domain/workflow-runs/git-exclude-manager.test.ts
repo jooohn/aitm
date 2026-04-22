@@ -4,6 +4,7 @@ import { join } from "path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   ensureExcludeEntry,
+  removeExcludeEntry,
   resolveGitDir,
   resolveGitInfoDir,
 } from "./git-exclude-manager";
@@ -147,5 +148,74 @@ describe("ensureExcludeEntry", () => {
 
     const content = await readFile(excludePath, "utf8");
     expect(content).toBe("*.log\n/.aitm/runs/run-1/\n");
+  });
+});
+
+describe("removeExcludeEntry", () => {
+  let tempDir: string;
+  let infoDir: string;
+  let excludePath: string;
+
+  beforeEach(async () => {
+    tempDir = join(
+      tmpdir(),
+      `aitm-exclude-test-${Math.random().toString(36).slice(2)}`,
+    );
+    infoDir = join(tempDir, "info");
+    excludePath = join(infoDir, "exclude");
+  });
+
+  it("removes the exact matching entry", async () => {
+    await mkdir(infoDir, { recursive: true });
+    await writeFile(
+      excludePath,
+      "# existing\n/.aitm/runs/run-1/\n*.log\n",
+      "utf8",
+    );
+
+    await removeExcludeEntry(infoDir, "/.aitm/runs/run-1/");
+
+    const content = await readFile(excludePath, "utf8");
+    expect(content).toBe("# existing\n*.log\n");
+  });
+
+  it("preserves surrounding lines", async () => {
+    await mkdir(infoDir, { recursive: true });
+    await writeFile(
+      excludePath,
+      "/.aitm/runs/run-1/\n/.aitm/runs/run-2/\n/.aitm/runs/run-3/\n",
+      "utf8",
+    );
+
+    await removeExcludeEntry(infoDir, "/.aitm/runs/run-2/");
+
+    const content = await readFile(excludePath, "utf8");
+    expect(content).toBe("/.aitm/runs/run-1/\n/.aitm/runs/run-3/\n");
+  });
+
+  it("is a no-op when the entry is absent", async () => {
+    await mkdir(infoDir, { recursive: true });
+    await writeFile(excludePath, "*.log\n", "utf8");
+
+    await removeExcludeEntry(infoDir, "/.aitm/runs/run-1/");
+
+    const content = await readFile(excludePath, "utf8");
+    expect(content).toBe("*.log\n");
+  });
+
+  it("is a no-op when the exclude file does not exist", async () => {
+    await expect(
+      removeExcludeEntry(infoDir, "/.aitm/runs/run-1/"),
+    ).resolves.toBeUndefined();
+  });
+
+  it("handles file with only the target entry and trailing newline", async () => {
+    await mkdir(infoDir, { recursive: true });
+    await writeFile(excludePath, "/.aitm/runs/run-1/\n", "utf8");
+
+    await removeExcludeEntry(infoDir, "/.aitm/runs/run-1/");
+
+    const content = await readFile(excludePath, "utf8");
+    expect(content).toBe("");
   });
 });

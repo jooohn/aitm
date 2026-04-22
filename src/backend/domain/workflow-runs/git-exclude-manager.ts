@@ -1,4 +1,4 @@
-import { appendFile, mkdir, readFile, stat } from "fs/promises";
+import { appendFile, mkdir, readFile, stat, writeFile } from "fs/promises";
 import { join, resolve } from "path";
 
 export async function resolveGitDir(worktreePath: string): Promise<string> {
@@ -43,4 +43,19 @@ export async function ensureExcludeEntry(
     const prefix = existing.length === 0 || existing.endsWith("\n") ? "" : "\n";
     await appendFile(excludePath, `${prefix}${excludeEntry}\n`, "utf8");
   }
+}
+
+export async function removeExcludeEntry(
+  infoDir: string,
+  excludeEntry: string,
+): Promise<void> {
+  const excludePath = join(infoDir, "exclude");
+  const existing = await readFile(excludePath, "utf8").catch(() => null);
+  if (existing === null) return;
+
+  const lines = existing.split(/\r?\n/);
+  const filtered = lines.filter((line) => line !== excludeEntry);
+  if (filtered.length === lines.length) return;
+
+  await writeFile(excludePath, filtered.join("\n"), "utf8");
 }

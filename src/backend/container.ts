@@ -106,6 +106,7 @@ function createContainer(cfg: ConfigSnapshot): Container {
   const houseKeepingService = new HouseKeepingService(
     sessionService,
     worktreeService,
+    workflowRunService,
     cfg.repositories,
     eventBus,
   );

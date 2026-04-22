@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from "fs/promises";
+import { mkdir, rm, writeFile } from "fs/promises";
 import { dirname, join } from "path";
 import type { WorkflowArtifact } from "@/backend/infra/config";
 import {
@@ -12,6 +12,7 @@ import type { WorkflowRunRepository } from "./workflow-run-repository";
 type GitExcludeManagerDeps = {
   resolveGitInfoDir(worktreePath: string): Promise<string>;
   ensureExcludeEntry(infoDir: string, entry: string): Promise<void>;
+  removeExcludeEntry(infoDir: string, entry: string): Promise<void>;
 };
 
 function buildCommandOutputHandoffSummary(
@@ -47,6 +48,20 @@ export class WorkflowRunMaterializer {
     );
     const excludeEntry = `/.aitm/runs/${workflowRunId}/`;
     await this.gitExcludeManager.ensureExcludeEntry(infoDir, excludeEntry);
+  }
+
+  async cleanupWorkflowRunDir(
+    workflowRunId: string,
+    worktree: Worktree,
+  ): Promise<void> {
+    const runDir = resolveWorkflowRunDir(worktree, workflowRunId);
+    await rm(runDir, { recursive: true, force: true });
+
+    const infoDir = await this.gitExcludeManager.resolveGitInfoDir(
+      worktree.path,
+    );
+    const excludeEntry = `/.aitm/runs/${workflowRunId}/`;
+    await this.gitExcludeManager.removeExcludeEntry(infoDir, excludeEntry);
   }
 
   async materializeWorkflowArtifacts(
