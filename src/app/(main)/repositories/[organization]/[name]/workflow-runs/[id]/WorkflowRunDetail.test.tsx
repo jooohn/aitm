@@ -47,6 +47,8 @@ vi.mock("@/lib/utils/api", async (importOriginal) => {
       name: "repo",
       alias: "tmp/repo",
       github_url: null,
+      commands: [],
+      workflows: {},
     }),
     fetchWorkflowRun: vi.fn().mockResolvedValue({
       id: "run-1",
@@ -128,8 +130,16 @@ describe("WorkflowRunDetail layout", () => {
         },
       },
     };
-    const { fetchWorkflows } = await import("@/lib/utils/api");
+    const { fetchWorkflows, fetchRepository } = await import("@/lib/utils/api");
     vi.mocked(fetchWorkflows).mockResolvedValue(workflows);
+    vi.mocked(fetchRepository).mockResolvedValue({
+      path: "/tmp/repo",
+      name: "repo",
+      alias: "tmp/repo",
+      github_url: null,
+      commands: [],
+      workflows,
+    });
 
     render(
       <SWRTestProvider>
@@ -419,7 +429,7 @@ describe("WorkflowRunDetail", () => {
   });
 
   it("renders a suggested follow-up workflow when conditions match", async () => {
-    const { fetchWorkflowRun, fetchWorkflows } = await import(
+    const { fetchWorkflowRun, fetchWorkflows, fetchRepository } = await import(
       "@/lib/utils/api"
     );
     vi.mocked(fetchWorkflowRun).mockResolvedValueOnce(
@@ -464,6 +474,14 @@ describe("WorkflowRunDetail", () => {
       },
     };
     vi.mocked(fetchWorkflows).mockResolvedValue(workflows);
+    vi.mocked(fetchRepository).mockResolvedValue({
+      path: "/tmp/repo",
+      name: "repo",
+      alias: "tmp/repo",
+      github_url: null,
+      commands: [],
+      workflows,
+    });
 
     const user = userEvent.setup();
     render(

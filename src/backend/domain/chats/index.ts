@@ -16,7 +16,9 @@ import {
   ServiceUnavailableError,
   ValidationError,
 } from "../errors";
+import type { RepositoryService } from "../repositories";
 import type { WorkflowRunService } from "../workflow-runs";
+import { filterWorkflowsForRepository } from "../workflows/filter";
 import type { WorktreeService } from "../worktrees";
 import { ChatAgent, chatsLogDir } from "./chat-agent";
 import type { ChatRepository } from "./chat-repository";
@@ -72,6 +74,7 @@ export class ChatService {
     branchNameService: BranchNameService,
     private defaultAgentConfig: AgentConfig,
     private workflows: Record<string, WorkflowDefinition>,
+    private repositoryService?: RepositoryService,
   ) {
     this.runtimes = runtimes;
     this.chatAgent = new ChatAgent(runtimes, chatRepository, workflows);
@@ -81,7 +84,16 @@ export class ChatService {
       workflowRunService,
       branchNameService,
       this.chatAgent,
+      workflows,
+      repositoryService,
     );
+  }
+
+  private resolveWorkflows(
+    repositoryPath: string,
+  ): Record<string, WorkflowDefinition> {
+    const configRepo = this.repositoryService?.getConfigForPath(repositoryPath);
+    return filterWorkflowsForRepository(this.workflows, configRepo);
   }
 
   // -- CRUD --
@@ -155,9 +167,10 @@ export class ChatService {
     await appendToLog(chat.log_file_path, { type: "user_input", message });
 
     const isFirstMessage = !chat.claude_session_id;
+    const activeWorkflows = this.resolveWorkflows(chat.repository_path);
     const systemPrompt = buildSystemPrompt(
       chat.repository_path,
-      this.workflows,
+      activeWorkflows,
     );
 
     const prompt = isFirstMessage
@@ -165,7 +178,7 @@ export class ChatService {
       : message;
 
     this.chatAgent
-      .runAgent(chatId, chat, prompt, isFirstMessage, message)
+      .runAgent(chatId, chat, prompt, isFirstMessage, message, activeWorkflows)
       .catch((err) =>
         logger.error({ err, chatId }, "Failed to run chat agent"),
       );
@@ -248,8 +261,16 @@ export class ChatService {
     this.chatRepository.setChatStatus(newChatId, "running", now);
 
     const newChat = this.chatRepository.getChat(newChatId)!;
+    const activeWorkflows = this.resolveWorkflows(chat.repository_path);
     this.chatAgent
-      .runAgent(newChatId, newChat, seedingMessage, false)
+      .runAgent(
+        newChatId,
+        newChat,
+        seedingMessage,
+        false,
+        undefined,
+        activeWorkflows,
+      )
       .catch((err) =>
         logger.error(
           { err, chatId: newChatId },

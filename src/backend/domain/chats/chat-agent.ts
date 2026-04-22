@@ -112,6 +112,7 @@ export class ChatAgent {
     stream: AsyncIterable<AgentMessage>,
     chatId: string,
     logFilePath: string,
+    activeWorkflows?: Record<string, WorkflowDefinition>,
   ): Promise<RawProposal[]> {
     let proposals: RawProposal[] = [];
 
@@ -160,7 +161,9 @@ export class ChatAgent {
               } satisfies RawProposal;
             })
             .filter((p): p is RawProposal => p !== null)
-            .filter((p) => p.workflow_name in this.workflows);
+            .filter(
+              (p) => p.workflow_name in (activeWorkflows ?? this.workflows),
+            );
         }
       }
     }
@@ -174,6 +177,7 @@ export class ChatAgent {
     prompt: string,
     isFirstMessage: boolean,
     userMessage?: string,
+    workflowsOverride?: Record<string, WorkflowDefinition>,
   ): Promise<void> {
     const abortController = new AbortController();
     this.activeAbortControllers.set(chatId, abortController);
@@ -200,7 +204,8 @@ export class ChatAgent {
     }
 
     const runtime = this.selectRuntime(chat.agent_config);
-    const outputFormat = buildChatOutputFormat(this.workflows);
+    const activeWorkflows = workflowsOverride ?? this.workflows;
+    const outputFormat = buildChatOutputFormat(activeWorkflows);
 
     try {
       let stream: AsyncIterable<AgentMessage>;
@@ -240,6 +245,7 @@ export class ChatAgent {
         stream,
         chatId,
         chat.log_file_path,
+        activeWorkflows,
       );
 
       this.activeAbortControllers.delete(chatId);

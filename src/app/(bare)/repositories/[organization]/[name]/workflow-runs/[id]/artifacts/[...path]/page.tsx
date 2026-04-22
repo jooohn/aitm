@@ -4,7 +4,7 @@ import Link from "next/link";
 import { notFound, useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import DownloadIcon from "@/app/components/icons/DownloadIcon";
-import { useWorkflowRun, useWorkflows } from "@/lib/hooks/swr";
+import { useRepository, useWorkflowRun } from "@/lib/hooks/swr";
 import { isNotFoundError } from "@/lib/utils/api";
 import styles from "./ArtifactPage.module.css";
 import ArtifactViewer, {
@@ -26,7 +26,8 @@ export default function ArtifactPage() {
     error: runError,
     isLoading: runLoading,
   } = useWorkflowRun(id);
-  const { data: workflows } = useWorkflows();
+  const { data: repo } = useRepository(organization, name);
+  const workflows = repo?.workflows;
 
   const [content, setContent] = useState<string | null>(null);
   const [contentError, setContentError] = useState<string | null>(null);

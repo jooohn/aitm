@@ -12,6 +12,11 @@ repositories:
     #   tests:
     #     label: "Run tests in watch mode"
     #     command: "npm run test:watch"
+    # Optional: restrict available workflows for this repository.
+    # When set, only the listed workflows can be launched for this repo.
+    # When omitted, all globally defined workflows are available.
+    # workflows:
+    #   - development-flow
 
 # Define named agent profiles. Each entry is a fully-specified agent config.
 # `provider` is required; all other fields are optional.

@@ -12,9 +12,10 @@ import {
   workflowRunListQuerySchema,
 } from "@/backend/api/schemas";
 import { getContainer } from "@/backend/container";
+import { ValidationError } from "@/backend/domain/errors";
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  const { workflowRunService } = getContainer();
+  const { workflowRunService, repositoryService } = getContainer();
   try {
     const bodyResult = await parseJsonBody(
       request,
@@ -53,6 +54,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
     if (!repositoryResult.ok) {
       return repositoryResult.response;
+    }
+
+    const configRepo = repositoryService.getConfigForPath(
+      repositoryResult.data.repository.path,
+    );
+    if (configRepo?.workflows) {
+      const requestedWorkflow = bodyResult.data.workflow_name;
+      if (!configRepo.workflows.includes(requestedWorkflow)) {
+        throw new ValidationError(
+          `Workflow "${requestedWorkflow}" is not allowed for this repository`,
+        );
+      }
     }
 
     const run = await workflowRunService.createWorkflowRun({

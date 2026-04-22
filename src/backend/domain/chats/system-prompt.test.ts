@@ -175,5 +175,54 @@ describe("system-prompt", () => {
       const result = buildSystemPrompt("/repo", {});
       expect(result).toContain("self-contained");
     });
+
+    it("only includes filtered workflows in prompt", () => {
+      const filteredWorkflows: Record<string, WorkflowDefinition> = {
+        "dev-flow": {
+          initial_step: "plan",
+          steps: {
+            plan: {
+              type: "agent",
+              goal: "Plan",
+              transitions: [{ terminal: "success" as const, when: "done" }],
+            },
+          },
+        },
+      };
+      const result = buildSystemPrompt("/repo", filteredWorkflows);
+      expect(result).toContain("dev-flow");
+      expect(result).not.toContain("bugfix-flow");
+    });
+  });
+
+  describe("buildChatOutputFormat with filtered workflows", () => {
+    it("only includes filtered workflow names in enum", () => {
+      const filteredWorkflows: Record<string, WorkflowDefinition> = {
+        "dev-flow": {
+          initial_step: "plan",
+          steps: {
+            plan: {
+              type: "agent",
+              goal: "Plan",
+              transitions: [{ terminal: "success" as const, when: "done" }],
+            },
+          },
+        },
+      };
+      const schema = buildChatOutputFormat(filteredWorkflows).schema as {
+        properties: {
+          proposals: {
+            items: {
+              properties: {
+                workflow_name: { enum?: string[] };
+              };
+            };
+          };
+        };
+      };
+      expect(
+        schema.properties.proposals.items.properties.workflow_name.enum,
+      ).toEqual(["dev-flow"]);
+    });
   });
 });

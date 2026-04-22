@@ -231,6 +231,122 @@ workflows:
     expect(res.status).toBe(404);
   });
 
+  it("returns 422 when workflow is not allowed for repository", async () => {
+    const repoPath = await makeFakeGitRepo();
+    const alias = inferAlias(repoPath);
+    const [organization, name] = alias.split("/");
+    await writeTestConfig(
+      configFile,
+      `repositories:
+  - path: "${repoPath}"
+    workflows:
+      - allowed-flow
+workflows:
+  allowed-flow:
+    initial_step: plan
+    steps:
+      plan:
+        goal: "Write a plan"
+        transitions:
+          - terminal: success
+            when: "done"
+  blocked-flow:
+    initial_step: plan
+    steps:
+      plan:
+        goal: "Another plan"
+        transitions:
+          - terminal: success
+            when: "done"
+`,
+    );
+    initializeContainer();
+    vi.spyOn(getContainer().agentService, "startAgent").mockResolvedValue(
+      undefined,
+    );
+    vi.spyOn(
+      getContainer().worktreeService,
+      "listWorktrees",
+    ).mockImplementation(async (rp) => [
+      {
+        branch: "feat/test",
+        path: rp,
+        is_main: false,
+        is_bare: false,
+        head: "HEAD",
+      },
+    ]);
+
+    const res = await POST(
+      new NextRequest("http://localhost/api/workflow-runs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          organization,
+          name,
+          worktree_branch: "feat/test",
+          workflow_name: "blocked-flow",
+        }),
+      }),
+    );
+    expect(res.status).toBe(422);
+    const body = await res.json();
+    expect(body.error).toContain("not allowed");
+  });
+
+  it("allows workflow when it is in the repository allow list", async () => {
+    const repoPath = await makeFakeGitRepo();
+    const alias = inferAlias(repoPath);
+    const [organization, name] = alias.split("/");
+    await writeTestConfig(
+      configFile,
+      `repositories:
+  - path: "${repoPath}"
+    workflows:
+      - allowed-flow
+workflows:
+  allowed-flow:
+    initial_step: plan
+    steps:
+      plan:
+        goal: "Write a plan"
+        transitions:
+          - terminal: success
+            when: "done"
+`,
+    );
+    initializeContainer();
+    vi.spyOn(getContainer().agentService, "startAgent").mockResolvedValue(
+      undefined,
+    );
+    vi.spyOn(
+      getContainer().worktreeService,
+      "listWorktrees",
+    ).mockImplementation(async (rp) => [
+      {
+        branch: "feat/test",
+        path: rp,
+        is_main: false,
+        is_bare: false,
+        head: "HEAD",
+      },
+    ]);
+
+    const res = await POST(
+      new NextRequest("http://localhost/api/workflow-runs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          organization,
+          name,
+          worktree_branch: "feat/test",
+          workflow_name: "allowed-flow",
+        }),
+      }),
+    );
+    expect(res.status).toBe(201);
+  });
+
   it("returns 404 when workflow is not found in config", async () => {
     const repoPath = await makeFakeGitRepo();
     const alias = inferAlias(repoPath);

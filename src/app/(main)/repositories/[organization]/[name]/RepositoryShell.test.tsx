@@ -60,11 +60,17 @@ vi.mock("@/lib/hooks/useHouseKeepingSyncing", () => ({
 import { SWRTestProvider } from "@/test-swr-provider";
 import RepositoryShell from "./RepositoryShell";
 
+const workflows = {
+  default: { inputs: [] },
+};
+
 const repo = {
   path: "/repos/org/repo",
   name: "repo",
   alias: "org/repo",
   github_url: null,
+  commands: [],
+  workflows,
 };
 
 beforeEach(() => {
@@ -73,9 +79,7 @@ beforeEach(() => {
   mockFetchWorkflowRuns.mockResolvedValue([]);
   mockFetchWorktrees.mockResolvedValue([]);
   mockFetchRepositories.mockResolvedValue([repo]);
-  mockFetchWorkflows.mockResolvedValue({
-    default: { inputs: [] },
-  });
+  mockFetchWorkflows.mockResolvedValue(workflows);
   mockFetchChats.mockResolvedValue([]);
   mockCreateChat.mockResolvedValue({
     id: "chat-new",

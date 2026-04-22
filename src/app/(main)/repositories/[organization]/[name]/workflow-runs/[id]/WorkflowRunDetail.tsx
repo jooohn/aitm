@@ -14,8 +14,8 @@ import StatusBadge from "@/app/components/StatusBadge";
 import {
   swrKeys,
   useArtifactStatuses,
+  useRepository,
   useWorkflowRun,
-  useWorkflows,
 } from "@/lib/hooks/swr";
 import {
   canStopWorkflowRun,
@@ -61,7 +61,8 @@ export default function WorkflowRunDetailView({
   const { data: run } = useWorkflowRun(initial.id, {
     fallbackData: initial,
   });
-  const { data: workflows } = useWorkflows();
+  const { data: repo } = useRepository(initial.organization, initial.name);
+  const workflows = repo?.workflows;
   const { data: artifactStatuses } = useArtifactStatuses(
     initial.id,
     (run ?? initial).status,

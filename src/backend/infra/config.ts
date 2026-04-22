@@ -35,6 +35,7 @@ export interface ConfigRepositoryCommand {
 export interface ConfigRepository {
   path: string;
   commands?: ConfigRepositoryCommand[];
+  workflows?: string[];
 }
 
 export type WorkflowTransition =
@@ -589,6 +590,7 @@ function validateConfig(raw: unknown): ConfigSnapshot {
               commands: z
                 .record(z.string(), repositoryCommandSchema)
                 .optional(),
+              workflows: z.array(z.string()).optional(),
             }),
           ),
           record.repositories,
@@ -605,6 +607,9 @@ function validateConfig(raw: unknown): ConfigSnapshot {
         command: def.command,
       }));
     }
+    if (r.workflows && r.workflows.length > 0) {
+      result.workflows = r.workflows;
+    }
     return result;
   });
 
@@ -619,6 +624,19 @@ function validateConfig(raw: unknown): ConfigSnapshot {
           ),
         )
       : {};
+
+  for (let i = 0; i < repositories.length; i++) {
+    const repo = repositories[i];
+    if (repo.workflows) {
+      for (const wfName of repo.workflows) {
+        if (!(wfName in workflows)) {
+          fail(
+            `repositories[${i}].workflows references unknown workflow "${wfName}"`,
+          );
+        }
+      }
+    }
+  }
 
   return { agents, default_agent, repositories, workflows };
 }

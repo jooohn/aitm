@@ -12,6 +12,7 @@ export interface RepositoryCommandDto {
 export interface RepositoryDetailDto extends RepositoryDto {
   github_url: string | null;
   commands: RepositoryCommandDto[];
+  workflows: Record<string, WorkflowDefinitionDto>;
 }
 
 export interface ValidationResultDto {

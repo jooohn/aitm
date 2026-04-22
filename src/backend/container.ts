@@ -102,6 +102,7 @@ function createContainer(cfg: ConfigSnapshot): Container {
     new BranchNameService(),
     defaultAgentConfig,
     cfg.workflows,
+    repositoryService,
   );
   const houseKeepingService = new HouseKeepingService(
     sessionService,

@@ -1,8 +1,11 @@
+import type { WorkflowDefinition } from "@/backend/infra/config";
 import { logger } from "@/backend/infra/logger";
 import { appendToLog } from "@/backend/utils/log";
 import type { BranchNameService } from "../branch-name";
-import { ConflictError, NotFoundError } from "../errors";
+import { ConflictError, NotFoundError, ValidationError } from "../errors";
+import type { RepositoryService } from "../repositories";
 import type { WorkflowRunService } from "../workflow-runs";
+import { filterWorkflowsForRepository } from "../workflows/filter";
 import type { WorktreeService } from "../worktrees";
 import type { ChatAgent } from "./chat-agent";
 import type { ChatRepository } from "./chat-repository";
@@ -14,6 +17,8 @@ export class ProposalService {
     private workflowRunService: WorkflowRunService,
     private branchNameService: BranchNameService,
     private chatAgent: ChatAgent,
+    private allWorkflows?: Record<string, WorkflowDefinition>,
+    private repositoryService?: RepositoryService,
   ) {}
 
   async approveProposal(
@@ -36,6 +41,21 @@ export class ProposalService {
 
     const workflowName = overrides?.workflow_name ?? proposal.workflow_name;
     const inputs = overrides?.inputs ?? proposal.inputs;
+
+    if (this.allWorkflows && this.repositoryService) {
+      const configRepo = this.repositoryService.getConfigForPath(
+        chat.repository_path,
+      );
+      const allowed = filterWorkflowsForRepository(
+        this.allWorkflows,
+        configRepo,
+      );
+      if (!(workflowName in allowed)) {
+        throw new ValidationError(
+          `Workflow "${workflowName}" is not allowed for this repository`,
+        );
+      }
+    }
 
     const branch = this.branchNameService.generate(workflowName, inputs);
 

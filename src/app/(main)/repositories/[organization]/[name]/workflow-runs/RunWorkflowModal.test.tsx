@@ -31,28 +31,32 @@ vi.mock("next/navigation", () => ({
 
 import RunWorkflowModal from "./RunWorkflowModal";
 
+const workflows = {
+  default: { inputs: [] },
+  "maintain-pr": {
+    inputs: [
+      {
+        name: "pr-url",
+        label: "Pull Request URL",
+        required: true,
+      },
+    ],
+  },
+};
+
 const repo = {
   path: "/repos/org/repo",
   name: "repo",
   alias: "org/repo",
   github_url: null,
+  commands: [],
+  workflows,
 };
 
 beforeEach(() => {
   mockFetchRepository.mockResolvedValue(repo);
   mockFetchRepositories.mockResolvedValue([repo]);
-  mockFetchWorkflows.mockResolvedValue({
-    default: { inputs: [] },
-    "maintain-pr": {
-      inputs: [
-        {
-          name: "pr-url",
-          label: "Pull Request URL",
-          required: true,
-        },
-      ],
-    },
-  });
+  mockFetchWorkflows.mockResolvedValue(workflows);
   mockGenerateBranchName.mockResolvedValue({
     branch: "new-branch",
   });
