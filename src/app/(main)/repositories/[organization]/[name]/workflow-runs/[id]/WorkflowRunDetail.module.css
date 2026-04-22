@@ -1,24 +1,51 @@
 @reference "tailwindcss";
 
 .container {
-  @apply flex flex-col gap-6;
+  @apply flex flex-col gap-6 lg:h-full lg:min-h-0 lg:gap-0;
 }
 
-/* Header */
-.header {
-  @apply flex flex-col items-start gap-4 lg:flex-row lg:items-start lg:justify-between;
+/* Layout */
+.layout {
+  @apply flex flex-col gap-6 lg:flex-row lg:items-stretch lg:gap-0 lg:h-full lg:min-h-0;
 }
 
-.headerLeft {
-  @apply flex flex-col gap-2;
+.main {
+  @apply flex flex-col gap-6 min-w-0 flex-1 lg:overflow-y-auto lg:px-6 lg:py-6;
 }
 
-.headerRight {
-  @apply flex flex-wrap items-start gap-2;
+.sidebar {
+  @apply flex flex-col gap-5 lg:w-80 lg:shrink-0 lg:p-6 lg:min-h-0;
+  border-left: 1px solid var(--border);
 }
 
-.headerActions {
-  @apply flex flex-col items-start gap-2 sm:items-end;
+.sidebarHeader {
+  @apply flex flex-col gap-5;
+}
+
+.sidebarScroll {
+  @apply flex flex-col gap-5 lg:overflow-y-auto lg:min-h-0 lg:flex-1;
+}
+
+@media (max-width: 1023px) {
+  .sidebar {
+    border-left: none;
+  }
+}
+
+.sidebarSection {
+  @apply flex flex-col;
+}
+
+.statusBlock {
+  @apply flex flex-col items-start gap-2;
+}
+
+.actions {
+  @apply flex flex-wrap items-center gap-2;
+}
+
+.actionBlock {
+  @apply flex flex-col items-start gap-1;
 }
 
 /* Action menu */
@@ -30,30 +57,14 @@
   @apply absolute right-0 top-full mt-1 z-10;
 }
 
-.sectionHeader {
-  @apply flex flex-col items-start gap-2 mb-3 sm:flex-row sm:items-center sm:justify-between;
-}
-
-.sectionHeader .sectionHeading {
-  @apply mb-0;
-}
-
-.stopActions {
-  @apply flex flex-wrap items-center gap-2;
-}
-
 .rerunError {
-  @apply text-xs max-w-xs text-right;
+  @apply text-xs max-w-xs;
   color: var(--rust-700);
 }
 
 .title {
   @apply text-xl font-semibold break-words sm:text-2xl;
   color: var(--fg);
-}
-
-.headerMeta {
-  @apply flex flex-wrap items-center gap-2;
 }
 
 .headerTimestamps {
@@ -114,11 +125,11 @@
 }
 
 .detailRow {
-  @apply py-3 flex flex-col gap-1 sm:flex-row sm:gap-8;
+  @apply py-3 flex flex-col gap-1;
 }
 
 .detailLabel {
-  @apply text-sm font-medium sm:w-44 shrink-0;
+  @apply text-sm font-medium;
   color: var(--fg-subtle);
 }
 

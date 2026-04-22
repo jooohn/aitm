@@ -256,8 +256,8 @@ export default function WorkflowRunDetailView({
 
   return (
     <div className={styles.container}>
-      <div className={styles.header}>
-        <div className={styles.headerLeft}>
+      <div className={styles.layout}>
+        <div className={styles.main}>
           <h1 className={styles.title}>
             <Link
               href={`/repositories/${currentRun.organization}/${currentRun.name}/worktrees/${branchToSlug(currentRun.worktree_branch)}`}
@@ -269,206 +269,224 @@ export default function WorkflowRunDetailView({
             {workflowLabel}
             <span className={styles.titleRunId}>({currentRun.id})</span>
           </h1>
-          <div className={styles.headerMeta}>
-            <StatusBadge variant={currentRun.status}>
-              {STATUS_LABELS[currentRun.status]}
-            </StatusBadge>
-            {currentRun.worktree_branch && (
-              <Link
-                href={`/repositories/${currentRun.organization}/${currentRun.name}/workflow-runs/${currentRun.id}/changes`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={styles.viewChangesLink}
-              >
-                View Changes
-              </Link>
-            )}
-            <p className={styles.headerTimestamps}>
-              Created {timeAgo(currentRun.created_at)}, Last modified{" "}
-              {timeAgo(currentRun.updated_at)}
-            </p>
-          </div>
-        </div>
-        <div className={styles.headerRight}>
-          {canStop && (
-            <div className={styles.stopActions}>
-              <Button
-                variant="destructive"
-                onClick={handleStop}
-                disabled={stopping}
-              >
-                {stopping ? "Stopping…" : "Stop Immediately"}
-              </Button>
-              {stopError && <p className={styles.rerunError}>{stopError}</p>}
-            </div>
-          )}
-          {currentRun.status === "failure" && (
-            <div className={styles.headerActions}>
-              <Button
-                onClick={handleRerunFromFailed}
-                disabled={rerunningFromFailed}
-              >
-                {rerunningFromFailed
-                  ? "Re-running…"
-                  : "Re-run from failed step"}
-              </Button>
-              {rerunFromFailedError && (
-                <p className={styles.rerunError}>{rerunFromFailedError}</p>
-              )}
-            </div>
-          )}
-          <div className={styles.menuWrapper} ref={menuRef}>
-            <IconButton
-              size="sm"
-              onClick={() => setMenuOpen((open) => !open)}
-              aria-label="Actions"
-              aria-haspopup="menu"
-              aria-expanded={menuOpen}
-              title="Actions"
+
+          {pullRequestUrl && (
+            <a
+              href={pullRequestUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={styles.prBanner}
             >
-              <EllipsisIcon />
-            </IconButton>
-            {menuOpen && (
-              <MenuSurface className={styles.menu} role="menu">
-                <MenuItem
-                  role="menuitem"
-                  onClick={handleMenuRerun}
-                  disabled={rerunning}
-                >
-                  {rerunning ? "Re-running…" : "Re-run"}
-                </MenuItem>
-                <MenuItem role="menuitem" onClick={openLaunchModal}>
-                  Run another workflow
-                </MenuItem>
-              </MenuSurface>
+              <span className={styles.prBannerText}>
+                Pull request created:{" "}
+                <span className={styles.prBannerUrl}>
+                  {pullRequestUrl.match(/\/pull\/(\d+)/)
+                    ? `${pullRequestUrl.match(/github\.com\/([^/]+\/[^/]+)/)?.[1]}#${pullRequestUrl.match(/\/pull\/(\d+)/)?.[1]}`
+                    : pullRequestUrl}
+                </span>
+                <ExternalLinkIcon size={14} className={styles.prBannerIcon} />
+              </span>
+            </a>
+          )}
+
+          {workflowDefinition && (
+            <section>
+              <h2 className={styles.sectionHeading}>Step diagram</h2>
+              <WorkflowStepDiagram
+                definition={workflowDefinition}
+                stepExecutions={currentRun.step_executions}
+                currentStep={currentRun.current_step}
+                status={currentRun.status}
+                onStepClick={handleStepClick}
+              />
+            </section>
+          )}
+
+          <section>
+            <h2 className={styles.sectionHeading}>Step executions</h2>
+            {currentRun.step_executions.length === 0 ? (
+              <p className={styles.empty}>No step executions yet.</p>
+            ) : (
+              <ul className={styles.executions}>
+                {[...currentRun.step_executions]
+                  .reverse()
+                  .map((execution, index) => (
+                    <StepExecutionItem
+                      key={execution.id}
+                      execution={execution}
+                      isCurrent={index === 0}
+                      runBasePath={
+                        basePath ??
+                        `/repositories/${currentRun.organization}/${currentRun.name}/workflow-runs/${currentRun.id}`
+                      }
+                      runId={currentRun.id}
+                      onResolve={handleResolve}
+                      resolvingId={resolvingId}
+                    />
+                  ))}
+              </ul>
+            )}
+          </section>
+        </div>
+
+        <aside className={styles.sidebar}>
+          <div className={styles.sidebarHeader}>
+            <section className={styles.sidebarSection}>
+              <div className={styles.statusBlock}>
+                <StatusBadge variant={currentRun.status}>
+                  {STATUS_LABELS[currentRun.status]}
+                </StatusBadge>
+                {currentRun.worktree_branch && (
+                  <Link
+                    href={`/repositories/${currentRun.organization}/${currentRun.name}/workflow-runs/${currentRun.id}/changes`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={styles.viewChangesLink}
+                  >
+                    View Changes
+                  </Link>
+                )}
+                <p className={styles.headerTimestamps}>
+                  Created {timeAgo(currentRun.created_at)}, Last modified{" "}
+                  {timeAgo(currentRun.updated_at)}
+                </p>
+              </div>
+            </section>
+
+            <section className={styles.sidebarSection}>
+              <div className={styles.actions}>
+                {canStop && (
+                  <div className={styles.actionBlock}>
+                    <Button
+                      variant="destructive"
+                      onClick={handleStop}
+                      disabled={stopping}
+                    >
+                      {stopping ? "Stopping…" : "Stop Immediately"}
+                    </Button>
+                    {stopError && (
+                      <p className={styles.rerunError}>{stopError}</p>
+                    )}
+                  </div>
+                )}
+                {currentRun.status === "failure" && (
+                  <div className={styles.actionBlock}>
+                    <Button
+                      onClick={handleRerunFromFailed}
+                      disabled={rerunningFromFailed}
+                    >
+                      {rerunningFromFailed
+                        ? "Re-running…"
+                        : "Re-run from failed step"}
+                    </Button>
+                    {rerunFromFailedError && (
+                      <p className={styles.rerunError}>
+                        {rerunFromFailedError}
+                      </p>
+                    )}
+                  </div>
+                )}
+                <div className={styles.menuWrapper} ref={menuRef}>
+                  <IconButton
+                    size="sm"
+                    onClick={() => setMenuOpen((open) => !open)}
+                    aria-label="Actions"
+                    aria-haspopup="menu"
+                    aria-expanded={menuOpen}
+                    title="Actions"
+                  >
+                    <EllipsisIcon />
+                  </IconButton>
+                  {menuOpen && (
+                    <MenuSurface className={styles.menu} role="menu">
+                      <MenuItem
+                        role="menuitem"
+                        onClick={handleMenuRerun}
+                        disabled={rerunning}
+                      >
+                        {rerunning ? "Re-running…" : "Re-run"}
+                      </MenuItem>
+                      <MenuItem role="menuitem" onClick={openLaunchModal}>
+                        Run another workflow
+                      </MenuItem>
+                    </MenuSurface>
+                  )}
+                </div>
+                {rerunError && (
+                  <p className={styles.rerunError}>{rerunError}</p>
+                )}
+              </div>
+            </section>
+          </div>
+
+          <div className={styles.sidebarScroll}>
+            {suggestedWorkflows.length > 0 && (
+              <section className={styles.sidebarSection}>
+                <h2 className={styles.sectionHeading}>
+                  Suggested Next Workflows
+                </h2>
+                <div className={styles.suggestionList}>
+                  {suggestedWorkflows.map((suggestion) => (
+                    <Button
+                      key={suggestion.workflow}
+                      disabled={submittingSuggestion === suggestion.workflow}
+                      onClick={() => handleSuggestionClick(suggestion)}
+                    >
+                      {submittingSuggestion === suggestion.workflow
+                        ? "Starting…"
+                        : `Start ${suggestion.label}`}
+                    </Button>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {existingArtifacts.length > 0 && (
+              <section className={styles.sidebarSection}>
+                <h2 className={styles.sectionHeading}>Artifacts</h2>
+                <ul className={styles.artifactList}>
+                  {existingArtifacts.map((artifact) => (
+                    <li key={artifact.path} className={styles.artifactItem}>
+                      <a
+                        href={`/repositories/${currentRun.organization}/${currentRun.name}/workflow-runs/${currentRun.id}/artifacts/${artifact.path}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={styles.artifactLink}
+                      >
+                        <span>{artifact.name}</span>
+                        <ExternalLinkIcon size={14} />
+                      </a>
+                      {artifact.description && (
+                        <p className={styles.artifactDescription}>
+                          {artifact.description}
+                        </p>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
+            {inputEntries.length > 0 && (
+              <section className={styles.sidebarSection}>
+                <h2 className={styles.sectionHeading}>Inputs</h2>
+                <dl className={styles.details}>
+                  {inputEntries.map((entry) => (
+                    <div key={entry.key} className={styles.detailRow}>
+                      <dt className={styles.detailLabel}>
+                        {inputLabelMap.get(entry.key) ?? entry.key}
+                      </dt>
+                      <dd className={styles.detailValue}>
+                        <CollapsibleText>{entry.value}</CollapsibleText>
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              </section>
             )}
           </div>
-          {rerunError && <p className={styles.rerunError}>{rerunError}</p>}
-        </div>
+        </aside>
       </div>
-
-      {pullRequestUrl && (
-        <a
-          href={pullRequestUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={styles.prBanner}
-        >
-          <span className={styles.prBannerText}>
-            Pull request created:{" "}
-            <span className={styles.prBannerUrl}>
-              {pullRequestUrl.match(/\/pull\/(\d+)/)
-                ? `${pullRequestUrl.match(/github\.com\/([^/]+\/[^/]+)/)?.[1]}#${pullRequestUrl.match(/\/pull\/(\d+)/)?.[1]}`
-                : pullRequestUrl}
-            </span>
-            <ExternalLinkIcon size={14} className={styles.prBannerIcon} />
-          </span>
-        </a>
-      )}
-
-      {suggestedWorkflows.length > 0 && (
-        <section>
-          <div className={styles.sectionHeader}>
-            <h2 className={styles.sectionHeading}>Suggested Next Workflows</h2>
-          </div>
-          <div className={styles.suggestionList}>
-            {suggestedWorkflows.map((suggestion) => (
-              <Button
-                key={suggestion.workflow}
-                disabled={submittingSuggestion === suggestion.workflow}
-                onClick={() => handleSuggestionClick(suggestion)}
-              >
-                {submittingSuggestion === suggestion.workflow
-                  ? "Starting…"
-                  : `Start ${suggestion.label}`}
-              </Button>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {inputEntries.length > 0 && (
-        <section>
-          <h2 className={styles.sectionHeading}>Inputs</h2>
-          <dl className={styles.details}>
-            {inputEntries.map((entry) => (
-              <div key={entry.key} className={styles.detailRow}>
-                <dt className={styles.detailLabel}>
-                  {inputLabelMap.get(entry.key) ?? entry.key}
-                </dt>
-                <dd className={styles.detailValue}>
-                  <CollapsibleText>{entry.value}</CollapsibleText>
-                </dd>
-              </div>
-            ))}
-          </dl>
-        </section>
-      )}
-
-      {existingArtifacts.length > 0 && (
-        <section>
-          <h2 className={styles.sectionHeading}>Artifacts</h2>
-          <ul className={styles.artifactList}>
-            {existingArtifacts.map((artifact) => (
-              <li key={artifact.path} className={styles.artifactItem}>
-                <a
-                  href={`/repositories/${currentRun.organization}/${currentRun.name}/workflow-runs/${currentRun.id}/artifacts/${artifact.path}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={styles.artifactLink}
-                >
-                  <span>{artifact.name}</span>
-                  <ExternalLinkIcon size={14} />
-                </a>
-                {artifact.description && (
-                  <p className={styles.artifactDescription}>
-                    {artifact.description}
-                  </p>
-                )}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {workflowDefinition && (
-        <section>
-          <h2 className={styles.sectionHeading}>Step diagram</h2>
-          <WorkflowStepDiagram
-            definition={workflowDefinition}
-            stepExecutions={currentRun.step_executions}
-            currentStep={currentRun.current_step}
-            status={currentRun.status}
-            onStepClick={handleStepClick}
-          />
-        </section>
-      )}
-
-      <section>
-        <h2 className={styles.sectionHeading}>Step executions</h2>
-        {currentRun.step_executions.length === 0 ? (
-          <p className={styles.empty}>No step executions yet.</p>
-        ) : (
-          <ul className={styles.executions}>
-            {[...currentRun.step_executions]
-              .reverse()
-              .map((execution, index) => (
-                <StepExecutionItem
-                  key={execution.id}
-                  execution={execution}
-                  isCurrent={index === 0}
-                  runBasePath={
-                    basePath ??
-                    `/repositories/${currentRun.organization}/${currentRun.name}/workflow-runs/${currentRun.id}`
-                  }
-                  runId={currentRun.id}
-                  onResolve={handleResolve}
-                  resolvingId={resolvingId}
-                />
-              ))}
-          </ul>
-        )}
-      </section>
 
       {showLaunchModal && (
         <RunWorkflowModal
