@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import StatusBadge from "@/app/components/StatusBadge";
+import StatusBadge, {
+  type StatusBadgeVariant,
+} from "@/app/components/StatusBadge";
 import type { StepExecution } from "@/lib/utils/api";
 import type { TransitionDecisionDto } from "@/shared/contracts/api";
 import styles from "./WorkflowRunDetail.module.css";
@@ -13,6 +15,25 @@ const STATUS_LABELS: Record<StepExecution["status"], string> = {
   success: "Success",
   failure: "Failure",
 };
+
+function getStatusDisplay(execution: StepExecution): {
+  label: string;
+  variant: StatusBadgeVariant;
+} {
+  if (execution.status === "success") {
+    const transition = execution.transition_decision?.transition;
+    if (transition === "success" || transition === "failure") {
+      // Terminal execution — keep original status styling
+      return {
+        label: transition === "success" ? "Successful" : STATUS_LABELS.success,
+        variant: "success",
+      };
+    }
+    // Non-terminal: completed, neutral styling
+    return { label: "Completed", variant: "completed" };
+  }
+  return { label: STATUS_LABELS[execution.status], variant: execution.status };
+}
 
 interface StepExecutionItemProps {
   execution: StepExecution;
@@ -39,6 +60,8 @@ export default function StepExecutionItem({
   resolvingId,
 }: StepExecutionItemProps) {
   const [approvalReason, setApprovalReason] = useState("");
+  const { label: statusLabel, variant: statusVariant } =
+    getStatusDisplay(execution);
   const decision: TransitionDecisionDto | null = execution.transition_decision;
   const outputFilename = execution.output_file_path
     ? getOutputFilename(execution.output_file_path)
@@ -58,9 +81,7 @@ export default function StepExecutionItem({
     >
       <div className={styles.executionHeader}>
         <span className={styles.stateName}>{execution.step}</span>
-        <StatusBadge variant={execution.status}>
-          {STATUS_LABELS[execution.status]}
-        </StatusBadge>
+        <StatusBadge variant={statusVariant}>{statusLabel}</StatusBadge>
       </div>
       <div className={styles.executionMeta}>
         {execution.session_id && (
