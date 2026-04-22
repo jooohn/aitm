@@ -2,6 +2,7 @@ import type { ConfigRepository } from "@/backend/infra/config";
 import type { EventBus } from "@/backend/infra/event-bus";
 import { logger } from "@/backend/infra/logger";
 import type { SessionService } from "../sessions";
+import type { WorkflowRunService } from "../workflow-runs";
 import type { WorktreeService } from "../worktrees";
 
 const DEFAULT_INTERVAL_MS = 300_000; // 5 minutes
@@ -12,6 +13,10 @@ export class HouseKeepingService {
   constructor(
     private sessionService: SessionService,
     private worktreeService: WorktreeService,
+    private workflowRunService: Pick<
+      WorkflowRunService,
+      "cleanupTerminalMainBranchRuns"
+    >,
     private configRepositories: ConfigRepository[],
     private eventBus: EventBus,
   ) {}
@@ -86,6 +91,15 @@ export class HouseKeepingService {
         }
       } catch (err) {
         logger.error({ err, repoPath }, "Failed to pull main branch");
+      }
+
+      try {
+        await this.workflowRunService.cleanupTerminalMainBranchRuns(repoPath);
+      } catch (err) {
+        logger.error(
+          { err, repoPath },
+          "Failed to cleanup terminal main-branch runs",
+        );
       }
     } finally {
       this.endSync();

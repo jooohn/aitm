@@ -1,4 +1,4 @@
-import { mkdir, readFile, stat, writeFile } from "fs/promises";
+import { access, mkdir, readFile, stat, writeFile } from "fs/promises";
 import { tmpdir } from "os";
 import { dirname, join } from "path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -34,6 +34,7 @@ describe("WorkflowRunMaterializer", () => {
   let mockGitExcludeManager: {
     resolveGitInfoDir: ReturnType<typeof vi.fn>;
     ensureExcludeEntry: ReturnType<typeof vi.fn>;
+    removeExcludeEntry: ReturnType<typeof vi.fn>;
   };
 
   beforeEach(async () => {
@@ -57,6 +58,7 @@ describe("WorkflowRunMaterializer", () => {
         .fn()
         .mockResolvedValue(join(tempDir, ".git", "info")),
       ensureExcludeEntry: vi.fn().mockResolvedValue(undefined),
+      removeExcludeEntry: vi.fn().mockResolvedValue(undefined),
     };
 
     materializer = new WorkflowRunMaterializer(
@@ -226,6 +228,44 @@ describe("WorkflowRunMaterializer", () => {
       expect(
         mockWorkflowRunRepository.backfillLegacyCommandOutput,
       ).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("cleanupWorkflowRunDir", () => {
+    it("removes the run directory and exclude entry", async () => {
+      const runDir = join(tempDir, ".aitm", "runs", "run-1");
+      await mkdir(runDir, { recursive: true });
+      await writeFile(join(runDir, "some-file.txt"), "data", "utf8");
+
+      await materializer.cleanupWorkflowRunDir("run-1", worktree);
+
+      await expect(access(runDir)).rejects.toThrow();
+      expect(mockGitExcludeManager.removeExcludeEntry).toHaveBeenCalledWith(
+        join(tempDir, ".git", "info"),
+        "/.aitm/runs/run-1/",
+      );
+    });
+
+    it("is idempotent when called twice", async () => {
+      const runDir = join(tempDir, ".aitm", "runs", "run-1");
+      await mkdir(runDir, { recursive: true });
+
+      await materializer.cleanupWorkflowRunDir("run-1", worktree);
+      await materializer.cleanupWorkflowRunDir("run-1", worktree);
+
+      await expect(access(runDir)).rejects.toThrow();
+      expect(mockGitExcludeManager.removeExcludeEntry).toHaveBeenCalledTimes(2);
+    });
+
+    it("does not throw when directory does not exist", async () => {
+      await expect(
+        materializer.cleanupWorkflowRunDir("run-nonexistent", worktree),
+      ).resolves.toBeUndefined();
+
+      expect(mockGitExcludeManager.removeExcludeEntry).toHaveBeenCalledWith(
+        join(tempDir, ".git", "info"),
+        "/.aitm/runs/run-nonexistent/",
+      );
     });
   });
 });

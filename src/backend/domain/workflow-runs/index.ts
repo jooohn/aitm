@@ -128,6 +128,15 @@ export class WorkflowRunService {
       ),
     );
 
+    eventBus.on("workflow-run.status-changed", (event) => {
+      if (event.status !== "success" && event.status !== "failure") return;
+      void this.cleanupWorkflowRunDir(event.workflowRunId).catch((err) =>
+        logger.error(
+          { err, workflowRunId: event.workflowRunId },
+          "Failed to cleanup workflow run directory",
+        ),
+      );
+    });
     eventBus.on("session.status-changed", (event) => {
       void this.workflowStateMachine
         .handleSessionStatusChanged(event)
@@ -345,5 +354,55 @@ export class WorkflowRunService {
   ): Promise<WorkflowRunWithExecutions | undefined> {
     await this.materializer.ensureLegacyCommandOutputFiles(id);
     return this.getWorkflowRun(id);
+  }
+
+  async cleanupTerminalMainBranchRuns(repoPath: string): Promise<void> {
+    const terminalRuns = [
+      ...this.workflowRunRepository.listWorkflowRuns({
+        repository_path: repoPath,
+        status: "success",
+      }),
+      ...this.workflowRunRepository.listWorkflowRuns({
+        repository_path: repoPath,
+        status: "failure",
+      }),
+    ];
+
+    const mainBranchRuns = terminalRuns.filter(
+      (run) => this.workflows[run.workflow_name]?.runs_on === "main",
+    );
+
+    if (mainBranchRuns.length === 0) return;
+
+    const worktrees = await this.worktreeService.listWorktrees(repoPath);
+    const mainWorktree = worktrees.find((w) => w.is_main);
+    if (!mainWorktree) return;
+
+    for (const run of mainBranchRuns) {
+      try {
+        await this.materializer.cleanupWorkflowRunDir(run.id, mainWorktree);
+      } catch (err) {
+        logger.error(
+          { err, workflowRunId: run.id },
+          "Failed to cleanup workflow run directory",
+        );
+      }
+    }
+  }
+
+  private async cleanupWorkflowRunDir(workflowRunId: string): Promise<void> {
+    const run = this.workflowRunRepository.getWorkflowRunById(workflowRunId);
+    if (!run) return;
+
+    const workflow = this.workflows[run.workflow_name];
+    if (workflow?.runs_on !== "main") return;
+
+    const worktrees = await this.worktreeService.listWorktrees(
+      run.repository_path,
+    );
+    const mainWorktree = worktrees.find((w) => w.is_main);
+    if (!mainWorktree) return;
+
+    await this.materializer.cleanupWorkflowRunDir(workflowRunId, mainWorktree);
   }
 }

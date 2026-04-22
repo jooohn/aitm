@@ -15,6 +15,9 @@ describe("HouseKeepingService.runHouseKeeping", () => {
     listWorktrees: ReturnType<typeof vi.fn>;
     pullMainBranchIfOutdated: ReturnType<typeof vi.fn>;
   };
+  let workflowRunService: {
+    cleanupTerminalMainBranchRuns: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(() => {
     eventBus = new EventBus();
@@ -34,6 +37,9 @@ describe("HouseKeepingService.runHouseKeeping", () => {
         },
       ]),
       pullMainBranchIfOutdated: vi.fn().mockResolvedValue("up-to-date"),
+    };
+    workflowRunService = {
+      cleanupTerminalMainBranchRuns: vi.fn().mockResolvedValue(undefined),
     };
   });
 
@@ -62,6 +68,7 @@ describe("HouseKeepingService.runHouseKeeping", () => {
     const service = new HouseKeepingService(
       sessionService as never,
       worktreeService as never,
+      workflowRunService as never,
       [],
       eventBus,
     );
@@ -93,6 +100,7 @@ describe("HouseKeepingService.runHouseKeeping", () => {
     const service = new HouseKeepingService(
       sessionService as never,
       worktreeService as never,
+      workflowRunService as never,
       [],
       eventBus,
     );
@@ -133,6 +141,7 @@ describe("HouseKeepingService.runHouseKeeping", () => {
     const service = new HouseKeepingService(
       sessionService as never,
       worktreeService as never,
+      workflowRunService as never,
       [],
       eventBus,
     );
@@ -153,6 +162,7 @@ describe("HouseKeepingService.runHouseKeeping", () => {
     const service = new HouseKeepingService(
       sessionService as never,
       worktreeService as never,
+      workflowRunService as never,
       [],
       eventBus,
     );
@@ -173,6 +183,7 @@ describe("HouseKeepingService.runHouseKeeping", () => {
     const service = new HouseKeepingService(
       sessionService as never,
       worktreeService as never,
+      workflowRunService as never,
       [],
       eventBus,
     );
@@ -199,6 +210,7 @@ describe("HouseKeepingService.runHouseKeeping", () => {
     const service = new HouseKeepingService(
       sessionService as never,
       worktreeService as never,
+      workflowRunService as never,
       [],
       eventBus,
     );
@@ -229,6 +241,7 @@ describe("HouseKeepingService.runHouseKeeping", () => {
     const service = new HouseKeepingService(
       sessionService as never,
       worktreeService as never,
+      workflowRunService as never,
       [],
       eventBus,
     );
@@ -254,6 +267,7 @@ describe("HouseKeepingService.runHouseKeeping", () => {
     const service = new HouseKeepingService(
       sessionService as never,
       worktreeService as never,
+      workflowRunService as never,
       repoPaths.map((path) => ({ path })),
       eventBus,
     );
@@ -270,5 +284,42 @@ describe("HouseKeepingService.runHouseKeeping", () => {
       2,
       repoPaths[1],
     );
+  });
+
+  it("calls cleanupTerminalMainBranchRuns during house-keeping", async () => {
+    const service = new HouseKeepingService(
+      sessionService as never,
+      worktreeService as never,
+      workflowRunService as never,
+      [],
+      eventBus,
+    );
+
+    await service.runHouseKeeping(repoPath);
+
+    expect(
+      workflowRunService.cleanupTerminalMainBranchRuns,
+    ).toHaveBeenCalledWith(repoPath);
+  });
+
+  it("continues house-keeping when cleanupTerminalMainBranchRuns fails", async () => {
+    workflowRunService.cleanupTerminalMainBranchRuns.mockRejectedValue(
+      new Error("cleanup failed"),
+    );
+
+    const service = new HouseKeepingService(
+      sessionService as never,
+      worktreeService as never,
+      workflowRunService as never,
+      [],
+      eventBus,
+    );
+
+    await service.runHouseKeeping(repoPath);
+
+    expect(
+      workflowRunService.cleanupTerminalMainBranchRuns,
+    ).toHaveBeenCalledWith(repoPath);
+    // Should not throw — error is caught internally
   });
 });
