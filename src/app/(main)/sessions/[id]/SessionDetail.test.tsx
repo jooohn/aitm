@@ -1,5 +1,12 @@
 // @vitest-environment jsdom
-import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
 import type { Session } from "@/lib/utils/api";
@@ -73,18 +80,21 @@ afterEach(() => {
 });
 
 describe("SessionDetail – goal section", () => {
-  it("renders goal text in the Goal section", () => {
+  it("keeps the Goal collapsed by default and reveals goal text on expand", () => {
     const session = makeSession({ goal: "Build the feature" });
     render(<SessionDetail session={session} />);
+    expect(screen.queryByText("Build the feature")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Goal/ }));
     expect(screen.getByText("Build the feature")).toBeInTheDocument();
   });
 
-  it("renders goal text in the goal section", () => {
+  it("renders goal text in the goal section when expanded", () => {
     const session = makeSession({
       goal: "The full goal text",
       step_name: "Implementing",
     });
     render(<SessionDetail session={session} />);
+    fireEvent.click(screen.getByRole("button", { name: /Goal/ }));
     expect(screen.getByText("The full goal text")).toBeInTheDocument();
   });
 });
@@ -116,6 +126,9 @@ describe("SessionDetail – status and updates", () => {
       />,
     );
 
+    // awaiting_input renders the reply textarea
+    expect(screen.getByRole("textbox")).toBeInTheDocument();
+
     rerender(
       <SessionDetail
         session={makeSession({
@@ -127,9 +140,10 @@ describe("SessionDetail – status and updates", () => {
       />,
     );
 
+    // failure hides the reply textarea
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Goal/ }));
     expect(screen.getByText("Second goal")).toBeInTheDocument();
-    expect(screen.getByText("Failed")).toBeInTheDocument();
-    expect(screen.queryByText("Awaiting input")).not.toBeInTheDocument();
   });
 
   it("renders replayed user input with distinct styling", async () => {

@@ -5,9 +5,25 @@ import { useCallback, useEffect, useState } from "react";
 import SessionDetail from "@/app/(main)/sessions/[id]/SessionDetail";
 import IconButton from "@/app/components/IconButton";
 import CloseIcon from "@/app/components/icons/CloseIcon";
+import type { StatusBadgeVariant } from "@/app/components/StatusBadge";
+import StatusBadge from "@/app/components/StatusBadge";
 import { useSession } from "@/lib/hooks/swr";
-import { isNotFoundError } from "@/lib/utils/api";
+import { isNotFoundError, type SessionStatus } from "@/lib/utils/api";
 import styles from "./SessionDrawer.module.css";
+
+const STATUS_LABELS: Record<SessionStatus, string> = {
+  running: "Running",
+  awaiting_input: "Awaiting input",
+  success: "Succeeded",
+  failure: "Failed",
+};
+
+const STATUS_VARIANT: Record<SessionStatus, StatusBadgeVariant> = {
+  running: "running",
+  awaiting_input: "awaiting",
+  success: "success",
+  failure: "failure",
+};
 
 export default function SessionDrawer() {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -77,9 +93,14 @@ export default function SessionDrawer() {
         className={`${styles.drawer} ${closing ? styles.drawerClosing : ""}`}
       >
         <div className={styles.drawerHeader}>
-          <h2 className={styles.drawerTitle}>
-            {session.step_name ?? `Session ${session.id.slice(0, 8)}`}
-          </h2>
+          <div className={styles.drawerHeaderLeft}>
+            <h2 className={styles.drawerTitle}>
+              {session.step_name ?? `Session ${session.id.slice(0, 8)}`}
+            </h2>
+            <StatusBadge variant={STATUS_VARIANT[session.status]}>
+              {STATUS_LABELS[session.status]}
+            </StatusBadge>
+          </div>
           <IconButton
             size="sm"
             onClick={handleClose}

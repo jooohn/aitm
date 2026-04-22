@@ -99,7 +99,7 @@ describe("mobile layout plan", () => {
       "@apply relative w-full h-full flex flex-col sm:max-w-2xl;",
     );
     expect(drawerCss).toContain(
-      "@apply flex items-center justify-between px-4 py-4 shrink-0 sm:px-6;",
+      "@apply flex items-center justify-between gap-3 px-4 py-4 shrink-0 sm:px-6;",
     );
     expect(drawerCss).toContain(
       "@apply flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-6;",

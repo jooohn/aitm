@@ -19,8 +19,12 @@
 }
 
 .drawerHeader {
-  @apply flex items-center justify-between px-4 py-4 shrink-0 sm:px-6;
+  @apply flex items-center justify-between gap-3 px-4 py-4 shrink-0 sm:px-6;
   border-bottom: 1px solid var(--border);
+}
+
+.drawerHeaderLeft {
+  @apply flex items-center gap-3 min-w-0;
 }
 
 .drawerTitle {

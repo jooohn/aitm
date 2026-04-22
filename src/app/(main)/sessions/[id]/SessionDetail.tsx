@@ -4,14 +4,8 @@ import { useEffect, useState } from "react";
 import { mutate } from "swr";
 import ChatTranscript from "@/app/components/ChatTranscript/ChatTranscript";
 import SendIcon from "@/app/components/icons/SendIcon";
-import type { StatusBadgeVariant } from "@/app/components/StatusBadge";
-import StatusBadge from "@/app/components/StatusBadge";
 import { swrKeys, useSession } from "@/lib/hooks/swr";
-import {
-  replyToSession,
-  type Session,
-  type SessionStatus,
-} from "@/lib/utils/api";
+import { replyToSession, type Session } from "@/lib/utils/api";
 import type { OutputItem } from "@/lib/utils/outputItem";
 import { appendWithGrouping } from "@/lib/utils/outputItemGrouping";
 import { parseLogEntry } from "@/lib/utils/parseLogEntry";
@@ -21,20 +15,6 @@ interface Props {
   session: Session;
   onSessionUpdated?: (session: Session) => void;
 }
-
-const STATUS_LABELS: Record<SessionStatus, string> = {
-  running: "Running",
-  awaiting_input: "Awaiting input",
-  success: "Succeeded",
-  failure: "Failed",
-};
-
-const SESSION_BADGE_VARIANT: Record<SessionStatus, StatusBadgeVariant> = {
-  running: "running",
-  awaiting_input: "awaiting",
-  success: "success",
-  failure: "failure",
-};
 
 export default function SessionDetail({
   session: initial,
@@ -47,6 +27,7 @@ export default function SessionDetail({
   const [replyText, setReplyText] = useState("");
   const [replying, setReplying] = useState(false);
   const [replyError, setReplyError] = useState<string | null>(null);
+  const [goalExpanded, setGoalExpanded] = useState(false);
 
   // Sync prop changes to SWR cache
   useEffect(() => {
@@ -131,62 +112,58 @@ export default function SessionDetail({
 
   return (
     <div className={styles.container}>
-      <div className={styles.header}>
-        <div className={styles.headerLeft}>
-          <StatusBadge variant={SESSION_BADGE_VARIANT[currentSession.status]}>
-            {STATUS_LABELS[currentSession.status]}
-          </StatusBadge>
-        </div>
-      </div>
-
-      <section>
-        <h2 className={styles.sectionHeading}>Goal</h2>
-        <div className={styles.goalPane}>{currentSession.goal}</div>
-      </section>
-
-      <section>
-        <h2 className={styles.sectionHeading}>Session</h2>
-        <ChatTranscript
-          items={outputItems}
-          isRunning={currentSession.status === "running"}
-          className={styles.output}
+      <section className={styles.goalSection}>
+        <button
+          type="button"
+          className={styles.goalToggle}
+          aria-expanded={goalExpanded}
+          onClick={() => setGoalExpanded((v) => !v)}
         >
-          {currentSession.status === "awaiting_input" && (
-            <form onSubmit={handleReply} className={styles.replyForm}>
-              {clarifyingQuestion && (
-                <p className={styles.clarifyingQuestion}>
-                  {clarifyingQuestion}
-                </p>
-              )}
-              <div className={styles.replyInputWrapper}>
-                <textarea
-                  className={styles.replyInput}
-                  value={replyText}
-                  onChange={(e) => setReplyText(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && e.metaKey) {
-                      e.preventDefault();
-                      handleReply(e);
-                    }
-                  }}
-                  placeholder="Type your reply…"
-                  disabled={replying}
-                  rows={3}
-                />
-                <button
-                  type="submit"
-                  className={styles.replyButton}
-                  disabled={replying || !replyText.trim()}
-                  aria-label="Send reply"
-                >
-                  <SendIcon size={14} />
-                </button>
-              </div>
-              {replyError && <p className={styles.error}>{replyError}</p>}
-            </form>
-          )}
-        </ChatTranscript>
+          <span className={styles.goalChevron}>{goalExpanded ? "▼" : "▶"}</span>
+          <span className={styles.sectionHeading}>Goal</span>
+        </button>
+        {goalExpanded && (
+          <div className={styles.goalPane}>{currentSession.goal}</div>
+        )}
       </section>
+
+      <ChatTranscript
+        items={outputItems}
+        isRunning={currentSession.status === "running"}
+      >
+        {currentSession.status === "awaiting_input" && (
+          <form onSubmit={handleReply} className={styles.replyForm}>
+            {clarifyingQuestion && (
+              <p className={styles.clarifyingQuestion}>{clarifyingQuestion}</p>
+            )}
+            <div className={styles.replyInputWrapper}>
+              <textarea
+                className={styles.replyInput}
+                value={replyText}
+                onChange={(e) => setReplyText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && e.metaKey) {
+                    e.preventDefault();
+                    handleReply(e);
+                  }
+                }}
+                placeholder="Type your reply…"
+                disabled={replying}
+                rows={3}
+              />
+              <button
+                type="submit"
+                className={styles.replyButton}
+                disabled={replying || !replyText.trim()}
+                aria-label="Send reply"
+              >
+                <SendIcon size={14} />
+              </button>
+            </div>
+            {replyError && <p className={styles.error}>{replyError}</p>}
+          </form>
+        )}
+      </ChatTranscript>
 
       {currentSession.terminal_attach_command && (
         <dl className={styles.details}>

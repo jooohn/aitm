@@ -1,21 +1,29 @@
 @reference "tailwindcss";
 
 .container {
-  @apply flex flex-col gap-6;
+  @apply flex flex-col gap-4;
 }
 
-/* Header */
-.header {
-  @apply flex flex-col items-start gap-4 sm:flex-row sm:justify-between;
-}
-
-.headerLeft {
+/* Goal (collapsible) */
+.goalSection {
   @apply flex flex-col gap-2;
 }
 
-.goal {
-  @apply text-xl font-semibold break-words sm:text-2xl;
+.goalToggle {
+  @apply flex items-center gap-2 text-left cursor-pointer transition-colors w-fit;
+  color: var(--fg-subtle);
+}
+
+.goalToggle:hover {
   color: var(--fg);
+}
+
+.goalChevron {
+  @apply text-[10px] leading-none shrink-0;
+}
+
+.sectionHeading {
+  @apply text-sm font-semibold uppercase tracking-wide;
 }
 
 .goalPane {
@@ -55,17 +63,6 @@
   border-radius: var(--radius-sm);
   background: var(--paper-1);
   color: var(--fg-muted);
-}
-
-/* Section headings */
-.sectionHeading {
-  @apply text-sm font-semibold uppercase tracking-wide mb-2;
-  color: var(--fg-subtle);
-}
-
-/* Output pane */
-.output {
-  @apply h-96;
 }
 
 /* Reply form */
