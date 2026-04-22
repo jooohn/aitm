@@ -21,7 +21,6 @@ const NODE_HEIGHT = 44;
 const LAYER_GAP = 180;
 const ROW_GAP = 64;
 const PADDING = 24;
-const TERMINAL_RADIUS = 30;
 const CORNER_RADIUS = 8;
 const BACK_EDGE_LANE_GAP = 20;
 const SAME_LAYER_BACK_OFFSET = 20;
@@ -41,9 +40,6 @@ export default function WorkflowStepDiagram({
   const graph = buildGraph(definition);
   const layout = computeLayout(graph);
 
-  // Build a lookup for node types
-  const nodeTypeMap = new Map(graph.nodes.map((n) => [n.id, n.type]));
-
   // Determine which steps have been executed
   const executedSteps = new Set(stepExecutions.map((e) => e.step));
 
@@ -62,10 +58,12 @@ export default function WorkflowStepDiagram({
     }
   }
 
-  // Check if success terminal node was reached
-  if (status === "success") {
-    executedSteps.add("success");
-  }
+  // Build a set of steps that transitioned to "success" (terminal successful steps)
+  const terminalSuccessSteps = new Set(
+    stepExecutions
+      .filter((e) => e.transition_decision?.transition === "success")
+      .map((e) => e.step),
+  );
 
   // Pre-compute back-edge lanes for same-row cross-layer back edges (⊓-shape above)
   const crossLayerBackEdges: Array<{
@@ -354,17 +352,9 @@ export default function WorkflowStepDiagram({
           }
 
           // Forward edge: compute border offsets
-          const fromOffset =
-            nodeTypeMap.get(edge.from) === "terminal"
-              ? TERMINAL_RADIUS
-              : NODE_WIDTH / 2;
-          const toOffset =
-            nodeTypeMap.get(edge.to) === "terminal"
-              ? TERMINAL_RADIUS
-              : NODE_WIDTH / 2;
-          const startX = from.x + fromOffset;
+          const startX = from.x + NODE_WIDTH / 2;
           const startY = from.y + fromPort.dy;
-          const endX = to.x - toOffset;
+          const endX = to.x - NODE_WIDTH / 2;
           const endY = to.y + toPort.dy;
 
           // Forward edge: orthogonal routing
@@ -412,36 +402,6 @@ export default function WorkflowStepDiagram({
           const isExecuted = executedSteps.has(node.id);
           const isCurrent = currentStep === node.id;
 
-          if (node.type === "terminal") {
-            return (
-              <g
-                key={node.id}
-                data-node-id={node.id}
-                data-executed={isExecuted ? "true" : "false"}
-                data-current="false"
-              >
-                <circle
-                  cx={center.x}
-                  cy={center.y}
-                  r={TERMINAL_RADIUS}
-                  className={`${styles.terminalNode} ${
-                    node.terminal === "success"
-                      ? styles.terminalSuccess
-                      : styles.terminalFailure
-                  } ${isExecuted ? styles.nodeExecuted : ""}`}
-                />
-                <text
-                  x={center.x}
-                  y={center.y + 5}
-                  textAnchor="middle"
-                  className={styles.terminalLabel}
-                >
-                  {node.terminal === "success" ? "Success" : "Failure"}
-                </text>
-              </g>
-            );
-          }
-
           const x = center.x - NODE_WIDTH / 2;
           const y = center.y - NODE_HEIGHT / 2;
           const isFailed = status === "failure" && currentStep === node.id;
@@ -455,13 +415,17 @@ export default function WorkflowStepDiagram({
               ? styles.nodeFailure
               : nodeStatus === "awaiting"
                 ? styles.nodeAwaiting
-                : nodeStatus === "success"
+                : nodeStatus === "success" &&
+                    terminalSuccessSteps.has(node.id) &&
+                    status === "success"
                   ? styles.nodeSuccess
-                  : isCurrent
-                    ? styles.nodeCurrent
-                    : isExecuted
-                      ? styles.nodeExecuted
-                      : styles.nodeDimmed;
+                  : nodeStatus === "success"
+                    ? styles.nodeExecuted
+                    : isCurrent
+                      ? styles.nodeCurrent
+                      : isExecuted
+                        ? styles.nodeExecuted
+                        : styles.nodeDimmed;
 
           const nodeStatusAttr: Record<string, string> = {};
           if (nodeStatus) {

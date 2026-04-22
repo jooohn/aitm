@@ -77,7 +77,7 @@ describe("WorkflowStepDiagram", () => {
     expect(screen.getByText("implement")).toBeInTheDocument();
   });
 
-  it("renders only success terminal node (no failure terminal)", () => {
+  it("does not render terminal nodes", () => {
     render(
       <WorkflowStepDiagram
         definition={linearWorkflow()}
@@ -87,11 +87,8 @@ describe("WorkflowStepDiagram", () => {
       />,
     );
 
-    const svg = document.querySelector("svg");
-    expect(svg).not.toBeNull();
-
-    // Only success terminal should be rendered, not failure
-    expect(screen.getByText("Success")).toBeInTheDocument();
+    // No terminal nodes should be rendered
+    expect(screen.queryByText("Success")).not.toBeInTheDocument();
     expect(screen.queryByText("Failure")).not.toBeInTheDocument();
   });
 
@@ -206,7 +203,7 @@ describe("WorkflowStepDiagram", () => {
     expect(failureEdge).toBeNull();
   });
 
-  it("marks terminal node as executed when run is terminal", () => {
+  it("applies success style to terminal step when run succeeds", () => {
     const executions = [
       makeExecution({
         step: "plan",
@@ -235,11 +232,21 @@ describe("WorkflowStepDiagram", () => {
       />,
     );
 
-    const successNode = container.querySelector('[data-node-id="success"]');
-    expect(successNode?.getAttribute("data-executed")).toBe("true");
+    // No terminal "success" node should exist
+    expect(container.querySelector('[data-node-id="success"]')).toBeNull();
+
+    // The implement step (which transitioned to success) should have success status
+    const implementNode = container.querySelector('[data-node-id="implement"]');
+    expect(implementNode?.getAttribute("data-node-status")).toBe("success");
+    expect(implementNode?.getAttribute("data-executed")).toBe("true");
+
+    // The plan step should be executed but with neutral styling (non-terminal)
+    const planNode = container.querySelector('[data-node-id="plan"]');
+    expect(planNode?.getAttribute("data-node-status")).toBe("success");
+    expect(planNode?.getAttribute("data-executed")).toBe("true");
   });
 
-  it("uses terminal radius for edge endpoints to terminal nodes", () => {
+  it("uses NODE_WIDTH/2 for edge endpoints between step nodes", () => {
     const { container } = render(
       <WorkflowStepDiagram
         definition={linearWorkflow()}
@@ -249,48 +256,12 @@ describe("WorkflowStepDiagram", () => {
       />,
     );
 
-    // Get an edge that goes to a terminal node (implement -> success)
-    const edgeToTerminal = container.querySelector(
-      '[data-edge-from="implement"][data-edge-to="success"] line',
-    );
-    expect(edgeToTerminal).not.toBeNull();
-
-    // Get an edge between two state nodes (plan -> implement)
-    const edgeBetweenStates = container.querySelector(
-      '[data-edge-from="plan"][data-edge-to="implement"] line',
-    );
-    expect(edgeBetweenStates).not.toBeNull();
-
-    // The endpoint x2 for edges to terminal nodes should be different
-    // from edges to state nodes (terminal uses radius 22 vs state uses width/2 = 70)
-    const terminalEndX = Number(edgeToTerminal!.getAttribute("x2"));
-    const _stateEndX = Number(edgeBetweenStates!.getAttribute("x2"));
-
-    // The terminal node center and state node center at the same layer would be
-    // at the same x, so the difference in x2 values reflects the different offsets.
-    // Terminal edge should end closer to center (smaller offset = 22) vs state (offset = 70)
-    // Since they're at different layers, we compare: endX = centerX - offset
-    // For terminal: centerX_terminal - 22; for state: centerX_state - 70
-    // The edges go to different layers, so we check the offset from the target center
-    // by computing center positions from the layout constants.
-    // NODE_WIDTH=140, LAYER_GAP=180, PADDING=24, TERMINAL_RADIUS=30
-
-    // success center x = 24 + 2*180 + 70 = 454
-    // Edge to terminal should end at: 454 - 30 = 424
-    expect(terminalEndX).toBe(424);
-  });
-
-  it("uses terminal radius for edge start from terminal nodes if applicable", () => {
-    // This tests the start offset when source is a terminal (unlikely but defensive)
-    // For now, just verify the fix doesn't break normal state->state edges
-    const { container } = render(
-      <WorkflowStepDiagram
-        definition={linearWorkflow()}
-        stepExecutions={[]}
-        currentStep={null}
-        status="running"
-      />,
-    );
+    // No edge to terminal "success" node should exist
+    expect(
+      container.querySelector(
+        '[data-edge-from="implement"][data-edge-to="success"]',
+      ),
+    ).toBeNull();
 
     // plan -> implement: startX should use NODE_WIDTH/2 = 70
     const edge = container.querySelector(

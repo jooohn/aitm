@@ -2,8 +2,7 @@ import type { WorkflowDefinition } from "@/lib/utils/api";
 
 export interface GraphNode {
   id: string;
-  type: "step" | "terminal";
-  terminal?: "success" | "failure";
+  type: "step";
 }
 
 export interface GraphEdge {
@@ -41,18 +40,6 @@ export function buildGraph(definition: WorkflowDefinition): Graph {
     for (const transition of state.transitions) {
       if ("step" in transition) {
         addEdge(stateName, transition.step, transition.when);
-      } else if (
-        "terminal" in transition &&
-        transition.terminal !== "failure"
-      ) {
-        if (!nodes.has(transition.terminal)) {
-          nodes.set(transition.terminal, {
-            id: transition.terminal,
-            type: "terminal",
-            terminal: transition.terminal,
-          });
-        }
-        addEdge(stateName, transition.terminal, transition.when);
       }
     }
   }
@@ -74,11 +61,7 @@ export function computeLayout(graph: Graph): Map<string, NodePosition> {
     adjacency.set(edge.from, targets);
   }
 
-  const terminalIds = new Set(
-    graph.nodes.filter((n) => n.type === "terminal").map((n) => n.id),
-  );
-
-  // BFS with first-visit-wins (min-layer) for non-terminal nodes.
+  // BFS with first-visit-wins (min-layer).
   // This prevents cycles from pushing all nodes to the max layer.
   const queue: Array<{ id: string; layer: number }> = [
     { id: graph.initialStep, layer: 0 },
@@ -89,19 +72,9 @@ export function computeLayout(graph: Graph): Map<string, NodePosition> {
     const { id, layer } = queue.shift()!;
     const targets = adjacency.get(id) ?? [];
     for (const target of targets) {
-      if (terminalIds.has(target)) {
-        // Terminal nodes use max-layer: placed after their latest predecessor
-        const currentLayer = layers.get(target) ?? -1;
-        if (layer + 1 > currentLayer) {
-          layers.set(target, layer + 1);
-          queue.push({ id: target, layer: layer + 1 });
-        }
-      } else {
-        // Non-terminal nodes use first-visit-wins (min-layer)
-        if (!layers.has(target)) {
-          layers.set(target, layer + 1);
-          queue.push({ id: target, layer: layer + 1 });
-        }
+      if (!layers.has(target)) {
+        layers.set(target, layer + 1);
+        queue.push({ id: target, layer: layer + 1 });
       }
     }
   }

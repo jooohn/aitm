@@ -25,3 +25,8 @@
   background: var(--rust-50);
   color: var(--rust-700);
 }
+
+.badge-completed {
+  background: var(--paper-2);
+  color: var(--ink-1);
+}
