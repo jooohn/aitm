@@ -92,7 +92,7 @@ describe("parseLogEntry", () => {
       },
     };
     expect(parseLogEntry(entry)).toEqual({
-      kind: "text",
+      kind: "agent_message",
       content: "Hello there",
     });
   });
@@ -108,8 +108,8 @@ describe("parseLogEntry", () => {
       },
     };
     expect(parseLogEntry(entry)).toEqual([
-      { kind: "text", content: "Hello there" },
-      { kind: "text", content: "How can I help?" },
+      { kind: "agent_message", content: "Hello there" },
+      { kind: "agent_message", content: "How can I help?" },
     ]);
   });
 
@@ -153,7 +153,7 @@ describe("parseLogEntry", () => {
       },
     };
     expect(parseLogEntry(entry)).toEqual([
-      { kind: "text", content: "Running command" },
+      { kind: "agent_message", content: "Running command" },
       { kind: "tool_call", toolName: "Bash", input: { command: "ls" } },
     ]);
   });

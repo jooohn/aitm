@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import ChatTranscript from "@/app/components/ChatTranscript/ChatTranscript";
 import SendIcon from "@/app/components/icons/SendIcon";
 import { createChat, sendChatMessage } from "@/lib/utils/api";
 import styles from "../[chatId]/ChatDetail.module.css";
@@ -51,11 +52,11 @@ export default function NewChatDetail({ organization, name }: Props) {
         </div>
       </div>
 
-      <div className={styles.output}>
-        <span className={styles.outputEmpty}>
-          Send a message to start the conversation...
-        </span>
-      </div>
+      <ChatTranscript
+        items={[]}
+        className={styles.output}
+        emptyMessage="Send a message to start the conversation..."
+      />
 
       <form onSubmit={handleSend} className={styles.inputForm}>
         <div className={styles.inputWrapper}>

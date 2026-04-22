@@ -1,12 +1,11 @@
 @reference "tailwindcss";
 
 .output {
-  @apply overflow-y-auto p-4 font-mono text-xs leading-relaxed;
-  border-radius: var(--radius-lg);
-  background: var(--ink-0);
-  color: var(--paper-2);
+  @apply overflow-y-auto flex flex-col text-sm leading-relaxed;
+  color: var(--fg);
 }
 
 .empty {
-  color: var(--fg-subtle);
+  @apply m-auto text-sm italic;
+  color: var(--fg-faint);
 }

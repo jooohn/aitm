@@ -19,10 +19,11 @@
 }
 
 .goalPane {
-  @apply max-h-48 overflow-y-auto p-4 font-mono text-xs leading-relaxed whitespace-pre-wrap break-words;
+  @apply max-h-48 overflow-y-auto p-4 text-sm leading-relaxed whitespace-pre-wrap break-words;
   border-radius: var(--radius-lg);
-  background: var(--ink-0);
-  color: var(--paper-2);
+  background: var(--bg-sunken);
+  color: var(--fg);
+  border: 1px solid var(--border-soft);
 }
 
 /* Details */
@@ -67,184 +68,15 @@
   @apply h-96;
 }
 
-.outputLine {
-  @apply whitespace-pre-wrap break-words;
-}
-
-.commandRow {
-  @apply flex flex-col gap-1 px-3 py-2 my-1;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--ink-1);
-}
-
-.commandRowSuccess {
-  border-color: var(--ink-1);
-  background: rgba(9, 9, 11, 0.6);
-}
-
-.commandRowFailed {
-  border-color: var(--rust-700);
-  background: rgba(143, 32, 16, 0.2);
-}
-
-.commandHeader {
-  @apply flex items-center gap-2 text-left w-full transition-colors;
-  color: var(--paper-1);
-}
-
-.commandHeader:hover {
-  color: var(--paper-0);
-}
-
-.commandSummary {
-  @apply font-semibold;
-}
-
-.commandStatus {
-  @apply ml-auto text-[11px];
-  color: var(--ink-3);
-}
-
-.commandStatus[data-failed] {
-  color: var(--rust-100);
-}
-
-.commandPreview {
-  @apply break-all;
-  color: var(--ink-3);
-}
-
-.commandBody {
-  @apply pt-1;
-}
-
-.commandOutput {
-  @apply whitespace-pre-wrap break-words max-h-64 overflow-y-auto;
-  color: var(--paper-2);
-}
-
-.commandGroupRow {
-  @apply flex flex-col my-1;
-}
-
-.commandGroupBody {
-  @apply pl-4;
-}
-
-/* Tool call / group rows */
-.toolCallRow {
-  @apply flex flex-col;
-}
-
-.toolCallRowIndented {
-  @apply pl-4;
-}
-
-.toolCallHeader {
-  @apply flex items-center gap-1.5 text-left cursor-pointer transition-colors py-0.5 w-full;
-  color: var(--paper-3);
-}
-
-.toolCallHeader:hover {
-  color: var(--paper-0);
-}
-
-.toolCallChevron {
-  @apply text-xs leading-none shrink-0;
-}
-
-.toolCallName {
-  @apply font-semibold;
-}
-
-.toolCallBody {
-  @apply pl-5 py-1;
-}
-
-.toolCallNoDetails {
-  @apply italic;
-  color: var(--ink-3);
-}
-
-.toolCallInputList {
-  @apply flex flex-col gap-1;
-}
-
-.toolCallInputRow {
-  @apply flex flex-col gap-1 sm:flex-row sm:gap-2;
-}
-
-.toolCallInputKey {
-  @apply shrink-0;
-  color: var(--ink-3);
-}
-
-.toolCallInputValue {
-  @apply break-all;
-  color: var(--paper-2);
-}
-
-.toolCallInputPre {
-  @apply whitespace-pre-wrap break-words;
-  color: var(--paper-2);
-}
-
-.toolGroupRow {
-  @apply flex flex-col;
-}
-
-.toolGroupBody {
-  @apply pl-2 flex flex-col;
-}
-
-/* User input */
-.userInputRow {
-  @apply flex flex-col gap-1 px-3 py-2 my-1;
-  border-radius: var(--radius-md);
-  border-left: 2px solid var(--sky-500);
-  background: rgba(14, 92, 120, 0.2);
-}
-
-.userInputLabel {
-  @apply text-xs font-bold;
-  color: var(--sky-300);
-}
-
-.userInputContent {
-  @apply whitespace-pre-wrap break-words;
-}
-
-/* Processing steps */
-.processingStepsRow {
-  @apply flex flex-col my-1;
-}
-
-.processingStepsHeader {
-  @apply flex items-center gap-1.5 text-left cursor-pointer transition-colors py-0.5 w-full;
-  color: var(--ink-3);
-}
-
-.processingStepsHeader:hover {
-  color: var(--paper-0);
-}
-
-.processingStepsLabel {
-  @apply text-xs italic;
-}
-
-.processingStepsBody {
-  @apply pl-4;
-}
-
 /* Reply form */
 .replyForm {
   @apply flex flex-col gap-2 mt-4 pt-4;
-  border-top: 1px solid var(--ink-1);
+  border-top: 1px solid var(--border);
 }
 
 .clarifyingQuestion {
-  @apply text-xs leading-relaxed whitespace-pre-wrap break-words;
-  color: var(--paper-2);
+  @apply text-sm leading-relaxed whitespace-pre-wrap break-words;
+  color: var(--fg-muted);
 }
 
 .replyInputWrapper {
@@ -252,15 +84,15 @@
 }
 
 .replyInput {
-  @apply w-full text-xs font-mono px-3 py-2 pr-10 resize-none min-h-16;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--ink-1);
-  background: var(--ink-1);
-  color: var(--paper-1);
+  @apply w-full text-sm px-3 py-2 pr-10 resize-none min-h-16;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg-raised);
+  color: var(--fg);
 }
 
 .replyInput::placeholder {
-  color: var(--ink-3);
+  color: var(--fg-faint);
 }
 
 .replyInput:focus {
@@ -271,12 +103,12 @@
 .replyButton {
   @apply absolute bottom-2.5 right-2.5 p-1 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer;
   border-radius: var(--radius-pill);
-  background: var(--paper-1);
-  color: var(--fg);
+  background: var(--primary);
+  color: var(--primary-fg);
 }
 
 .replyButton:hover {
-  background: var(--paper-0);
+  background: var(--primary-hover);
 }
 
 /* Error */

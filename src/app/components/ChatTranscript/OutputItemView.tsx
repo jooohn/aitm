@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import Markdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import type {
   CommandExecutionItem,
   CommandGroupItem,
@@ -9,7 +11,7 @@ import type {
   ToolCallItem,
 } from "@/lib/utils/outputItem";
 import { summarizeCommand } from "@/lib/utils/outputItemGrouping";
-import styles from "./SessionDetail.module.css";
+import styles from "./OutputItemView.module.css";
 
 interface Props {
   item: OutputItem;
@@ -191,8 +193,8 @@ function ProcessingStepsView({
   }, 0);
 
   const label = isActive
-    ? `Processing ${totalCount} steps…`
-    : `Processed ${totalCount} steps`;
+    ? `Working… (${totalCount} step${totalCount === 1 ? "" : "s"})`
+    : `Agent's work (${totalCount} step${totalCount === 1 ? "" : "s"})`;
 
   return (
     <div className={styles.processingStepsRow}>
@@ -203,6 +205,7 @@ function ProcessingStepsView({
       >
         <span className={styles.toolCallChevron}>{expanded ? "▼" : "▶"}</span>
         <span className={styles.processingStepsLabel}>{label}</span>
+        {isActive && <span className={styles.processingDots} aria-hidden />}
       </button>
       {expanded && (
         <div className={styles.processingStepsBody}>
@@ -220,13 +223,25 @@ export default function OutputItemView({ item, isLastItem, isRunning }: Props) {
 
   switch (item.kind) {
     case "text":
-      return <div className={styles.outputLine}>{item.content}</div>;
+      return <div className={styles.logLine}>{item.content}</div>;
+
+    case "agent_message":
+      return (
+        <div className={styles.agentMessageRow}>
+          <div className={styles.agentBubble}>
+            <div className={styles.agentMessageBody}>
+              <Markdown remarkPlugins={[remarkGfm]}>{item.content}</Markdown>
+            </div>
+          </div>
+        </div>
+      );
 
     case "user_input":
       return (
-        <div className={styles.userInputRow}>
-          <span className={styles.userInputLabel}>You</span>
-          <span className={styles.userInputContent}>{item.content}</span>
+        <div className={styles.userMessageRow}>
+          <div className={styles.userBubble}>
+            <span className={styles.userBubbleContent}>{item.content}</span>
+          </div>
         </div>
       );
 

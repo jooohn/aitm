@@ -1,4 +1,5 @@
 import type {
+  AgentMessageItem,
   CommandExecutionItem,
   OutputItem,
   ProposalActionItem,
@@ -19,6 +20,10 @@ type LogEntry = Record<string, unknown>;
 
 function text(content: string): TextItem {
   return { kind: "text", content };
+}
+
+function agentMessage(content: string): AgentMessageItem {
+  return { kind: "agent_message", content };
 }
 
 function toolCall(toolName: string, input?: unknown): ToolCallItem {
@@ -107,7 +112,7 @@ export function parseLogEntry(
       const items: OutputItem[] = [];
       for (const block of msg.content) {
         if (block.type === "text" && block.text) {
-          items.push(text(block.text));
+          items.push(agentMessage(block.text));
         } else if (block.type === "tool_use" && block.name) {
           items.push(toolCall(block.name, block.input));
         }

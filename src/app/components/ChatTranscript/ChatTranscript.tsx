@@ -1,9 +1,9 @@
 "use client";
 
 import { type ReactNode, useEffect, useRef } from "react";
-import OutputItemView from "@/app/(main)/sessions/[id]/OutputItemView";
 import type { OutputItem } from "@/lib/utils/outputItem";
 import styles from "./ChatTranscript.module.css";
+import OutputItemView from "./OutputItemView";
 
 interface Props {
   items: OutputItem[];

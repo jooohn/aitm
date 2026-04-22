@@ -1,0 +1,340 @@
+@reference "tailwindcss";
+
+/* =============================================================
+   Speech bubbles — user / agent messages
+   ============================================================= */
+
+.userMessageRow {
+  @apply flex justify-end my-2;
+}
+
+.agentMessageRow {
+  @apply flex justify-start my-2;
+}
+
+.userBubble {
+  @apply max-w-[80%] px-4 py-2 text-sm leading-relaxed whitespace-pre-wrap break-words;
+  border-radius: var(--radius-lg);
+  border-bottom-right-radius: var(--radius-xs);
+  background: var(--clay-500);
+  color: var(--primary-fg);
+  box-shadow: var(--shadow-sm);
+}
+
+.userBubbleContent {
+  @apply whitespace-pre-wrap break-words;
+}
+
+.agentBubble {
+  @apply max-w-[85%] px-4 py-2 text-sm leading-relaxed break-words;
+  border-radius: var(--radius-lg);
+  border-bottom-left-radius: var(--radius-xs);
+  background: var(--bg-sunken);
+  color: var(--fg);
+}
+
+/* Markdown typography inside agent bubble */
+.agentMessageBody > :first-child {
+  margin-top: 0;
+}
+.agentMessageBody > :last-child {
+  margin-bottom: 0;
+}
+
+.agentMessageBody p {
+  @apply my-2 break-words;
+}
+
+.agentMessageBody h1,
+.agentMessageBody h2,
+.agentMessageBody h3,
+.agentMessageBody h4,
+.agentMessageBody h5,
+.agentMessageBody h6 {
+  @apply font-semibold mt-3 mb-1 leading-tight;
+  color: var(--fg);
+}
+
+.agentMessageBody h1 {
+  @apply text-lg;
+}
+.agentMessageBody h2 {
+  @apply text-base;
+}
+.agentMessageBody h3,
+.agentMessageBody h4,
+.agentMessageBody h5,
+.agentMessageBody h6 {
+  @apply text-sm;
+}
+
+.agentMessageBody ul,
+.agentMessageBody ol {
+  @apply my-2 pl-5;
+}
+
+.agentMessageBody ul {
+  @apply list-disc;
+}
+
+.agentMessageBody ol {
+  @apply list-decimal;
+}
+
+.agentMessageBody li {
+  @apply my-0.5;
+}
+
+.agentMessageBody li > p {
+  @apply my-0;
+}
+
+.agentMessageBody a {
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.agentMessageBody a:hover {
+  color: var(--primary-hover);
+}
+
+.agentMessageBody code {
+  @apply font-mono text-[0.85em] px-1 py-0.5;
+  border-radius: var(--radius-xs);
+  background: var(--bg-fill);
+  color: var(--fg);
+}
+
+.agentMessageBody pre {
+  @apply my-2 p-3 overflow-x-auto text-xs font-mono leading-relaxed;
+  border-radius: var(--radius-md);
+  background: var(--ink-0);
+  color: var(--paper-2);
+}
+
+.agentMessageBody pre code {
+  @apply p-0 text-xs;
+  background: transparent;
+  color: inherit;
+}
+
+.agentMessageBody blockquote {
+  @apply my-2 pl-3 italic;
+  border-left: 3px solid var(--border-strong);
+  color: var(--fg-muted);
+}
+
+.agentMessageBody hr {
+  @apply my-3 border-0;
+  border-top: 1px solid var(--border);
+}
+
+.agentMessageBody table {
+  @apply my-2 w-full text-xs border-collapse;
+}
+
+.agentMessageBody th,
+.agentMessageBody td {
+  @apply px-2 py-1 text-left align-top;
+  border: 1px solid var(--border);
+}
+
+.agentMessageBody th {
+  background: var(--bg-sunken);
+  font-weight: 600;
+}
+
+.agentMessageBody strong {
+  font-weight: 600;
+}
+
+/* =============================================================
+   Log line — dim system text shown inside the "Agent's work" panel
+   ============================================================= */
+
+.logLine {
+  @apply whitespace-pre-wrap break-words text-xs font-mono py-0.5;
+  color: var(--fg-faint);
+}
+
+/* =============================================================
+   Tool call rows
+   ============================================================= */
+
+.toolCallRow {
+  @apply flex flex-col;
+}
+
+.toolCallRowIndented {
+  @apply pl-4;
+}
+
+.toolCallHeader {
+  @apply flex items-center gap-1.5 text-left cursor-pointer transition-colors py-0.5 w-full text-xs font-mono;
+  color: var(--fg-subtle);
+}
+
+.toolCallHeader:hover {
+  color: var(--fg);
+}
+
+.toolCallChevron {
+  @apply text-[10px] leading-none shrink-0;
+}
+
+.toolCallName {
+  @apply font-semibold;
+}
+
+.toolCallBody {
+  @apply pl-5 py-1 text-xs font-mono;
+  color: var(--fg-muted);
+}
+
+.toolCallNoDetails {
+  @apply italic text-xs;
+  color: var(--fg-faint);
+}
+
+.toolCallInputList {
+  @apply flex flex-col gap-1;
+}
+
+.toolCallInputRow {
+  @apply flex flex-col gap-1 sm:flex-row sm:gap-2;
+}
+
+.toolCallInputKey {
+  @apply shrink-0;
+  color: var(--fg-faint);
+}
+
+.toolCallInputValue {
+  @apply break-all;
+  color: var(--fg-muted);
+}
+
+.toolCallInputPre {
+  @apply whitespace-pre-wrap break-words;
+  color: var(--fg-muted);
+}
+
+.toolGroupRow {
+  @apply flex flex-col;
+}
+
+.toolGroupBody {
+  @apply pl-2 flex flex-col;
+}
+
+/* =============================================================
+   Command rows
+   ============================================================= */
+
+.commandRow {
+  @apply flex flex-col gap-1 px-3 py-2 my-1 text-xs font-mono;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+}
+
+.commandRowSuccess {
+  background: var(--bg-sunken);
+}
+
+.commandRowFailed {
+  border-color: var(--rust-300);
+  background: var(--rust-50);
+}
+
+.commandHeader {
+  @apply flex items-center gap-2 text-left w-full transition-colors;
+  color: var(--fg);
+}
+
+.commandHeader:hover {
+  color: var(--fg);
+}
+
+.commandSummary {
+  @apply font-semibold;
+}
+
+.commandStatus {
+  @apply ml-auto text-[11px];
+  color: var(--fg-faint);
+}
+
+.commandStatus[data-failed] {
+  color: var(--rust-500);
+}
+
+.commandPreview {
+  @apply break-all;
+  color: var(--fg-subtle);
+}
+
+.commandBody {
+  @apply pt-1;
+}
+
+.commandOutput {
+  @apply whitespace-pre-wrap break-words max-h-64 overflow-y-auto p-2 text-xs;
+  border-radius: var(--radius-sm);
+  background: var(--ink-0);
+  color: var(--paper-2);
+}
+
+.commandGroupRow {
+  @apply flex flex-col my-1;
+}
+
+.commandGroupBody {
+  @apply pl-4;
+}
+
+/* =============================================================
+   Processing steps — the collapsed "Agent's work" container
+   ============================================================= */
+
+.processingStepsRow {
+  @apply flex flex-col my-2;
+}
+
+.processingStepsHeader {
+  @apply flex items-center gap-1.5 text-left cursor-pointer transition-colors py-1 px-2 w-fit text-xs;
+  color: var(--fg-subtle);
+  border-radius: var(--radius-pill);
+  background: var(--bg-sunken);
+  border: 1px solid var(--border-soft);
+}
+
+.processingStepsHeader:hover {
+  color: var(--fg);
+  background: var(--bg-fill);
+}
+
+.processingStepsLabel {
+  @apply italic;
+}
+
+.processingStepsBody {
+  @apply mt-2 pl-3 flex flex-col gap-0.5;
+  border-left: 2px solid var(--border-soft);
+}
+
+.processingDots {
+  @apply inline-block w-1 h-1 rounded-full;
+  background: currentColor;
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 1;
+  }
+}

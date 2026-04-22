@@ -14,6 +14,7 @@ export function summarizeCommand(command: string): string {
 }
 
 const NON_CONVERSATIONAL_KINDS = new Set<OutputItem["kind"]>([
+  "text",
   "tool_call",
   "tool_group",
   "command_execution",

@@ -150,7 +150,6 @@ describe("SessionDetail – status and updates", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText("You")).toBeInTheDocument();
       expect(screen.getByText("Use PostgreSQL")).toBeInTheDocument();
     });
   });
@@ -230,7 +229,7 @@ describe("SessionDetail – status and updates", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText(/Processing 3 steps/)).toBeInTheDocument();
+      expect(screen.getByText(/Working…\s*\(3 steps\)/)).toBeInTheDocument();
     });
   });
 
@@ -350,11 +349,11 @@ describe("SessionDetail – processing steps grouping", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText(/Processing 3 steps/)).toBeInTheDocument();
+      expect(screen.getByText(/Working…\s*\(3 steps\)/)).toBeInTheDocument();
     });
   });
 
-  it("shows 'Processed N steps' for completed processing groups followed by conversational items", async () => {
+  it("shows 'Agent's work (N steps)' for completed processing groups followed by conversational items", async () => {
     render(
       <SessionDetail
         session={makeSession({
@@ -387,7 +386,9 @@ describe("SessionDetail – processing steps grouping", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText(/Processed 2 steps/)).toBeInTheDocument();
+      expect(
+        screen.getByText(/Agent's work\s*\(2 steps\)/),
+      ).toBeInTheDocument();
       expect(screen.getByText("Here are the results")).toBeInTheDocument();
     });
   });
@@ -419,8 +420,8 @@ describe("SessionDetail – processing steps grouping", () => {
       expect(screen.getByText("Starting work")).toBeInTheDocument();
       expect(screen.getByText("Use PostgreSQL")).toBeInTheDocument();
     });
-    expect(screen.queryByText(/Processing/)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Processed/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Working…/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Agent's work/)).not.toBeInTheDocument();
   });
 
   it("does not render successful result entries", async () => {

@@ -3,6 +3,11 @@ export type TextItem = {
   content: string;
 };
 
+export type AgentMessageItem = {
+  kind: "agent_message";
+  content: string;
+};
+
 export type ToolCallItem = {
   kind: "tool_call";
   toolName: string;
@@ -60,6 +65,7 @@ export type ProcessingStepsItem = {
 
 export type OutputItem =
   | TextItem
+  | AgentMessageItem
   | ToolCallItem
   | ToolGroupItem
   | CommandExecutionItem
