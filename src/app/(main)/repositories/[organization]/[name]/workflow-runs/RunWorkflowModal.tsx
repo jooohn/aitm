@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useRepositories, useWorkflows } from "@/lib/hooks/swr";
+import { useRepositories } from "@/lib/hooks/swr";
 import {
   createWorkflowRun,
   createWorktree,
@@ -12,6 +12,8 @@ import {
   generateBranchName,
   type RemoteBranch,
   type Repository,
+  type RepositoryDetail,
+  type WorkflowDefinition,
   type Worktree,
 } from "@/lib/utils/api";
 import { workflowRunPath } from "@/lib/utils/workflowRunPath";
@@ -55,36 +57,41 @@ export default function RunWorkflowModal({
   const [remoteBranchesLoading, setRemoteBranchesLoading] = useState(false);
   const [localWorktrees, setLocalWorktrees] = useState<Worktree[] | null>(null);
 
-  // For fixed alias, fetch just that repo; otherwise fetch all
-  const [fixedRepo, setFixedRepo] = useState<Repository | null>(null);
-  const [fixedRepoLoading, setFixedRepoLoading] = useState(!!fixedAlias);
-  const [fixedRepoError, setFixedRepoError] = useState<string | null>(null);
+  // Fetch repository detail (includes per-repo workflows)
+  const [repoDetail, setRepoDetail] = useState<RepositoryDetail | null>(null);
+  const [repoDetailLoading, setRepoDetailLoading] = useState(!!fixedAlias);
+  const [repoDetailError, setRepoDetailError] = useState<string | null>(null);
   const { data: allRepos } = useRepositories();
-  const { data: workflows, isLoading: workflowsLoading } = useWorkflows();
 
+  // Fetch repo detail when alias is known (either fixed or selected)
+  const effectiveAlias = fixedAlias ?? selectedAlias;
   useEffect(() => {
-    if (!fixedAlias) return;
-    const [org, name] = fixedAlias.split("/") as [string, string];
-    setFixedRepoLoading(true);
-    fetchRepository(org, name)
-      .then((r) => setFixedRepo(r))
+    if (!effectiveAlias) return;
+    const [org, repoName] = effectiveAlias.split("/") as [string, string];
+    setRepoDetailLoading(true);
+    setRepoDetailError(null);
+    fetchRepository(org, repoName)
+      .then((r) => setRepoDetail(r))
       .catch((err) =>
-        setFixedRepoError(
+        setRepoDetailError(
           err instanceof Error ? err.message : "Failed to load repository",
         ),
       )
-      .finally(() => setFixedRepoLoading(false));
-  }, [fixedAlias]);
+      .finally(() => setRepoDetailLoading(false));
+  }, [effectiveAlias]);
+
+  const workflows: Record<string, WorkflowDefinition> | undefined =
+    repoDetail?.workflows;
 
   const repos: Repository[] = fixedAlias
-    ? fixedRepo
-      ? [fixedRepo]
+    ? repoDetail
+      ? [repoDetail]
       : []
     : (allRepos ?? []);
   const loading = fixedAlias
-    ? fixedRepoLoading || workflowsLoading
-    : !allRepos || workflowsLoading;
-  const loadError = fixedRepoError;
+    ? repoDetailLoading
+    : !allRepos || (!!selectedAlias && repoDetailLoading);
+  const loadError = repoDetailError;
 
   // Auto-select first repo and workflow when data loads
   useEffect(() => {
@@ -93,21 +100,20 @@ export default function RunWorkflowModal({
     }
   }, [fixedAlias, repos, selectedAlias]);
 
+  // Reset selected workflow when workflows change (e.g. repo switch)
   useEffect(() => {
-    if (workflows && !selectedWorkflow) {
-      const allNames = Object.keys(workflows).filter(
-        (name) => !fixedBranch || workflows[name]?.runs_on !== "main",
-      );
-      const names =
-        initialWorkflow && allNames.includes(initialWorkflow)
-          ? [
-              initialWorkflow,
-              ...allNames.filter((wf) => wf !== initialWorkflow),
-            ]
-          : allNames;
-      if (names.length > 0) setSelectedWorkflow(names[0]);
-    }
-  }, [initialWorkflow, selectedWorkflow, workflows, fixedBranch]);
+    if (!workflows) return;
+    const allNames = Object.keys(workflows).filter(
+      (name) => !fixedBranch || workflows[name]?.runs_on !== "main",
+    );
+    // Keep current selection if it's still valid
+    if (selectedWorkflow && allNames.includes(selectedWorkflow)) return;
+    const names =
+      initialWorkflow && allNames.includes(initialWorkflow)
+        ? [initialWorkflow, ...allNames.filter((wf) => wf !== initialWorkflow)]
+        : allNames;
+    setSelectedWorkflow(names.length > 0 ? names[0] : "");
+  }, [initialWorkflow, workflows, fixedBranch]); // intentionally exclude selectedWorkflow
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {

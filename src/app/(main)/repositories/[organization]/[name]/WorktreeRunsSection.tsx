@@ -10,7 +10,7 @@ import LoadingIndicator from "@/app/components/LoadingIndicator";
 import { MenuItem, MenuSurface } from "@/app/components/Menu";
 import { extractPrInfos } from "@/app/components/PrChip";
 import StatusDot from "@/app/components/StatusDot";
-import { swrKeys, useRepository, useWorkflows } from "@/lib/hooks/swr";
+import { swrKeys, useRepository } from "@/lib/hooks/swr";
 import { useHouseKeepingSyncing } from "@/lib/hooks/useHouseKeepingSyncing";
 import {
   cleanMergedWorktrees,
@@ -49,7 +49,7 @@ export default function WorktreeRunsSection({
 }: Props) {
   const pathname = usePathname();
   const { data: repo } = useRepository(organization, name);
-  const { data: workflows } = useWorkflows();
+  const workflows = repo?.workflows;
   const commands = useMemo(() => repo?.commands ?? [], [repo?.commands]);
   const groups = useMemo(
     () => groupRunsByWorktree(worktrees, runs),

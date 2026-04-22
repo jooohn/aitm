@@ -531,6 +531,64 @@ repositories:
     });
   });
 
+  describe("repository workflows", () => {
+    it("parses repository with workflows filter", async () => {
+      await writeConfig(`
+repositories:
+  - path: /projects/org/repo1
+    workflows:
+      - my-flow
+workflows:
+  my-flow:
+    initial_step: plan
+    steps:
+      plan:
+        goal: "Write a plan"
+        transitions:
+          - terminal: success
+            when: done
+`);
+
+      const snapshot = loadConfig();
+      expect(snapshot.repositories[0].workflows).toEqual(["my-flow"]);
+    });
+
+    it("omits workflows field when not specified", async () => {
+      await writeConfig(`
+repositories:
+  - path: /projects/org/repo1
+`);
+
+      const snapshot = loadConfig();
+      expect(snapshot.repositories[0].workflows).toBeUndefined();
+    });
+
+    it("fails when repository references unknown workflow", async () => {
+      await writeConfig(`
+repositories:
+  - path: /projects/org/repo1
+    workflows:
+      - nonexistent-flow
+workflows: {}
+`);
+
+      expect(() => loadConfig()).toThrow(
+        'repositories[0].workflows references unknown workflow "nonexistent-flow"',
+      );
+    });
+
+    it("accepts empty workflows array", async () => {
+      await writeConfig(`
+repositories:
+  - path: /projects/org/repo1
+    workflows: []
+`);
+
+      const snapshot = loadConfig();
+      expect(snapshot.repositories[0].workflows).toBeUndefined();
+    });
+  });
+
   it("normalizes valid workflows with agent aliases", async () => {
     await writeConfig(`
 agents:

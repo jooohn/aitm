@@ -51,11 +51,16 @@ export class RepositoryService {
     return (await this.listRepositories()).find((r) => r.alias === alias);
   }
 
+  getConfigForAlias(alias: string): ConfigRepository | undefined {
+    return this.configRepositories.find((r) => inferAlias(r.path) === alias);
+  }
+
+  getConfigForPath(path: string): ConfigRepository | undefined {
+    return this.configRepositories.find((r) => r.path === path);
+  }
+
   getCommandsForAlias(alias: string): ConfigRepositoryCommand[] {
-    const repo = this.configRepositories.find(
-      (r) => inferAlias(r.path) === alias,
-    );
-    return repo?.commands ?? [];
+    return this.getConfigForAlias(alias)?.commands ?? [];
   }
 
   async getGitHubUrl(repoPath: string): Promise<string | null> {
