@@ -1,0 +1,47 @@
+@reference "tailwindcss";
+
+.page {
+  @apply w-full px-4 py-4 flex flex-col gap-6 sm:px-6 sm:py-6 lg:px-10;
+}
+
+.error {
+  @apply text-sm;
+  color: var(--rust-700);
+}
+
+.loading {
+  @apply text-sm;
+  color: var(--fg-subtle);
+}
+
+.header {
+  @apply flex flex-col gap-1;
+}
+
+.title {
+  @apply text-2xl font-semibold;
+  color: var(--fg);
+}
+
+.stat {
+  @apply text-sm font-mono whitespace-pre-wrap;
+  color: var(--fg-subtle);
+}
+
+.empty {
+  @apply text-sm;
+  color: var(--fg-subtle);
+}
+
+.footer {
+  @apply pt-2;
+}
+
+.backLink {
+  @apply text-sm transition-colors;
+  color: var(--fg-subtle);
+}
+
+.backLink:hover {
+  color: var(--fg);
+}

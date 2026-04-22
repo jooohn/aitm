@@ -230,6 +230,15 @@ export function generateBranchName(
   });
 }
 
+export interface DiffResponse {
+  diff: string;
+  stat: string;
+}
+
+export function fetchWorkflowRunDiff(id: string): Promise<DiffResponse> {
+  return apiFetch(`/api/workflow-runs/${id}/diff`);
+}
+
 export function rerunWorkflowRunFromFailedState(
   id: string,
 ): Promise<WorkflowRunDetail> {
